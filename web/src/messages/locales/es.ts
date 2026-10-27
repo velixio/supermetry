@@ -329,6 +329,9 @@ const messages: MessageTree = {
   // F06 notification history and templates.
   // Instance administration console (F05b)
   admin: {
+    managedTitle: 'Esta instancia la gestiona su operador.',
+    managedBody: 'La administración de la instancia se hace fuera de la app, así que aquí no hay nada que configurar.',
+    managedBack: 'Volver al panel',
     title: 'Administración de la instancia',
     nav: 'Secciones de administración de la instancia',
     link: 'Administración de la instancia',

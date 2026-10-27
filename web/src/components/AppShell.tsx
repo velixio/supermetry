@@ -21,6 +21,7 @@ import {
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { useManagedState } from '@/lib/instanceConfig'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
@@ -51,6 +52,7 @@ export function AppShell({
   membership?: Membership
 }) {
   const { theme, toggle } = useTheme()
+  const { managed, known: managedKnown } = useManagedState()
   const [helpOpen, setHelpOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [paletteLoaded, setPaletteLoaded] = useState(false)
@@ -79,7 +81,7 @@ export function AppShell({
   // (an empty list would flash "no matching commands"), and dropped when the scope changes.
   const paletteScope = `${membership?.org.id ?? ''}/${requestedSite ?? ''}`
   const lastCommands = useRef<{ scope: string; list: PaletteCommand[] }>({ scope: '', list: [] })
-  if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({ me, membership, requestedSite, theme, current: currentRoute }) }
+  if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({ me, membership, requestedSite, theme, current: currentRoute, managed }) }
   const commands = lastCommands.current.scope === paletteScope ? lastCommands.current.list : []
   const scopedSite = membership?.sites.find((item) => matchesSite(item, requestedSite))
   const siteDetails = useQuery({
@@ -141,7 +143,7 @@ export function AppShell({
         )}
         <SidebarInset>
           <AppHeader
-            instanceAdmin={Boolean(me.user.instance_admin)}
+            instanceAdmin={Boolean(me.user.instance_admin) && managedKnown && !managed}
             membership={membership}
             site={resolvedSite}
             requestedSite={requestedSite}

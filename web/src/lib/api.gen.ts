@@ -6313,6 +6313,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description The instance is managed by its operator (SUPERMETRY_MANAGED=true) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             429: components["responses"]["RateLimited"];
         };
     };
@@ -6341,7 +6350,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description An update is already active or this deployment is not managed by the updater. */
+            /** @description An update is already active */
             409: {
                 headers: {
                     [name: string]: unknown;

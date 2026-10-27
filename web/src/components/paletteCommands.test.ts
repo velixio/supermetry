@@ -88,6 +88,11 @@ describe('paletteCommands', () => {
     expect(hrefOf(admin, 'Instance administration')).toBe('/app/admin/users')
   })
 
+  it('does not offer instance administration on a managed instance', () => {
+    const managed = run({ me: { ...me, user: { ...me.user, instance_admin: true } }, membership: undefined, managed: true })
+    expect(labels(managed, 'pages')).toEqual(['Account settings', 'GitHub stars'])
+  })
+
   it('offers GitHub stars inside an organization to every member, once, at the organization URL', () => {
     const member = run({ me: { ...me, memberships: [{ ...acme, role: 'viewer' }, other] }, membership: { ...acme, role: 'viewer' } })
     expect(labels(member, 'pages').filter((label) => label === 'GitHub stars')).toHaveLength(1)

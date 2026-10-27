@@ -327,6 +327,9 @@ export const en = {
   // F06 notification history and templates.
   // Instance administration console (F05b)
   admin: {
+    managedTitle: 'This instance is managed by its operator.',
+    managedBody: 'Instance administration is done outside the app, so there is nothing to configure here.',
+    managedBack: 'Back to the dashboard',
     title: 'Instance administration',
     nav: 'Instance administration sections',
     link: 'Instance administration',

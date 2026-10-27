@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { useManaged } from '@/lib/instanceConfig'
 import type { Me } from '@/lib/me'
 import { en } from '@/messages/en'
 import { ui } from '@/messages/ui'
@@ -22,9 +23,9 @@ import { OrganizationMenuGroup, SidebarAccountFooter, SidebarBrandLink } from '.
 
 export type AccountDestination = 'account' | 'admin'
 
-/** Account settings for everyone; instance administration only for instance admins. */
-export function accountDestinations(me: Me): AccountDestination[] {
-  return me.user.instance_admin ? ['account', 'admin'] : ['account']
+/** Account settings for everyone; instance administration only for instance admins, and never on a managed instance. */
+export function accountDestinations(me: Me, managed = false): AccountDestination[] {
+  return me.user.instance_admin && !managed ? ['account', 'admin'] : ['account']
 }
 
 const accountSections = ['/app/account/profile', '/app/account/security', '/app/account/sessions']
@@ -41,6 +42,7 @@ export function accountDestinationIsActive(destination: AccountDestination, path
 export function AccountSidebar({ me }: { me: Me }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const { setOpenMobile } = useSidebar()
+  const managed = useManaged()
   const closeMobile = () => setOpenMobile(false)
 
   return (
@@ -65,7 +67,7 @@ export function AccountSidebar({ me }: { me: Me }) {
           <SidebarGroupContent>
             <nav aria-labelledby="sidebar-account-heading">
               <SidebarMenu>
-                {accountDestinations(me).map((destination) => {
+                {accountDestinations(me, managed).map((destination) => {
                   const active = accountDestinationIsActive(destination, pathname)
                   const label = destination === 'admin' ? en.admin.link : ui.menus.accountSettings
                   return (
