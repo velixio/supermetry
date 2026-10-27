@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -111,6 +112,10 @@ type Service struct {
 	APIBase string
 	HTTP    *http.Client
 	Now     func() time.Time
+	// AlertChannels and AlertSender deliver star alerts through the
+	// organization's notification channels. Either nil turns alerts off.
+	AlertChannels AlertChannels
+	AlertSender   AlertSender
 
 	// RepoLimit is the default number of repositories one organization may
 	// track; an organization's own setting overrides it. Zero means
@@ -138,7 +143,11 @@ type Service struct {
 	mu       sync.Mutex
 	running  map[int64]bool
 	lastSync map[int64]time.Time
-	wg       sync.WaitGroup
+	// lastTestAlert rate limits test alerts per repository.
+	lastTestAlert map[int64]time.Time
+	alertsSent    atomic.Int64
+	alertsFailed  atomic.Int64
+	wg            sync.WaitGroup
 }
 
 // NewService returns a service sealing secrets with box.
@@ -148,7 +157,7 @@ func NewService(pool *pgxpool.Pool, box *platformcrypto.SecretBox, baseURL strin
 	}
 	return &Service{
 		pool: pool, box: box, BaseURL: strings.TrimRight(baseURL, "/"), Now: now,
-		running: make(map[int64]bool), lastSync: make(map[int64]time.Time),
+		running: make(map[int64]bool), lastSync: make(map[int64]time.Time), lastTestAlert: make(map[int64]time.Time),
 	}
 }
 
