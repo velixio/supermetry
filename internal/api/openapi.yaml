@@ -312,6 +312,27 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/organizations/{org}/erase:
+    post:
+      operationId: adminEraseOrganization
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Erase an organization permanently, without the deletion grace period
+      description: Irreversible. The body slug must equal the organization's slug (a safety check). A live organization is deleted first, then all its sites are queued for immediate erasure by the site-erasure job (events, sessions, replays and their blobs, imports, saved reports, profiles and so on), which runs within about a minute and may take longer for large sites. Users are kept. Answers 202 erasing while the work is pending, and 200 erased once it is finished, so repeating the call is safe. Restore answers 409 not_restorable afterwards. Refused with 409 for the only live organization of the instance. Audited as instance.organization.erase_now (counts only).
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminEraseOrganizationInput' }
+      responses:
+        '200': { description: Already erased., content: { application/json: { schema: { $ref: '#/components/schemas/AdminEraseOrganizationResult' } } } }
+        '202': { description: Erasure queued or in progress., content: { application/json: { schema: { $ref: '#/components/schemas/AdminEraseOrganizationResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: The organization is the only live one of the instance., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/organizations/{org}/replay-retention-cap:
     get:
       operationId: adminGetReplayRetentionCap
@@ -4095,6 +4116,18 @@ components:
       properties:
         days: { type: [integer, 'null'], minimum: 1, maximum: 365, description: Replay retention cap in days; null means no cap. }
         source: { type: string, enum: [org, none], description: org when the organization has a cap, none otherwise. }
+    AdminEraseOrganizationInput:
+      type: object
+      additionalProperties: false
+      required: [slug]
+      properties:
+        slug: { type: string, minLength: 1, description: The organization's slug; must match. }
+    AdminEraseOrganizationResult:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [erasing, erased] }
     ReplayRetentionCapInput:
       type: object
       additionalProperties: false

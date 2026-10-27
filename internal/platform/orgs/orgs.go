@@ -281,9 +281,9 @@ func (o *Orgs) restore(ctx context.Context, userID int64, orgID int64, now time.
 			}
 		}
 		var deletedAt *time.Time
-		var erasedAt *time.Time
+		var erasedAt, eraseRequestedAt *time.Time
 		var deletedByKind *string
-		if err := tx.QueryRow(ctx, `select deleted_at,erased_at,deleted_by_kind from orgs where id=$1 for update`, orgID).Scan(&deletedAt, &erasedAt, &deletedByKind); err != nil {
+		if err := tx.QueryRow(ctx, `select deleted_at,erased_at,deleted_by_kind,erase_requested_at from orgs where id=$1 for update`, orgID).Scan(&deletedAt, &erasedAt, &deletedByKind, &eraseRequestedAt); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				if asAdmin {
 					return store.ErrNotFound
@@ -293,7 +293,7 @@ func (o *Orgs) restore(ctx context.Context, userID int64, orgID int64, now time.
 			return fmt.Errorf("lock organization for restore: %w", err)
 		}
 		if asAdmin {
-			if erasedAt != nil {
+			if erasedAt != nil && eraseRequestedAt == nil {
 				return store.ErrNotFound
 			}
 		} else {
@@ -321,7 +321,7 @@ func (o *Orgs) restore(ctx context.Context, userID int64, orgID int64, now time.
 			)`, orgID).Scan(&scheduled); err != nil {
 			return fmt.Errorf("check scheduled organization deletion: %w", err)
 		}
-		if deletedAt == nil || erasedAt != nil || !scheduled || !lifecycle.Restorable(*deletedAt, false, now) {
+		if deletedAt == nil || erasedAt != nil || eraseRequestedAt != nil || !scheduled || !lifecycle.Restorable(*deletedAt, false, now) {
 			return ErrNotRestorable
 		}
 		rows, err := tx.Query(ctx, `

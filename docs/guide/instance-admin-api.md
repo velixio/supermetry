@@ -21,6 +21,17 @@ The key authenticates `/api/private/admin/*` only. It acts as a hidden system us
 
 The owner can restore it, and an instance admin can too: `POST /api/private/admin/organizations/{org}/restore` restores any deleted, not yet erased organization inside the 7-day grace period, whoever deleted it, and returns `204`. It answers `404` for an unknown or erased organization, `409 {"error":"not_restorable"}` outside the grace period or when the organization is not deleted, and `409 {"error":"site_limit"}` when the restored sites would exceed the site limit. It is audited as `instance.organization.restored`.
 
+### Erase an organization now (irreversible)
+
+`POST /api/private/admin/organizations/{org}/erase` with `{"slug": "<the organization's slug>"}` deletes an organization permanently without waiting for the 7-day grace period. Instance admins only (a session or the admin key). It cannot be undone: afterwards `restore` answers `409 {"error":"not_restorable"}` and the data is gone.
+
+- The slug must equal the organization's slug, otherwise `400` (a guard against erasing the wrong one). Unknown organization: `404`; not an instance admin: `403`.
+- A live organization is deleted first (same as `DELETE`), then every site is queued for erasure at once. The site-erasure job (it runs every minute) removes events, sessions, replays and their stored files, profiles, imports, saved reports and the rest, retrying after a crash or a storage failure, then marks the organization erased. Large sites can take longer.
+- `202 {"status":"erasing"}` while the work is queued or running; `200 {"status":"erased"}` once finished. Calling again is safe and does not repeat the audit entry.
+- `409` if it is the only live organization of the instance.
+- Users are kept (they may belong to other organizations).
+- Audited as `instance.organization.erase_now` with counts only (slug, whether it was already deleted, sites queued).
+
 `GET /api/private/admin/organizations/{org}` also returns an organization in its grace period, with `deleted_at` and `restorable_until` set; erased organizations are `404`.
 
 ## Set site retention

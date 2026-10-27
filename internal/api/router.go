@@ -344,6 +344,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PUT " + privatePrefix + "/admin/organizations/{org}/replay-retention-cap",
 		"DELETE " + privatePrefix + "/admin/organizations/{org}/replay-retention-cap",
 		"POST " + privatePrefix + "/admin/organizations/{org}/restore",
+		"POST " + privatePrefix + "/admin/organizations/{org}/erase",
 		"GET " + privatePrefix + "/admin/sites",
 		"PATCH " + privatePrefix + "/admin/sites/{site_id}",
 		"GET " + privatePrefix + "/admin/settings",
