@@ -19,6 +19,7 @@ import {
 } from './githubStarsApi'
 import { ImportProgress } from './ImportProgress'
 import { RepoPanel, RevealPanel, type Reveal } from './StarsRepos'
+import { StarsAlerts } from './StarsAlerts'
 import { StarsAnnotations } from './StarsAnnotations'
 import { bucketLabel, StarsChart } from './StarsChart'
 import { gainStats } from './gain'
@@ -168,6 +169,7 @@ function RepoPageBody({ org, owner, name, onRemoved }: { org: string; owner: str
             {reveal ? <RevealPanel reveal={reveal} onDismiss={() => setReveal(null)} /> : null}
             <RepoPanel repo={repo} onReveal={setReveal} onRemoved={onRemoved} />
             <RepoImport repo={repo} />
+            <StarsAlerts org={org} repoId={repo.id} />
             <RepoView repoId={repo.id} />
           </>
         )}
