@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"mime"
+	"mime/quotedprintable"
 	"net"
 	stdmail "net/mail"
 	"net/smtp"
@@ -140,10 +141,20 @@ func renderMessage(from, hello string, message Message, now time.Time) []byte {
 	}
 	const boundary = "supermetry-alternative-boundary"
 	fmt.Fprintf(&data, "Content-Type: multipart/alternative; boundary=%q\r\n\r\n", boundary)
-	fmt.Fprintf(&data, "--%s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n", boundary, message.Text)
-	fmt.Fprintf(&data, "--%s\r\nContent-Type: text/html; charset=utf-8\r\n\r\n%s\r\n", boundary, message.HTML)
+	// Quoted-printable keeps every line under the 998-byte SMTP limit; the
+	// branded HTML has long inline-styled lines.
+	writePart(&data, boundary, "text/plain", message.Text)
+	writePart(&data, boundary, "text/html", message.HTML)
 	fmt.Fprintf(&data, "--%s--\r\n", boundary)
 	return data.Bytes()
+}
+
+func writePart(data *bytes.Buffer, boundary, contentType, body string) {
+	fmt.Fprintf(data, "--%s\r\nContent-Type: %s; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n", boundary, contentType)
+	encoder := quotedprintable.NewWriter(data)
+	_, _ = encoder.Write([]byte(body))
+	_ = encoder.Close()
+	data.WriteString("\r\n")
 }
 
 // messageIDToken is 16 random bytes in hex: unique per message.

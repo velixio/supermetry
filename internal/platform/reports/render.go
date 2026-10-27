@@ -2,7 +2,6 @@ package reports
 
 import (
 	"fmt"
-	"html"
 	"strings"
 
 	"supermetry/internal/platform/mail"
@@ -25,8 +24,15 @@ type Summary struct {
 	Sources   []Breakdown
 }
 
-// Render creates plain-text and HTML versions of an analytics report.
+// Render creates plain-text and HTML versions of an analytics report without
+// a public base URL (text wordmark, no dashboard link).
 func Render(site sites.Site, current, previous Summary) mail.Message {
+	return RenderWithBase("", site, current, previous)
+}
+
+// RenderWithBase is Render using the shared branded layout. baseURL is the
+// public Supermetry URL used for the logo and the dashboard link.
+func RenderWithBase(baseURL string, site sites.Site, current, previous Summary) mail.Message {
 	cadence := current.Cadence
 	if cadence == "" {
 		cadence = Weekly
@@ -38,17 +44,45 @@ func Render(site sites.Site, current, previous Summary) mail.Message {
 	writeTextBreakdowns(&text, "Top pages", current.Pages)
 	writeTextBreakdowns(&text, "Top sources", current.Sources)
 
-	var body strings.Builder
-	body.WriteString("<html><body>")
-	fmt.Fprintf(&body, "<h1>%s — %s report</h1>", html.EscapeString(name), html.EscapeString(cadence))
-	fmt.Fprintf(&body, "<p>%d visitors (%s)<br>%d pageviews (%s)</p>", current.Visitors,
-		html.EscapeString(percentChange(current.Visitors, previous.Visitors)), current.Pageviews,
-		html.EscapeString(percentChange(current.Pageviews, previous.Pageviews)))
-	writeHTMLBreakdowns(&body, "Top pages", current.Pages)
-	writeHTMLBreakdowns(&body, "Top sources", current.Sources)
-	body.WriteString("</body></html>")
+	notice := mail.Notice{
+		Subject:   name + " — " + cadence + " report",
+		Preheader: fmt.Sprintf("%d visitors, %d pageviews", current.Visitors, current.Pageviews),
+		Eyebrow:   cadence + " report",
+		Heading:   name,
+		Sections: []mail.Section{
+			{Heading: "Overview", Rows: []mail.Row{
+				{Label: "Visitors", Value: fmt.Sprintf("%d (%s)", current.Visitors, percentChange(current.Visitors, previous.Visitors))},
+				{Label: "Pageviews", Value: fmt.Sprintf("%d (%s)", current.Pageviews, percentChange(current.Pageviews, previous.Pageviews))},
+			}},
+			breakdownSection("Top pages", current.Pages),
+			breakdownSection("Top sources", current.Sources),
+		},
+		ActionLabel: "Open dashboard",
+		ActionURL:   strings.TrimRight(baseURL, "/") + "/app",
+		Reason:      "You are receiving this because you subscribed to " + cadence + " reports for this site.",
+		BaseURL:     baseURL,
+	}
+	message := notice.Message("")
+	// The text part keeps the report body; the layout adds the link and footer.
+	message.Text = text.String() + tailOf(notice)
+	return message
+}
 
-	return mail.Message{Subject: name + " — " + cadence + " report", Text: text.String(), HTML: body.String()}
+// tailOf returns the plain-text link and footer lines the layout would add.
+func tailOf(n mail.Notice) string {
+	full := n.Message("").Text
+	if index := strings.Index(full, n.ActionLabel+":"); index >= 0 {
+		return full[index:]
+	}
+	return full[strings.LastIndex(full, "--\n"):]
+}
+
+func breakdownSection(heading string, values []Breakdown) mail.Section {
+	section := mail.Section{Heading: heading}
+	for _, value := range firstFive(values) {
+		section.Rows = append(section.Rows, mail.Row{Label: value.Value, Value: fmt.Sprintf("%d visitors, %d pageviews", value.Visitors, value.Pageviews)})
+	}
+	return section
 }
 
 func percentChange(current, previous int64) string {
@@ -68,14 +102,6 @@ func writeTextBreakdowns(builder *strings.Builder, heading string, values []Brea
 		fmt.Fprintf(builder, "- %s: %d visitors, %d pageviews\n", value.Value, value.Visitors, value.Pageviews)
 	}
 	builder.WriteByte('\n')
-}
-
-func writeHTMLBreakdowns(builder *strings.Builder, heading string, values []Breakdown) {
-	fmt.Fprintf(builder, "<h2>%s</h2><ul>", html.EscapeString(heading))
-	for _, value := range firstFive(values) {
-		fmt.Fprintf(builder, "<li>%s: %d visitors, %d pageviews</li>", html.EscapeString(value.Value), value.Visitors, value.Pageviews)
-	}
-	builder.WriteString("</ul>")
 }
 
 func firstFive(values []Breakdown) []Breakdown {

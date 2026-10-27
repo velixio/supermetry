@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"html"
 	"strings"
 	"testing"
 	"time"
@@ -36,7 +37,7 @@ func TestRenderIncludesMetricsBreakdownsAndChanges(t *testing.T) {
 		if !strings.Contains(message.Text, want) {
 			t.Errorf("text does not contain %q:\n%s", want, message.Text)
 		}
-		if !strings.Contains(message.HTML, want) {
+		if !strings.Contains(html.UnescapeString(message.HTML), want) {
 			t.Errorf("HTML does not contain %q:\n%s", want, message.HTML)
 		}
 	}

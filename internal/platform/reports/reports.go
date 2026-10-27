@@ -55,6 +55,7 @@ type Reports struct {
 	engine       Queryer
 	registry     sites.Registry
 	mailer       mail.Sender
+	baseURL      string
 	now          func() time.Time
 }
 
@@ -62,6 +63,9 @@ type Reports struct {
 func New(data *store.Store, engine Queryer, registry sites.Registry, sender mail.Sender) *Reports {
 	return &Reports{store: data, engine: engine, registry: registry, mailer: sender, now: time.Now}
 }
+
+// SetBaseURL sets the public URL used for the logo and dashboard link in emails.
+func (r *Reports) SetBaseURL(baseURL string) { r.baseURL = baseURL }
 
 // SetTrackingMode sets the policy before starting the scheduler.
 func (r *Reports) SetTrackingMode(mode privacy.Mode) { r.trackingMode = mode }
@@ -170,7 +174,7 @@ func (r *Reports) deliver(ctx context.Context, subscription Subscription, sentAt
 	if !allowed {
 		return nil
 	}
-	message := Render(subscription.Site, current, previous)
+	message := RenderWithBase(r.baseURL, subscription.Site, current, previous)
 	message.To = recipient
 	if err := r.mailer.Send(ctx, message); err != nil {
 		return fmt.Errorf("send report subscription %d: %w", subscription.ID, err)

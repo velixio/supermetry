@@ -682,7 +682,13 @@ func TestFinishResetSignInSkipsUsersWithASecondFactor(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := env.mailer.Sent[len(env.mailer.Sent)-1].Text
-	token := tokenFrom(t, text[strings.LastIndex(text, "\n")+1:])
+	var resetLink string
+	for _, field := range strings.Fields(text) {
+		if strings.Contains(field, "/reset/") {
+			resetLink = field
+		}
+	}
+	token := tokenFrom(t, resetLink)
 	session, err := env.a.FinishResetSignIn(ctx, token, "new-password-1", "browser")
 	if err != nil {
 		t.Fatal(err)

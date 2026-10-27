@@ -212,6 +212,7 @@ func (n *Notices) notice(target DeletionTarget, reminder bool) mail.Notice {
 	purge := PurgeAt(target.DeletedAt).UTC()
 	purgeDate := purge.Format("2006-01-02")
 	purgeTime := purge.Format("2006-01-02 15:04 UTC")
+	preheader := "Restore it before " + purgeDate + " to keep its data."
 	if target.Kind == DeletionOrg {
 		subject := fmt.Sprintf("%s is scheduled for deletion on %s", target.Name, purgeDate)
 		paragraph := fmt.Sprintf("The organization and the sites listed below will be permanently deleted on %s.", purgeTime)
@@ -220,11 +221,13 @@ func (n *Notices) notice(target DeletionTarget, reminder bool) mail.Notice {
 			paragraph = fmt.Sprintf("The organization and the sites listed below will be permanently deleted on %s.", purgeTime)
 		}
 		return mail.Notice{
-			Subject: subject, Heading: subject,
+			Subject: subject, Heading: subject, Preheader: preheader, Eyebrow: "Data retention",
 			Paragraphs:  []string{paragraph, "Restore the organization before then to keep its data."},
 			Items:       target.Items,
 			ActionLabel: "Restore organization",
 			ActionURL:   n.baseURL + "/app/account",
+			Reason:      "You are receiving this because you manage this organization on Supermetry.",
+			BaseURL:     n.baseURL,
 		}
 	}
 	subject := fmt.Sprintf("%s is scheduled for deletion on %s", target.Name, purgeDate)
@@ -234,10 +237,12 @@ func (n *Notices) notice(target DeletionTarget, reminder bool) mail.Notice {
 		paragraph = fmt.Sprintf("The site will be permanently deleted on %s.", purgeTime)
 	}
 	return mail.Notice{
-		Subject: subject, Heading: subject,
+		Subject: subject, Heading: subject, Preheader: preheader, Eyebrow: "Data retention",
 		Paragraphs:  []string{paragraph, "Restore the site before then to keep its data."},
 		ActionLabel: "Restore site",
 		ActionURL:   n.baseURL + "/app/" + url.PathEscape(target.OrgSlug) + "/sites",
+		Reason:      "You are receiving this because you manage this site on Supermetry.",
+		BaseURL:     n.baseURL,
 	}
 }
 
