@@ -6,6 +6,26 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.17 (2026-10-27)
+
+### Fixed
+
+- Email from Supermetry (password reset, invitations, notices) no longer waits about a minute at some mail providers. The SMTP client announced itself as `localhost`; it now announces a real host name (the host of `SUPERMETRY_BASE_URL`, or the value of the new `SUPERMETRY_SMTP_HELO`), and every message carries `Date` and `Message-ID` headers.
+
+### Added
+
+- Per-organization replay retention cap for instances run by an operator: `GET`, `PUT` and `DELETE /api/private/admin/organizations/{org}/replay-retention-cap` (instance admin only). A site's effective replay retention is the smallest of the instance cap, the organization's cap and the site's own setting. Lowering a cap deletes older recordings at the next cleanup run. Without a cap, behavior is unchanged.
+- `SUPERMETRY_SMTP_HELO` (optional): the host name announced in the SMTP greeting.
+- GitHub and brand images for the repository page in `docs/brand/github/`.
+
+### Upgrade notes
+
+- One new migration, `0250_org_replay_retention_cap.sql` (adds a nullable column to `orgs`; nothing changes until a cap is set).
+
+## v0.1.1 to v0.1.16 (accumulated)
+
+The notes below were collected under "Unreleased" across these releases and were not split per release.
+
 ### Fixed
 
 - Email from Supermetry (password reset, invitations, notices) no longer waits about a minute at some mail providers: the SMTP client now announces a real host name instead of `localhost` (the host of `SUPERMETRY_BASE_URL`, or set `SUPERMETRY_SMTP_HELO`), and every message carries `Date` and `Message-ID` headers.
