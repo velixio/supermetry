@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	stdmail "net/mail"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -53,6 +55,11 @@ type SMTP struct {
 	Pass     string
 	From     string
 	StartTLS bool
+	// Hello is the host name the client announces in EHLO (a real name, not
+	// "localhost": some providers delay mail from clients that say localhost).
+	// SUPERMETRY_SMTP_HELO, else the host of SUPERMETRY_BASE_URL, else the
+	// domain of the sender address.
+	Hello string
 }
 
 type Config struct {
@@ -407,6 +414,11 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	if c.SMTP.Host != "" && c.SMTP.From == "" {
 		errs = append(errs, errors.New("SUPERMETRY_SMTP_FROM is required when SUPERMETRY_SMTP_HOST is set"))
 	}
+	if raw := strings.TrimSpace(getenv("SUPERMETRY_SMTP_HELO")); raw != "" && !validHelloName(raw) {
+		errs = append(errs, errors.New("SUPERMETRY_SMTP_HELO must be a host name"))
+	} else {
+		c.SMTP.Hello = SMTPHelloName(raw, c.BaseURL, c.SMTP.From)
+	}
 
 	parsePositiveDuration(getenv("SUPERMETRY_FLUSH_EVERY"), "SUPERMETRY_FLUSH_EVERY", &c.FlushEvery, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_SESSION_FLUSH"), "SUPERMETRY_SESSION_FLUSH", &c.SessionFlush, &errs)
@@ -693,4 +705,36 @@ func databaseURL(getenv func(string) string) string {
 		RawQuery: "sslmode=" + first(getenv("SUPERMETRY_DATABASE_SSLMODE"), "disable"),
 	}
 	return database.String()
+}
+
+var helloNamePattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$`)
+
+func validHelloName(name string) bool { return helloNamePattern.MatchString(name) }
+
+// SMTPHelloName picks the name the SMTP client announces in EHLO: the explicit
+// setting; else the host of the public base URL; else the domain of the sender
+// address; else "localhost". A name without a dot (and "localhost" itself, or
+// an IP address) is not used from the derived sources, because mail providers
+// treat it as a sign of an unconfigured client and may hold the message.
+func SMTPHelloName(explicit, baseURL, from string) string {
+	if explicit = strings.TrimSpace(explicit); explicit != "" {
+		return explicit
+	}
+	usable := func(host string) bool {
+		host = strings.ToLower(strings.TrimSpace(host))
+		if host == "" || host == "localhost" || !strings.Contains(host, ".") || !validHelloName(host) {
+			return false
+		}
+		_, err := netip.ParseAddr(host)
+		return err != nil
+	}
+	if u, err := url.Parse(baseURL); err == nil && usable(u.Hostname()) {
+		return strings.ToLower(u.Hostname())
+	}
+	if a, err := stdmail.ParseAddress(from); err == nil {
+		if i := strings.LastIndexByte(a.Address, '@'); i >= 0 && usable(a.Address[i+1:]) {
+			return strings.ToLower(a.Address[i+1:])
+		}
+	}
+	return "localhost"
 }
