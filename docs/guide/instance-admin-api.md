@@ -34,6 +34,17 @@ The owner can restore it, and an instance admin can too: `POST /api/private/admi
 
 `GET /api/private/admin/organizations/{org}` also returns an organization in its grace period, with `deleted_at` and `restorable_until` set; erased organizations are `404`.
 
+## Delete a user account
+
+`DELETE /api/private/admin/users/{user}` deletes an account without the user's password. Instance admins only (a session or the admin key). It cannot be undone.
+
+- Body: `{"email": "<the user's email>", "erase_owned_orgs": true}`. The email must equal the user's email (compared case-insensitively), otherwise `400`. `erase_owned_orgs` defaults to `true`. Unknown user: `404`; not an instance admin: `403`.
+- `409` with a detail for: a system user, an instance admin (demote first), your own account, and the last enabled instance admin.
+- Organizations where the user is the only owner are erased at once (see "Erase an organization now") when `erase_owned_orgs` is `true`. If one of them is the only live organization of the instance, the whole call is refused with `409` and nothing changes. With `false`, a sole owner of a live organization gets `409 {"error":"last_owner","orgs":[{"id":1,"slug":"acme"}]}` and nothing changes. Organizations with other owners just lose the member.
+- The user's sessions end, memberships are removed, and the account is blanked. Invitations the user sent stay with their organization. Its email is replaced by a placeholder, so the same address can sign up again. API keys and share links stay with their organization.
+- Answers `200 {"status":"deleted","orgs_erasing":N}`; the N organizations are erased by the background job within about a minute.
+- Audited as `instance.user.deleted` with the user id and counts only, never the email.
+
 ## Set site retention
 
 `PATCH /api/private/admin/sites/{site_id}` with `{"retention_days": 30}` sets how long raw data is kept. Allowed values are `0`, `7`, `30`, `90` and `365`.

@@ -48,53 +48,9 @@ func (s Services) AdminEraseOrg(ctx context.Context, actorUserID int64, orgID in
 		} else if !allowed {
 			return sitesvc.ErrForbidden
 		}
-		var orgSlug string
-		var deletedAt, erasedAt, requestedAt *time.Time
-		err := tx.QueryRow(ctx, `select slug,deleted_at,erased_at,erase_requested_at from orgs where id=$1 for update`, orgID).
-			Scan(&orgSlug, &deletedAt, &erasedAt, &requestedAt)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return store.ErrNotFound
-		}
-		if err != nil {
-			return fmt.Errorf("lock organization for erasure: %w", err)
-		}
-		if orgSlug != slug {
-			return errEraseSlugMismatch
-		}
-		if erasedAt != nil {
-			status = OrgEraseStatusErased
-			return nil
-		}
-		if requestedAt != nil {
-			return nil
-		}
-		now := time.Now()
-		if deletedAt == nil {
-			var others int
-			if err := tx.QueryRow(ctx, `select count(*) from orgs where id<>$1 and deleted_at is null`, orgID).Scan(&others); err != nil {
-				return fmt.Errorf("count other organizations: %w", err)
-			}
-			if others == 0 {
-				return errEraseLastOrg
-			}
-			if _, _, err := deleteOrgTx(ctx, tx, orgID, now, "instance_admin", actorUserID); err != nil {
-				return err
-			}
-		}
-		if _, err := tx.Exec(ctx, `update orgs set erase_requested_at=$2 where id=$1`, orgID, now); err != nil {
-			return fmt.Errorf("request organization erasure: %w", err)
-		}
-		tag, err := tx.Exec(ctx, `
-			update sites
-			set deleted_at=coalesce(deleted_at,$2),erasure_started_at=coalesce(erasure_started_at,$2)
-			where org_id=$1 and erased_at is null`, orgID, now)
-		if err != nil {
-			return fmt.Errorf("queue organization sites for erasure: %w", err)
-		}
-		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
-			ActorUserID: actorUserID, Action: "instance.organization.erase_now", TargetType: "organization", TargetID: orgID,
-			Metadata: map[string]any{"slug": orgSlug, "was_deleted": deletedAt != nil, "sites_queued": tag.RowsAffected()},
-		})
+		var err error
+		status, err = eraseOrgNowTx(ctx, tx, actorUserID, orgID, &slug)
+		return err
 	})
 	if err != nil {
 		return "", err
@@ -105,6 +61,60 @@ func (s Services) AdminEraseOrg(ctx context.Context, actorUserID int64, orgID in
 		}
 	}
 	return status, nil
+}
+
+// eraseOrgNowTx is the transaction body of an immediate erasure: it deletes
+// the organization when it is still live, then marks it and all its sites due
+// for erasure at once. A non-nil slug must equal the organization's slug. It
+// is shared by the organization erase and the user deletion paths and returns
+// OrgEraseStatusErased for an organization that is already erased.
+func eraseOrgNowTx(ctx context.Context, tx pgx.Tx, actorUserID, orgID int64, slug *string) (string, error) {
+	var orgSlug string
+	var deletedAt, erasedAt, requestedAt *time.Time
+	err := tx.QueryRow(ctx, `select slug,deleted_at,erased_at,erase_requested_at from orgs where id=$1 for update`, orgID).
+		Scan(&orgSlug, &deletedAt, &erasedAt, &requestedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", store.ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("lock organization for erasure: %w", err)
+	}
+	if slug != nil && orgSlug != *slug {
+		return "", errEraseSlugMismatch
+	}
+	if erasedAt != nil {
+		return OrgEraseStatusErased, nil
+	}
+	if requestedAt != nil {
+		return OrgEraseStatusErasing, nil
+	}
+	now := time.Now()
+	if deletedAt == nil {
+		var others int
+		if err := tx.QueryRow(ctx, `select count(*) from orgs where id<>$1 and deleted_at is null`, orgID).Scan(&others); err != nil {
+			return "", fmt.Errorf("count other organizations: %w", err)
+		}
+		if others == 0 {
+			return "", errEraseLastOrg
+		}
+		if _, _, err := deleteOrgTx(ctx, tx, orgID, now, "instance_admin", actorUserID); err != nil {
+			return "", err
+		}
+	}
+	if _, err := tx.Exec(ctx, `update orgs set erase_requested_at=$2 where id=$1`, orgID, now); err != nil {
+		return "", fmt.Errorf("request organization erasure: %w", err)
+	}
+	tag, err := tx.Exec(ctx, `
+		update sites
+		set deleted_at=coalesce(deleted_at,$2),erasure_started_at=coalesce(erasure_started_at,$2)
+		where org_id=$1 and erased_at is null`, orgID, now)
+	if err != nil {
+		return "", fmt.Errorf("queue organization sites for erasure: %w", err)
+	}
+	return OrgEraseStatusErasing, store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
+		ActorUserID: actorUserID, Action: "instance.organization.erase_now", TargetType: "organization", TargetID: orgID,
+		Metadata: map[string]any{"slug": orgSlug, "was_deleted": deletedAt != nil, "sites_queued": tag.RowsAffected()},
+	})
 }
 
 func (h *handler) adminEraseOrganization(w http.ResponseWriter, r *http.Request) {

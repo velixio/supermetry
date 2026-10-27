@@ -215,8 +215,7 @@ func (a *Auth) DeleteAccount(ctx context.Context, userID int64, password, totpCo
 			return ErrInvalid
 		}
 	}
-	tombstoneSecret, _ := platformcrypto.NewToken("")
-	tombstonePassword, err := platformcrypto.HashPassword(tombstoneSecret)
+	tombstonePassword, err := TombstonePasswordHash()
 	if err != nil {
 		return err
 	}
@@ -253,25 +252,42 @@ func (a *Auth) DeleteAccount(ctx context.Context, userID int64, password, totpCo
 				return ErrLastOwner
 			}
 		}
-		if err := auditUserOrgs(ctx, tx, userID, "account.deleted"); err != nil {
+		return TombstoneUserTx(ctx, tx, userID, &userID, now, tombstonePassword)
+	})
+}
+
+// TombstonePasswordHash returns the hash of a random, never disclosed secret
+// to store on a deleted account so it can never sign in.
+func TombstonePasswordHash() (string, error) {
+	secret, _ := platformcrypto.NewToken("")
+	return platformcrypto.HashPassword(secret)
+}
+
+// TombstoneUserTx deletes an account inside tx: it audits the event in every
+// organization the user belongs to (attributed to actor), removes sessions,
+// memberships, report subscriptions and pending resets,
+// and blanks the user row. The email is rewritten to a unique placeholder, so
+// the address can sign up again. API keys and shared links stay with their
+// organization.
+func TombstoneUserTx(ctx context.Context, tx pgx.Tx, userID int64, actor *int64, now time.Time, passwordHash string) error {
+	if err := auditUserOrgsWithActor(ctx, tx, userID, actor, "account.deleted", nil); err != nil {
+		return err
+	}
+	statements := []string{
+		`delete from report_subscriptions where user_id=$1`,
+		`delete from password_resets where user_id=$1`,
+		`delete from email_changes where user_id=$1`,
+		`delete from user_sessions where user_id=$1`,
+		`delete from memberships where user_id=$1`,
+	}
+	for _, statement := range statements {
+		if _, err := tx.Exec(ctx, statement, userID); err != nil {
 			return err
 		}
-		statements := []string{
-			`delete from report_subscriptions where user_id=$1`,
-			`delete from password_resets where user_id=$1`,
-			`delete from email_changes where user_id=$1`,
-			`delete from user_sessions where user_id=$1`,
-			`delete from memberships where user_id=$1`,
-		}
-		for _, statement := range statements {
-			if _, err := tx.Exec(ctx, statement, userID); err != nil {
-				return err
-			}
-		}
-		_, err = tx.Exec(ctx, `
-			update users set email=$2,name='Deleted user',password_hash=$3,
-				totp_secret_enc=null,totp_enabled=false,totp_recovery='{}',deleted_at=$4
-			where id=$1 and deleted_at is null`, userID, fmt.Sprintf("deleted-%d@deleted.invalid", userID), tombstonePassword, now)
-		return err
-	})
+	}
+	_, err := tx.Exec(ctx, `
+		update users set email=$2,name='Deleted user',password_hash=$3,
+			totp_secret_enc=null,totp_enabled=false,totp_recovery='{}',deleted_at=$4
+		where id=$1 and deleted_at is null`, userID, fmt.Sprintf("deleted-%d@deleted.invalid", userID), passwordHash, now)
+	return err
 }

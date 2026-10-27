@@ -15,6 +15,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 ### Added
 
 - Per-organization replay retention cap for instances run by an operator: `GET`, `PUT` and `DELETE /api/private/admin/organizations/{org}/replay-retention-cap` (instance admin only). A site's effective replay retention is the smallest of the instance cap, the organization's cap and the site's own setting. Lowering a cap deletes older recordings at the next cleanup run. Without a cap, behavior is unchanged.
+- `DELETE /api/private/admin/users/{user}` (instance admin only): delete an account without the user's password, optionally erasing the organizations they solely own at once. The same address can sign up again afterwards.
 - `SUPERMETRY_SMTP_HELO` (optional): the host name announced in the SMTP greeting.
 - GitHub and brand images for the repository page in `docs/brand/github/`.
 
