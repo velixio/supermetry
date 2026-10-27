@@ -217,7 +217,7 @@ A small server and PostgreSQL. In the 4-hour test above, a single process used u
 <details>
 <summary><b>Is there a hosted version?</b></summary>
 
-An EU-hosted Cloud is on the way. [Join early access](https://supermetry.com/early-access/). Self-hosting stays free and complete.
+An EU-hosted Cloud is open: [start free](https://app.supermetry.com/signup) (the Free plan today; paid plans are coming soon) or [try the live demo](https://app.supermetry.com/demo). Self-hosting stays free and complete.
 </details>
 
 ## Documentation
