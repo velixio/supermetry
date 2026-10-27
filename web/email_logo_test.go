@@ -36,8 +36,10 @@ func TestEmailLogoIsServedAndNotShadowedBySPA(t *testing.T) {
 
 // The logo source file must exist in web/public so the build ships it.
 func TestEmailLogoSourceExists(t *testing.T) {
-	info, err := os.Stat("public/email-logo.png")
-	if err != nil || info.Size() == 0 || info.Size() > 60*1024 {
-		t.Fatalf("public/email-logo.png: %v %v", info, err)
+	for _, name := range []string{"public/email-logo.png", "public/email-logo-light.png"} {
+		info, err := os.Stat(name)
+		if err != nil || info.Size() == 0 || info.Size() > 60*1024 {
+			t.Fatalf("%s: %v %v", name, info, err)
+		}
 	}
 }

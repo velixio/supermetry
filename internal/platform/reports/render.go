@@ -47,7 +47,8 @@ func RenderWithBase(baseURL string, site sites.Site, current, previous Summary) 
 	notice := mail.Notice{
 		Subject:   name + " — " + cadence + " report",
 		Preheader: fmt.Sprintf("%d visitors, %d pageviews", current.Visitors, current.Pageviews),
-		Heading:   name + " — " + cadence + " report",
+		Eyebrow:   cadence + " report",
+		Heading:   name,
 		Sections: []mail.Section{
 			{Heading: "Overview", Rows: []mail.Row{
 				{Label: "Visitors", Value: fmt.Sprintf("%d (%s)", current.Visitors, percentChange(current.Visitors, previous.Visitors))},

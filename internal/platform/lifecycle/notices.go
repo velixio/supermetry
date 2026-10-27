@@ -221,7 +221,7 @@ func (n *Notices) notice(target DeletionTarget, reminder bool) mail.Notice {
 			paragraph = fmt.Sprintf("The organization and the sites listed below will be permanently deleted on %s.", purgeTime)
 		}
 		return mail.Notice{
-			Subject: subject, Heading: subject, Preheader: preheader,
+			Subject: subject, Heading: subject, Preheader: preheader, Eyebrow: "Data retention",
 			Paragraphs:  []string{paragraph, "Restore the organization before then to keep its data."},
 			Items:       target.Items,
 			ActionLabel: "Restore organization",
@@ -237,7 +237,7 @@ func (n *Notices) notice(target DeletionTarget, reminder bool) mail.Notice {
 		paragraph = fmt.Sprintf("The site will be permanently deleted on %s.", purgeTime)
 	}
 	return mail.Notice{
-		Subject: subject, Heading: subject, Preheader: preheader,
+		Subject: subject, Heading: subject, Preheader: preheader, Eyebrow: "Data retention",
 		Paragraphs:  []string{paragraph, "Restore the site before then to keep its data."},
 		ActionLabel: "Restore site",
 		ActionURL:   n.baseURL + "/app/" + url.PathEscape(target.OrgSlug) + "/sites",

@@ -55,16 +55,48 @@ func Lifetime(d time.Duration) string {
 	}
 }
 
-// PasswordReset is the email carrying a one-time password reset link.
-func PasswordReset(baseURL, link string, lifetime time.Duration) Notice {
+// formatTime renders a moment for a details row, or "" for the zero time.
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format("2 Jan 2006, 15:04 UTC")
+}
+
+// detailRows builds rows, dropping any with an empty value.
+func detailRows(rows ...Row) []Section {
+	kept := make([]Row, 0, len(rows))
+	for _, row := range rows {
+		if row.Value != "" {
+			kept = append(kept, row)
+		}
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	return []Section{{Rows: kept}}
+}
+
+// PasswordReset is the email carrying a one-time password reset link. account
+// is the address being reset and at the time of the request; both are shown in
+// the details panel.
+func PasswordReset(baseURL, link, account string, at time.Time, lifetime time.Duration) Notice {
 	return Notice{
-		Subject:     "Reset your Supermetry password",
-		Preheader:   "Use this one-time link within " + Lifetime(lifetime) + " to choose a new password.",
-		Heading:     "Reset your password",
-		Paragraphs:  []string{"We received a request to reset the password for your Supermetry account. The link below works once and expires in " + Lifetime(lifetime) + "."},
+		Subject:   "Reset your Supermetry password",
+		Preheader: "Use this one-time link within " + Lifetime(lifetime) + " to choose a new password.",
+		Eyebrow:   "Account security",
+		Heading:   "Reset your password",
+		Paragraphs: []string{
+			"We received a request to reset the password for your Supermetry account. Choose a new one with the button below. The link works once.",
+		},
+		Sections: detailRows(
+			Row{"Account", cleanName(account, 80)},
+			Row{"Requested", formatTime(at)},
+			Row{"Link expires in", Lifetime(lifetime)},
+		),
 		ActionLabel: "Choose a new password",
 		ActionURL:   link,
-		Footer:      "If you did not ask for this, you can ignore this email. Your password stays the same.",
+		Footer:      "If you did not ask for this, you can safely ignore this email. Your password stays the same.",
 		Reason:      "You are receiving this because a password reset was requested for your account.",
 		BaseURL:     baseURL,
 	}
@@ -75,6 +107,7 @@ type InvitationInfo struct {
 	OrgName      string
 	InviterName  string
 	InviterEmail string
+	InviteeEmail string
 	Role         string
 	Lifetime     time.Duration
 }
@@ -101,21 +134,24 @@ func Invitation(baseURL, link string, info InvitationInfo) Notice {
 		}
 		rows = append(rows, Row{Label: "Invited by", Value: value})
 	}
+	if invitee := cleanName(info.InviteeEmail, 80); invitee != "" {
+		rows = append(rows, Row{Label: "Invited address", Value: invitee})
+	}
 	if info.Role != "" {
 		rows = append(rows, Row{Label: "Role", Value: titleCase(cleanName(info.Role, 30))})
 	}
 	rows = append(rows, Row{Label: "Link expires in", Value: Lifetime(info.Lifetime)})
-	subject := "You are invited to join " + org + " on Supermetry"
 	return Notice{
-		Subject:     subject,
+		Subject:     "You are invited to join " + org + " on Supermetry",
 		Preheader:   who + " invited you to " + org + ". Accept within " + Lifetime(info.Lifetime) + ".",
+		Eyebrow:     "Invitation",
 		Heading:     "Join " + org + " on Supermetry",
 		Paragraphs:  []string{who + " invited you to " + org + " on Supermetry, a privacy-friendly web analytics tool. Accept the invitation to create your account or sign in."},
 		Sections:    []Section{{Rows: rows}},
 		ActionLabel: "Accept invitation",
 		ActionURL:   link,
 		Footer:      "If you were not expecting this invitation, you can ignore this email. Nothing happens until you accept.",
-		Reason:      "You are receiving this because someone invited " + "this address to Supermetry.",
+		Reason:      "You are receiving this because someone invited this address to Supermetry.",
 		BaseURL:     baseURL,
 	}
 }
@@ -128,11 +164,16 @@ func Welcome(baseURL, name string) Notice {
 	}
 	return Notice{
 		Subject:   "Welcome to Supermetry",
-		Preheader: "Your account is ready. Add a site and start collecting visits.",
+		Preheader: "Your account is ready. Add a site and see your first visit in minutes.",
+		Eyebrow:   "Welcome",
 		Heading:   heading,
 		Paragraphs: []string{
-			"Your account is ready. Add your first site, paste the tracking snippet into its pages, and visits start showing up within moments.",
-			"Supermetry is simple, privacy-friendly web analytics, and your data stays on your own server.",
+			"Your account is ready. Supermetry is simple, privacy-friendly web analytics, and your data stays on your own server. Here is how to get going:",
+		},
+		Steps: []Step{
+			{Title: "Add your site", Body: "Create a site in the dashboard and enter its domain."},
+			{Title: "Paste the snippet", Body: "Copy the tracking snippet into the head of your pages."},
+			{Title: "See your first visit", Body: "Open your site once and watch it appear in real time."},
 		},
 		ActionLabel: "Open your dashboard",
 		ActionURL:   baseOf(baseURL) + "/app",
@@ -143,12 +184,20 @@ func Welcome(baseURL, name string) Notice {
 }
 
 // ConfirmNewEmail asks the owner of a new address to confirm the change.
-func ConfirmNewEmail(baseURL, link, newEmail string, lifetime time.Duration) Notice {
+func ConfirmNewEmail(baseURL, link, newEmail string, at time.Time, lifetime time.Duration) Notice {
 	return Notice{
-		Subject:     "Confirm your new Supermetry email",
-		Preheader:   "Confirm " + cleanName(newEmail, 80) + " as your Supermetry email within " + Lifetime(lifetime) + ".",
-		Heading:     "Confirm your new email address",
-		Paragraphs:  []string{"Confirm that " + cleanName(newEmail, 80) + " should become the email address of your Supermetry account. You must be signed in to Supermetry in this browser. The link works once and expires in " + Lifetime(lifetime) + "."},
+		Subject:   "Confirm your new Supermetry email",
+		Preheader: "Confirm " + cleanName(newEmail, 80) + " as your Supermetry email within " + Lifetime(lifetime) + ".",
+		Eyebrow:   "Account",
+		Heading:   "Confirm your new email address",
+		Paragraphs: []string{
+			"Confirm that this address should become the email of your Supermetry account. You must be signed in to Supermetry in this browser. The link works once.",
+		},
+		Sections: detailRows(
+			Row{"New email", cleanName(newEmail, 80)},
+			Row{"Requested", formatTime(at)},
+			Row{"Link expires in", Lifetime(lifetime)},
+		),
 		ActionLabel: "Confirm new email",
 		ActionURL:   link,
 		Footer:      "If you did not request this change, ignore this email. Your address stays as it is.",
@@ -158,15 +207,20 @@ func ConfirmNewEmail(baseURL, link, newEmail string, lifetime time.Duration) Not
 }
 
 // EmailChanged tells the old address that the account email changed.
-func EmailChanged(baseURL, newEmail string) Notice {
+func EmailChanged(baseURL, newEmail string, at time.Time) Notice {
 	return Notice{
 		Subject:   "Your Supermetry email was changed",
 		Preheader: "The email address on your account is now " + cleanName(newEmail, 80) + ".",
+		Eyebrow:   "Account security",
 		Heading:   "Your email address was changed",
 		Paragraphs: []string{
-			"The email address of your Supermetry account was changed to " + cleanName(newEmail, 80) + ". From now on, sign in and receive messages with the new address.",
-			"If you did not make this change, contact the administrator of your Supermetry instance right away.",
+			"The email address of your Supermetry account was changed. From now on, sign in and receive messages with the new address.",
 		},
+		Sections: detailRows(
+			Row{"New email", cleanName(newEmail, 80)},
+			Row{"Changed", formatTime(at)},
+		),
+		Footer:  "If you did not make this change, contact the administrator of your Supermetry instance right away.",
 		Reason:  "You are receiving this because this was the email address of the account.",
 		BaseURL: baseURL,
 	}

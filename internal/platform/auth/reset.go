@@ -39,7 +39,7 @@ func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
 	if !a.mail.Enabled() {
 		return link, nil
 	}
-	message := mail.PasswordReset(a.baseURL, link, resetLifetime).Message(user.Email)
+	message := mail.PasswordReset(a.baseURL, link, user.Email, a.clock.Now(), resetLifetime).Message(user.Email)
 	if err := a.mail.Send(ctx, message); err != nil {
 		return "", fmt.Errorf("send password reset: %w", err)
 	}

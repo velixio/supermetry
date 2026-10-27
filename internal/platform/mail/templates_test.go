@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+var fixedAt = time.Date(2026, 10, 28, 9, 30, 0, 0, time.UTC)
+
 const (
 	testBase    = "https://stats.example.test"
 	hostileName = `<script>alert(1)</script> "Ünïcode" 日本語 & Co`
@@ -27,22 +29,22 @@ func allEmails(base string) []previewCase {
 	invite := "https://stats.example.test/invite?token=tok%2B1"
 	confirm := "https://stats.example.test/api/private/auth/email-change/confirm?token=xyz"
 	return []previewCase{
-		{"password-reset", PasswordReset(base, reset, time.Hour), reset},
+		{"password-reset", PasswordReset(base, reset, "dana@acme.test", fixedAt, time.Hour), reset},
 		{"invitation", Invitation(base, invite, InvitationInfo{OrgName: "Acme Analytics", InviterName: "Dana Reyes", InviterEmail: "dana@acme.test", Role: "editor", Lifetime: 7 * 24 * time.Hour}), invite},
 		{"invitation-hostile", Invitation(base, invite, InvitationInfo{OrgName: hostileName, InviterName: hostileName, InviterEmail: "x@y.test", Role: "viewer", Lifetime: 7 * 24 * time.Hour}), invite},
 		{"welcome", Welcome(base, "Dana Reyes"), base + "/app"},
 		{"welcome-hostile", Welcome(base, hostileName), base + "/app"},
-		{"confirm-email", ConfirmNewEmail(base, confirm, "new@example.test", time.Hour), confirm},
-		{"email-changed", EmailChanged(base, "new@example.test"), ""},
+		{"confirm-email", ConfirmNewEmail(base, confirm, "new@example.test", fixedAt, time.Hour), confirm},
+		{"email-changed", EmailChanged(base, "new@example.test", fixedAt), ""},
 		{"deletion-site", Notice{
-			Subject: "Blog is scheduled for deletion on 2026-11-20", Heading: "Blog is scheduled for deletion on 2026-11-20",
+			Subject: "Blog is scheduled for deletion on 2026-11-20", Eyebrow: "Data retention", Heading: "Blog is scheduled for deletion on 2026-11-20",
 			Preheader:  "Restore it before 2026-11-20 to keep its data.",
 			Paragraphs: []string{"The site will be permanently deleted on 2026-11-20 10:00 UTC.", "Restore the site before then to keep its data."},
 			Items:      []string{"blog.example.test"}, ActionLabel: "Restore site", ActionURL: base + "/app/acme/sites",
 			Reason: "You are receiving this because you manage this site on Supermetry.", BaseURL: base,
 		}, base + "/app/acme/sites"},
 		{"report", Notice{
-			Subject: "blog — weekly report", Heading: "blog — weekly report", Preheader: "1200 visitors, 3400 pageviews",
+			Subject: "blog — weekly report", Eyebrow: "Weekly report", Heading: "blog", Preheader: "1200 visitors, 3400 pageviews",
 			Sections: []Section{
 				{Heading: "Overview", Rows: []Row{{"Visitors", "1200 (+12.5%)"}, {"Pageviews", "3400 (-3.0%)"}}},
 				{Heading: "Top pages", Rows: []Row{{"/pricing", "400 visitors, 900 pageviews"}, {"/docs/getting-started/install", "250 visitors, 600 pageviews"}}},
@@ -50,7 +52,7 @@ func allEmails(base string) []previewCase {
 			ActionLabel: "Open dashboard", ActionURL: base + "/app",
 			Reason: "You are receiving this because you subscribed to weekly reports for this site.", BaseURL: base,
 		}, base + "/app"},
-		{"no-base-url", PasswordReset("", reset, time.Hour), reset},
+		{"no-base-url", PasswordReset("", reset, "dana@acme.test", fixedAt, time.Hour), reset},
 	}
 }
 
@@ -85,7 +87,7 @@ func TestEmails(t *testing.T) {
 			// Only the logo, the links the email is about, and the footer link may be external.
 			for _, match := range externalRef.FindAllStringSubmatch(message.HTML, -1) {
 				ref := match[1]
-				if strings.HasPrefix(ref, testBase) || ref == DocsURL {
+				if strings.HasPrefix(ref, testBase) || ref == DocsURL || ref == PrivacyURL {
 					continue
 				}
 				t.Errorf("unexpected external reference %q", ref)
@@ -99,7 +101,7 @@ func TestEmails(t *testing.T) {
 
 func TestLogoFallsBackToWordmarkWithoutBaseURL(t *testing.T) {
 	for _, base := range []string{"", "javascript:alert(1)", "ftp://x.test", "not a url"} {
-		html := PasswordReset(base, "https://x.test/r", time.Hour).Message("a@b.test").HTML
+		html := PasswordReset(base, "https://x.test/r", "a@b.test", fixedAt, time.Hour).Message("a@b.test").HTML
 		if strings.Contains(html, "<img") {
 			t.Errorf("base %q: image should not render", base)
 		}
@@ -226,6 +228,26 @@ func TestPreviewWritesEveryEmail(t *testing.T) {
 		text := "Subject: " + message.Subject + "\n\n" + message.Text
 		if err := os.WriteFile(filepath.Join(dir, c.name+".txt"), []byte(text), 0o644); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestDesignElements(t *testing.T) {
+	welcome := Welcome(testBase, "Dana").Message("a@b.test")
+	for _, want := range []string{"1. Add your site", "2. Paste the snippet", "3. See your first visit"} {
+		if !strings.Contains(welcome.Text, want) {
+			t.Errorf("welcome text missing %q:\n%s", want, welcome.Text)
+		}
+	}
+	for _, want := range []string{`class="lg-light"`, `class="lg-dark"`, testBase + LogoLightPath, "prefers-color-scheme:dark", "Welcome</div>", `bgcolor="#4338ca"`, "Dashboard</a>", "Privacy</a>"} {
+		if !strings.Contains(welcome.HTML, want) {
+			t.Errorf("welcome html missing %q", want)
+		}
+	}
+	reset := PasswordReset(testBase, testBase+"/reset/x", "dana@acme.test", fixedAt, time.Hour).Message("dana@acme.test")
+	for _, want := range []string{"dana@acme.test", "28 Oct 2026, 09:30 UTC", "1 hour"} {
+		if !strings.Contains(reset.HTML, want) || !strings.Contains(reset.Text, want) {
+			t.Errorf("reset email missing %q", want)
 		}
 	}
 }

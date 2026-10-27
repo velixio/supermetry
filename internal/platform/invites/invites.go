@@ -142,7 +142,7 @@ func (i *Invites) Create(ctx context.Context, principal authz.Principal, email s
 	if !i.mail.Enabled() {
 		return link, nil
 	}
-	info := mail.InvitationInfo{Role: string(role), Lifetime: invitationLifetime}
+	info := mail.InvitationInfo{InviteeEmail: email, Role: string(role), Lifetime: invitationLifetime}
 	// Names are best effort: the invitation exists, so a failed lookup only
 	// makes the email less specific.
 	_ = i.store.Pool.QueryRow(ctx, `

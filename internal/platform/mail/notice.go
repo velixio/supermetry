@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -10,10 +11,12 @@ import (
 type Notice struct {
 	Subject     string
 	Preheader   string // hidden inbox preview text
+	Eyebrow     string // small label above the heading, such as "Invitation"
 	Heading     string
 	Paragraphs  []string
 	Items       []string
 	Sections    []Section
+	Steps       []Step // numbered "get started" list
 	ActionLabel string
 	ActionURL   string // http or https only; anything else drops the button
 	Links       []Link // secondary links under the button
@@ -35,6 +38,16 @@ func (n Notice) Message(to string) Message {
 			items[index] = "- " + item
 		}
 		sections = append(sections, strings.Join(items, "\n"))
+	}
+	if len(n.Steps) > 0 {
+		lines := make([]string, len(n.Steps))
+		for index, step := range n.Steps {
+			lines[index] = fmt.Sprintf("%d. %s", index+1, step.Title)
+			if step.Body != "" {
+				lines[index] += " - " + step.Body
+			}
+		}
+		sections = append(sections, strings.Join(lines, "\n"))
 	}
 	for _, section := range n.Sections {
 		lines := make([]string, 0, 1+len(section.Rows))

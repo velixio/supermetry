@@ -79,7 +79,7 @@ func (a *Auth) StartEmailChange(ctx context.Context, userID int64, newEmail, pas
 		return err
 	}
 	link := a.baseURL + "/api/private/auth/email-change/confirm?token=" + url.QueryEscape(plain)
-	if err := a.mail.Send(ctx, mail.ConfirmNewEmail(a.baseURL, link, newEmail, emailChangeLifetime).Message(newEmail)); err != nil {
+	if err := a.mail.Send(ctx, mail.ConfirmNewEmail(a.baseURL, link, newEmail, a.clock.Now(), emailChangeLifetime).Message(newEmail)); err != nil {
 		_, _ = a.store.Pool.Exec(ctx, `delete from email_changes where token_hash=$1`, hash)
 		return fmt.Errorf("send email change confirmation: %w", err)
 	}
@@ -133,7 +133,7 @@ func (a *Auth) ConfirmEmailChange(ctx context.Context, userID int64, token strin
 	}
 	if a.mail != nil && a.mail.Enabled() {
 		// The change is committed; a failed notice must not report failure.
-		_ = a.mail.Send(ctx, mail.EmailChanged(a.baseURL, newEmail).Message(oldEmail))
+		_ = a.mail.Send(ctx, mail.EmailChanged(a.baseURL, newEmail, now).Message(oldEmail))
 	}
 	return nil
 }

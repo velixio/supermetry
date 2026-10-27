@@ -28,7 +28,7 @@ A failed test returns a safe message asking the manager to verify the credential
 
 ## Transactional email
 
-When SMTP is configured, Supermetry sends these emails. Each one is a multipart message (HTML and plain text) built from one shared layout with the Supermetry logo, a button, the link printed in full under it, and a footer saying why you received it.
+When SMTP is configured, Supermetry sends these emails. Each one is a multipart message (HTML and plain text) built from one shared layout: brand bar and logo, a small label and heading, a details panel (account, time, expiry), one button with the link printed in full under it, and a footer with Dashboard, Docs and Privacy links and the reason you received it. The welcome email adds a three-step get-started list. Clients that honor `prefers-color-scheme` get a dark version.
 
 | Email | Subject | Sent when |
 |---|---|---|
@@ -42,7 +42,7 @@ When SMTP is configured, Supermetry sends these emails. Each one is a multipart 
 
 Alert emails stay plain text on purpose: you write their message templates, and Supermetry sends exactly your text.
 
-The logo is loaded from `{SUPERMETRY_BASE_URL}/email-logo.png`, a public file served by the dashboard (no sign-in needed). Without a usable `SUPERMETRY_BASE_URL` the emails show a text wordmark instead. Mail clients that block remote images show the "Supermetry" alt text.
+The logo is loaded from `{SUPERMETRY_BASE_URL}/email-logo.png` (and `/email-logo-light.png` for clients in dark mode), public files served by the dashboard (no sign-in needed). Without a usable `SUPERMETRY_BASE_URL` the emails show a text wordmark instead. Mail clients that block remote images show the "Supermetry" alt text.
 
 Without SMTP configured, nothing is sent: password reset and invitations show a copyable link instead, and the welcome email is skipped silently.
 
