@@ -24,8 +24,9 @@ func TestNotice_MessageText(t *testing.T) {
 		"It will be deleted on 2026-10-18 12:00 UTC.\n\n" +
 		"- First site\n" +
 		"- Second site\n\n" +
-		"Restore site: https://example.test/app/example/sites\n\n" +
-		"You can ignore this message if this was expected.\n"
+		"Restore site:\nhttps://example.test/app/example/sites\n\n" +
+		"You can ignore this message if this was expected.\n\n" +
+		"--\nSupermetry\n"
 	if message.Text != want {
 		t.Fatalf("Message().Text = %q, want %q", message.Text, want)
 	}

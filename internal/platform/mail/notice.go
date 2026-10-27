@@ -1,38 +1,30 @@
 package mail
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"html/template"
 	"strings"
 )
 
-// Notice is a generic transactional notice rendered as text and HTML with one layout.
+// Notice is a transactional email rendered as text and HTML with one layout.
 type Notice struct {
 	Subject     string
+	Preheader   string // hidden inbox preview text
 	Heading     string
 	Paragraphs  []string
 	Items       []string
+	Sections    []Section
 	ActionLabel string
-	ActionURL   string
-	Footer      string
+	ActionURL   string // http or https only; anything else drops the button
+	Links       []Link // secondary links under the button
+	Footer      string // small note under the content
+	Reason      string // "You are receiving this because ..."
+	BaseURL     string // public base URL: logo and footer link; empty gives a text wordmark
 }
-
-var noticeHTML = template.Must(template.New("notice").Parse(`<!doctype html>
-<html><body style="margin:0;background:#f6f7f9;color:#17191c;font-family:Arial,sans-serif">
-<div style="max-width:640px;margin:0 auto;padding:32px 20px">
-<div style="background:#ffffff;border:1px solid #e4e7eb;border-radius:8px;padding:28px">
-{{if .Heading}}<h1 style="font-size:22px;line-height:1.3;margin:0 0 20px">{{.Heading}}</h1>{{end}}
-{{range .Paragraphs}}<p style="font-size:15px;line-height:1.6;margin:0 0 16px">{{.}}</p>{{end}}
-{{if .Items}}<ul style="font-size:15px;line-height:1.6;margin:0 0 20px;padding-left:22px">{{range .Items}}<li>{{.}}</li>{{end}}</ul>{{end}}
-{{if and .ActionLabel .ActionURL}}<p style="margin:24px 0"><a href="{{.ActionURL}}" style="display:inline-block;background:#17191c;color:#ffffff;text-decoration:none;border-radius:6px;padding:11px 16px">{{.ActionLabel}}</a></p>{{end}}
-{{if .Footer}}<p style="font-size:12px;line-height:1.5;color:#68707a;margin:24px 0 0">{{.Footer}}</p>{{end}}
-</div></div></body></html>`))
 
 // Message renders the notice for one recipient.
 func (n Notice) Message(to string) Message {
-	sections := make([]string, 0, 4+len(n.Paragraphs))
+	sections := make([]string, 0, 6+len(n.Paragraphs))
 	if n.Heading != "" {
 		sections = append(sections, n.Heading)
 	}
@@ -44,22 +36,41 @@ func (n Notice) Message(to string) Message {
 		}
 		sections = append(sections, strings.Join(items, "\n"))
 	}
-	if n.ActionLabel != "" && n.ActionURL != "" {
-		sections = append(sections, n.ActionLabel+": "+n.ActionURL)
+	for _, section := range n.Sections {
+		lines := make([]string, 0, 1+len(section.Rows))
+		if section.Heading != "" {
+			lines = append(lines, section.Heading+":")
+		}
+		for _, row := range section.Rows {
+			lines = append(lines, "- "+row.Label+": "+row.Value)
+		}
+		sections = append(sections, strings.Join(lines, "\n"))
+	}
+	if action := safeHTTPURL(n.ActionURL); n.ActionLabel != "" && action != "" {
+		sections = append(sections, n.ActionLabel+":\n"+action)
+	}
+	for _, link := range n.Links {
+		if target := safeHTTPURL(link.URL); link.Label != "" && target != "" {
+			sections = append(sections, link.Label+":\n"+target)
+		}
 	}
 	if n.Footer != "" {
 		sections = append(sections, n.Footer)
 	}
-
-	var html bytes.Buffer
-	if err := noticeHTML.Execute(&html, n); err != nil {
-		panic(err)
+	tail := "Supermetry"
+	if base := baseOf(n.BaseURL); base != "" {
+		tail += " - " + base
 	}
+	if n.Reason != "" {
+		tail = n.Reason + "\n" + tail
+	}
+	sections = append(sections, "--\n"+tail)
+
 	return Message{
 		To:      to,
 		Subject: n.Subject,
 		Text:    strings.Join(sections, "\n\n") + "\n",
-		HTML:    html.String(),
+		HTML:    renderLayout(n),
 	}
 }
 
