@@ -51,6 +51,8 @@ func validateReplayPolicy(env config.ReplayEnv, in coresites.ReplaySiteInput) er
 		return fmt.Errorf("replay sample rate exceeds the instance cap")
 	case in.RetentionDays != nil && env.Retention != nil && *in.RetentionDays > *env.Retention:
 		return fmt.Errorf("replay retention exceeds the instance cap")
+	case in.RetentionDays != nil && in.OrgRetentionCapDays != nil && *in.RetentionDays > *in.OrgRetentionCapDays:
+		return fmt.Errorf("replay retention exceeds the organization cap")
 	case in.QuotaBytes != nil && env.QuotaBytes != nil && *in.QuotaBytes > *env.QuotaBytes:
 		return fmt.Errorf("replay quota exceeds the instance cap")
 	}
