@@ -32,7 +32,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a user account without their password
+         * @description Irreversible. The body email must equal the user's email (compared case-insensitively), otherwise 400. Refused with 409 for system users, instance admins (demote first), the caller's own account and the last enabled instance admin. Organizations the user solely owns are erased at once when erase_owned_orgs is true (the default) through the background erasure job, which fails the whole call with 409 when one of them is the only live organization of the instance; with false, a sole owner of a live organization is refused with 409 last_owner listing the organizations. Organizations with other owners just lose the member. All checks run before any change. The user's sessions end, memberships are removed, the account is blanked and its email is replaced by a placeholder, so the address can sign up again. API keys, share links and invitations the user sent stay with their organization. Audited as instance.user.deleted (user id and counts only, never the email).
+         */
+        delete: operations["adminDeleteUser"];
         options?: never;
         head?: never;
         /** Enable, disable, force password reset, promote or demote a user */
@@ -2900,6 +2904,30 @@ export interface components {
         AdminUsersResponse: {
             data: components["schemas"]["AdminUser"][];
         };
+        AdminDeleteUserInput: {
+            /** @description The user's email; must match. */
+            email: string;
+            /**
+             * @description Erase organizations the user solely owns (default true).
+             * @default true
+             */
+            erase_owned_orgs: boolean;
+        };
+        AdminDeleteUserResult: {
+            /** @enum {string} */
+            status: "deleted";
+            /** @description Organizations now queued for erasure. */
+            orgs_erasing: number;
+        };
+        AdminDeleteUserLastOwner: {
+            /** @enum {string} */
+            error: "last_owner";
+            orgs: {
+                /** Format: int64 */
+                id: number;
+                slug: string;
+            }[];
+        };
         AdminUserPatch: {
             disabled?: boolean;
             password_reset_required?: boolean;
@@ -5163,6 +5191,47 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminDeleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDeleteUserInput"];
+            };
+        };
+        responses: {
+            /** @description Deleted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDeleteUserResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Refused: a problem for the protected cases, or {error: last_owner, orgs}. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["AdminDeleteUserLastOwner"];
                 };
             };
             429: components["responses"]["RateLimited"];

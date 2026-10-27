@@ -53,6 +53,32 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: adminDeleteUser
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Delete a user account without their password
+      description: >-
+        Irreversible. The body email must equal the user's email (compared case-insensitively),
+        otherwise 400. Refused with 409 for system users, instance admins (demote first),
+        the caller's own account and the last enabled instance admin. Organizations the user
+        solely owns are erased at once when erase_owned_orgs is true (the default) through the
+        background erasure job, which fails the whole call with 409 when one of them is the only
+        live organization of the instance; with false, a sole owner of a live organization is
+        refused with 409 last_owner listing the organizations. Organizations with other owners
+        just lose the member. All checks run before any change. The user's sessions end, memberships are removed,
+        the account is blanked and its email is replaced by a
+        placeholder, so the address can sign up again. API keys, share links and invitations the user sent stay with their
+        organization. Audited as instance.user.deleted (user id and counts only, never the email).
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminDeleteUserInput' } } } }
+      responses:
+        '200': { description: Deleted., content: { application/json: { schema: { $ref: '#/components/schemas/AdminDeleteUserResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'Refused: a problem for the protected cases, or {error: last_owner, orgs}.', content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }, application/json: { schema: { $ref: '#/components/schemas/AdminDeleteUserLastOwner' } } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/users/{user}/impersonate:
     post:
       operationId: adminImpersonateUser
@@ -3959,6 +3985,35 @@ components:
       additionalProperties: false
       required: [data]
       properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminUser' } } }
+    AdminDeleteUserInput:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { type: string, minLength: 1, description: The user's email; must match. }
+        erase_owned_orgs: { type: boolean, default: true, description: Erase organizations the user solely owns (default true). }
+    AdminDeleteUserResult:
+      type: object
+      additionalProperties: false
+      required: [status, orgs_erasing]
+      properties:
+        status: { type: string, enum: [deleted] }
+        orgs_erasing: { type: integer, minimum: 0, description: Organizations now queued for erasure. }
+    AdminDeleteUserLastOwner:
+      type: object
+      additionalProperties: false
+      required: [error, orgs]
+      properties:
+        error: { type: string, enum: [last_owner] }
+        orgs:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, slug]
+            properties:
+              id: { type: integer, format: int64 }
+              slug: { type: string }
     AdminUserPatch:
       type: object
       additionalProperties: false

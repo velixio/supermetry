@@ -16,6 +16,36 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AdminDeleteUserLastOwnerError.
+const (
+	LastOwner AdminDeleteUserLastOwnerError = "last_owner"
+)
+
+// Valid indicates whether the value is a known member of the AdminDeleteUserLastOwnerError enum.
+func (e AdminDeleteUserLastOwnerError) Valid() bool {
+	switch e {
+	case LastOwner:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminDeleteUserResultStatus.
+const (
+	Deleted AdminDeleteUserResultStatus = "deleted"
+)
+
+// Valid indicates whether the value is a known member of the AdminDeleteUserResultStatus enum.
+func (e AdminDeleteUserResultStatus) Valid() bool {
+	switch e {
+	case Deleted:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminEraseOrganizationResultStatus.
 const (
 	Erased  AdminEraseOrganizationResultStatus = "erased"
@@ -1945,6 +1975,37 @@ type AdminAuditEntry struct {
 type AdminAuditResponse struct {
 	Data []AdminAuditEntry `json:"data"`
 }
+
+// AdminDeleteUserInput defines model for AdminDeleteUserInput.
+type AdminDeleteUserInput struct {
+	// Email The user's email; must match.
+	Email string `json:"email"`
+
+	// EraseOwnedOrgs Erase organizations the user solely owns (default true).
+	EraseOwnedOrgs *bool `json:"erase_owned_orgs,omitempty"`
+}
+
+// AdminDeleteUserLastOwner defines model for AdminDeleteUserLastOwner.
+type AdminDeleteUserLastOwner struct {
+	Error AdminDeleteUserLastOwnerError `json:"error"`
+	Orgs  []struct {
+		Id   int64  `json:"id"`
+		Slug string `json:"slug"`
+	} `json:"orgs"`
+}
+
+// AdminDeleteUserLastOwnerError defines model for AdminDeleteUserLastOwner.Error.
+type AdminDeleteUserLastOwnerError string
+
+// AdminDeleteUserResult defines model for AdminDeleteUserResult.
+type AdminDeleteUserResult struct {
+	// OrgsErasing Organizations now queued for erasure.
+	OrgsErasing int                         `json:"orgs_erasing"`
+	Status      AdminDeleteUserResultStatus `json:"status"`
+}
+
+// AdminDeleteUserResultStatus defines model for AdminDeleteUserResult.Status.
+type AdminDeleteUserResultStatus string
 
 // AdminEraseOrganizationInput defines model for AdminEraseOrganizationInput.
 type AdminEraseOrganizationInput struct {
@@ -4868,6 +4929,9 @@ type AdminApplyUpdateJSONRequestBody = AdminApplyUpdateRequest
 // AdminCreateUserJSONRequestBody defines body for AdminCreateUser for application/json ContentType.
 type AdminCreateUserJSONRequestBody = AdminUserCreate
 
+// AdminDeleteUserJSONRequestBody defines body for AdminDeleteUser for application/json ContentType.
+type AdminDeleteUserJSONRequestBody = AdminDeleteUserInput
+
 // AdminUpdateUserJSONRequestBody defines body for AdminUpdateUser for application/json ContentType.
 type AdminUpdateUserJSONRequestBody = AdminUserPatch
 
@@ -5550,6 +5614,9 @@ type ServerInterface interface {
 	// AdminCreateUser Create a user with an unusable password, optionally with an organization they own
 	// (POST /api/private/admin/users)
 	AdminCreateUser(w http.ResponseWriter, r *http.Request)
+	// AdminDeleteUser Delete a user account without their password
+	// (DELETE /api/private/admin/users/{user})
+	AdminDeleteUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
 	// AdminUpdateUser Enable, disable, force password reset, promote or demote a user
 	// (PATCH /api/private/admin/users/{user})
 	AdminUpdateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
@@ -6626,6 +6693,32 @@ func (siw *ServerInterfaceWrapper) AdminCreateUser(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminCreateUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteUser(w, r, user)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12435,6 +12528,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminListUsers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminCreateUser)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminDeleteUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminUpdateUser)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users/{user}/impersonate", wrapper.AdminImpersonateUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
