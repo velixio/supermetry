@@ -338,6 +338,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/orgs/{org}/github-stars/repos/{id}/trending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trending watcher status, current episodes and recent history
+         * @description Whether the repository is on github.com/trending (all languages and its primary language, daily and weekly). Scraped on a best-effort basis every 10 minutes; a page that cannot be read never ends an episode and shows as status unreadable. Readable by any member of the organization; opt in with trending_enabled on the repository PATCH (owners and admins).
+         */
+        get: operations["orgGetGitHubStarsTrending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/orgs/{org}/github-stars/summary": {
         parameters: {
             query?: never;
@@ -2976,6 +2996,62 @@ export interface components {
             token?: string;
             clear_token?: boolean;
             public_counter?: boolean;
+            /** @description Opts the repository in or out of the trending watcher; turning it off closes open episodes silently. */
+            trending_enabled?: boolean;
+        };
+        GitHubTrendingSighting: {
+            /**
+             * Format: int64
+             * @description Identifies the episode.
+             */
+            id: number;
+            /** @description Lowercase language of the list; empty for all languages. */
+            list_language: string;
+            /** @enum {string} */
+            since: "daily" | "weekly";
+            first_rank: number;
+            best_rank: number;
+            last_rank: number;
+            /** Format: date-time */
+            first_seen_at: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            /**
+             * Format: date-time
+             * @description Null while the episode is open.
+             */
+            left_at: string | null;
+        };
+        GitHubTrendingList: {
+            list_language: string;
+            /** @enum {string} */
+            since: "daily" | "weekly";
+            /** Format: date-time */
+            last_ok_at: string | null;
+            last_error: string;
+            /** @description False while the page cannot be read. */
+            parse_ok: boolean;
+            entries: number;
+            /**
+             * Format: date-time
+             * @description Set while GitHub has no list for this language.
+             */
+            no_list_until: string | null;
+        };
+        GitHubTrendingStatus: {
+            enabled: boolean;
+            /** @description Primary language last seen by the star tracker; empty when unknown. */
+            language: string;
+            /** @description One of off, waiting, watching or unreadable. */
+            status: string;
+            /** Format: date-time */
+            last_checked_at: string | null;
+            lists: components["schemas"]["GitHubTrendingList"][];
+            /** @description Lists the last run postponed because of the per-run request cap. */
+            deferred_lists: number;
+            current: components["schemas"]["GitHubTrendingSighting"][];
+            /** @description Latest 50 episodes, newest first; open ones have left_at null. */
+            episodes: components["schemas"]["GitHubTrendingSighting"][];
         };
         GitHubStarsRepoSecret: {
             repo: components["schemas"]["GitHubStarsRepo"];
@@ -5670,6 +5746,34 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    orgGetGitHubStarsTrending: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trending status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubTrendingStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };
