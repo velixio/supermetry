@@ -30,3 +30,12 @@ CREATE TABLE org_notification_log (
     PRIMARY KEY (org_id, kind, key)
 );
 CREATE INDEX org_notification_log_recent_idx ON org_notification_log (org_id, kind, sent_at DESC);
+
+-- Last star count the alert evaluator saw for a tracked repository. A missing
+-- row means "not evaluated yet": the first evaluation only records a baseline,
+-- so enabling a repository that already has thousands of stars sends nothing.
+CREATE TABLE github_star_alert_state (
+    repo_id bigint PRIMARY KEY REFERENCES github_star_repos(id) ON DELETE CASCADE,
+    stars integer NOT NULL CHECK (stars >= 0),
+    evaluated_at timestamptz NOT NULL
+);

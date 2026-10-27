@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/notifications"
 	platformcrypto "supermetry/internal/platform/crypto"
 )
 
@@ -111,6 +112,9 @@ type Service struct {
 	APIBase string
 	HTTP    *http.Client
 	Now     func() time.Time
+	// Notifier receives star alerts (milestones, spikes, unstar surges). Nil
+	// turns the alerts job into a no-op.
+	Notifier notifications.Notifier
 
 	// RepoLimit is the default number of repositories one organization may
 	// track; an organization's own setting overrides it. Zero means

@@ -63,3 +63,13 @@ Messages carry repository names, counts and links only. Callers must never put s
 - The test rate limit and the in-flight bound are per process; a multi-instance deployment gets them per instance (the dedup and throttle are in Postgres and hold across instances).
 - Events dropped by the throttle are not queued.
 - Only one Telegram channel per org (unique `(org_id, kind)`).
+
+## First consumers: GitHub star alerts
+
+`ghstars.Service.AlertsJob()` (every 10 minutes) calls `EvaluateAlerts`, which uses `Service.Notifier`. Per enabled repository of a live organization:
+
+- **Milestone** (100, 250, 500, 1,000, 2,500, 5,000, 10,000, 25,000, 50,000, 100,000): uses the GitHub-verified star count and the last count seen (`github_star_alert_state`). The first evaluation only records a baseline, so enabling a repository with 5,000 stars sends nothing. When the count rises over one or more milestones, only the highest is sent. Key `repoid:milestone`.
+- **Spike**: stars gained in the last 6 hours >= max(10, 3 x the average per 6 hours over the 14 days before that window, i.e. total / 56). Key `repoid:spike:<utc date>:<hour/6>`.
+- **Unstar surge**: same with unstars and a floor of 5. Key `repoid:unstar:<utc date>:<hour/6>`.
+- Window counts ignore events from the history import (`source = backfill`); rate alerts are skipped until the import is complete. The baseline counts every source. A repository younger than 14 days is compared with a lower average, so the floor applies.
+- Messages carry the repository name, counts and a github.com link only.

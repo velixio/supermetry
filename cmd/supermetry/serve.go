@@ -577,7 +577,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
 	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
-	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob())
+	starService.Notifier = orgNotifications
+	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)
