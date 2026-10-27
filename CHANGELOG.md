@@ -6,6 +6,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.18 (2026-10-28)
+
 ### Added
 
 - Welcome email, sent once in the background after an account is created by signup or by accepting an invitation. It never delays the request and is skipped when SMTP is not configured.
