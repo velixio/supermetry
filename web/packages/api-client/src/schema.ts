@@ -228,7 +228,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/repos": {
+    "/api/private/admin/organizations/{org}/github-star-repo-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How many GitHub repositories an organization may track */
+        get: operations["adminGetGitHubStarRepoLimit"];
+        /**
+         * Set an organization's own limit on tracked GitHub repositories
+         * @description A number is the cap, 0 allows none, and null means unlimited. Lowering a limit below the current count deletes nothing; existing repositories keep syncing and only new ones are refused. Audited as github_stars.limit_changed.
+         */
+        put: operations["adminSetGitHubStarRepoLimit"];
+        post?: never;
+        /** Remove an organization's own limit so the instance default applies */
+        delete: operations["adminResetGitHubStarRepoLimit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/github-stars/repos": {
         parameters: {
             query?: never;
             header?: never;
@@ -236,23 +258,23 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the tracked GitHub repositories
-         * @description Secrets and tokens are never returned; webhook_url is the endpoint to configure on GitHub.
+         * List the organization's tracked GitHub repositories
+         * @description Any member of the organization may read. Secrets and tokens are never returned; webhook_url is the endpoint to configure on GitHub.
          */
-        get: operations["adminListGitHubStarsRepos"];
+        get: operations["orgListGitHubStarsRepos"];
         put?: never;
         /**
          * Track a repository
-         * @description Checks the repository exists with one GitHub call (a GitHub outage or rate limit does not block the save). The response carries the webhook secret, shown exactly once. At most 50 repositories.
+         * @description Checks the repository exists with one GitHub call (a GitHub outage or rate limit does not block the save). The response carries the webhook secret, shown exactly once. Owners and admins only. The organization may track a limited number of repositories (5 unless the instance or an instance admin sets another limit); beyond it the request is refused with 409.
          */
-        post: operations["adminCreateGitHubStarsRepo"];
+        post: operations["orgCreateGitHubStarsRepo"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/repos/{id}": {
+    "/api/private/orgs/{org}/github-stars/repos/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -266,14 +288,17 @@ export interface paths {
          * Disable a repository, or remove it with its data
          * @description delete_data is required. false only disables the repository and keeps its history (200). true deletes the configuration and every event, snapshot, annotation and erasure record of the repository in one transaction (204).
          */
-        delete: operations["adminDeleteGitHubStarsRepo"];
+        delete: operations["orgDeleteGitHubStarsRepo"];
         options?: never;
         head?: never;
-        /** Enable or disable a repository, change its time zone, or set or clear its token */
-        patch: operations["adminUpdateGitHubStarsRepo"];
+        /**
+         * Enable or disable a repository, change its time zone or public counter, or set or clear its token
+         * @description Owners and admins only.
+         */
+        patch: operations["orgUpdateGitHubStarsRepo"];
         trace?: never;
     };
-    "/api/private/admin/github-stars/repos/{id}/rotate-secret": {
+    "/api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret": {
         parameters: {
             query?: never;
             header?: never;
@@ -286,14 +311,14 @@ export interface paths {
          * Replace the webhook secret
          * @description The new secret is returned exactly once; update it on GitHub.
          */
-        post: operations["adminRotateGitHubStarsSecret"];
+        post: operations["orgRotateGitHubStarsSecret"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/repos/{id}/sync": {
+    "/api/private/orgs/{org}/github-stars/repos/{id}/sync": {
         parameters: {
             query?: never;
             header?: never;
@@ -306,14 +331,14 @@ export interface paths {
          * Reconcile and backfill a repository now
          * @description Starts the sync in the background. At most one runs per repository and manual syncs must be a minute apart; the outcome appears in last_reconcile_at and last_error.
          */
-        post: operations["adminSyncGitHubStarsRepo"];
+        post: operations["orgSyncGitHubStarsRepo"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/summary": {
+    "/api/private/orgs/{org}/github-stars/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -324,7 +349,7 @@ export interface paths {
          * Live star counters and the net change over 24 hours and 7 days
          * @description Reads the repository selected by repo_id. Returns 404 for an unknown repository.
          */
-        get: operations["adminGetGitHubStarsSummary"];
+        get: operations["orgGetGitHubStarsSummary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -333,7 +358,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/series": {
+    "/api/private/orgs/{org}/github-stars/series": {
         parameters: {
             query?: never;
             header?: never;
@@ -342,9 +367,9 @@ export interface paths {
         };
         /**
          * Gained, lost, net and cumulative stars per bucket
-         * @description Buckets are local hours or days in the configured time zone. Defaults are the last 24 hours (hour) or 30 days (day). Hour ranges are limited to 31 days and day ranges to 5 years.
+         * @description Buckets are local hours, days or calendar months in the configured time zone. Defaults are the last 24 hours (hour), 30 days (day) or 12 months (month, starting no earlier than the first event or snapshot). Hour ranges are limited to 31 days, day ranges to 5 years and month ranges to 20 years.
          */
-        get: operations["adminGetGitHubStarsSeries"];
+        get: operations["orgGetGitHubStarsSeries"];
         put?: never;
         post?: never;
         delete?: never;
@@ -353,7 +378,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/events": {
+    "/api/private/orgs/{org}/github-stars/events": {
         parameters: {
             query?: never;
             header?: never;
@@ -361,7 +386,7 @@ export interface paths {
             cookie?: never;
         };
         /** List the user-attributed star and unstar log, newest first */
-        get: operations["adminListGitHubStarsEvents"];
+        get: operations["orgListGitHubStarsEvents"];
         put?: never;
         post?: never;
         delete?: never;
@@ -370,7 +395,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/annotations": {
+    "/api/private/orgs/{org}/github-stars/annotations": {
         parameters: {
             query?: never;
             header?: never;
@@ -378,17 +403,17 @@ export interface paths {
             cookie?: never;
         };
         /** List chart annotations */
-        get: operations["adminListGitHubStarsAnnotations"];
+        get: operations["orgListGitHubStarsAnnotations"];
         put?: never;
         /** Add a chart annotation such as a launch marker */
-        post: operations["adminCreateGitHubStarsAnnotation"];
+        post: operations["orgCreateGitHubStarsAnnotation"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/annotations/{annotation}": {
+    "/api/private/orgs/{org}/github-stars/annotations/{annotation}": {
         parameters: {
             query?: never;
             header?: never;
@@ -399,13 +424,13 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete a chart annotation */
-        delete: operations["adminDeleteGitHubStarsAnnotation"];
+        delete: operations["orgDeleteGitHubStarsAnnotation"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/private/admin/github-stars/users/{login}": {
+    "/api/private/orgs/{org}/github-stars/users/{login}": {
         parameters: {
             query?: never;
             header?: never;
@@ -417,9 +442,9 @@ export interface paths {
         post?: never;
         /**
          * Erase every recorded star event of a GitHub user
-         * @description Privacy erasure. Aggregates are recomputed from the remaining events; the live counters and daily snapshots keep their totals. Audited as instance.github_stars.user_erased with the event count only.
+         * @description Privacy erasure. Aggregates are recomputed from the remaining events; the live counters and daily snapshots keep their totals. Audited as github_stars.user_erased with the event count only.
          */
-        delete: operations["adminEraseGitHubStarsUser"];
+        delete: operations["orgEraseGitHubStarsUser"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2890,8 +2915,15 @@ export interface components {
         GitHubStarsRepo: {
             /** Format: int64 */
             id: number;
+            /**
+             * Format: int64
+             * @description The organization that tracks the repository.
+             */
+            org_id: number;
             /** @description Lowercase owner/name. */
             repo: string;
+            /** @description When true the star count is readable without signing in at public_count_url; off by default. */
+            public_counter: boolean;
             enabled: boolean;
             time_zone: string;
             has_token: boolean;
@@ -2909,6 +2941,21 @@ export interface components {
             last_reconcile_at: string | null;
             last_error: string | null;
         };
+        GitHubStarRepoLimit: {
+            /** @description Most repositories the organization may track; null means unlimited. */
+            limit: number | null;
+            /**
+             * @description org when the organization has its own limit
+             * @enum {string}
+             */
+            source: "org" | "default";
+            /** @description Repositories the organization tracks now. */
+            tracked: number;
+        };
+        GitHubStarRepoLimitInput: {
+            /** @description The cap; 0 allows none and null means unlimited. */
+            limit: number | null;
+        };
         GitHubStarsRepos: {
             data: components["schemas"]["GitHubStarsRepo"][];
         };
@@ -2919,6 +2966,8 @@ export interface components {
             token?: string;
             /** @description IANA time zone for charts; defaults to UTC. */
             time_zone?: string;
+            /** @description Publish the star count at the public counter endpoint; defaults to false. */
+            public_counter?: boolean;
         };
         GitHubStarsRepoPatch: {
             enabled?: boolean;
@@ -2926,6 +2975,7 @@ export interface components {
             /** @description Replaces the stored token when not empty. */
             token?: string;
             clear_token?: boolean;
+            public_counter?: boolean;
         };
         GitHubStarsRepoSecret: {
             repo: components["schemas"]["GitHubStarsRepo"];
@@ -5342,11 +5392,98 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminListGitHubStarsRepos: {
+    adminGetGitHubStarRepoLimit: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The effective limit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarRepoLimit"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminSetGitHubStarRepoLimit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubStarRepoLimitInput"];
+            };
+        };
+        responses: {
+            /** @description The effective limit after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarRepoLimit"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminResetGitHubStarRepoLimit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The effective limit after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarRepoLimit"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    orgListGitHubStarsRepos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -5365,11 +5502,13 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminCreateGitHubStarsRepo: {
+    orgCreateGitHubStarsRepo: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
             cookie?: never;
         };
         requestBody: {
@@ -5402,13 +5541,14 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminDeleteGitHubStarsRepo: {
+    orgDeleteGitHubStarsRepo: {
         parameters: {
             query: {
                 delete_data: boolean;
             };
             header?: never;
             path: {
+                org: components["parameters"]["OrgPathID"];
                 id: number;
             };
             cookie?: never;
@@ -5438,11 +5578,12 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminUpdateGitHubStarsRepo: {
+    orgUpdateGitHubStarsRepo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                org: components["parameters"]["OrgPathID"];
                 id: number;
             };
             cookie?: never;
@@ -5469,11 +5610,12 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminRotateGitHubStarsSecret: {
+    orgRotateGitHubStarsSecret: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                org: components["parameters"]["OrgPathID"];
                 id: number;
             };
             cookie?: never;
@@ -5496,11 +5638,12 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminSyncGitHubStarsRepo: {
+    orgSyncGitHubStarsRepo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                org: components["parameters"]["OrgPathID"];
                 id: number;
             };
             cookie?: never;
@@ -5530,13 +5673,15 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminGetGitHubStarsSummary: {
+    orgGetGitHubStarsSummary: {
         parameters: {
             query: {
                 repo_id: components["parameters"]["GitHubStarsRepoID"];
             };
             header?: never;
-            path?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -5556,7 +5701,7 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminGetGitHubStarsSeries: {
+    orgGetGitHubStarsSeries: {
         parameters: {
             query: {
                 repo_id: components["parameters"]["GitHubStarsRepoID"];
@@ -5565,7 +5710,9 @@ export interface operations {
                 to?: string;
             };
             header?: never;
-            path?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -5586,7 +5733,7 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminListGitHubStarsEvents: {
+    orgListGitHubStarsEvents: {
         parameters: {
             query: {
                 repo_id: components["parameters"]["GitHubStarsRepoID"];
@@ -5594,7 +5741,9 @@ export interface operations {
                 limit?: components["parameters"]["GitHubStarsEventLimit"];
             };
             header?: never;
-            path?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -5615,13 +5764,15 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminListGitHubStarsAnnotations: {
+    orgListGitHubStarsAnnotations: {
         parameters: {
             query: {
                 repo_id: components["parameters"]["GitHubStarsRepoID"];
             };
             header?: never;
-            path?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -5641,13 +5792,15 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminCreateGitHubStarsAnnotation: {
+    orgCreateGitHubStarsAnnotation: {
         parameters: {
             query: {
                 repo_id: components["parameters"]["GitHubStarsRepoID"];
             };
             header?: never;
-            path?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
             cookie?: never;
         };
         requestBody: {
@@ -5672,13 +5825,14 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminDeleteGitHubStarsAnnotation: {
+    orgDeleteGitHubStarsAnnotation: {
         parameters: {
             query: {
                 repo_id: components["parameters"]["GitHubStarsRepoID"];
             };
             header?: never;
             path: {
+                org: components["parameters"]["OrgPathID"];
                 annotation: number;
             };
             cookie?: never;
@@ -5699,13 +5853,14 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    adminEraseGitHubStarsUser: {
+    orgEraseGitHubStarsUser: {
         parameters: {
             query: {
                 repo_id: components["parameters"]["GitHubStarsRepoID"];
             };
             header?: never;
             path: {
+                org: components["parameters"]["OrgPathID"];
                 login: string;
             };
             cookie?: never;

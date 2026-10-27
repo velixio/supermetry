@@ -515,7 +515,7 @@ describe('AppShell live visitor badge', () => {
     renderAppShell('/app/account/profile')
     fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))
     const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
-    expect(within(within(dialog).getByRole('group', { name: 'Pages' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Account settings'])
+    expect(within(within(dialog).getByRole('group', { name: 'Pages' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Account settings', 'GitHub stars'])
     expect(within(within(dialog).getByRole('group', { name: 'Organizations' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Acme'])
     expect(within(dialog).queryByRole('group', { name: 'Sites' })).toBeNull()
   })

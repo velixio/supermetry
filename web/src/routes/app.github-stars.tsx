@@ -8,9 +8,8 @@ import { meQueryOptions } from './app.$org'
 export const Route = createFileRoute('/app/github-stars')({
   beforeLoad: async () => {
     const me = await queryClient.ensureQueryData(meQueryOptions)
-    if (!me.user.instance_admin) throw redirect({ to: '/app' })
     const membership = me.memberships[0]
-    if (!membership) throw redirect({ to: '/app/admin/users' })
+    if (!membership) throw redirect({ to: '/app' })
     throw redirect({ to: '/app/$org/github-stars', params: { org: membership.org.slug }, replace: true })
   },
 })

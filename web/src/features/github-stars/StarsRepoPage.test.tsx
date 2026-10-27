@@ -31,7 +31,7 @@ const days = [
 const mutation = (overrides: Record<string, unknown> = {}) => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null, ...overrides })
 
 const repo = (over: Record<string, unknown> = {}) => ({
-  id: 1, repo: 'velixio/supermetry', enabled: true, time_zone: 'Asia/Kathmandu', has_token: true,
+  id: 1, org_id: 1, repo: 'velixio/supermetry', public_counter: true, enabled: true, time_zone: 'Asia/Kathmandu', has_token: true,
   webhook_url: 'https://stats.example.test/api/github/webhook/abcd1234efgh5678', public_count_url: 'https://stats.example.test/api/github/stars/velixio/supermetry', created_at: '2026-10-01T00:00:00Z',
   last_webhook_at: '2026-10-02T05:00:00Z', last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, history_complete: true, ...over,
 })
@@ -68,8 +68,8 @@ function ready(overrides: Overrides = {}) {
 }
 
 const removed = vi.fn()
-function Detail({ owner = 'Velixio', name = 'SuperMetry' }: { owner?: string; name?: string }) {
-  return <StarsRepoPage org="acme" owner={owner} name={name} onRemoved={removed} />
+function Detail({ owner = 'Velixio', name = 'SuperMetry', canManage = true }: { owner?: string; name?: string; canManage?: boolean }) {
+  return <StarsRepoPage org="acme" orgId={1} canManage={canManage} owner={owner} name={name} onRemoved={removed} />
 }
 
 afterEach(() => {
@@ -86,6 +86,15 @@ describe('markerBucket', () => {
     expect(markerBucket(days, 'day', '2026-09-01T00:00:00Z')).toBeUndefined()
     expect(markerBucket(days, 'day', '2026-10-05T00:00:00Z')).toBeUndefined()
     expect(markerBucket([], 'day', '2026-10-02T00:00:00Z')).toBeUndefined()
+  })
+})
+
+describe('markerBucket in months', () => {
+  it('ends a month bucket where the next one starts', () => {
+    const months = [point('2026-08-01T00:00:00+05:30', 1, 0, 1), point('2026-09-01T00:00:00+05:30', 1, 0, 2)]
+    expect(markerBucket(months, 'month', '2026-08-31T12:00:00+05:30')).toBe(months[0].bucket)
+    expect(markerBucket(months, 'month', '2026-09-15T00:00:00+05:30')).toBe(months[1].bucket)
+    expect(markerBucket(months, 'month', '2026-11-15T00:00:00+05:30')).toBeUndefined()
   })
 })
 
@@ -268,7 +277,7 @@ describe('StarsRepoPage', () => {
     fireEvent.change(within(dialog).getByLabelText(/^Time zone/), { target: { value: 'UTC' } })
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Remove the stored token' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
-    expect(updateRepo.mutate).toHaveBeenCalledWith({ id: 1, patch: { time_zone: 'UTC', clear_token: true } }, expect.any(Object))
+    expect(updateRepo.mutate).toHaveBeenCalledWith({ id: 1, patch: { time_zone: 'UTC', public_counter: true, clear_token: true } }, expect.any(Object))
   })
 
   it('rotates the secret only after confirmation and shows the new one', () => {
@@ -360,5 +369,50 @@ describe('StarsRepoPage', () => {
     cleanup()
     render(<Detail />)
     expect(screen.queryByText(/History import/)).not.toBeInTheDocument()
+  })
+
+  it('can switch the public counter on from the settings', () => {
+    const updateRepo = mutation()
+    ready({ repos: [repo({ public_counter: false })], updateRepo })
+    render(<Detail />)
+    const status = screen.getByRole('region', { name: 'Status of velixio/supermetry' })
+    expect(within(status).getByText(/The star count is private/)).toBeVisible()
+    expect(within(status).queryByText('Public count URL')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    const dialog = screen.getByRole('dialog', { name: 'Settings for velixio/supermetry' })
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Public star counter/ }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    expect(updateRepo.mutate).toHaveBeenCalledWith({ id: 1, patch: { time_zone: 'Asia/Kathmandu', public_counter: true } }, expect.any(Object))
+  })
+
+  it('is view-only for plain members: every management control is hidden, the data stays', () => {
+    ready()
+    render(<Detail canManage={false} />)
+    expect(screen.getByText('1,234')).toBeVisible()
+    expect(screen.getByRole('table', { name: 'Star changes per bucket' })).toBeVisible()
+    expect(screen.getByText('Launch', { selector: 'strong' })).toBeVisible()
+    expect(screen.getByText('alice')).toBeVisible()
+    for (const name of ['Sync now', 'Settings', 'Rotate secret', 'Remove', 'Add annotation', 'Erase user data', 'Delete annotation Launch', 'Erase events of alice']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    }
+    expect(screen.queryByRole('switch', { name: 'Enabled' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('GitHub login')).not.toBeInTheDocument()
+    expect(screen.queryByText('Payload URL')).not.toBeInTheDocument()
+    expect(screen.getByText(/Only organization owners and admins can change repositories/)).toBeVisible()
+  })
+
+  it('offers a month mode with per-month gain figures', () => {
+    ready()
+    const months = [3, 8, -2].map((net, i) => ({ bucket: `2026-0${8 + i}-01T00:00:00+05:30`, gained: Math.max(net, 0), lost: Math.max(-net, 0), net, cumulative: [3, 11, 9][i] }))
+    api.useStarsSeries.mockImplementation((_id: number, granularity: string) => ({ isPending: false, isError: false, data: { time_zone: 'Asia/Kolkata', data: granularity === 'month' ? months : days } }))
+    render(<Detail />)
+    fireEvent.click(screen.getByRole('radio', { name: 'Month' }))
+    expect(api.useStarsSeries).toHaveBeenLastCalledWith(1, 'month')
+    expect(screen.getByText(/Last 12 months/)).toBeVisible()
+    const group = screen.getByRole('group', { name: 'Gain per month' })
+    expect(within(group).getByText('This month').nextSibling).toHaveTextContent('-2')
+    expect(within(group).getByText('Previous month').nextSibling).toHaveTextContent('+8')
+    expect(within(group).getByText('Average per month').nextSibling).toHaveTextContent('+3')
+    expect(within(group).getByText('Best month').nextSibling).toHaveTextContent('+8')
   })
 })

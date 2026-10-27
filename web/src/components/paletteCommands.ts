@@ -55,7 +55,7 @@ export function paletteCommands({
     const site = activeSite(membership, requestedSite)
     const slug = site ? siteSlug(site) : ''
     const showReplays = replaysAvailable(membership, site)
-    for (const item of visibleNavigation(membership.role, Boolean(site), membership, site, Boolean(me.user.instance_admin))) {
+    for (const item of visibleNavigation(membership.role, Boolean(site), membership, site)) {
       page(item.suffix || '/', item.label, navigationUrl(item, org, slug))
       if (item.suffix === '/realtime' && showReplays) page('/replays', ui.crumbs.segments.replays, replaysUrl(org, slug))
     }
@@ -83,7 +83,7 @@ export function paletteCommands({
   }
 
   // Inside an organization the item comes from the navigation above; elsewhere /app/github-stars leads to it.
-  if (me.user.instance_admin && !membership) page('github-stars', en.githubStars.nav, githubStarsPath)
+  if (me.memberships.length > 0 && !membership) page('github-stars', en.githubStars.nav, githubStarsPath)
 
   for (const other of me.memberships) {
     if (other.org.id === membership?.org.id) continue

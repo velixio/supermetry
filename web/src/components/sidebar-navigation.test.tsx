@@ -5,18 +5,20 @@ import { navigationHref, navigationIsActive, settingsDestinations, settingsIsAct
 import { accountDestinationIsActive, accountDestinations } from './AccountSidebar'
 
 describe('primary sidebar navigation', () => {
-  it('adds the organization-level GitHub stars item for instance admins only', () => {
-    expect(visibleNavigation('viewer', false).map((item) => item.suffix)).not.toContain('/github-stars')
-    const items = visibleNavigation('viewer', false, undefined, undefined, true)
+  it('adds the organization-level GitHub stars item for every member', () => {
+    for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
+      expect(visibleNavigation(role, false).map((item) => item.suffix)).toContain('/github-stars')
+    }
+    const items = visibleNavigation('viewer', false)
     const stars = items.find((item) => item.suffix === '/github-stars')
     expect(stars?.label).toBe('GitHub stars')
     expect(stars && navigationHref(stars, 'acme', 'docs')).toBe('/app/acme/github-stars')
     // It needs no site and stays in the menu of pixel projects.
-    expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site, true).map((item) => item.suffix)).toContain('/github-stars')
+    expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site).map((item) => item.suffix)).toContain('/github-stars')
   })
 
   it('marks GitHub stars active on its own path only', () => {
-    const stars = visibleNavigation('owner', false, undefined, undefined, true).find((item) => item.suffix === '/github-stars')!
+    const stars = visibleNavigation('owner', false).find((item) => item.suffix === '/github-stars')!
     expect(navigationIsActive(stars, '/app/acme/github-stars', 'acme', '')).toBe(true)
     expect(navigationIsActive(stars, '/app/acme/health', 'acme', '')).toBe(false)
     expect(navigationIsActive(stars, '/app/github-stars', 'acme', '')).toBe(false)
@@ -24,7 +26,7 @@ describe('primary sidebar navigation', () => {
 
   it('hides web-only pages for pixel projects', () => {
     const items = visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site)
-    expect(items.map((item) => item.suffix)).toEqual(['', '/sites', '/health'])
+    expect(items.map((item) => item.suffix)).toEqual(['', '/sites', '/health', '/github-stars'])
   })
 
   it('keeps settings out of analytics navigation for every role and site state', () => {
@@ -37,7 +39,7 @@ describe('primary sidebar navigation', () => {
   it('shows only supported analytics navigation for anonymous or missing policy', () => {
     const anonymous: Site = { id: 7, name: 'Docs', tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: [] } }
     for (const site of [anonymous, undefined]) {
-      expect(visibleNavigation('owner', true, { effective_capabilities: ['profiles.read', 'replay.read'] }, site).map((item) => item.suffix)).toEqual(['', '/sites', '/links', '/health'])
+      expect(visibleNavigation('owner', true, { effective_capabilities: ['profiles.read', 'replay.read'] }, site).map((item) => item.suffix)).toEqual(['', '/sites', '/links', '/health', '/github-stars'])
     }
   })
 

@@ -13,6 +13,7 @@ import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 import { useStarsRepos, useStarsSeries, useStarsSummary, type StarsPoint, type StarsRepo } from './githubStarsApi'
 import { ImportProgress } from './ImportProgress'
+import { StarsOrgProvider, useStarsOrg } from './starsOrg'
 import { AddRepoDialog, RevealPanel, type Reveal } from './StarsRepos'
 
 const t = en.githubStars
@@ -75,7 +76,8 @@ export function RepoCard({ org, repo }: { org: string; repo: StarsRepo }) {
   )
 }
 
-export function StarsOverview({ org }: { org: string }) {
+function OverviewBody({ org }: { org: string }) {
+  const { canManage } = useStarsOrg()
   const repos = useStarsRepos()
   const headingId = useId()
   const [adding, setAdding] = useState(false)
@@ -85,25 +87,30 @@ export function StarsOverview({ org }: { org: string }) {
   return (
     <PageContainer>
       <section className="flex min-w-0 flex-col gap-4" aria-labelledby={headingId}>
-        <PageHeader titleId={headingId} title={t.title} description={t.description} actions={list.length > 0 ? add : undefined} />
+        <PageHeader titleId={headingId} title={t.title} description={t.description} actions={list.length > 0 && canManage ? add : undefined} />
         {reveal ? <RevealPanel reveal={reveal} onDismiss={() => setReveal(null)} /> : null}
         {repos.isPending ? <Skeleton aria-label={t.loading} className="h-40 w-full" /> : repos.isError ? (
           <ErrorState level="page" detail={repos.error instanceof Error ? repos.error.message : undefined} onRetry={() => void repos.refetch()} />
         ) : list.length === 0 ? (
           <Empty>
             <EmptyHeader>
-              <EmptyTitle>{t.addFirstTitle}</EmptyTitle>
-              <EmptyDescription>{t.addFirstBody}</EmptyDescription>
+              <EmptyTitle>{canManage ? t.addFirstTitle : t.emptyMemberTitle}</EmptyTitle>
+              <EmptyDescription>{canManage ? t.addFirstBody : t.emptyMemberBody}</EmptyDescription>
             </EmptyHeader>
-            {add}
+            {canManage ? add : null}
           </Empty>
         ) : (
           <ul aria-label={t.repoList} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((repo) => <li key={repo.id} className="min-w-0"><RepoCard org={org} repo={repo} /></li>)}
           </ul>
         )}
-        <AddRepoDialog open={adding} onOpenChange={setAdding} onCreated={(created) => setReveal(created)} />
+        {canManage ? <AddRepoDialog open={adding} onOpenChange={setAdding} onCreated={(created) => setReveal(created)} /> : null}
       </section>
     </PageContainer>
   )
+}
+
+/** The organization's tracked repositories. `canManage` is true for owners and admins; everyone else reads. */
+export function StarsOverview({ org, orgId, canManage }: { org: string; orgId: number; canManage: boolean }) {
+  return <StarsOrgProvider value={{ orgId, canManage }}><OverviewBody org={org} /></StarsOrgProvider>
 }

@@ -18,7 +18,7 @@ vi.mock('./githubStarsApi', async (importOriginal) => ({ ...(await importOrigina
 import { StarsOverview } from './StarsOverview'
 
 const repo = (over: Record<string, unknown> = {}) => ({
-  id: 1, repo: 'velixio/supermetry', enabled: true, time_zone: 'UTC', has_token: false,
+  id: 1, org_id: 1, repo: 'velixio/supermetry', public_counter: false, enabled: true, time_zone: 'UTC', has_token: false,
   webhook_url: 'https://stats.example.test/api/github/webhook/abc', public_count_url: 'https://stats.example.test/api/github/stars/velixio/supermetry',
   created_at: '2026-10-01T00:00:00Z', last_webhook_at: null, last_reconcile_at: '2026-10-03T00:00:00Z', last_error: null, history_complete: true, ...over,
 })
@@ -44,7 +44,7 @@ describe('StarsOverview', () => {
     ready([repo(), repo({ id: 2, repo: 'velixio/docs', last_reconcile_at: null })])
     api.useStarsSummary.mockImplementation((id: number) => (id === 1 ? summary(82412, 1500) : summary(9, -3)))
     api.useStarsSeries.mockImplementation((id: number) => (id === 1 ? series(82100, 82412) : series(12, 9)))
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'GitHub stars' })).toBeVisible()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
@@ -66,7 +66,7 @@ describe('StarsOverview', () => {
     ready([repo({ id: 3, repo: long, enabled: false }), repo({ id: 4, repo: 'a/b', last_error: 'x'.repeat(200) })])
     api.useStarsSummary.mockReturnValue(summary(1, 0))
     api.useStarsSeries.mockReturnValue(series(1, 1))
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
     const name = screen.getByText(long)
     expect(name).toHaveAttribute('title', long)
     expect(name).toHaveClass('truncate')
@@ -78,7 +78,7 @@ describe('StarsOverview', () => {
     ready([repo(), repo({ id: 2, repo: 'velixio/docs' })])
     api.useStarsSummary.mockImplementation((id: number) => (id === 1 ? { isPending: false, isError: true, error: new Error('boom') } : summary(5, 1)))
     api.useStarsSeries.mockImplementation((id: number) => (id === 1 ? { isPending: false, isError: true, error: new Error('boom') } : series(4, 5)))
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
     expect(screen.getByText('Numbers could not be loaded')).toBeVisible()
     expect(screen.getByRole('link', { name: 'velixio/supermetry' })).toBeVisible()
     expect(screen.getByRole('link', { name: 'velixio/docs, 5 stars' })).toBeVisible()
@@ -88,14 +88,14 @@ describe('StarsOverview', () => {
     ready([repo()])
     api.useStarsSummary.mockReturnValue({ isPending: true })
     api.useStarsSeries.mockReturnValue({ isPending: true })
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
     expect(screen.getByRole('link', { name: 'velixio/supermetry' })).toBeVisible()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 
   it('invites adding the first repository and opens the dialog', () => {
     ready([])
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
     expect(screen.getByText('Add your first repository')).toBeVisible()
     expect(screen.queryByText(/SUPERMETRY_GITHUB/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Add repository' }))
@@ -111,7 +111,7 @@ describe('StarsOverview', () => {
       repo: repo({ id: 2, repo: 'velixio/docs' }), webhook_secret: 'topsecret', webhook_url: 'https://stats.example.test/api/github/webhook/zzzz',
     }))
     api.useAddStarsRepo.mockReturnValue(add)
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
     fireEvent.click(screen.getByRole('button', { name: 'Add repository' }))
     fireEvent.change(screen.getByLabelText('Repository (owner/name)'), { target: { value: 'velixio/docs' } })
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Add repository' }))
@@ -124,7 +124,7 @@ describe('StarsOverview', () => {
   it('reports a list failure with a retry', () => {
     const refetch = vi.fn()
     api.useStarsRepos.mockReturnValue({ isPending: false, isError: true, error: new Error('boom'), refetch })
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalled()
   })
@@ -133,10 +133,32 @@ describe('StarsOverview', () => {
     ready([repo({ history_complete: false, has_token: true }), repo({ id: 2, repo: 'velixio/docs', history_complete: false, has_token: false }), repo({ id: 3, repo: 'velixio/done' })])
     api.useStarsSummary.mockImplementation((id: number) => (id === 3 ? summary(10, 0) : summary(82418, 5, 31200)))
     api.useStarsSeries.mockReturnValue(series(1, 2))
-    render(<StarsOverview org="acme" />)
+    render(<StarsOverview org="acme" orgId={1} canManage />)
     const first = screen.getByRole('link', { name: 'velixio/supermetry, 82,418 stars' })
     expect(within(first).getByRole('status')).toHaveTextContent('History import: 31,200 of 82,418 stars (resumes automatically)')
     expect(within(screen.getByRole('link', { name: 'velixio/docs, 82,418 stars' })).getByRole('status')).toHaveTextContent('needs a GitHub token')
     expect(within(screen.getByRole('link', { name: 'velixio/done, 10 stars' })).queryByRole('status')).toBeNull()
+  })
+
+  it('is view-only for plain members: no add button, and an empty state that points to an owner or admin', () => {
+    ready([repo()])
+    api.useStarsSummary.mockReturnValue(summary(5, 1))
+    api.useStarsSeries.mockReturnValue(series(1, 5))
+    render(<StarsOverview org="acme" orgId={1} canManage={false} />)
+    expect(screen.getByRole('link', { name: 'velixio/supermetry, 5 stars' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Add repository' })).not.toBeInTheDocument()
+    cleanup()
+    ready([])
+    render(<StarsOverview org="acme" orgId={1} canManage={false} />)
+    expect(screen.getByText('No repositories tracked yet')).toBeVisible()
+    expect(screen.getByText('Ask an owner or admin of this organization to add a repository.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Add repository' })).not.toBeInTheDocument()
+  })
+
+  it('invites owners and admins to add the first repository', () => {
+    ready([])
+    render(<StarsOverview org="acme" orgId={1} canManage />)
+    expect(screen.getByText('Add your first repository')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Add repository' })).toBeVisible()
   })
 })

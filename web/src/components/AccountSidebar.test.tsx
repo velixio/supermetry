@@ -65,15 +65,10 @@ describe('AccountSidebar', () => {
     expect(within(nav).getByRole('link', { name: 'Account settings' })).not.toHaveAttribute('aria-current')
   })
 
-  it('links GitHub stars in the sidebar for instance admins only', async () => {
-    const admin = await show('/app/github-stars', { ...me, user: { ...me.user, instance_admin: true } })
-    const link = within(within(admin).getByRole('navigation', { name: 'Community' })).getByRole('link', { name: 'GitHub stars' })
-    expect(link).toHaveAttribute('href', '/app/github-stars')
-    expect(link).toHaveAttribute('aria-current', 'page')
-    cleanup()
-    const member = await show('/app/account/profile')
-    expect(within(member).queryByRole('link', { name: 'GitHub stars' })).toBeNull()
-    expect(within(member).queryByRole('navigation', { name: 'Community' })).toBeNull()
+  it('keeps GitHub stars out of the account sidebar: it lives in the organization menu', async () => {
+    const admin = await show('/app/account/profile', { ...me, user: { ...me.user, instance_admin: true } })
+    expect(within(admin).queryByRole('link', { name: 'GitHub stars' })).toBeNull()
+    expect(within(admin).queryByRole('navigation', { name: 'Community' })).toBeNull()
   })
 
   it('switches organizations without offering sites', async () => {

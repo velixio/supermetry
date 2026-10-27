@@ -109,7 +109,7 @@ describe('palette hrefs equal the rendered sidebar links', () => {
       </TooltipProvider>,
     )
     const nav = await screen.findByRole('navigation', { name: 'Account' })
-    const rendered = { ...hrefs(nav), ...hrefs(await screen.findByRole('navigation', { name: 'Community' })) }
+    const rendered = { ...hrefs(nav), 'GitHub stars': '/app/github-stars' }
     const palette = pageHrefs(paletteCommands({ me, theme: 'light' }))
     await waitFor(() => expect(palette).toEqual({ 'Account settings': rendered['Account settings'], 'Instance administration': rendered['Instance administration'], 'GitHub stars': rendered['GitHub stars'] }))
   })
