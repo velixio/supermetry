@@ -112,7 +112,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 
 func (r *Registry) loadReplaySettings(ctx context.Context) (map[int32]coresites.ReplaySiteInput, error) {
 	rows, err := r.store.Pool.Query(ctx, `
-		select s.id, coalesce(s.settings->'replay', '{}'::jsonb)
+		select s.id, coalesce(s.settings->'replay', '{}'::jsonb), o.replay_retention_cap_days
 		from sites s
 		join orgs o on o.id = s.org_id
 		where s.deleted_at is null and o.deleted_at is null`)
@@ -124,13 +124,15 @@ func (r *Registry) loadReplaySettings(ctx context.Context) (map[int32]coresites.
 	for rows.Next() {
 		var id int32
 		var raw []byte
-		if err := rows.Scan(&id, &raw); err != nil {
+		var orgCap *int
+		if err := rows.Scan(&id, &raw, &orgCap); err != nil {
 			return nil, fmt.Errorf("scan replay site settings: %w", err)
 		}
 		settings, err := coresites.ParseReplaySiteInput(raw)
 		if err != nil {
 			return nil, fmt.Errorf("parse replay settings for site %d: %w", id, err)
 		}
+		settings.OrgRetentionCapDays = orgCap
 		result[id] = settings
 	}
 	if err := rows.Err(); err != nil {
@@ -180,6 +182,7 @@ func cloneReplaySettings(settings coresites.ReplaySiteInput) coresites.ReplaySit
 	settings.Mask = cloneBool(settings.Mask)
 	settings.SampleRate = cloneInt(settings.SampleRate)
 	settings.RetentionDays = cloneInt(settings.RetentionDays)
+	settings.OrgRetentionCapDays = cloneInt(settings.OrgRetentionCapDays)
 	settings.QuotaBytes = cloneInt64(settings.QuotaBytes)
 	settings.Consent = cloneString(settings.Consent)
 	settings.Triggers.Error = cloneBool(settings.Triggers.Error)

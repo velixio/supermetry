@@ -36,6 +36,16 @@ func SiteReplaySettings(ctx context.Context, data *Store, orgID int64, id int32)
 	return raw, nil
 }
 
+// OrgReplayRetentionCap returns the organization's replay retention cap in
+// days, or nil when it has none.
+func OrgReplayRetentionCap(ctx context.Context, data *Store, orgID int64) (*int, error) {
+	var capDays *int
+	if err := data.Pool.QueryRow(ctx, `select replay_retention_cap_days from orgs where id=$1`, orgID).Scan(&capDays); err != nil {
+		return nil, fmt.Errorf("load org replay retention cap: %w", err)
+	}
+	return capDays, nil
+}
+
 func SetSiteReplaySettings(ctx context.Context, data *Store, orgID int64, id int32, settings []byte) error {
 	tag, err := data.Pool.Exec(ctx, `
 		update sites

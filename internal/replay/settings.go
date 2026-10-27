@@ -102,6 +102,7 @@ func ResolveSite(env config.ReplayEnv, in sites.ReplaySiteInput) SiteSettings {
 		},
 		Consent: "auto",
 	}
+	applyOrgRetentionCap(&settings, in.OrgRetentionCapDays)
 	if !env.Enabled {
 		settings.Restrictions = append(settings.Restrictions, "instance_replay_disabled")
 	}
@@ -262,4 +263,28 @@ func resolveCap[T ~int | ~int64](fallback T, project, instance *T, reason string
 		}
 	}
 	return value
+}
+
+// OrgRetentionCapped is the restriction reported when the owning organization's
+// cap lowers the effective retention below what the site and instance allow.
+const OrgRetentionCapped = "org_retention_capped"
+
+// applyOrgRetentionCap lowers retention to the organization's cap. The effective
+// value is min(instance cap, organization cap, site setting); the maximum shown
+// to the UI is the smaller of the instance and organization ceilings. A nil cap
+// changes nothing.
+func applyOrgRetentionCap(settings *SiteSettings, orgCap *int) {
+	if orgCap == nil {
+		return
+	}
+	limit := *orgCap
+	value := &settings.RetentionDays
+	if value.Maximum == nil || limit < *value.Maximum {
+		value.Maximum = &limit
+	}
+	if limit < value.V {
+		value.V = limit
+		value.Restriction = OrgRetentionCapped
+		settings.Restrictions = append(settings.Restrictions, OrgRetentionCapped)
+	}
 }
