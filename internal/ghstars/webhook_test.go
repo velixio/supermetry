@@ -45,13 +45,13 @@ type hookEnv struct {
 func newHook(t *testing.T) (*hookEnv, *Store) {
 	t.Helper()
 	svc, _ := newTestService(t)
-	repo, secret, err := svc.Create(context.Background(), CreateInput{Repo: "Velixio/Supermetry", TimeZone: "Asia/Kathmandu"}, 0)
+	repo, secret, err := svc.Create(context.Background(), orgOf(t, svc), CreateInput{Repo: "Velixio/Supermetry", PublicCounter: true, TimeZone: "Asia/Kathmandu"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	now := at("2026-10-10T12:00:00Z")
 	svc.Now = func() time.Time { return now }
-	store, _, err := svc.StoreFor(context.Background(), repo.ID)
+	store, _, err := svc.StoreFor(context.Background(), orgOf(t, svc), repo.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func TestWebhookUnknownOrDisabledRepoIs404(t *testing.T) {
 		t.Fatalf("short id = %d", rec.Code)
 	}
 	off := false
-	if _, err := h.svc.Update(context.Background(), h.repo.ID, UpdateInput{Enabled: &off}, 0); err != nil {
+	if _, err := h.svc.Update(context.Background(), orgOf(t, h.svc), h.repo.ID, UpdateInput{Enabled: &off}, 0); err != nil {
 		t.Fatal(err)
 	}
 	if rec := h.do(h.signed("star", "n2", body)); rec.Code != http.StatusNotFound {
@@ -252,7 +252,7 @@ func TestWebhookUnknownOrDisabledRepoIs404(t *testing.T) {
 func TestWebhookUsesThePerRepositorySecret(t *testing.T) {
 	h, store := newHook(t)
 	ctx := context.Background()
-	other, otherSecret, err := h.svc.Create(ctx, CreateInput{Repo: "velixio/other"}, 0)
+	other, otherSecret, err := h.svc.Create(ctx, orgOf(t, h.svc), CreateInput{Repo: "velixio/other"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,14 +276,14 @@ func TestWebhookRecordsLastDelivery(t *testing.T) {
 	if rec := h.do(h.signed("ping", "p9", `{}`)); rec.Code != http.StatusOK {
 		t.Fatalf("ping = %d", rec.Code)
 	}
-	repo, err := h.svc.Get(context.Background(), h.repo.ID)
+	repo, err := h.svc.Get(context.Background(), orgOf(t, h.svc), h.repo.ID)
 	if err != nil || repo.LastWebhookAt == nil || !repo.LastWebhookAt.Equal(at("2026-10-10T12:00:00Z")) {
 		t.Fatalf("last webhook = %+v, %v", repo.LastWebhookAt, err)
 	}
 	// A bad signature does not count as a delivery.
 	h.svc.Now = func() time.Time { return at("2026-10-11T00:00:00Z") }
 	h.do(hookRequest{event: "ping", delivery: "p10", body: `{}`, signature: "sha256=00"})
-	repo, _ = h.svc.Get(context.Background(), h.repo.ID)
+	repo, _ = h.svc.Get(context.Background(), orgOf(t, h.svc), h.repo.ID)
 	if !repo.LastWebhookAt.Equal(at("2026-10-10T12:00:00Z")) {
 		t.Fatalf("last webhook moved to %v", repo.LastWebhookAt)
 	}

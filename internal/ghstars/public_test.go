@@ -45,12 +45,12 @@ func TestPublicCountServesOnlyTheStarCount(t *testing.T) {
 	svc, server := newTestService(t)
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { githubCalls.Add(1); w.WriteHeader(500) })
 	ctx := context.Background()
-	repo, _, err := svc.Create(ctx, CreateInput{Repo: "Velixio/Supermetry"}, 0)
+	repo, _, err := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "Velixio/Supermetry", PublicCounter: true}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	githubCalls.Store(0)
-	store, _, _ := svc.StoreFor(ctx, repo.ID)
+	store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), repo.ID)
 	if err := store.SaveState(ctx, Counts{Stars: 82412, Forks: 9, Watchers: 8, OpenIssues: 7}, at("2026-10-10T12:00:00Z")); err != nil {
 		t.Fatal(err)
 	}
@@ -101,15 +101,15 @@ func TestPublicCountTracksWebhookUpdates(t *testing.T) {
 func TestPublicCountNotFoundLooksTheSameEverywhere(t *testing.T) {
 	svc, _ := newTestService(t)
 	ctx := context.Background()
-	synced, _, _ := svc.Create(ctx, CreateInput{Repo: "a/synced"}, 0)
-	off, _, _ := svc.Create(ctx, CreateInput{Repo: "a/off"}, 0)
-	_, _, _ = svc.Create(ctx, CreateInput{Repo: "a/fresh"}, 0)
+	synced, _, _ := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "a/synced", PublicCounter: true}, 0)
+	off, _, _ := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "a/off", PublicCounter: true}, 0)
+	_, _, _ = svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "a/fresh", PublicCounter: true}, 0)
 	for _, r := range []Repo{synced, off} {
-		store, _, _ := svc.StoreFor(ctx, r.ID)
+		store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), r.ID)
 		_ = store.SaveState(ctx, Counts{Stars: 5}, at("2026-10-10T12:00:00Z"))
 	}
 	disabled := false
-	if _, err := svc.Update(ctx, off.ID, UpdateInput{Enabled: &disabled}, 0); err != nil {
+	if _, err := svc.Update(ctx, orgOf(t, svc), off.ID, UpdateInput{Enabled: &disabled}, 0); err != nil {
 		t.Fatal(err)
 	}
 	h := &PublicCount{Service: svc}
@@ -134,8 +134,8 @@ func TestPublicCountNotFoundLooksTheSameEverywhere(t *testing.T) {
 func TestPublicCountHeadAndPreflight(t *testing.T) {
 	svc, _ := newTestService(t)
 	ctx := context.Background()
-	repo, _, _ := svc.Create(ctx, CreateInput{Repo: "a/b"}, 0)
-	store, _, _ := svc.StoreFor(ctx, repo.ID)
+	repo, _, _ := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "a/b", PublicCounter: true}, 0)
+	store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), repo.ID)
 	_ = store.SaveState(ctx, Counts{Stars: 3}, at("2026-10-10T12:00:00Z"))
 	h := &PublicCount{Service: svc}
 
@@ -151,8 +151,8 @@ func TestPublicCountHeadAndPreflight(t *testing.T) {
 
 func TestPublicCountRateLimit(t *testing.T) {
 	svc, _ := newTestService(t)
-	repo, _, _ := svc.Create(context.Background(), CreateInput{Repo: "a/b"}, 0)
-	store, _, _ := svc.StoreFor(context.Background(), repo.ID)
+	repo, _, _ := svc.Create(context.Background(), orgOf(t, svc), CreateInput{Repo: "a/b", PublicCounter: true}, 0)
+	store, _, _ := svc.StoreFor(context.Background(), orgOf(t, svc), repo.ID)
 	_ = store.SaveState(context.Background(), Counts{Stars: 3}, at("2026-10-10T12:00:00Z"))
 	h := &PublicCount{Service: svc, Limiter: &countingLimiter{left: 2}}
 	for i := 0; i < 2; i++ {

@@ -106,11 +106,11 @@ func largeService(t *testing.T, server *httptest.Server, token string) (*Service
 	svc.APIBase, svc.HTTP = server.URL, server.Client()
 	svc.Now = func() time.Time { return at("2026-10-10T20:00:00Z") }
 	svc.LargeThreshold, svc.ChunkPages, svc.GraphQLPageSize = 5, 1, 3
-	repo, _, err := svc.Create(context.Background(), CreateInput{Repo: testRepo, Token: token, TimeZone: "UTC"}, 0)
+	repo, _, err := svc.Create(context.Background(), orgOf(t, svc), CreateInput{Repo: testRepo, Token: token, TimeZone: "UTC"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, _, err := svc.StoreFor(context.Background(), repo.ID)
+	store, _, err := svc.StoreFor(context.Background(), orgOf(t, svc), repo.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestLargeRepoImportsInResumableChunks(t *testing.T) {
 	if err := store.InsertEvents(ctx, []Event{{UserID: 6, Login: "f", Action: ActionStarred, OccurredAt: at("2026-10-06T00:00:00Z"), Source: SourceWebhook}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.pool.Exec(ctx, `insert into github_star_erasures(repo,user_id) values ($1,4)`, testRepo); err != nil {
+	if _, err := svc.pool.Exec(ctx, `insert into github_star_erasures(repo_id,user_id) values ($1,4)`, repo.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -172,7 +172,7 @@ func TestLargeRepoImportsInResumableChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	row, _ = svc.load(ctx, repo.ID)
-	if listed, _ := svc.Get(ctx, repo.ID); !listed.HistoryComplete {
+	if listed, _ := svc.Get(ctx, orgOf(t, svc), repo.ID); !listed.HistoryComplete {
 		t.Fatal("the repository response should report the history as complete")
 	}
 	if row.backfillCursor != nil || !row.backfillComplete || row.LastError != nil {
@@ -384,7 +384,7 @@ func TestImportJobIsANoOpForSmallAndCompleteRepositories(t *testing.T) {
 		t.Fatalf("a small complete repository was contacted: rest=%d graphql=%d", fake.restHit.Load(), fake.gqlHit.Load())
 	}
 	// A disabled large repository is not touched either.
-	if _, err := store.pool.Exec(ctx, `update github_star_state set stars=100 where repo=$1`, repo.Repo); err != nil {
+	if _, err := store.pool.Exec(ctx, `update github_star_state set stars=100 where repo_id=$1`, repo.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.pool.Exec(ctx, `update github_star_repos set backfill_complete=false, enabled=false where id=$1`, repo.ID); err != nil {
@@ -412,14 +412,14 @@ func TestImportAndSyncNeverOverlap(t *testing.T) {
 	if err := svc.ReconcileRepo(ctx, repo.ID); !errors.Is(err, ErrBusy) {
 		t.Fatalf("reconcile while locked: %v", err)
 	}
-	if err := svc.StartSync(ctx, repo.ID); !errors.Is(err, ErrBusy) {
+	if err := svc.StartSync(ctx, orgOf(t, svc), repo.ID); !errors.Is(err, ErrBusy) {
 		t.Fatalf("sync while locked: %v", err)
 	}
 	if err := svc.ImportPending(ctx); err != nil {
 		t.Fatalf("the job should skip a busy repository quietly: %v", err)
 	}
 	svc.release(repo.ID)
-	if err := svc.StartSync(ctx, repo.ID); err != nil {
+	if err := svc.StartSync(ctx, orgOf(t, svc), repo.ID); err != nil {
 		t.Fatalf("sync after release: %v", err)
 	}
 	svc.Wait()

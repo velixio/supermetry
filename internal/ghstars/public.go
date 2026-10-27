@@ -14,10 +14,12 @@ import (
 type Limiter interface{ Allow(key string) bool }
 
 // PublicCount serves GET /api/github/stars/{owner}/{name}: the live star count
-// of a tracked, enabled and synced repository, as {"stars":N} and nothing else.
-// It reads the stored count only and never calls GitHub. Stars are public data,
-// so there is no per-repository opt-in; every miss answers the same 404 so the
-// response does not reveal which repositories are tracked.
+// of a tracked, enabled, synced repository whose organization turned its public
+// counter on, as {"stars":N} and nothing else. When several organizations
+// publish the same repository the oldest one answers. It reads the stored count
+// only and never calls GitHub. Every miss (unknown, disabled, never synced,
+// not public) answers the same 404 so the response does not reveal which
+// repositories are tracked.
 type PublicCount struct {
 	Service *Service
 	// Limiter is optional and keyed by ClientKey.
@@ -75,16 +77,19 @@ func (h *PublicCount) write(w http.ResponseWriter, r *http.Request, body string)
 	}
 }
 
-// publicStars returns the stored star count of an enabled repository that has
-// synced at least once.
+// publicStars returns the stored star count of the oldest enabled repository
+// with a public counter that has synced at least once.
 func (s *Service) publicStars(ctx context.Context, repo string) (int, bool, error) {
 	if !repoPattern.MatchString(repo) {
 		return 0, false, nil
 	}
 	var stars int
 	err := s.pool.QueryRow(ctx, `
-		select st.stars from github_star_repos r join github_star_state st on st.repo = r.repo
-		where r.repo = $1 and r.enabled`, repo).Scan(&stars)
+		select st.stars from github_star_repos r
+		join github_star_state st on st.repo_id = r.id
+		join orgs o on o.id = r.org_id and o.deleted_at is null
+		where r.repo = $1 and r.enabled and r.public_counter
+		order by r.id limit 1`, repo).Scan(&stars)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
