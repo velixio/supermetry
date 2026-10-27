@@ -598,6 +598,33 @@ func (e GitHubStarRepoLimitSource) Valid() bool {
 	}
 }
 
+// Defines values for GitHubStarsAlertKind.
+const (
+	StarMilestone   GitHubStarsAlertKind = "star_milestone"
+	StarSpike       GitHubStarsAlertKind = "star_spike"
+	TrendingEntered GitHubStarsAlertKind = "trending_entered"
+	TrendingLeft    GitHubStarsAlertKind = "trending_left"
+	UnstarSurge     GitHubStarsAlertKind = "unstar_surge"
+)
+
+// Valid indicates whether the value is a known member of the GitHubStarsAlertKind enum.
+func (e GitHubStarsAlertKind) Valid() bool {
+	switch e {
+	case StarMilestone:
+		return true
+	case StarSpike:
+		return true
+	case TrendingEntered:
+		return true
+	case TrendingLeft:
+		return true
+	case UnstarSurge:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GoalKind.
 const (
 	GoalEvent  GoalKind = "event"
@@ -2662,6 +2689,33 @@ type GitHubStarRepoLimitInput struct {
 	Limit *int `json:"limit"`
 }
 
+// GitHubStarsAlertDelivery defines model for GitHubStarsAlertDelivery.
+type GitHubStarsAlertDelivery struct {
+	ChannelId int64   `json:"channel_id"`
+	Error     *string `json:"error,omitempty"`
+	Ok        bool    `json:"ok"`
+}
+
+// GitHubStarsAlertKind defines model for GitHubStarsAlertKind.
+type GitHubStarsAlertKind string
+
+// GitHubStarsAlertSettings defines model for GitHubStarsAlertSettings.
+type GitHubStarsAlertSettings struct {
+	ChannelIds []int64 `json:"channel_ids"`
+	EventKinds []struct {
+		Description string               `json:"description"`
+		Kind        GitHubStarsAlertKind `json:"kind"`
+		Label       string               `json:"label"`
+	} `json:"event_kinds"`
+	Events map[string]bool `json:"events"`
+}
+
+// GitHubStarsAlertSettingsInput defines model for GitHubStarsAlertSettingsInput.
+type GitHubStarsAlertSettingsInput struct {
+	ChannelIds []int64         `json:"channel_ids"`
+	Events     map[string]bool `json:"events"`
+}
+
 // GitHubStarsAnnotation defines model for GitHubStarsAnnotation.
 type GitHubStarsAnnotation struct {
 	At        time.Time `json:"at"`
@@ -4686,6 +4740,9 @@ type OrgCreateGitHubStarsRepoJSONRequestBody = GitHubStarsRepoInput
 // OrgUpdateGitHubStarsRepoJSONRequestBody defines body for OrgUpdateGitHubStarsRepo for application/json ContentType.
 type OrgUpdateGitHubStarsRepoJSONRequestBody = GitHubStarsRepoPatch
 
+// OrgSaveGitHubStarsAlertsJSONRequestBody defines body for OrgSaveGitHubStarsAlerts for application/json ContentType.
+type OrgSaveGitHubStarsAlertsJSONRequestBody = GitHubStarsAlertSettingsInput
+
 // SaveNotificationSettingsJSONRequestBody defines body for SaveNotificationSettings for application/json ContentType.
 type SaveNotificationSettingsJSONRequestBody = NotificationSettings
 
@@ -5401,6 +5458,15 @@ type ServerInterface interface {
 	// OrgUpdateGitHubStarsRepo Enable or disable a repository, change its time zone or public counter, or set or clear its token
 	// (PATCH /api/private/orgs/{org}/github-stars/repos/{id})
 	OrgUpdateGitHubStarsRepo(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
+	// OrgGetGitHubStarsAlerts Star alert settings of a repository
+	// (GET /api/private/orgs/{org}/github-stars/repos/{id}/alerts)
+	OrgGetGitHubStarsAlerts(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
+	// OrgSaveGitHubStarsAlerts Replace the star alert settings of a repository
+	// (PUT /api/private/orgs/{org}/github-stars/repos/{id}/alerts)
+	OrgSaveGitHubStarsAlerts(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
+	// OrgTestGitHubStarsAlert Send one test alert to the selected channels
+	// (POST /api/private/orgs/{org}/github-stars/repos/{id}/alerts/test)
+	OrgTestGitHubStarsAlert(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
 	// OrgRotateGitHubStarsSecret Replace the webhook secret
 	// (POST /api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret)
 	OrgRotateGitHubStarsSecret(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
@@ -7136,6 +7202,111 @@ func (siw *ServerInterfaceWrapper) OrgUpdateGitHubStarsRepo(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OrgUpdateGitHubStarsRepo(w, r, org, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgGetGitHubStarsAlerts operation middleware
+func (siw *ServerInterfaceWrapper) OrgGetGitHubStarsAlerts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgGetGitHubStarsAlerts(w, r, org, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgSaveGitHubStarsAlerts operation middleware
+func (siw *ServerInterfaceWrapper) OrgSaveGitHubStarsAlerts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgSaveGitHubStarsAlerts(w, r, org, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgTestGitHubStarsAlert operation middleware
+func (siw *ServerInterfaceWrapper) OrgTestGitHubStarsAlert(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgTestGitHubStarsAlert(w, r, org, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11961,6 +12132,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}", wrapper.OrgUpdateGitHubStarsRepo)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret", wrapper.OrgRotateGitHubStarsSecret)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/sync", wrapper.OrgSyncGitHubStarsRepo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/alerts", wrapper.OrgGetGitHubStarsAlerts)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/alerts", wrapper.OrgSaveGitHubStarsAlerts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/alerts/test", wrapper.OrgTestGitHubStarsAlert)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/summary", wrapper.OrgGetGitHubStarsSummary)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/series", wrapper.OrgGetGitHubStarsSeries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/events", wrapper.OrgListGitHubStarsEvents)

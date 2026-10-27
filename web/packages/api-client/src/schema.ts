@@ -338,6 +338,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/orgs/{org}/github-stars/repos/{id}/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Star alert settings of a repository
+         * @description Which events are on (all off by default) and which of the organization's notification channels receive them. Any member may read.
+         */
+        get: operations["orgGetGitHubStarsAlerts"];
+        /**
+         * Replace the star alert settings of a repository
+         * @description Owners and admins only. Every channel id must belong to the organization.
+         */
+        put: operations["orgSaveGitHubStarsAlerts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/github-stars/repos/{id}/alerts/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send one test alert to the selected channels
+         * @description Owners and admins only; at most one every 30 seconds per repository. Errors are scrubbed of secrets.
+         */
+        post: operations["orgTestGitHubStarsAlert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/orgs/{org}/github-stars/summary": {
         parameters: {
             query?: never;
@@ -2968,6 +3015,31 @@ export interface components {
             time_zone?: string;
             /** @description Publish the GitHub-verified star count at the public counter endpoint once a sync has read it from GitHub; defaults to false. */
             public_counter?: boolean;
+        };
+        /** @enum {string} */
+        GitHubStarsAlertKind: "star_milestone" | "star_spike" | "unstar_surge" | "trending_entered" | "trending_left";
+        GitHubStarsAlertSettings: {
+            events: {
+                [key: string]: boolean;
+            };
+            channel_ids: number[];
+            event_kinds: {
+                kind: components["schemas"]["GitHubStarsAlertKind"];
+                label: string;
+                description: string;
+            }[];
+        };
+        GitHubStarsAlertSettingsInput: {
+            events: {
+                [key: string]: boolean;
+            };
+            channel_ids: number[];
+        };
+        GitHubStarsAlertDelivery: {
+            /** Format: int64 */
+            channel_id: number;
+            ok: boolean;
+            error?: string;
         };
         GitHubStarsRepoPatch: {
             enabled?: boolean;
@@ -5670,6 +5742,94 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    orgGetGitHubStarsAlerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsAlertSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgSaveGitHubStarsAlerts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubStarsAlertSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubStarsAlertSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgTestGitHubStarsAlert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Result per channel. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GitHubStarsAlertDelivery"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };
