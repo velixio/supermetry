@@ -22,10 +22,11 @@
 
 <p align="center">
   <a href="#quick-start"><img alt="Self-host" src="https://img.shields.io/badge/Self--host-6d5dfc?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iOCIgeD0iMiIgeT0iMiIgcng9IjIiIHJ5PSIyIi8%2BPHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjgiIHg9IjIiIHk9IjE0IiByeD0iMiIgcnk9IjIiLz48cGF0aCBkPSJNNiA2aC4wMU02IDE4aC4wMSIvPjwvZz48L3N2Zz4%3D&logoColor=white"></a>
+  <a href="https://app.supermetry.com/demo"><img alt="Live demo" src="https://img.shields.io/badge/Live%20demo-6d5dfc?style=for-the-badge"></a>
   <a href="https://supermetry.com/docs/"><img alt="Docs" src="https://img.shields.io/badge/Docs-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTIgNXYxNm04LjAwMS0yQTIgMiAwIDAgMCAyMiAxN1Y1YTIgMiAwIDAgMC0xLjk5OS0yTDE2IDMuMDAyQTUgNSAwIDAgMCAxMiA1YTUgNSAwIDAgMC00LTJINGEyIDIgMCAwIDAtMiAydjEyYTIgMiAwIDAgMCAxLjk5OSAySDhhNSA1IDAgMCAxIDQgMmE1IDUgMCAwIDEgNC0yeiIvPjwvc3ZnPg%3D%3D&logoColor=white"></a>
   <a href="https://supermetry.com"><img alt="Website" src="https://img.shields.io/badge/Website-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxwYXRoIGQ9Ik0xMiAyYTE0LjUgMTQuNSAwIDAgMCAwIDIwYTE0LjUgMTQuNSAwIDAgMCAwLTIwTTIgMTJoMjAiLz48L2c%2BPC9zdmc%2B&logoColor=white"></a>
   <a href="#supermetry-vs-plausible-umami-and-google-analytics"><img alt="Compare" src="https://img.shields.io/badge/Compare-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48cGF0aCBkPSJNMTIgM3YxOG03LTEzbDMgOGE1IDUgMCAwIDEtNiAwelY3Ii8%2BPHBhdGggZD0iTTMgN2gxYTE3IDE3IDAgMCAwIDgtMmExNyAxNyAwIDAgMCA4IDJoMU01IDhsMyA4YTUgNSAwIDAgMS02IDB6VjdtMiAxNGgxMCIvPjwvZz48L3N2Zz4%3D&logoColor=white"></a>
-  <a href="https://supermetry.com/early-access/"><img alt="EU Cloud early access" src="https://img.shields.io/badge/EU%20Cloud-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTcuNSAxOUg5YTcgNyAwIDEgMSA2LjcxLTloMS43OWE0LjUgNC41IDAgMSAxIDAgOSIvPjwvc3ZnPg%3D%3D&logoColor=white"></a>
+  <a href="https://app.supermetry.com/signup"><img alt="EU Cloud" src="https://img.shields.io/badge/EU%20Cloud-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTcuNSAxOUg5YTcgNyAwIDEgMSA2LjcxLTloMS43OWE0LjUgNC41IDAgMSAxIDAgOSIvPjwvc3ZnPg%3D%3D&logoColor=white"></a>
   <a href="https://github.com/velixio/supermetry/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-18181b?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0Ij48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48cGF0aCBkPSJNMTIgMTVWM205IDEydjRhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ2LTQiLz48cGF0aCBkPSJtNyAxMGw1IDVsNS01Ii8%2BPC9nPjwvc3ZnPg%3D%3D&logoColor=white"></a>
 </p>
 
@@ -139,7 +140,7 @@ Open `<your URL>/app` and create your admin account. Then add the tracking scrip
 <script defer src="https://analytics.supermetry.com/js/YOUR_SITE_ID.js"></script>
 ```
 
-**Just want to look around?** After you sign up, choose **Explore with demo data**. Supermetry creates a project with 90 days of realistic sample traffic and keeps it moving while you explore. It deletes itself after 24 hours, and you can remove it earlier.
+**Just want to look around?** Open the [live demo](https://app.supermetry.com/demo): no signup, a read-only dashboard for a small online shop, with live visitors, goals and campaigns, for up to 60 minutes. On your own install, choose **Explore with demo data** after you sign up. Supermetry creates a project with 90 days of realistic sample traffic and keeps it moving while you explore. It deletes itself after 24 hours, and you can remove it earlier.
 
 See [deploy/README.md](deploy/README.md) for unattended installs, manual deployment, service management, upgrades, backups and reverse proxies, and [docs/guide/configuration.md](docs/guide/configuration.md) for every setting.
 
@@ -216,7 +217,7 @@ A small server and PostgreSQL. In the 4-hour test above, a single process used u
 <details>
 <summary><b>Is there a hosted version?</b></summary>
 
-An EU-hosted Cloud is on the way. [Join early access](https://supermetry.com/early-access/). Self-hosting stays free and complete.
+An EU-hosted Cloud is open: [start free](https://app.supermetry.com/signup) (the Free plan today; paid plans are coming soon) or [try the live demo](https://app.supermetry.com/demo). Self-hosting stays free and complete.
 </details>
 
 ## Documentation
