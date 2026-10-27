@@ -1,0 +1,20 @@
+/** Strings of the star alerts card. Kept apart from the shared message catalogue. */
+export const alertsText = {
+  title: 'Alerts',
+  description: 'Send a message to your notification channels when something notable happens to this repository. Messages carry the repository name, counts and a link, never the names of people.',
+  loading: 'Loading alert settings',
+  events: 'Alert me when',
+  channels: 'Send to',
+  noChannels: 'This organization has no notification channels yet.',
+  manageChannels: 'Add or edit notification channels',
+  disabled: 'disabled',
+  needChannel: 'Pick at least one channel, or the alerts have nowhere to go.',
+  save: 'Save alerts',
+  sendTest: 'Send test alert',
+  saved: 'Saved.',
+  viewOnly: 'Only owners and admins can change alerts.',
+  testResults: 'Test alert results',
+  testNone: 'No enabled channel received the test alert.',
+  testOk: (name: string) => `Test alert sent to ${name}.`,
+  testFailed: (name: string, error: string) => `Could not send to ${name}${error ? `: ${error}` : ''}.`,
+}

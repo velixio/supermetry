@@ -413,6 +413,60 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: A sync is already running., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/orgs/{org}/github-stars/repos/{id}/alerts:
+    parameters:
+      - { $ref: '#/components/parameters/OrgPathID' }
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: orgGetGitHubStarsAlerts
+      security: [{ cookieAuth: [] }]
+      summary: Star alert settings of a repository
+      description: Which events are on (all off by default) and which of the organization's notification channels receive them. Any member may read.
+      responses:
+        '200': { description: Settings., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsAlertSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: orgSaveGitHubStarsAlerts
+      security: [{ cookieAuth: [] }]
+      summary: Replace the star alert settings of a repository
+      description: Owners and admins only. Every channel id must belong to the organization.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsAlertSettingsInput' } } }
+      responses:
+        '200': { description: Saved settings., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsAlertSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/github-stars/repos/{id}/alerts/test:
+    post:
+      operationId: orgTestGitHubStarsAlert
+      security: [{ cookieAuth: [] }]
+      summary: Send one test alert to the selected channels
+      description: Owners and admins only; at most one every 30 seconds per repository. Errors are scrubbed of secrets.
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200':
+          description: Result per channel.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/GitHubStarsAlertDelivery' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/orgs/{org}/github-stars/summary:
     get:
       operationId: orgGetGitHubStarsSummary
@@ -3988,6 +4042,41 @@ components:
         token: { type: string, description: Optional GitHub token for the daily sync. }
         time_zone: { type: string, description: IANA time zone for charts; defaults to UTC. }
         public_counter: { type: boolean, description: Publish the GitHub-verified star count at the public counter endpoint once a sync has read it from GitHub; defaults to false. }
+    GitHubStarsAlertKind:
+      type: string
+      enum: [star_milestone, star_spike, unstar_surge, trending_entered, trending_left]
+    GitHubStarsAlertSettings:
+      type: object
+      additionalProperties: false
+      required: [events, channel_ids, event_kinds]
+      properties:
+        events: { type: object, additionalProperties: { type: boolean } }
+        channel_ids: { type: array, items: { type: integer, format: int64 } }
+        event_kinds:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, label, description]
+            properties:
+              kind: { $ref: '#/components/schemas/GitHubStarsAlertKind' }
+              label: { type: string }
+              description: { type: string }
+    GitHubStarsAlertSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [events, channel_ids]
+      properties:
+        events: { type: object, additionalProperties: { type: boolean } }
+        channel_ids: { type: array, maxItems: 20, items: { type: integer, format: int64 } }
+    GitHubStarsAlertDelivery:
+      type: object
+      additionalProperties: false
+      required: [channel_id, ok]
+      properties:
+        channel_id: { type: integer, format: int64 }
+        ok: { type: boolean }
+        error: { type: string }
     GitHubStarsRepoPatch:
       type: object
       additionalProperties: false
