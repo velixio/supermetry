@@ -44,7 +44,6 @@ import (
 	"supermetry/internal/integrations"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
-	"supermetry/internal/notifications"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
@@ -386,14 +385,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	starService := ghstars.NewService(pool, starBox, cfg.BaseURL, settings.clock.Now)
 	starService.RepoLimit = cfg.MaxGitHubReposPerOrg
-	notifyBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/org-notifications/v1")
-	if err != nil {
-		return fmt.Errorf("org notifications secret box: %w", err)
-	}
-	orgNotifications, err := notifications.NewService(pool, notifyBox, notifications.Options{Now: settings.clock.Now})
-	if err != nil {
-		return fmt.Errorf("org notifications: %w", err)
-	}
 	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		GitHubStars:        starService,
@@ -433,7 +424,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Shares:             shareService,
 		Reports:            reportService,
 		Alerts:             alertService,
-		OrgNotifications:   orgNotifications,
 		Integrations:       integrationService,
 		Query:              engine,
 		Imports:            importStore,
