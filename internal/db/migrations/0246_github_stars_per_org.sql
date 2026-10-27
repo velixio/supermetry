@@ -12,7 +12,12 @@ ALTER TABLE orgs
 
 ALTER TABLE github_star_repos
     ADD COLUMN org_id bigint REFERENCES orgs(id) ON DELETE CASCADE,
-    ADD COLUMN public_counter boolean NOT NULL DEFAULT false;
+    ADD COLUMN public_counter boolean NOT NULL DEFAULT false,
+    -- The star count last read from GitHub itself by the reconcile and import
+    -- jobs. The public counter serves only this value, never the live count that
+    -- webhook payloads (signed by whoever configured the repository) update.
+    ADD COLUMN verified_stars integer,
+    ADD COLUMN verified_at timestamptz;
 
 -- Repositories that existed before belong to the lowest-id organization
 -- (preferring a live one) and keep their public counter. Without any
@@ -22,6 +27,12 @@ UPDATE github_star_repos
 SET org_id = coalesce((SELECT min(id) FROM orgs WHERE deleted_at IS NULL), (SELECT min(id) FROM orgs)),
     public_counter = true;
 DELETE FROM github_star_repos WHERE org_id IS NULL;
+-- Repositories that already reconciled successfully carry their stored count
+-- over as the verified one; the next reconcile refreshes it from GitHub.
+UPDATE github_star_repos r
+SET verified_stars = st.stars, verified_at = r.last_reconcile_at
+FROM github_star_state st
+WHERE st.repo = r.repo AND r.last_reconcile_at IS NOT NULL AND r.last_error IS NULL;
 ALTER TABLE github_star_repos ALTER COLUMN org_id SET NOT NULL;
 
 ALTER TABLE github_star_repos DROP CONSTRAINT github_star_repos_repo_key;

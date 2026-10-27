@@ -14,10 +14,14 @@ import (
 type Limiter interface{ Allow(key string) bool }
 
 // PublicCount serves GET /api/github/stars/{owner}/{name}: the live star count
-// of a tracked, enabled, synced repository whose organization turned its public
-// counter on, as {"stars":N} and nothing else. When several organizations
-// publish the same repository the oldest one answers. It reads the stored count
-// only and never calls GitHub. Every miss (unknown, disabled, never synced,
+// of a tracked, enabled repository whose organization turned its public counter
+// on, as {"stars":N} and nothing else. The value is GitHub-verified: it is the
+// count the reconcile and import jobs read from GitHub, stored separately from
+// the live count that webhooks update, so an organization cannot publish a
+// forged number under a repository name by signing its own webhook payloads. A
+// repository that has never been read from GitHub is not served. When several
+// organizations publish the same repository, the one verified most recently
+// answers. The request itself never calls GitHub. Every miss (unknown, disabled, never synced,
 // not public) answers the same 404 so the response does not reveal which
 // repositories are tracked.
 type PublicCount struct {
@@ -77,19 +81,18 @@ func (h *PublicCount) write(w http.ResponseWriter, r *http.Request, body string)
 	}
 }
 
-// publicStars returns the stored star count of the oldest enabled repository
-// with a public counter that has synced at least once.
+// publicStars returns the GitHub-verified star count of the enabled, public
+// repository claimant that was verified most recently.
 func (s *Service) publicStars(ctx context.Context, repo string) (int, bool, error) {
 	if !repoPattern.MatchString(repo) {
 		return 0, false, nil
 	}
 	var stars int
 	err := s.pool.QueryRow(ctx, `
-		select st.stars from github_star_repos r
-		join github_star_state st on st.repo_id = r.id
+		select r.verified_stars from github_star_repos r
 		join orgs o on o.id = r.org_id and o.deleted_at is null
-		where r.repo = $1 and r.enabled and r.public_counter
-		order by r.id limit 1`, repo).Scan(&stars)
+		where r.repo = $1 and r.enabled and r.public_counter and r.verified_at is not null
+		order by r.verified_at desc, r.id limit 1`, repo).Scan(&stars)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}

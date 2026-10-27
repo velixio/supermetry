@@ -406,6 +406,9 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	if err != nil {
 		return err
 	}
+	if err := store.SaveVerified(ctx, counts.Stars, now); err != nil {
+		return err
+	}
 	if counts.Stars > s.largeThreshold() {
 		return s.reconcileLarge(ctx, r, store, client, counts)
 	}

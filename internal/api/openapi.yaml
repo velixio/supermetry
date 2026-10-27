@@ -3949,7 +3949,7 @@ components:
         id: { type: integer, format: int64 }
         org_id: { type: integer, format: int64, description: The organization that tracks the repository. }
         repo: { type: string, description: Lowercase owner/name. }
-        public_counter: { type: boolean, description: When true the star count is readable without signing in at public_count_url; off by default. }
+        public_counter: { type: boolean, description: 'When true the GitHub-verified star count (the value the sync jobs last read from GitHub, not the webhook-updated live count) is readable without signing in at public_count_url; off by default. A repository never synced from GitHub is not served.' }
         enabled: { type: boolean }
         time_zone: { type: string }
         has_token: { type: boolean }
@@ -3987,7 +3987,7 @@ components:
         repo: { type: string, description: owner/name }
         token: { type: string, description: Optional GitHub token for the daily sync. }
         time_zone: { type: string, description: IANA time zone for charts; defaults to UTC. }
-        public_counter: { type: boolean, description: Publish the star count at the public counter endpoint; defaults to false. }
+        public_counter: { type: boolean, description: Publish the GitHub-verified star count at the public counter endpoint once a sync has read it from GitHub; defaults to false. }
     GitHubStarsRepoPatch:
       type: object
       additionalProperties: false

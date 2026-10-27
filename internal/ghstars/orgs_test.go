@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -228,76 +229,134 @@ func TestRepositoryLimitDefaultsOverridesAndNeverDeletes(t *testing.T) {
 	}
 }
 
-func TestPublicCounterIsOptInAndOldestPublicWins(t *testing.T) {
+func TestPublicCounterIsOptInAndServesTheMostRecentlyVerifiedClaimant(t *testing.T) {
 	svc, _ := newTestService(t)
 	ctx := context.Background()
-	orgA, orgB, orgC := newOrg(t, svc, "a"), newOrg(t, svc, "b"), newOrg(t, svc, "c")
-	mk := func(org int64, public bool, stars int) Repo {
+	orgA, orgB, orgC := newOrg(t, svc, "va"), newOrg(t, svc, "vb"), newOrg(t, svc, "vc")
+	mk := func(org int64, public bool, stars int, verifiedAt string) Repo {
 		repo, _, err := svc.Create(ctx, org, CreateInput{Repo: "acme/tool", PublicCounter: public}, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
 		store, _, _ := svc.StoreFor(ctx, org, repo.ID)
-		if err := store.SaveState(ctx, Counts{Stars: stars}, at("2026-10-10T12:00:00Z")); err != nil {
-			t.Fatal(err)
+		if verifiedAt != "" {
+			if err := setVerified(store, Counts{Stars: stars}, at(verifiedAt)); err != nil {
+				t.Fatal(err)
+			}
 		}
 		return repo
 	}
-	first := mk(orgA, false, 100) // oldest but private
-	second := mk(orgB, true, 200)
-	mk(orgC, true, 300)
+	first := mk(orgA, false, 100, "2026-10-10T10:00:00Z") // oldest row but private
+	second := mk(orgB, true, 200, "2026-10-10T11:00:00Z")
+	third := mk(orgC, true, 300, "2026-10-10T12:00:00Z")
 	h := &PublicCount{Service: svc}
 	get := func() (int, string) {
 		rec := publicRequest(h, http.MethodGet, "/api/github/stars/acme/tool")
 		return rec.Code, rec.Body.String()
 	}
-	if code, body := get(); code != 200 || body != "{\"stars\":200}\n" {
-		t.Fatalf("oldest public = %d %q", code, body)
+	if code, body := get(); code != 200 || body != "{\"stars\":300}\n" {
+		t.Fatalf("two claimants = %d %q, want the most recently verified (300)", code, body)
 	}
-	// Opting the oldest in makes it win.
-	on := true
+	// A claimant that is private, disabled or in a deleted organization is skipped.
+	on, off := true, false
+	if _, err := svc.Update(ctx, orgC, third.ID, UpdateInput{Enabled: &off}, 0); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := get(); code != 200 || body != "{\"stars\":200}\n" {
+		t.Fatalf("after disabling the newest = %d %q", code, body)
+	}
 	if _, err := svc.Update(ctx, orgA, first.ID, UpdateInput{PublicCounter: &on}, 0); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := get(); code != 200 || body != "{\"stars\":100}\n" {
-		t.Fatalf("after opt-in = %d %q", code, body)
+	if code, body := get(); code != 200 || body != "{\"stars\":200}\n" {
+		t.Fatalf("opting an older claimant in must not displace the newer one = %d %q", code, body)
 	}
-	// Disabled or not public falls through to the next; none left gives the common 404.
-	off := false
-	if _, err := svc.Update(ctx, orgA, first.ID, UpdateInput{Enabled: &off}, 0); err != nil {
+	if _, err := svc.pool.Exec(ctx, `update orgs set deleted_at=now() where id=$1`, orgB); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := get(); code != 200 || body != "{\"stars\":200}\n" {
-		t.Fatalf("after disable = %d %q", code, body)
+	if code, body := get(); code != 200 || body != "{\"stars\":100}\n" {
+		t.Fatalf("deleted org skipped = %d %q", code, body)
 	}
-	for _, o := range []struct {
-		org int64
-		id  int64
-	}{{orgB, second.ID}} {
-		if _, err := svc.Update(ctx, o.org, o.id, UpdateInput{PublicCounter: &off}, 0); err != nil {
+	if _, err := svc.Update(ctx, orgA, first.ID, UpdateInput{PublicCounter: &off}, 0); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := get(); code != 404 || body != notFoundBody {
+		t.Fatalf("nothing public = %d %q", code, body)
+	}
+	_ = second
+}
+
+func TestPublicCounterCannotBeForgedThroughAWebhook(t *testing.T) {
+	svc, server := newTestService(t)
+	ctx := context.Background()
+	var githubStars atomic.Int32
+	githubStars.Store(4200)
+	var failing atomic.Bool
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if failing.Load() {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/stargazers") {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"stargazers_count":` + strconv.Itoa(int(githubStars.Load())) + `}`))
+	})
+	orgA, orgB := newOrg(t, svc, "fa"), newOrg(t, svc, "fb")
+	mk := func(org int64) (Repo, *Store) {
+		repo, _, err := svc.Create(ctx, org, CreateInput{Repo: "acme/tool", PublicCounter: true}, 0)
+		if err != nil {
 			t.Fatal(err)
 		}
+		store, _, _ := svc.StoreFor(ctx, org, repo.ID)
+		return repo, store
 	}
-	// orgC is still public; make everything non-public.
-	listC, _ := svc.List(ctx, orgC)
-	if _, err := svc.Update(ctx, orgC, listC[0].ID, UpdateInput{PublicCounter: &off}, 0); err != nil {
+	honest, _ := mk(orgA)
+	attacker, attackerStore := mk(orgB)
+	h := &PublicCount{Service: svc}
+	get := func() (int, string) {
+		rec := publicRequest(h, http.MethodGet, "/api/github/stars/acme/tool")
+		return rec.Code, rec.Body.String()
+	}
+	// A claimant that has not been read from GitHub yet is not served, even with a live count.
+	forged := Counts{Stars: 9_000_000}
+	if err := attackerStore.SaveState(ctx, forged, at("2026-10-10T12:00:00Z")); err != nil {
 		t.Fatal(err)
 	}
 	if code, body := get(); code != 404 || body != notFoundBody {
-		t.Fatalf("no public repo = %d %q", code, body)
+		t.Fatalf("unverified claimant = %d %q", code, body)
 	}
-	// A deleted organization stops serving.
-	if _, err := svc.Update(ctx, orgC, listC[0].ID, UpdateInput{PublicCounter: &on}, 0); err != nil {
+	// The honest organization syncs: GitHub's number is served.
+	svc.Now = func() time.Time { return at("2026-10-10T13:00:00Z") }
+	if err := svc.ReconcileRepo(ctx, honest.ID); err != nil {
 		t.Fatal(err)
 	}
-	if code, _ := get(); code != 200 {
-		t.Fatalf("re-enabled = %d", code)
+	if code, body := get(); code != 200 || body != "{\"stars\":4200}\n" {
+		t.Fatalf("honest claimant = %d %q", code, body)
 	}
-	if _, err := svc.pool.Exec(ctx, `update orgs set deleted_at=now() where id=$1`, orgC); err != nil {
+	// The attacker's reconcile fails (GitHub refuses it): still not served, and the forged live count never shows.
+	failing.Store(true)
+	svc.Now = func() time.Time { return at("2026-10-10T14:00:00Z") }
+	if err := svc.ReconcileRepo(ctx, attacker.ID); err == nil {
+		t.Fatal("expected the reconcile to fail")
+	}
+	if code, body := get(); code != 200 || body != "{\"stars\":4200}\n" {
+		t.Fatalf("failed claimant must not be served = %d %q", code, body)
+	}
+	// When both have reconciled, the most recent verification wins, and both carry GitHub's value.
+	failing.Store(false)
+	githubStars.Store(4300)
+	svc.Now = func() time.Time { return at("2026-10-10T15:00:00Z") }
+	if err := svc.ReconcileRepo(ctx, attacker.ID); err != nil {
 		t.Fatal(err)
 	}
-	if code, body := get(); code != 404 || body != notFoundBody {
-		t.Fatalf("deleted org = %d %q", code, body)
+	if code, body := get(); code != 200 || body != "{\"stars\":4300}\n" {
+		t.Fatalf("two verified claimants = %d %q, want the most recently reconciled value", code, body)
+	}
+	// The forged live count is still what that organization's own dashboard shows, but it is never published.
+	if n, _, _ := attackerStore.Stars(ctx); n != 4300 && n != 9_000_000 {
+		t.Fatalf("unexpected live count %d", n)
 	}
 }
 

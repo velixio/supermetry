@@ -2922,7 +2922,7 @@ export interface components {
             org_id: number;
             /** @description Lowercase owner/name. */
             repo: string;
-            /** @description When true the star count is readable without signing in at public_count_url; off by default. */
+            /** @description When true the GitHub-verified star count (the value the sync jobs last read from GitHub, not the webhook-updated live count) is readable without signing in at public_count_url; off by default. A repository never synced from GitHub is not served. */
             public_counter: boolean;
             enabled: boolean;
             time_zone: string;
@@ -2966,7 +2966,7 @@ export interface components {
             token?: string;
             /** @description IANA time zone for charts; defaults to UTC. */
             time_zone?: string;
-            /** @description Publish the star count at the public counter endpoint; defaults to false. */
+            /** @description Publish the GitHub-verified star count at the public counter endpoint once a sync has read it from GitHub; defaults to false. */
             public_counter?: boolean;
         };
         GitHubStarsRepoPatch: {

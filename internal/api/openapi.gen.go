@@ -2734,7 +2734,7 @@ type GitHubStarsRepo struct {
 	// PublicCountUrl Public, unauthenticated endpoint returning {"stars":N} for this repository.
 	PublicCountUrl string `json:"public_count_url"`
 
-	// PublicCounter When true the star count is readable without signing in at public_count_url; off by default.
+	// PublicCounter When true the GitHub-verified star count (the value the sync jobs last read from GitHub, not the webhook-updated live count) is readable without signing in at public_count_url; off by default. A repository never synced from GitHub is not served.
 	PublicCounter bool `json:"public_counter"`
 
 	// Repo Lowercase owner/name.
@@ -2747,7 +2747,7 @@ type GitHubStarsRepo struct {
 
 // GitHubStarsRepoInput defines model for GitHubStarsRepoInput.
 type GitHubStarsRepoInput struct {
-	// PublicCounter Publish the star count at the public counter endpoint; defaults to false.
+	// PublicCounter Publish the GitHub-verified star count at the public counter endpoint once a sync has read it from GitHub; defaults to false.
 	PublicCounter *bool `json:"public_counter,omitempty"`
 
 	// Repo owner/name

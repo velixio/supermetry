@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type fixedLimiter struct{ allow bool }
@@ -51,7 +52,7 @@ func TestPublicCountServesOnlyTheStarCount(t *testing.T) {
 	}
 	githubCalls.Store(0)
 	store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), repo.ID)
-	if err := store.SaveState(ctx, Counts{Stars: 82412, Forks: 9, Watchers: 8, OpenIssues: 7}, at("2026-10-10T12:00:00Z")); err != nil {
+	if err := setVerified(store, Counts{Stars: 82412, Forks: 9, Watchers: 8, OpenIssues: 7}, at("2026-10-10T12:00:00Z")); err != nil {
 		t.Fatal(err)
 	}
 	h := &PublicCount{Service: svc}
@@ -73,7 +74,7 @@ func TestPublicCountServesOnlyTheStarCount(t *testing.T) {
 	}
 
 	// The count follows what the webhook and reconcile keep current.
-	if err := store.SaveState(ctx, Counts{Stars: 82413}, at("2026-10-10T12:01:00Z")); err != nil {
+	if err := setVerified(store, Counts{Stars: 82413}, at("2026-10-10T12:01:00Z")); err != nil {
 		t.Fatal(err)
 	}
 	if got := decodeMap(t, publicRequest(h, http.MethodGet, "/api/github/stars/velixio/supermetry"))["stars"]; got != float64(82413) {
@@ -84,17 +85,32 @@ func TestPublicCountServesOnlyTheStarCount(t *testing.T) {
 	}
 }
 
-func TestPublicCountTracksWebhookUpdates(t *testing.T) {
+func TestPublicCountIgnoresWebhookCountsAndServesTheVerifiedOne(t *testing.T) {
 	env, _ := newHook(t)
 	h := &PublicCount{Service: env.svc}
-	if rec := publicRequest(h, http.MethodGet, "/api/github/stars/velixio/supermetry"); rec.Code != http.StatusNotFound {
-		t.Fatalf("before first sync = %d", rec.Code)
+	get := func() (int, any) {
+		rec := publicRequest(h, http.MethodGet, "/api/github/stars/velixio/supermetry")
+		if rec.Code != http.StatusOK {
+			return rec.Code, nil
+		}
+		return rec.Code, decodeMap(t, rec)["stars"]
 	}
-	if rec := env.do(env.signed("star", "pc1", starBody("created", testRepo, 77, "2026-10-10T11:00:00Z"))); rec.Code != http.StatusOK {
+	// A webhook alone, whatever count it claims, never publishes anything.
+	if rec := env.do(env.signed("star", "pc1", starBody("created", testRepo, 777777, "2026-10-10T11:00:00Z"))); rec.Code != http.StatusOK {
 		t.Fatalf("webhook = %d", rec.Code)
 	}
-	if got := decodeMap(t, publicRequest(h, http.MethodGet, "/api/github/stars/velixio/supermetry"))["stars"]; got != float64(77) {
-		t.Fatalf("stars = %v", got)
+	if code, _ := get(); code != http.StatusNotFound {
+		t.Fatalf("webhook-only repository served: %d", code)
+	}
+	// Once GitHub has been read, the verified count is served and later forged webhooks do not move it.
+	if err := env.store.SaveVerified(context.Background(), 77, at("2026-10-10T12:00:00Z")); err != nil {
+		t.Fatal(err)
+	}
+	if rec := env.do(env.signed("star", "pc2", starBody("created", testRepo, 999999, "2026-10-10T13:00:00Z"))); rec.Code != http.StatusOK {
+		t.Fatalf("webhook = %d", rec.Code)
+	}
+	if code, stars := get(); code != http.StatusOK || stars != float64(77) {
+		t.Fatalf("public count = %d %v, want the verified 77", code, stars)
 	}
 }
 
@@ -106,7 +122,7 @@ func TestPublicCountNotFoundLooksTheSameEverywhere(t *testing.T) {
 	_, _, _ = svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "a/fresh", PublicCounter: true}, 0)
 	for _, r := range []Repo{synced, off} {
 		store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), r.ID)
-		_ = store.SaveState(ctx, Counts{Stars: 5}, at("2026-10-10T12:00:00Z"))
+		_ = setVerified(store, Counts{Stars: 5}, at("2026-10-10T12:00:00Z"))
 	}
 	disabled := false
 	if _, err := svc.Update(ctx, orgOf(t, svc), off.ID, UpdateInput{Enabled: &disabled}, 0); err != nil {
@@ -136,7 +152,7 @@ func TestPublicCountHeadAndPreflight(t *testing.T) {
 	ctx := context.Background()
 	repo, _, _ := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "a/b", PublicCounter: true}, 0)
 	store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), repo.ID)
-	_ = store.SaveState(ctx, Counts{Stars: 3}, at("2026-10-10T12:00:00Z"))
+	_ = setVerified(store, Counts{Stars: 3}, at("2026-10-10T12:00:00Z"))
 	h := &PublicCount{Service: svc}
 
 	head := publicRequest(h, http.MethodHead, "/api/github/stars/a/b")
@@ -154,6 +170,7 @@ func TestPublicCountRateLimit(t *testing.T) {
 	repo, _, _ := svc.Create(context.Background(), orgOf(t, svc), CreateInput{Repo: "a/b", PublicCounter: true}, 0)
 	store, _, _ := svc.StoreFor(context.Background(), orgOf(t, svc), repo.ID)
 	_ = store.SaveState(context.Background(), Counts{Stars: 3}, at("2026-10-10T12:00:00Z"))
+	_ = store.SaveVerified(context.Background(), 3, at("2026-10-10T12:00:00Z"))
 	h := &PublicCount{Service: svc, Limiter: &countingLimiter{left: 2}}
 	for i := 0; i < 2; i++ {
 		if rec := publicRequest(h, http.MethodGet, "/api/github/stars/a/b"); rec.Code != http.StatusOK {
@@ -170,4 +187,13 @@ func TestPublicCountRateLimit(t *testing.T) {
 	if rec := publicRequest(&PublicCount{Service: svc, Limiter: fixedLimiter{false}}, http.MethodOptions, "/api/github/stars/a/b"); rec.Code != http.StatusNoContent {
 		t.Fatalf("preflight should not be limited, got %d", rec.Code)
 	}
+}
+
+// setVerified stores both the live count and the GitHub-verified one, as a successful sync does.
+func setVerified(store *Store, counts Counts, when time.Time) error {
+	ctx := context.Background()
+	if err := store.SaveState(ctx, counts, when); err != nil {
+		return err
+	}
+	return store.SaveVerified(ctx, counts.Stars, when)
 }

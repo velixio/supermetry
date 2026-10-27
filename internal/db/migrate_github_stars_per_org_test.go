@@ -55,6 +55,8 @@ func TestGitHubStarsPerOrgMigrationAssignsExistingRepos(t *testing.T) {
 	exec(`insert into github_star_annotations(repo,at,label) values ('acme/one',now(),'launch')`)
 	exec(`insert into github_star_erasures(repo,user_id) values ('acme/two',7)`)
 
+	exec(`update github_star_repos set last_reconcile_at=now() where id=$1`, repoA)
+
 	if err := Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
@@ -68,6 +70,13 @@ func TestGitHubStarsPerOrgMigrationAssignsExistingRepos(t *testing.T) {
 		if org != firstOrg || !public {
 			t.Fatalf("repo %d org=%d public=%v, want org %d public true", id, org, public, firstOrg)
 		}
+	}
+	var verifiedA, verifiedB *int
+	if err := pool.QueryRow(ctx, `select (select verified_stars from github_star_repos where id=$1), (select verified_stars from github_star_repos where id=$2)`, repoA, repoB).Scan(&verifiedA, &verifiedB); err != nil {
+		t.Fatal(err)
+	}
+	if verifiedA == nil || *verifiedA != 2 || verifiedB != nil {
+		t.Fatalf("verified stars = %v / %v, want 2 for the reconciled repo and none for the other", verifiedA, verifiedB)
 	}
 	count := func(sql string, args ...any) int {
 		t.Helper()

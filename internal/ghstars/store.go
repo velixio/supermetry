@@ -255,6 +255,16 @@ func (s *Store) SaveSnapshot(ctx context.Context, day time.Time, c Counts) error
 	return nil
 }
 
+// SaveVerified records the star count GitHub itself reported to a scheduled or
+// manual sync. It is the only value the public counter serves.
+func (s *Store) SaveVerified(ctx context.Context, stars int, now time.Time) error {
+	_, err := s.pool.Exec(ctx, `update github_star_repos set verified_stars=$2, verified_at=$3 where id=$1`, s.repoID, stars, now)
+	if err != nil {
+		return fmt.Errorf("save verified star count: %w", err)
+	}
+	return nil
+}
+
 // Stars returns the stored live star count and whether a state row exists.
 func (s *Store) Stars(ctx context.Context) (int, bool, error) {
 	var stars int
