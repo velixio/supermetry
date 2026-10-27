@@ -8,6 +8,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Fixed
 
+- Email from Supermetry (password reset, invitations, notices) no longer waits about a minute at some mail providers: the SMTP client now announces a real host name instead of `localhost` (the host of `SUPERMETRY_BASE_URL`, or set `SUPERMETRY_SMTP_HELO`), and every message carries `Date` and `Message-ID` headers.
 - Per-site tracking scripts served through a first-party proxy under a path prefix (for example `/sm/js/<site>.js`) now send events under the same prefix (`/sm/api/public/v1/events`) without needing `data-api`.
 - Session replay behind a first-party proxy under a path prefix: the tracker now loads `replay.js` and uploads recordings next to `data-api` (for example `/sm/replay.js`), not at the site's root, where they returned 404. The SDK proxy handlers (`@supermetry/tracker/proxy`, Next.js, Remix) now forward `/replay.js` and the replay uploads too.
 - Password reset emails now link to the dashboard's `/reset/{token}` page; the old `/password-reset?token=` link pointed at a missing page and now redirects there.
