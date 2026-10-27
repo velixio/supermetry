@@ -100,9 +100,12 @@ type StarAlerts interface {
 var _ StarAlerts = (*Service)(nil)
 
 // TrendingDetails describes where a repository trends. Empty fields are left
-// out of the message; Period ("daily", "weekly") and Language also scope the
-// dedup key, so each list raises its own alert once per day.
+// out of the message. Episode identifies one stay on one list: when set it is
+// the dedup key, so each episode alerts once when it opens and once when it
+// closes. Without an episode the key falls back to the UTC date, period and
+// language.
 type TrendingDetails struct {
+	Episode  int64
 	Period   string
 	Language string
 	Rank     int
@@ -420,6 +423,9 @@ func (s *Service) raiseTrending(ctx context.Context, repoID int64, kind AlertKin
 	}
 	body += "\nhttps://github.com/" + r.Repo.Repo
 	key := fmt.Sprintf("%d:%s:%s:%s:%s", r.ID, kind, s.Now().UTC().Format("2006-01-02"), d.Period, d.Language)
+	if d.Episode > 0 {
+		key = fmt.Sprintf("%d:%s:episode%d", r.ID, kind, d.Episode)
+	}
 	s.raise(ctx, r.ID, r.OrgID, kind, key, fmt.Sprintf("%s %s", r.Repo.Repo, phrase), body)
 }
 

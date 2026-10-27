@@ -571,6 +571,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
 	starService.AlertChannels = alertService
+	trendingService.Notifier = trendingAlerts{alerts: starService}
 	starService.AlertSender = alertDispatcher
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)

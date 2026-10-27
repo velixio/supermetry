@@ -20,7 +20,7 @@ Tell an organization when something notable happens to a tracked repository, thr
 - **Spike**: stars gained in the last 6 hours >= max(10, 3 x the average per 6 hours over the 14 days before that window, i.e. total / 56). Key `repoid:spike:<utc date>:<hour/6>`.
 - **Unstar surge**: same with unstars, floor 5. Key `repoid:unstar:<utc date>:<hour/6>`.
 - Window counts leave out events from the history import (`source = backfill`); rate alerts wait until the import finished. The baseline counts every source, so a repository younger than 14 days is compared with a lower average and the floors apply.
-- **Trending**: the trending watcher calls `ghstars.StarAlerts.TrendingEntered/TrendingLeft(ctx, repoID, TrendingDetails{Period, Language, Rank})`. Key `repoid:kind:<utc date>:<period>:<language>`.
+- **Trending**: the trending watcher calls `ghstars.StarAlerts.TrendingEntered/TrendingLeft(ctx, repoID, TrendingDetails{Period, Language, Rank})`. The trending watcher's `ghtrending.TrendingNotifier` is connected by `cmd/supermetry/trending_alerts.go`; the key is `repoid:kind:episode<id>`, so each episode alerts once when it opens and once when it closes (without an episode id it falls back to date, period and language). The 10 minute per-kind interval applies, so several lists entered in the same run send one alert.
 
 ## Delivery
 
