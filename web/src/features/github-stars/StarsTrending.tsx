@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch'
 import { ErrorState } from '@/components/ErrorState'
 import { ErrorLine, formatDate } from '@/features/admin/AdminCommon'
 import { useSetTrendingEnabled, useTrending, type TrendingSighting, type TrendingStatus } from './trendingApi'
+import { useStarsOrg } from './starsOrg'
 import { trendingText as t } from './trendingMessages'
 
 function listName(s: TrendingSighting, language: string) {
@@ -41,7 +42,8 @@ function statusLine(data: TrendingStatus) {
 }
 
 /** The repository page's trending card: opt-in switch, watcher status, current appearances and history. */
-export function StarsTrending({ repoId, canManage = true }: { repoId: number; canManage?: boolean }) {
+export function StarsTrending({ repoId }: { repoId: number }) {
+  const { canManage } = useStarsOrg()
   const trending = useTrending(repoId)
   const setEnabled = useSetTrendingEnabled(repoId)
   const data = trending.data

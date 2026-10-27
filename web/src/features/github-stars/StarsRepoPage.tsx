@@ -23,6 +23,7 @@ import { StarsAnnotations } from './StarsAnnotations'
 import { bucketLabel, StarsChart } from './StarsChart'
 import { gainStats } from './gain'
 import { StarsEvents } from './StarsEvents'
+import { StarsTrending } from './StarsTrending'
 import { StarsOrgProvider } from './starsOrg'
 
 function errorText(error: unknown) {
@@ -127,6 +128,7 @@ function RepoView({ repoId }: { repoId: number }) {
       {summary.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-40 w-full" /> : summary.isError ? (
         <ErrorState level="page" detail={errorText(summary.error)} onRetry={() => void summary.refetch()} />
       ) : <Counters summary={summary.data} />}
+      <StarsTrending repoId={repoId} />
       <GrowthChart repoId={repoId} />
       <StarsEvents repoId={repoId} />
     </>
