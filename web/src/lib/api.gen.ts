@@ -250,6 +250,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/admin/organizations/{org}/replay-retention-cap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An organization's replay retention cap */
+        get: operations["adminGetReplayRetentionCap"];
+        /**
+         * Set an organization's replay retention cap
+         * @description A whole number of days from 1 to 365 caps replay retention for every site of the organization; null means no cap. The effective retention of a site is the smallest of the instance cap, this cap and the site's own setting. Lowering the cap deletes recordings older than the new effective retention at the next replay retention run, and raising it later does not bring them back. Audited as replay.retention_cap_changed.
+         */
+        put: operations["adminSetReplayRetentionCap"];
+        post?: never;
+        /**
+         * Remove an organization's replay retention cap
+         * @description The same as setting days to null.
+         */
+        delete: operations["adminResetReplayRetentionCap"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/orgs/{org}/github-stars/repos": {
         parameters: {
             query?: never;
@@ -3023,6 +3048,19 @@ export interface components {
             /** @description The cap; 0 allows none and null means unlimited. */
             limit: number | null;
         };
+        ReplayRetentionCap: {
+            /** @description Replay retention cap in days; null means no cap. */
+            days: number | null;
+            /**
+             * @description org when the organization has a cap
+             * @enum {string}
+             */
+            source: "org" | "none";
+        };
+        ReplayRetentionCapInput: {
+            /** @description The cap in days */
+            days: number | null;
+        };
         GitHubStarsRepos: {
             data: components["schemas"]["GitHubStarsRepo"][];
         };
@@ -5616,6 +5654,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GitHubStarRepoLimit"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetReplayRetentionCap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The cap. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayRetentionCap"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminSetReplayRetentionCap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplayRetentionCapInput"];
+            };
+        };
+        responses: {
+            /** @description The cap after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayRetentionCap"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminResetReplayRetentionCap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The cap after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayRetentionCap"];
                 };
             };
             400: components["responses"]["BadRequest"];

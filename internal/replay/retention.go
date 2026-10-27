@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ const replayRetentionIdleTimeout = 30 * time.Minute
 
 type retentionSite struct {
 	id       int32
+	orgCap   *int
 	location *time.Location
 	settings SiteSettings
 }
@@ -52,8 +54,9 @@ func RunRetentionConfigured(ctx context.Context, pool *pgxpool.Pool, store BlobS
 		return fmt.Errorf("run replay retention: blob store is nil")
 	}
 	siteRows, err := pool.Query(ctx, `
-		select id, timezone, coalesce(settings->'replay', '{}'::jsonb)
-		from sites where deleted_at is null order by id`)
+		select s.id, s.timezone, coalesce(s.settings->'replay', '{}'::jsonb), o.replay_retention_cap_days
+		from sites s join orgs o on o.id = s.org_id
+		where s.deleted_at is null order by s.id`)
 	if err != nil {
 		return fmt.Errorf("load replay retention sites: %w", err)
 	}
@@ -62,7 +65,8 @@ func RunRetentionConfigured(ctx context.Context, pool *pgxpool.Pool, store BlobS
 		var siteID int32
 		var timezone string
 		var raw json.RawMessage
-		if err := siteRows.Scan(&siteID, &timezone, &raw); err != nil {
+		var orgCap *int
+		if err := siteRows.Scan(&siteID, &timezone, &raw, &orgCap); err != nil {
 			siteRows.Close()
 			return fmt.Errorf("scan replay retention site: %w", err)
 		}
@@ -71,13 +75,14 @@ func RunRetentionConfigured(ctx context.Context, pool *pgxpool.Pool, store BlobS
 			siteRows.Close()
 			return fmt.Errorf("parse replay settings for site %d: %w", siteID, err)
 		}
+		input.OrgRetentionCapDays = orgCap
 		location, err := time.LoadLocation(timezone)
 		if err != nil {
 			siteRows.Close()
 			return fmt.Errorf("load timezone for replay site %d: %w", siteID, err)
 		}
 		retentionSites = append(retentionSites, retentionSite{
-			id: siteID, location: location, settings: ResolveSite(environment, input),
+			id: siteID, orgCap: orgCap, location: location, settings: ResolveSite(environment, input),
 		})
 	}
 	if err := siteRows.Err(); err != nil {
@@ -116,7 +121,9 @@ func retainSite(ctx context.Context, pool *pgxpool.Pool, store BlobStore, site r
 		}
 		firstKept = end
 	}
+	expired := firstKept
 	rows = rows[firstKept:]
+	logRetention(site, expired, len(rows))
 
 	var total int64
 	for _, row := range rows {
@@ -156,6 +163,23 @@ func retainSite(ctx context.Context, pool *pgxpool.Pool, store BlobStore, site r
 		break
 	}
 	return garbageCollectCSS(ctx, store, site.id, rows, cutoff)
+}
+
+// logRetention writes one line per site per run, with counts only. An
+// organization cap that lowers retention deletes older recordings at the next
+// run, so the line records the effective days and whether the cap is set.
+func logRetention(site retentionSite, expired, kept int) {
+	level := slog.LevelDebug
+	if expired > 0 || site.orgCap != nil {
+		level = slog.LevelInfo
+	}
+	orgCap := 0 // 0 means the organization has no cap
+	if site.orgCap != nil {
+		orgCap = *site.orgCap
+	}
+	slog.Log(context.Background(), level, "replay retention",
+		"site_id", site.id, "retention_days", site.settings.RetentionDays.V,
+		"org_cap_days", orgCap, "expired_sessions_deleted", expired, "sessions_kept", kept)
 }
 
 func garbageCollectCSS(ctx context.Context, store BlobStore, siteID int32, rows []retainedReplay, cutoff time.Time) error {

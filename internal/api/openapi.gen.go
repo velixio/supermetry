@@ -582,16 +582,16 @@ func (e FunnelStepType) Valid() bool {
 
 // Defines values for GitHubStarRepoLimitSource.
 const (
-	Default GitHubStarRepoLimitSource = "default"
-	Org     GitHubStarRepoLimitSource = "org"
+	GitHubStarRepoLimitSourceDefault GitHubStarRepoLimitSource = "default"
+	GitHubStarRepoLimitSourceOrg     GitHubStarRepoLimitSource = "org"
 )
 
 // Valid indicates whether the value is a known member of the GitHubStarRepoLimitSource enum.
 func (e GitHubStarRepoLimitSource) Valid() bool {
 	switch e {
-	case Default:
+	case GitHubStarRepoLimitSourceDefault:
 		return true
-	case Org:
+	case GitHubStarRepoLimitSourceOrg:
 		return true
 	default:
 		return false
@@ -1036,6 +1036,24 @@ func (e QueryRequestCompare) Valid() bool {
 	case PreviousPeriod:
 		return true
 	case PreviousYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReplayRetentionCapSource.
+const (
+	ReplayRetentionCapSourceNone ReplayRetentionCapSource = "none"
+	ReplayRetentionCapSourceOrg  ReplayRetentionCapSource = "org"
+)
+
+// Valid indicates whether the value is a known member of the ReplayRetentionCapSource enum.
+func (e ReplayRetentionCapSource) Valid() bool {
+	switch e {
+	case ReplayRetentionCapSourceNone:
+		return true
+	case ReplayRetentionCapSourceOrg:
 		return true
 	default:
 		return false
@@ -3599,6 +3617,24 @@ type ReplayList struct {
 	TotalCapped bool            `json:"total_capped"`
 }
 
+// ReplayRetentionCap defines model for ReplayRetentionCap.
+type ReplayRetentionCap struct {
+	// Days Replay retention cap in days; null means no cap.
+	Days *int `json:"days"`
+
+	// Source org when the organization has a cap
+	Source ReplayRetentionCapSource `json:"source"`
+}
+
+// ReplayRetentionCapSource org when the organization has a cap
+type ReplayRetentionCapSource string
+
+// ReplayRetentionCapInput defines model for ReplayRetentionCapInput.
+type ReplayRetentionCapInput struct {
+	// Days The cap in days
+	Days *int `json:"days"`
+}
+
 // ReplaySiteSettings defines model for ReplaySiteSettings.
 type ReplaySiteSettings struct {
 	ConfiguredEnabled *bool                     `json:"configured_enabled,omitempty"`
@@ -4776,6 +4812,9 @@ type TrackingPixelParamsStyle string
 // AdminSetGitHubStarRepoLimitJSONRequestBody defines body for AdminSetGitHubStarRepoLimit for application/json ContentType.
 type AdminSetGitHubStarRepoLimitJSONRequestBody = GitHubStarRepoLimitInput
 
+// AdminSetReplayRetentionCapJSONRequestBody defines body for AdminSetReplayRetentionCap for application/json ContentType.
+type AdminSetReplayRetentionCapJSONRequestBody = ReplayRetentionCapInput
+
 // AdminSetTwoFactorExemptionJSONRequestBody defines body for AdminSetTwoFactorExemption for application/json ContentType.
 type AdminSetTwoFactorExemptionJSONRequestBody = AdminTwoFactorExemption
 
@@ -5422,6 +5461,15 @@ type ServerInterface interface {
 	// AdminSetGitHubStarRepoLimit Set an organization's own limit on tracked GitHub repositories
 	// (PUT /api/private/admin/organizations/{org}/github-star-repo-limit)
 	AdminSetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminResetReplayRetentionCap Remove an organization's replay retention cap
+	// (DELETE /api/private/admin/organizations/{org}/replay-retention-cap)
+	AdminResetReplayRetentionCap(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminGetReplayRetentionCap An organization's replay retention cap
+	// (GET /api/private/admin/organizations/{org}/replay-retention-cap)
+	AdminGetReplayRetentionCap(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminSetReplayRetentionCap Set an organization's replay retention cap
+	// (PUT /api/private/admin/organizations/{org}/replay-retention-cap)
+	AdminSetReplayRetentionCap(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminRestoreOrganization Restore a deleted organization within the deletion grace period
 	// (POST /api/private/admin/organizations/{org}/restore)
 	AdminRestoreOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -6128,6 +6176,84 @@ func (siw *ServerInterfaceWrapper) AdminSetGitHubStarRepoLimit(w http.ResponseWr
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminSetGitHubStarRepoLimit(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminResetReplayRetentionCap operation middleware
+func (siw *ServerInterfaceWrapper) AdminResetReplayRetentionCap(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminResetReplayRetentionCap(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetReplayRetentionCap operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetReplayRetentionCap(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetReplayRetentionCap(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminSetReplayRetentionCap operation middleware
+func (siw *ServerInterfaceWrapper) AdminSetReplayRetentionCap(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminSetReplayRetentionCap(w, r, org)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12263,6 +12389,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminResetGitHubStarRepoLimit)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminGetGitHubStarRepoLimit)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminSetGitHubStarRepoLimit)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminResetReplayRetentionCap)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminGetReplayRetentionCap)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminSetReplayRetentionCap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgListGitHubStarsRepos)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgCreateGitHubStarsRepo)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}", wrapper.OrgDeleteGitHubStarsRepo)

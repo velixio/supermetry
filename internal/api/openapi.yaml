@@ -312,6 +312,50 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/organizations/{org}/replay-retention-cap:
+    get:
+      operationId: adminGetReplayRetentionCap
+      security: [{ cookieAuth: [] }]
+      summary: An organization's replay retention cap
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      responses:
+        '200': { description: The cap., content: { application/json: { schema: { $ref: '#/components/schemas/ReplayRetentionCap' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      operationId: adminSetReplayRetentionCap
+      security: [{ cookieAuth: [] }]
+      summary: Set an organization's replay retention cap
+      description: A whole number of days from 1 to 365 caps replay retention for every site of the organization; null means no cap. The effective retention of a site is the smallest of the instance cap, this cap and the site's own setting. Lowering the cap deletes recordings older than the new effective retention at the next replay retention run, and raising it later does not bring them back. Audited as replay.retention_cap_changed.
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplayRetentionCapInput' }
+      responses:
+        '200': { description: The cap after the change., content: { application/json: { schema: { $ref: '#/components/schemas/ReplayRetentionCap' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: adminResetReplayRetentionCap
+      security: [{ cookieAuth: [] }]
+      summary: Remove an organization's replay retention cap
+      description: The same as setting days to null.
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      responses:
+        '200': { description: The cap after the change., content: { application/json: { schema: { $ref: '#/components/schemas/ReplayRetentionCap' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/orgs/{org}/github-stars/repos:
     get:
       operationId: orgListGitHubStarsRepos
@@ -4044,6 +4088,19 @@ components:
       required: [limit]
       properties:
         limit: { type: [integer, 'null'], minimum: 0, description: The cap; 0 allows none and null means unlimited. }
+    ReplayRetentionCap:
+      type: object
+      additionalProperties: false
+      required: [days, source]
+      properties:
+        days: { type: [integer, 'null'], minimum: 1, maximum: 365, description: Replay retention cap in days; null means no cap. }
+        source: { type: string, enum: [org, none], description: org when the organization has a cap, none otherwise. }
+    ReplayRetentionCapInput:
+      type: object
+      additionalProperties: false
+      required: [days]
+      properties:
+        days: { type: [integer, 'null'], minimum: 1, maximum: 365, description: The cap in days, or null for no cap. }
     GitHubStarsRepos:
       type: object
       additionalProperties: false

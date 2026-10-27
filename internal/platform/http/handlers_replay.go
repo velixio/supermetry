@@ -320,6 +320,12 @@ func (h *handler) putReplaySettings(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 		return
 	}
+	orgCap, err := store.OrgReplayRetentionCap(r.Context(), h.deps.Store, site.OrgID)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	in.OrgRetentionCapDays = orgCap
 	if err := validateReplayPolicy(h.deps.ReplayEnv, in); err != nil {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 		return
@@ -353,6 +359,12 @@ func (h *handler) loadReplaySiteSettings(w http.ResponseWriter, r *http.Request,
 		serviceError(w, err)
 		return replay.SiteSettings{}, false
 	}
+	orgCap, err := store.OrgReplayRetentionCap(r.Context(), h.deps.Store, site.OrgID)
+	if err != nil {
+		serviceError(w, err)
+		return replay.SiteSettings{}, false
+	}
+	in.OrgRetentionCapDays = orgCap
 	return replay.ResolveSite(h.deps.ReplayEnv, in), true
 }
 

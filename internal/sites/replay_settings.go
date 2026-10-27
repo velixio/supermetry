@@ -18,6 +18,11 @@ type ReplaySiteInput struct {
 	QuotaBytes    *int64              `json:"quota_bytes,omitempty"`
 	Triggers      ReplayTriggersInput `json:"triggers,omitempty"`
 	Consent       *string             `json:"consent,omitempty"`
+
+	// OrgRetentionCapDays is the owning organization's replay retention cap.
+	// It is not part of the stored per-site document: loaders copy it from
+	// orgs.replay_retention_cap_days so every resolver sees the same ceiling.
+	OrgRetentionCapDays *int `json:"-"`
 }
 
 type ReplayTriggersInput struct {
