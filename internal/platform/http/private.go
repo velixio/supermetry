@@ -22,6 +22,7 @@ import (
 	"supermetry/internal/api"
 	"supermetry/internal/config"
 	"supermetry/internal/ghstars"
+	"supermetry/internal/ghtrending"
 	"supermetry/internal/imports"
 	"supermetry/internal/links"
 	"supermetry/internal/pixels"
@@ -172,6 +173,9 @@ type Deps struct {
 	UpdateStarter UpdateStarter
 	UpdateMode    updatehelper.DeploymentMode
 	UpdateNonce   func() (string, error)
+
+	// GitHubTrending serves the trending watcher status and opt-in. Nil answers 404.
+	GitHubTrending *ghtrending.Service
 
 	// Integrations serves the third-party connection endpoints. Optional.
 	Integrations IntegrationsService
@@ -385,6 +389,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/orgs/{org}/github-stars/repos/{id}", h.orgStarsDeleteRepo)
 	mux.HandleFunc("POST /api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret", h.orgStarsRotateSecret)
 	mux.HandleFunc("POST /api/private/orgs/{org}/github-stars/repos/{id}/sync", h.orgStarsSync)
+	mux.HandleFunc("GET /api/private/orgs/{org}/github-stars/repos/{id}/trending", h.orgGetStarsTrending)
 	mux.HandleFunc("GET /api/private/orgs/{org}/github-stars/summary", h.orgStarsSummary)
 	mux.HandleFunc("GET /api/private/orgs/{org}/github-stars/series", h.orgStarsSeries)
 	mux.HandleFunc("GET /api/private/orgs/{org}/github-stars/events", h.orgStarsEvents)

@@ -413,6 +413,22 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: A sync is already running., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/orgs/{org}/github-stars/repos/{id}/trending:
+    get:
+      operationId: orgGetGitHubStarsTrending
+      security: [{ cookieAuth: [] }]
+      summary: Trending watcher status, current episodes and recent history
+      description: Whether the repository is on github.com/trending (all languages and its primary language, daily and weekly). Scraped on a best-effort basis every 10 minutes; a page that cannot be read never ends an episode and shows as status unreadable. Readable by any member of the organization; opt in with trending_enabled on the repository PATCH (owners and admins).
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200': { description: Trending status., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubTrendingStatus' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/orgs/{org}/github-stars/summary:
     get:
       operationId: orgGetGitHubStarsSummary
@@ -3997,6 +4013,46 @@ components:
         token: { type: string, description: Replaces the stored token when not empty. }
         clear_token: { type: boolean }
         public_counter: { type: boolean }
+        trending_enabled: { type: boolean, description: Opts the repository in or out of the trending watcher; turning it off closes open episodes silently. }
+    GitHubTrendingSighting:
+      type: object
+      additionalProperties: false
+      required: [id, list_language, since, first_rank, best_rank, last_rank, first_seen_at, last_seen_at, left_at]
+      properties:
+        id: { type: integer, format: int64, description: Identifies the episode. }
+        list_language: { type: string, description: Lowercase language of the list; empty for all languages. }
+        since: { type: string, enum: [daily, weekly] }
+        first_rank: { type: integer }
+        best_rank: { type: integer }
+        last_rank: { type: integer }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        left_at: { type: [string, 'null'], format: date-time, description: Null while the episode is open. }
+    GitHubTrendingList:
+      type: object
+      additionalProperties: false
+      required: [list_language, since, last_ok_at, last_error, parse_ok, entries, no_list_until]
+      properties:
+        list_language: { type: string }
+        since: { type: string, enum: [daily, weekly] }
+        last_ok_at: { type: [string, 'null'], format: date-time }
+        last_error: { type: string }
+        parse_ok: { type: boolean, description: False while the page cannot be read. }
+        entries: { type: integer }
+        no_list_until: { type: [string, 'null'], format: date-time, description: Set while GitHub has no list for this language. }
+    GitHubTrendingStatus:
+      type: object
+      additionalProperties: false
+      required: [enabled, language, status, last_checked_at, lists, deferred_lists, current, episodes]
+      properties:
+        enabled: { type: boolean }
+        language: { type: string, description: Primary language last seen by the star tracker; empty when unknown. }
+        status: { type: string, description: 'One of off, waiting, watching or unreadable.' }
+        last_checked_at: { type: [string, 'null'], format: date-time }
+        lists: { type: array, items: { $ref: '#/components/schemas/GitHubTrendingList' } }
+        deferred_lists: { type: integer, description: Lists the last run postponed because of the per-run request cap. }
+        current: { type: array, items: { $ref: '#/components/schemas/GitHubTrendingSighting' } }
+        episodes: { type: array, description: 'Latest 50 episodes, newest first; open ones have left_at null.', items: { $ref: '#/components/schemas/GitHubTrendingSighting' } }
     GitHubStarsRepoSecret:
       type: object
       additionalProperties: false

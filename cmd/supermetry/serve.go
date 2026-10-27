@@ -37,6 +37,7 @@ import (
 	"supermetry/internal/dropstats"
 	"supermetry/internal/geoupdate"
 	"supermetry/internal/ghstars"
+	"supermetry/internal/ghtrending"
 	"supermetry/internal/health"
 	"supermetry/internal/heatmap"
 	"supermetry/internal/imports"
@@ -385,9 +386,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	starService := ghstars.NewService(pool, starBox, cfg.BaseURL, settings.clock.Now)
 	starService.RepoLimit = cfg.MaxGitHubReposPerOrg
+	trendingService := ghtrending.NewService(pool, settings.clock.Now)
 	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		GitHubStars:        starService,
+		GitHubTrending:     trendingService,
 		LinkCache:          linkHandler,
 		TrackingPixelViews: linkRecorder.Views,
 		Pixels:             pixelRegistry,
@@ -567,7 +570,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
 	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
-	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob())
+	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)
