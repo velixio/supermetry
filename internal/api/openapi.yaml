@@ -269,22 +269,67 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/repos:
+  /api/private/admin/organizations/{org}/github-star-repo-limit:
     get:
-      operationId: adminListGitHubStarsRepos
+      operationId: adminGetGitHubStarRepoLimit
       security: [{ cookieAuth: [] }]
-      summary: List the tracked GitHub repositories
-      description: Secrets and tokens are never returned; webhook_url is the endpoint to configure on GitHub.
+      summary: How many GitHub repositories an organization may track
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      responses:
+        '200': { description: The effective limit., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarRepoLimit' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      operationId: adminSetGitHubStarRepoLimit
+      security: [{ cookieAuth: [] }]
+      summary: Set an organization's own limit on tracked GitHub repositories
+      description: A number is the cap, 0 allows none, and null means unlimited. Lowering a limit below the current count deletes nothing; existing repositories keep syncing and only new ones are refused. Audited as github_stars.limit_changed.
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GitHubStarRepoLimitInput' }
+      responses:
+        '200': { description: The effective limit after the change., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarRepoLimit' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: adminResetGitHubStarRepoLimit
+      security: [{ cookieAuth: [] }]
+      summary: Remove an organization's own limit so the instance default applies
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      responses:
+        '200': { description: The effective limit after the change., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarRepoLimit' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/orgs/{org}/github-stars/repos:
+    get:
+      operationId: orgListGitHubStarsRepos
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      summary: List the organization's tracked GitHub repositories
+      description: Any member of the organization may read. Secrets and tokens are never returned; webhook_url is the endpoint to configure on GitHub.
       responses:
         '200': { description: Tracked repositories., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsRepos' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
     post:
-      operationId: adminCreateGitHubStarsRepo
+      operationId: orgCreateGitHubStarsRepo
       security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
       summary: Track a repository
-      description: Checks the repository exists with one GitHub call (a GitHub outage or rate limit does not block the save). The response carries the webhook secret, shown exactly once. At most 50 repositories.
+      description: Checks the repository exists with one GitHub call (a GitHub outage or rate limit does not block the save). The response carries the webhook secret, shown exactly once. Owners and admins only. The organization may track a limited number of repositories (5 unless the instance or an instance admin sets another limit); beyond it the request is refused with 409.
       requestBody:
         required: true
         content:
@@ -297,12 +342,14 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { description: The repository is already tracked or the limit is reached., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/repos/{id}:
+  /api/private/orgs/{org}/github-stars/repos/{id}:
     patch:
-      operationId: adminUpdateGitHubStarsRepo
+      operationId: orgUpdateGitHubStarsRepo
       security: [{ cookieAuth: [] }]
-      summary: Enable or disable a repository, change its time zone, or set or clear its token
+      summary: Enable or disable a repository, change its time zone or public counter, or set or clear its token
+      description: Owners and admins only.
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
       requestBody:
         required: true
@@ -317,11 +364,12 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
     delete:
-      operationId: adminDeleteGitHubStarsRepo
+      operationId: orgDeleteGitHubStarsRepo
       security: [{ cookieAuth: [] }]
       summary: Disable a repository, or remove it with its data
       description: delete_data is required. false only disables the repository and keeps its history (200). true deletes the configuration and every event, snapshot, annotation and erasure record of the repository in one transaction (204).
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
         - { name: delete_data, in: query, required: true, schema: { type: boolean } }
       responses:
@@ -332,13 +380,14 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/repos/{id}/rotate-secret:
+  /api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret:
     post:
-      operationId: adminRotateGitHubStarsSecret
+      operationId: orgRotateGitHubStarsSecret
       security: [{ cookieAuth: [] }]
       summary: Replace the webhook secret
       description: The new secret is returned exactly once; update it on GitHub.
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
       responses:
         '200': { description: New secret., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsRepoSecret' } } } }
@@ -347,13 +396,14 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/repos/{id}/sync:
+  /api/private/orgs/{org}/github-stars/repos/{id}/sync:
     post:
-      operationId: adminSyncGitHubStarsRepo
+      operationId: orgSyncGitHubStarsRepo
       security: [{ cookieAuth: [] }]
       summary: Reconcile and backfill a repository now
       description: Starts the sync in the background. At most one runs per repository and manual syncs must be a minute apart; the outcome appears in last_reconcile_at and last_error.
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
       responses:
         '202': { description: Sync started. }
@@ -363,28 +413,29 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: A sync is already running., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/summary:
+  /api/private/orgs/{org}/github-stars/summary:
     get:
-      operationId: adminGetGitHubStarsSummary
+      operationId: orgGetGitHubStarsSummary
       security: [{ cookieAuth: [] }]
       summary: Live star counters and the net change over 24 hours and 7 days
       description: Reads the repository selected by repo_id. Returns 404 for an unknown repository.
-      parameters: [{ $ref: '#/components/parameters/GitHubStarsRepoID' }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }, { $ref: '#/components/parameters/GitHubStarsRepoID' }]
       responses:
         '200': { description: Star summary., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsSummary' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/series:
+  /api/private/orgs/{org}/github-stars/series:
     get:
-      operationId: adminGetGitHubStarsSeries
+      operationId: orgGetGitHubStarsSeries
       security: [{ cookieAuth: [] }]
       summary: Gained, lost, net and cumulative stars per bucket
-      description: Buckets are local hours or days in the configured time zone. Defaults are the last 24 hours (hour) or 30 days (day). Hour ranges are limited to 31 days and day ranges to 5 years.
+      description: Buckets are local hours, days or calendar months in the configured time zone. Defaults are the last 24 hours (hour), 30 days (day) or 12 months (month, starting no earlier than the first event or snapshot). Hour ranges are limited to 31 days, day ranges to 5 years and month ranges to 20 years.
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { $ref: '#/components/parameters/GitHubStarsRepoID' }
-        - { name: granularity, in: query, required: true, schema: { type: string, description: hour or day. } }
+        - { name: granularity, in: query, required: true, schema: { type: string, description: hour, day or month. } }
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
       responses:
@@ -394,12 +445,13 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/events:
+  /api/private/orgs/{org}/github-stars/events:
     get:
-      operationId: adminListGitHubStarsEvents
+      operationId: orgListGitHubStarsEvents
       security: [{ cookieAuth: [] }]
       summary: List the user-attributed star and unstar log, newest first
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { $ref: '#/components/parameters/GitHubStarsRepoID' }
         - { name: cursor, in: query, schema: { type: string } }
         - { $ref: '#/components/parameters/GitHubStarsEventLimit' }
@@ -410,12 +462,12 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/annotations:
+  /api/private/orgs/{org}/github-stars/annotations:
     get:
-      operationId: adminListGitHubStarsAnnotations
+      operationId: orgListGitHubStarsAnnotations
       security: [{ cookieAuth: [] }]
       summary: List chart annotations
-      parameters: [{ $ref: '#/components/parameters/GitHubStarsRepoID' }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }, { $ref: '#/components/parameters/GitHubStarsRepoID' }]
       responses:
         '200': { description: Annotations., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsAnnotations' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -423,7 +475,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
     post:
-      operationId: adminCreateGitHubStarsAnnotation
+      operationId: orgCreateGitHubStarsAnnotation
       security: [{ cookieAuth: [] }]
       summary: Add a chart annotation such as a launch marker
       requestBody:
@@ -431,7 +483,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/GitHubStarsAnnotationInput' }
-      parameters: [{ $ref: '#/components/parameters/GitHubStarsRepoID' }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }, { $ref: '#/components/parameters/GitHubStarsRepoID' }]
       responses:
         '201': { description: Annotation created., content: { application/json: { schema: { $ref: '#/components/schemas/GitHubStarsAnnotation' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -439,12 +491,13 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/annotations/{annotation}:
+  /api/private/orgs/{org}/github-stars/annotations/{annotation}:
     delete:
-      operationId: adminDeleteGitHubStarsAnnotation
+      operationId: orgDeleteGitHubStarsAnnotation
       security: [{ cookieAuth: [] }]
       summary: Delete a chart annotation
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { $ref: '#/components/parameters/GitHubStarsRepoID' }
         - { name: annotation, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
       responses:
@@ -454,13 +507,14 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
-  /api/private/admin/github-stars/users/{login}:
+  /api/private/orgs/{org}/github-stars/users/{login}:
     delete:
-      operationId: adminEraseGitHubStarsUser
+      operationId: orgEraseGitHubStarsUser
       security: [{ cookieAuth: [] }]
       summary: Erase every recorded star event of a GitHub user
-      description: Privacy erasure. Aggregates are recomputed from the remaining events; the live counters and daily snapshots keep their totals. Audited as instance.github_stars.user_erased with the event count only.
+      description: Privacy erasure. Aggregates are recomputed from the remaining events; the live counters and daily snapshots keep their totals. Audited as github_stars.user_erased with the event count only.
       parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
         - { $ref: '#/components/parameters/GitHubStarsRepoID' }
         - { name: login, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 39 } }
       responses:
@@ -3890,10 +3944,12 @@ components:
     GitHubStarsRepo:
       type: object
       additionalProperties: false
-      required: [id, repo, enabled, time_zone, has_token, webhook_url, public_count_url, history_complete, created_at, last_webhook_at, last_reconcile_at, last_error]
+      required: [id, org_id, repo, public_counter, enabled, time_zone, has_token, webhook_url, public_count_url, history_complete, created_at, last_webhook_at, last_reconcile_at, last_error]
       properties:
         id: { type: integer, format: int64 }
+        org_id: { type: integer, format: int64, description: The organization that tracks the repository. }
         repo: { type: string, description: Lowercase owner/name. }
+        public_counter: { type: boolean, description: 'When true the GitHub-verified star count (the value the sync jobs last read from GitHub, not the webhook-updated live count) is readable without signing in at public_count_url; off by default. A repository never synced from GitHub is not served.' }
         enabled: { type: boolean }
         time_zone: { type: string }
         has_token: { type: boolean }
@@ -3904,6 +3960,20 @@ components:
         last_webhook_at: { type: [string, 'null'], format: date-time }
         last_reconcile_at: { type: [string, 'null'], format: date-time }
         last_error: { type: [string, 'null'] }
+    GitHubStarRepoLimit:
+      type: object
+      additionalProperties: false
+      required: [limit, source, tracked]
+      properties:
+        limit: { type: [integer, 'null'], minimum: 0, description: Most repositories the organization may track; null means unlimited. }
+        source: { type: string, enum: [org, default], description: org when the organization has its own limit, default when the instance default applies. }
+        tracked: { type: integer, description: Repositories the organization tracks now. }
+    GitHubStarRepoLimitInput:
+      type: object
+      additionalProperties: false
+      required: [limit]
+      properties:
+        limit: { type: [integer, 'null'], minimum: 0, description: The cap; 0 allows none and null means unlimited. }
     GitHubStarsRepos:
       type: object
       additionalProperties: false
@@ -3917,6 +3987,7 @@ components:
         repo: { type: string, description: owner/name }
         token: { type: string, description: Optional GitHub token for the daily sync. }
         time_zone: { type: string, description: IANA time zone for charts; defaults to UTC. }
+        public_counter: { type: boolean, description: Publish the GitHub-verified star count at the public counter endpoint once a sync has read it from GitHub; defaults to false. }
     GitHubStarsRepoPatch:
       type: object
       additionalProperties: false
@@ -3925,6 +3996,7 @@ components:
         time_zone: { type: string }
         token: { type: string, description: Replaces the stored token when not empty. }
         clear_token: { type: boolean }
+        public_counter: { type: boolean }
     GitHubStarsRepoSecret:
       type: object
       additionalProperties: false

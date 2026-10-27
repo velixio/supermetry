@@ -120,10 +120,10 @@ describe('one shell for every /app route', () => {
   })
 
   describe('GitHub stars', () => {
-    const admin: Me = { ...me, user: { ...me.user, instance_admin: true } }
+    const viewer: Me = { ...me, memberships: [{ ...acme, role: 'viewer' }] }
 
     it('keeps the organization menu around the page and marks it active', async () => {
-      renderRoute('/app/acme/github-stars', admin)
+      renderRoute('/app/acme/github-stars', viewer)
       expect(await screen.findByRole('heading', { level: 1, name: 'GitHub stars' })).toBeVisible()
       const { sidebar } = await expectShell()
       expect(within(sidebar).getByRole('link', { name: 'Sites' })).toBeVisible()
@@ -132,7 +132,7 @@ describe('one shell for every /app route', () => {
     })
 
     it('keeps the menu item active on a repository page and links back to the overview', async () => {
-      renderRoute('/app/acme/github-stars/Velixio/Supermetry', admin)
+      renderRoute('/app/acme/github-stars/Velixio/Supermetry', viewer)
       expect(await screen.findByRole('heading', { level: 1, name: 'velixio/supermetry' })).toBeVisible()
       const { sidebar } = await expectShell()
       expect(within(sidebar).getByRole('link', { name: 'Sites' })).toBeVisible()
@@ -141,36 +141,25 @@ describe('one shell for every /app route', () => {
       expect(await screen.findByText('Repository not found')).toBeVisible()
     })
 
-    it('guards the repository page too', async () => {
-      const router = renderRoute('/app/acme/github-stars/velixio/supermetry')
-      await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme'))
-      expect(screen.queryByRole('heading', { name: 'velixio/supermetry' })).toBeNull()
-    })
-
-    it('sends everyone else back to the organization', async () => {
+    it('opens for an owner without instance administration', async () => {
       const router = renderRoute('/app/acme/github-stars')
-      await screen.findByRole('complementary', { name: 'Application sidebar' })
-      await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme'))
-      expect(screen.queryByRole('heading', { name: 'GitHub stars' })).toBeNull()
+      expect(await screen.findByRole('heading', { level: 1, name: 'GitHub stars' })).toBeVisible()
+      expect(router.state.location.pathname).toBe('/app/acme/github-stars')
     })
 
     it('redirects /app/github-stars to the first organization', async () => {
-      const router = renderRoute('/app/github-stars', { ...admin, memberships: [{ ...acme, org: { id: 2, name: 'Zed', slug: 'zed' } }, acme] })
+      const router = renderRoute('/app/github-stars', { ...me, memberships: [{ ...acme, org: { id: 2, name: 'Zed', slug: 'zed' } }, acme] })
       await waitFor(() => expect(router.state.location.pathname).toBe('/app/zed/github-stars'))
     })
 
-    it('falls back to the administration console without an organization', async () => {
-      const router = renderRoute('/app/github-stars', { ...admin, memberships: [] })
-      await waitFor(() => expect(router.state.location.pathname).toBe('/app/admin/users'))
+    it('falls back to the app home without an organization', async () => {
+      const router = renderRoute('/app/github-stars', { ...me, memberships: [] })
+      await waitFor(() => expect(router.state.location.pathname).not.toContain('github-stars'))
     })
 
-    it('keeps the old admin URL working and refuses non-admins', async () => {
-      const router = renderRoute('/app/admin/github-stars', admin)
+    it('keeps the old admin URL working and sends it into the default organization', async () => {
+      const router = renderRoute('/app/admin/github-stars', { ...me, user: { ...me.user, instance_admin: true } })
       await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/github-stars'))
-      cleanup()
-      queryClient.clear()
-      const other = renderRoute('/app/github-stars')
-      await waitFor(() => expect(other.state.location.pathname).not.toContain('github-stars'))
     })
   })
 })

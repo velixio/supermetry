@@ -1,5 +1,5 @@
-// Package ghstars records the star history of the instance's own GitHub
-// repository for the instance admin: a webhook for live stars and unstars, a
+// Package ghstars records the star history of the GitHub repositories an
+// organization tracks, visible to that organization's members only: a webhook for live stars and unstars, a
 // daily reconcile that repairs missed deliveries, and aggregate queries.
 package ghstars
 
@@ -30,10 +30,11 @@ const (
 	// KeepWatchers leaves the stored watcher count unchanged when passed as Counts.Watchers.
 	KeepWatchers = -1
 
-	maxHourBuckets = 24 * 31
-	maxDayBuckets  = 366 * 5
-	maxEventsLimit = 200
-	maxLabelLength = 200
+	maxHourBuckets  = 24 * 31
+	maxDayBuckets   = 366 * 5
+	maxMonthBuckets = 12 * 20
+	maxEventsLimit  = 200
+	maxLabelLength  = 200
 )
 
 var (
@@ -90,19 +91,23 @@ type Annotation struct {
 	CreatedBy *int64    `json:"created_by"`
 }
 
-// Store reads and writes the star tables for one repository.
+// Store reads and writes the star tables for one tracked repository.
 type Store struct {
-	pool *pgxpool.Pool
-	repo string
-	loc  *time.Location
+	pool   *pgxpool.Pool
+	repoID int64
+	repo   string
+	loc    *time.Location
 }
 
-// NewStore returns a store for repo (owner/name). Aggregates are bucketed in loc.
-func NewStore(pool *pgxpool.Pool, repo string, loc *time.Location) *Store {
+// NewStore returns a store for the tracked repository with row id repoID and
+// name repo (owner/name). Every query is keyed by repoID, so two organizations
+// tracking the same GitHub repository never see each other's data. Aggregates
+// are bucketed in loc.
+func NewStore(pool *pgxpool.Pool, repoID int64, repo string, loc *time.Location) *Store {
 	if loc == nil {
 		loc = time.UTC
 	}
-	return &Store{pool: pool, repo: repo, loc: loc}
+	return &Store{pool: pool, repoID: repoID, repo: repo, loc: loc}
 }
 
 // Repo returns the tracked repository.
@@ -115,18 +120,18 @@ func (s *Store) RecordEvent(ctx context.Context, e Event, counts Counts, now tim
 	var recorded bool
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var erased bool
-		if err := tx.QueryRow(ctx, `select exists (select 1 from github_star_erasures where repo=$1 and user_id=$2)`, s.repo, e.UserID).Scan(&erased); err != nil {
+		if err := tx.QueryRow(ctx, `select exists (select 1 from github_star_erasures where repo_id=$1 and user_id=$2)`, s.repoID, e.UserID).Scan(&erased); err != nil {
 			return fmt.Errorf("check star erasure: %w", err)
 		}
 		if erased {
 			// Nothing is stored for an erased user, but the counters GitHub reports stay current.
-			return saveState(ctx, tx, s.repo, counts, now)
+			return saveState(ctx, tx, s.repoID, counts, now)
 		}
 		tag, err := tx.Exec(ctx, `
-			insert into github_star_events(delivery_id,repo,user_id,login,action,occurred_at,source)
+			insert into github_star_events(delivery_id,repo_id,user_id,login,action,occurred_at,source)
 			values (nullif($1,''),$2,$3,$4,$5,$6,$7)
-			on conflict (delivery_id) do nothing`,
-			e.DeliveryID, s.repo, e.UserID, e.Login, e.Action, e.OccurredAt, e.Source)
+			on conflict (repo_id, delivery_id) do nothing`,
+			e.DeliveryID, s.repoID, e.UserID, e.Login, e.Action, e.OccurredAt, e.Source)
 		if err != nil {
 			return fmt.Errorf("insert star event: %w", err)
 		}
@@ -134,7 +139,7 @@ func (s *Store) RecordEvent(ctx context.Context, e Event, counts Counts, now tim
 			return nil
 		}
 		recorded = true
-		return saveState(ctx, tx, s.repo, counts, now)
+		return saveState(ctx, tx, s.repoID, counts, now)
 	})
 	return recorded, err
 }
@@ -160,14 +165,14 @@ func (s *Store) insertEvents(ctx context.Context, db copier, events []Event) err
 	rows := make([][]any, 0, len(events))
 	for _, e := range events {
 		if !erased[e.UserID] {
-			rows = append(rows, []any{s.repo, e.UserID, e.Login, e.Action, e.OccurredAt, e.Source})
+			rows = append(rows, []any{s.repoID, e.UserID, e.Login, e.Action, e.OccurredAt, e.Source})
 		}
 	}
 	if len(rows) == 0 {
 		return nil
 	}
 	_, err = db.CopyFrom(ctx, pgx.Identifier{"github_star_events"},
-		[]string{"repo", "user_id", "login", "action", "occurred_at", "source"}, pgx.CopyFromRows(rows))
+		[]string{"repo_id", "user_id", "login", "action", "occurred_at", "source"}, pgx.CopyFromRows(rows))
 	if err != nil {
 		return fmt.Errorf("copy star events: %w", err)
 	}
@@ -182,7 +187,7 @@ func (s *Store) ImportPage(ctx context.Context, events []Event, cursor string, c
 		if err := s.insertEvents(ctx, tx, events); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `update github_star_repos set backfill_cursor=case when $3 then null else nullif($2,'') end, backfill_complete=$3 where repo=$1`, s.repo, cursor, complete)
+		_, err := tx.Exec(ctx, `update github_star_repos set backfill_cursor=case when $3 then null else nullif($2,'') end, backfill_complete=$3 where id=$1`, s.repoID, cursor, complete)
 		if err != nil {
 			return fmt.Errorf("save import cursor: %w", err)
 		}
@@ -192,12 +197,12 @@ func (s *Store) ImportPage(ctx context.Context, events []Event, cursor string, c
 
 // MarkBackfillComplete records that the whole history is on record.
 func (s *Store) MarkBackfillComplete(ctx context.Context) error {
-	_, err := s.pool.Exec(ctx, `update github_star_repos set backfill_complete=true, backfill_cursor=null where repo=$1`, s.repo)
+	_, err := s.pool.Exec(ctx, `update github_star_repos set backfill_complete=true, backfill_cursor=null where id=$1`, s.repoID)
 	return err
 }
 
 func (s *Store) erasedUsers(ctx context.Context) (map[int64]bool, error) {
-	rows, err := s.pool.Query(ctx, `select user_id from github_star_erasures where repo=$1`, s.repo)
+	rows, err := s.pool.Query(ctx, `select user_id from github_star_erasures where repo_id=$1`, s.repoID)
 	if err != nil {
 		return nil, fmt.Errorf("query star erasures: %w", err)
 	}
@@ -215,21 +220,21 @@ func (s *Store) erasedUsers(ctx context.Context) (map[int64]bool, error) {
 
 // SaveState sets the live counters.
 func (s *Store) SaveState(ctx context.Context, counts Counts, now time.Time) error {
-	return saveState(ctx, s.pool, s.repo, counts, now)
+	return saveState(ctx, s.pool, s.repoID, counts, now)
 }
 
 type dbExec interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 }
 
-func saveState(ctx context.Context, db dbExec, repo string, c Counts, now time.Time) error {
+func saveState(ctx context.Context, db dbExec, repoID int64, c Counts, now time.Time) error {
 	_, err := db.Exec(ctx, `
-		insert into github_star_state(repo,stars,forks,watchers,open_issues,updated_at)
+		insert into github_star_state(repo_id,stars,forks,watchers,open_issues,updated_at)
 		values ($1,$2,$3,greatest($4::int,0),$5,$6)
-		on conflict (repo) do update set stars=excluded.stars, forks=excluded.forks,
+		on conflict (repo_id) do update set stars=excluded.stars, forks=excluded.forks,
 			watchers=case when $4::int < 0 then github_star_state.watchers else $4::int end,
 			open_issues=excluded.open_issues, updated_at=excluded.updated_at`,
-		repo, c.Stars, c.Forks, c.Watchers, c.OpenIssues, now)
+		repoID, c.Stars, c.Forks, c.Watchers, c.OpenIssues, now)
 	if err != nil {
 		return fmt.Errorf("save star state: %w", err)
 	}
@@ -239,13 +244,23 @@ func saveState(ctx context.Context, db dbExec, repo string, c Counts, now time.T
 // SaveSnapshot upserts the snapshot for a calendar day.
 func (s *Store) SaveSnapshot(ctx context.Context, day time.Time, c Counts) error {
 	_, err := s.pool.Exec(ctx, `
-		insert into github_star_snapshots(repo,day,stars,forks,watchers,open_issues)
+		insert into github_star_snapshots(repo_id,day,stars,forks,watchers,open_issues)
 		values ($1,$2::date,$3,$4,$5,$6)
-		on conflict (repo,day) do update set stars=excluded.stars, forks=excluded.forks,
+		on conflict (repo_id,day) do update set stars=excluded.stars, forks=excluded.forks,
 			watchers=excluded.watchers, open_issues=excluded.open_issues`,
-		s.repo, day.Format(time.DateOnly), c.Stars, c.Forks, c.Watchers, c.OpenIssues)
+		s.repoID, day.Format(time.DateOnly), c.Stars, c.Forks, c.Watchers, c.OpenIssues)
 	if err != nil {
 		return fmt.Errorf("save star snapshot: %w", err)
+	}
+	return nil
+}
+
+// SaveVerified records the star count GitHub itself reported to a scheduled or
+// manual sync. It is the only value the public counter serves.
+func (s *Store) SaveVerified(ctx context.Context, stars int, now time.Time) error {
+	_, err := s.pool.Exec(ctx, `update github_star_repos set verified_stars=$2, verified_at=$3 where id=$1`, s.repoID, stars, now)
+	if err != nil {
+		return fmt.Errorf("save verified star count: %w", err)
 	}
 	return nil
 }
@@ -253,7 +268,7 @@ func (s *Store) SaveSnapshot(ctx context.Context, day time.Time, c Counts) error
 // Stars returns the stored live star count and whether a state row exists.
 func (s *Store) Stars(ctx context.Context) (int, bool, error) {
 	var stars int
-	err := s.pool.QueryRow(ctx, `select stars from github_star_state where repo=$1`, s.repo).Scan(&stars)
+	err := s.pool.QueryRow(ctx, `select stars from github_star_state where repo_id=$1`, s.repoID).Scan(&stars)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -263,7 +278,7 @@ func (s *Store) Stars(ctx context.Context) (int, bool, error) {
 // EventCount returns how many events are stored.
 func (s *Store) EventCount(ctx context.Context) (int64, error) {
 	var n int64
-	err := s.pool.QueryRow(ctx, `select count(*) from github_star_events where repo=$1`, s.repo).Scan(&n)
+	err := s.pool.QueryRow(ctx, `select count(*) from github_star_events where repo_id=$1`, s.repoID).Scan(&n)
 	return n, err
 }
 
@@ -275,9 +290,9 @@ func (s *Store) StarredCount(ctx context.Context) (int, error) {
 	err := s.pool.QueryRow(ctx, `
 		select count(*) from (
 			select distinct on (user_id) action
-			from github_star_events where repo=$1
+			from github_star_events where repo_id=$1
 			order by user_id, occurred_at desc, id desc) latest
-		where action='starred'`, s.repo).Scan(&n)
+		where action='starred'`, s.repoID).Scan(&n)
 	if err != nil {
 		return 0, fmt.Errorf("count current stargazers: %w", err)
 	}
@@ -288,9 +303,9 @@ func (s *Store) CurrentStargazers(ctx context.Context) (map[int64]string, error)
 	rows, err := s.pool.Query(ctx, `
 		select user_id, login from (
 			select distinct on (user_id) user_id, login, action
-			from github_star_events where repo=$1
+			from github_star_events where repo_id=$1
 			order by user_id, occurred_at desc, id desc) latest
-		where action='starred'`, s.repo)
+		where action='starred'`, s.repoID)
 	if err != nil {
 		return nil, fmt.Errorf("query current stargazers: %w", err)
 	}
@@ -311,7 +326,7 @@ func (s *Store) CurrentStargazers(ctx context.Context) (map[int64]string, error)
 func (s *Store) Summary(ctx context.Context, now time.Time) (Summary, error) {
 	var out Summary
 	var updated *time.Time
-	err := s.pool.QueryRow(ctx, `select stars,forks,watchers,open_issues,updated_at from github_star_state where repo=$1`, s.repo).
+	err := s.pool.QueryRow(ctx, `select stars,forks,watchers,open_issues,updated_at from github_star_state where repo_id=$1`, s.repoID).
 		Scan(&out.Stars, &out.Forks, &out.Watchers, &out.OpenIssues, &updated)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return Summary{}, fmt.Errorf("read star state: %w", err)
@@ -320,8 +335,8 @@ func (s *Store) Summary(ctx context.Context, now time.Time) (Summary, error) {
 	err = s.pool.QueryRow(ctx, `
 		select coalesce(sum(case action when 'starred' then 1 else -1 end) filter (where occurred_at > $2),0),
 		       coalesce(sum(case action when 'starred' then 1 else -1 end),0)
-		from github_star_events where repo=$1 and occurred_at > $3 and occurred_at <= $4`,
-		s.repo, now.Add(-24*time.Hour), now.Add(-7*24*time.Hour), now).Scan(&out.Net24h, &out.Net7d)
+		from github_star_events where repo_id=$1 and occurred_at > $3 and occurred_at <= $4`,
+		s.repoID, now.Add(-24*time.Hour), now.Add(-7*24*time.Hour), now).Scan(&out.Net24h, &out.Net7d)
 	if err != nil {
 		return Summary{}, fmt.Errorf("read star change: %w", err)
 	}
@@ -342,12 +357,12 @@ left join (
            count(*) filter (where action='starred') as gained,
            count(*) filter (where action='unstarred') as lost
     from github_star_events
-    where repo=$6 and occurred_at >= $2 and occurred_at < $4
+    where repo_id=$6 and occurred_at >= $2 and occurred_at < $4
     group by 1) c using (bucket)
 order by g.bucket`
 
 // Series returns gained, lost, net and cumulative stars per bucket for
-// [from, to), bucketed in the store's time zone. granularity is "hour" or "day".
+// [from, to), bucketed in the store's time zone. granularity is "hour", "day" or "month" (calendar months).
 // Buckets are local wall-clock hours or days, so a daylight-saving change can
 // repeat or skip an hour in hour mode.
 func (s *Store) Series(ctx context.Context, granularity string, from, to time.Time) ([]Point, error) {
@@ -357,15 +372,20 @@ func (s *Store) Series(ctx context.Context, granularity string, from, to time.Ti
 		step, limit = "1 hour", maxHourBuckets
 	case "day":
 		step, limit = "1 day", maxDayBuckets
+	case "month":
+		step, limit = "1 month", maxMonthBuckets
 	default:
-		return nil, fmt.Errorf("%w: granularity must be hour or day", ErrInvalid)
+		return nil, fmt.Errorf("%w: granularity must be hour, day or month", ErrInvalid)
 	}
 	if !to.After(from) {
 		return nil, fmt.Errorf("%w: to must be after from", ErrInvalid)
 	}
 	approx := int(to.Sub(from)/time.Hour) + 2
-	if granularity == "day" {
+	switch granularity {
+	case "day":
 		approx = approx/24 + 2
+	case "month":
+		approx = approx/(24*28) + 2
 	}
 	if approx > limit {
 		return nil, fmt.Errorf("%w: range is too long for %s buckets", ErrInvalid, granularity)
@@ -373,11 +393,11 @@ func (s *Store) Series(ctx context.Context, granularity string, from, to time.Ti
 	var baseline int
 	err := s.pool.QueryRow(ctx, `
 		select coalesce(sum(case action when 'starred' then 1 else -1 end),0)
-		from github_star_events where repo=$1 and occurred_at < $2`, s.repo, from).Scan(&baseline)
+		from github_star_events where repo_id=$1 and occurred_at < $2`, s.repoID, from).Scan(&baseline)
 	if err != nil {
 		return nil, fmt.Errorf("read star baseline: %w", err)
 	}
-	rows, err := s.pool.Query(ctx, seriesSQL, granularity, from, s.loc.String(), to, step, s.repo)
+	rows, err := s.pool.Query(ctx, seriesSQL, granularity, from, s.loc.String(), to, step, s.repoID)
 	if err != nil {
 		return nil, fmt.Errorf("query star series: %w", err)
 	}
@@ -420,8 +440,8 @@ func (s *Store) Events(ctx context.Context, cursor string, limit int) ([]Event, 
 	}
 	rows, err := s.pool.Query(ctx, `
 		select id,user_id,login,action,occurred_at,source from github_star_events
-		where repo=$1 and (occurred_at,id) < ($2,$3)
-		order by occurred_at desc, id desc limit $4`, s.repo, at, id, limit+1)
+		where repo_id=$1 and (occurred_at,id) < ($2,$3)
+		order by occurred_at desc, id desc limit $4`, s.repoID, at, id, limit+1)
 	if err != nil {
 		return nil, "", fmt.Errorf("query star events: %w", err)
 	}
@@ -448,7 +468,7 @@ func (s *Store) Events(ctx context.Context, cursor string, limit int) ([]Event, 
 
 // Annotations lists the chart markers, oldest first.
 func (s *Store) Annotations(ctx context.Context) ([]Annotation, error) {
-	rows, err := s.pool.Query(ctx, `select id,at,label,created_by from github_star_annotations where repo=$1 order by at, id`, s.repo)
+	rows, err := s.pool.Query(ctx, `select id,at,label,created_by from github_star_annotations where repo_id=$1 order by at, id`, s.repoID)
 	if err != nil {
 		return nil, fmt.Errorf("query star annotations: %w", err)
 	}
@@ -472,8 +492,8 @@ func (s *Store) AddAnnotation(ctx context.Context, at time.Time, label string, c
 	}
 	a := Annotation{At: at, Label: label}
 	err := s.pool.QueryRow(ctx, `
-		insert into github_star_annotations(repo,at,label,created_by) values ($1,$2,$3,nullif($4,0))
-		returning id, created_by`, s.repo, at, label, createdBy).Scan(&a.ID, &a.CreatedBy)
+		insert into github_star_annotations(repo_id,at,label,created_by) values ($1,$2,$3,nullif($4,0))
+		returning id, created_by`, s.repoID, at, label, createdBy).Scan(&a.ID, &a.CreatedBy)
 	if err != nil {
 		return Annotation{}, fmt.Errorf("insert star annotation: %w", err)
 	}
@@ -482,7 +502,7 @@ func (s *Store) AddAnnotation(ctx context.Context, at time.Time, label string, c
 
 // DeleteAnnotation removes a marker.
 func (s *Store) DeleteAnnotation(ctx context.Context, id int64) error {
-	tag, err := s.pool.Exec(ctx, `delete from github_star_annotations where repo=$1 and id=$2`, s.repo, id)
+	tag, err := s.pool.Exec(ctx, `delete from github_star_annotations where repo_id=$1 and id=$2`, s.repoID, id)
 	if err != nil {
 		return fmt.Errorf("delete star annotation: %w", err)
 	}
@@ -500,20 +520,21 @@ func (s *Store) EraseUser(ctx context.Context, login string, actorID int64) (int
 	var deleted int64
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `
-			insert into github_star_erasures(repo,user_id)
-			select distinct repo, user_id from github_star_events where repo=$1 and lower(login)=lower($2)
-			on conflict do nothing`, s.repo, login); err != nil {
+			insert into github_star_erasures(repo_id,user_id)
+			select distinct repo_id, user_id from github_star_events where repo_id=$1 and lower(login)=lower($2)
+			on conflict do nothing`, s.repoID, login); err != nil {
 			return fmt.Errorf("tombstone star user: %w", err)
 		}
-		tag, err := tx.Exec(ctx, `delete from github_star_events where repo=$1 and lower(login)=lower($2)`, s.repo, login)
+		tag, err := tx.Exec(ctx, `delete from github_star_events where repo_id=$1 and lower(login)=lower($2)`, s.repoID, login)
 		if err != nil {
 			return fmt.Errorf("erase star events: %w", err)
 		}
 		deleted = tag.RowsAffected()
 		_, err = tx.Exec(ctx, `
 			insert into audit_log(org_id,actor_user_id,action,target_type,target_id,metadata)
-			values (null,nullif($1::bigint,0),'instance.github_stars.user_erased','instance',1,jsonb_build_object('events',$2::bigint))`,
-			actorID, deleted)
+			select org_id,nullif($1::bigint,0),'github_stars.user_erased','github_star_repo',id,jsonb_build_object('events',$2::bigint)
+			from github_star_repos where id=$3`,
+			actorID, deleted, s.repoID)
 		if err != nil {
 			return fmt.Errorf("audit star erasure: %w", err)
 		}
@@ -524,3 +545,21 @@ func (s *Store) EraseUser(ctx context.Context, login string, actorID int64) (int
 
 // Location returns the time zone aggregates are bucketed in.
 func (s *Store) Location() *time.Location { return s.loc }
+
+// FirstActivity returns the earliest star event or daily snapshot on record, so
+// a default chart range does not start before the repository has any history.
+func (s *Store) FirstActivity(ctx context.Context) (time.Time, bool, error) {
+	var first *time.Time
+	err := s.pool.QueryRow(ctx, `
+		select least(
+			(select min(occurred_at) from github_star_events where repo_id=$1),
+			(select min(day)::timestamp at time zone $2 from github_star_snapshots where repo_id=$1))`,
+		s.repoID, s.loc.String()).Scan(&first)
+	if err != nil {
+		return time.Time{}, false, fmt.Errorf("read first star activity: %w", err)
+	}
+	if first == nil {
+		return time.Time{}, false, nil
+	}
+	return *first, true, nil
+}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"supermetry/internal/scheduler"
@@ -41,37 +40,20 @@ func (s *Service) ImportJob() scheduler.Job {
 }
 
 // ImportPending runs one chunk for each enabled repository whose history import
-// is unfinished: more stars than the REST threshold, or a saved cursor.
+// is unfinished: more stars than the REST threshold, or a saved cursor. It
+// covers every live organization under the same concurrency cap and stagger as
+// the daily job.
 func (s *Service) ImportPending(ctx context.Context) error {
-	rows, err := s.pool.Query(ctx, `
-		select r.id from github_star_repos r left join github_star_state st on st.repo = r.repo
+	ids, err := s.queryIDs(ctx, `
+		select r.id from github_star_repos r
+		join orgs o on o.id = r.org_id and o.deleted_at is null
+		left join github_star_state st on st.repo_id = r.id
 		where r.enabled and not r.backfill_complete and (coalesce(st.stars,0) > $1 or r.backfill_cursor is not null)
 		order by r.id`, s.largeThreshold())
 	if err != nil {
 		return fmt.Errorf("list pending star imports: %w", err)
 	}
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
-		}
-		ids = append(ids, id)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for _, id := range ids {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if err := s.ReconcileRepo(ctx, id); err != nil && !errors.Is(err, ErrBusy) {
-			slog.Warn("github star import failed", "repo_id", id, "error", err)
-		}
-	}
-	return nil
+	return s.forEachRepo(ctx, ids, "github star import failed")
 }
 
 // reconcileLarge handles repositories the REST listing cannot page through.

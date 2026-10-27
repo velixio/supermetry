@@ -98,11 +98,11 @@ const navigationSections = [
   { key: 'manage', get label() { return en.a11y2.sidebarSections.manage }, suffixes: ['/sites', '/links', '/health', '/github-stars'] },
 ] as const
 
-/** GitHub stars is instance-wide data, so only instance admins get the item. */
-export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site, instanceAdmin = false): NavigationItem[] {
+/** GitHub stars belongs to the organization, so every member gets the item. */
+export function visibleNavigation(role: Role, hasSite = true, authorization?: Authorization, site?: Site): NavigationItem[] {
   const items: NavigationItem[] = [...coreNavigation, managementNavigation[0], managementNavigation[2]]
   if (role === 'owner' || role === 'admin') items.push(managementNavigation[1])
-  if (instanceAdmin) items.push(managementNavigation[3])
+  items.push(managementNavigation[3])
   return items.filter((item) => (hasSite || item.scope === 'org') &&
     (site?.kind !== 'pixel' || PIXEL_NAV_SUFFIXES.includes(item.suffix)) &&
     (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && ((item.suffix !== '/profiles' && item.suffix !== '/cohorts') || hasCapability(authorization, 'profiles.read')))
@@ -338,35 +338,6 @@ export function OrganizationMenuGroup({ me, onSelect }: { me: Me; onSelect: () =
 
 export const githubStarsPath = '/app/github-stars'
 
-/**
- * The GitHub stars item shown in both sidebars. The data is instance-wide, so it renders
- * nothing for anyone who is not an instance admin.
- */
-export function GitHubStarsNav({ me, onNavigate }: { me: Me; onNavigate: () => void }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
-  if (!me.user.instance_admin) return null
-  const active = pathname === githubStarsPath || pathname.startsWith(`${githubStarsPath}/`)
-  return (
-    <SidebarGroup>
-      <SidebarGroupLabel asChild><h2 id="sidebar-community-heading">{en.githubStars.navGroup}</h2></SidebarGroupLabel>
-      <SidebarGroupContent>
-        <nav aria-labelledby="sidebar-community-heading">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={en.githubStars.nav}>
-                <Link aria-current={active ? 'page' : undefined} onClick={onNavigate} to={githubStarsPath}>
-                  <StarIcon />
-                  <span>{en.githubStars.nav}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </nav>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  )
-}
-
 /** The account menu in the footer of both sidebars. */
 export function SidebarAccountFooter({ me }: { me: Me }) {
   const { isMobile } = useSidebar()
@@ -412,7 +383,7 @@ export function SupermetrySidebar({
   const closeMobile = () => setOpenMobile(false)
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
-  const visibleItems = visibleNavigation(membership.role, Boolean(navigationSite), membership, navigationSite, Boolean(me.user.instance_admin))
+  const visibleItems = visibleNavigation(membership.role, Boolean(navigationSite), membership, navigationSite)
   const showReplays = replaysAvailable(membership, navigationSite)
 
   return (

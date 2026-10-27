@@ -193,6 +193,7 @@ describe('organization shell authentication', () => {
     expect(visibleNavigation('owner', false).map((item) => item.label)).toEqual([
       'Sites',
       'Data health',
+      'GitHub stars',
     ])
   })
 })

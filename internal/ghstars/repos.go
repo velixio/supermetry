@@ -20,8 +20,12 @@ import (
 	platformcrypto "supermetry/internal/platform/crypto"
 )
 
-// MaxRepos caps how many repositories one instance tracks.
-const MaxRepos = 50
+// DefaultRepoLimit is how many repositories an organization may track when
+// neither the instance configuration nor the organization sets a limit.
+const DefaultRepoLimit = 5
+
+// limitUnlimited is how orgs.github_star_repo_limit stores "no cap".
+const limitUnlimited = -1
 
 const (
 	publicIDLength   = 16
@@ -34,7 +38,7 @@ const (
 var (
 	// ErrExists reports a repository that is already tracked.
 	ErrExists = errors.New("ghstars: repository already tracked")
-	// ErrLimit reports that MaxRepos repositories are already tracked.
+	// ErrLimit reports that the organization already tracks as many repositories as it may.
 	ErrLimit = errors.New("ghstars: repository limit reached")
 	// ErrBusy reports a sync that is already running for the repository.
 	ErrBusy = errors.New("ghstars: sync already running")
@@ -44,11 +48,15 @@ var (
 	repoPattern = regexp.MustCompile(`^[a-z0-9_.-]+/[a-z0-9_.-]+$`)
 )
 
-// Repo is one tracked repository as the admin API shows it. The webhook secret
+// Repo is one tracked repository as the organization API shows it. The webhook secret
 // and the token are never part of it.
 type Repo struct {
-	ID             int64  `json:"id"`
-	Repo           string `json:"repo"`
+	ID    int64  `json:"id"`
+	OrgID int64  `json:"org_id"`
+	Repo  string `json:"repo"`
+	// PublicCounter makes the star count readable without signing in at
+	// /api/github/stars/{owner}/{name}.
+	PublicCounter  bool   `json:"public_counter"`
 	Enabled        bool   `json:"enabled"`
 	TimeZone       string `json:"time_zone"`
 	HasToken       bool   `json:"has_token"`
@@ -75,18 +83,20 @@ type repoRow struct {
 
 // CreateInput describes a repository to track. Token is optional.
 type CreateInput struct {
-	Repo     string
-	Token    string
-	TimeZone string
+	Repo          string
+	Token         string
+	TimeZone      string
+	PublicCounter bool
 }
 
 // UpdateInput changes a repository. Nil fields stay as they are; ClearToken
 // removes the stored token and wins over Token.
 type UpdateInput struct {
-	Enabled    *bool
-	TimeZone   *string
-	Token      *string
-	ClearToken bool
+	Enabled       *bool
+	TimeZone      *string
+	Token         *string
+	PublicCounter *bool
+	ClearToken    bool
 }
 
 // Service manages the tracked repositories and everything that needs their
@@ -101,6 +111,17 @@ type Service struct {
 	APIBase string
 	HTTP    *http.Client
 	Now     func() time.Time
+
+	// RepoLimit is the default number of repositories one organization may
+	// track; an organization's own setting overrides it. Zero means
+	// DefaultRepoLimit.
+	RepoLimit int
+	// Concurrency caps how many repositories the scheduled jobs sync at once
+	// across all organizations. Zero means 2.
+	Concurrency int
+	// Stagger is the pause between starting two scheduled syncs. Zero means one
+	// second; a negative value means none.
+	Stagger time.Duration
 
 	// LargeThreshold is the star count above which history is imported through
 	// GraphQL instead of the REST listing. Zero means 30,000.
@@ -170,11 +191,11 @@ func (s *Service) webhookURL(publicID string) string {
 	return s.BaseURL + "/api/github/webhook/" + publicID
 }
 
-const repoColumns = `id, public_id, repo, enabled, timezone, webhook_secret_enc, token_enc, created_at, last_webhook_at, last_reconcile_at, last_error, backfill_cursor, backfill_complete`
+const repoColumns = `id, org_id, public_id, repo, public_counter, enabled, timezone, webhook_secret_enc, token_enc, created_at, last_webhook_at, last_reconcile_at, last_error, backfill_cursor, backfill_complete`
 
 func (s *Service) scan(row pgx.Row) (repoRow, error) {
 	var r repoRow
-	err := row.Scan(&r.ID, &r.publicID, &r.Repo.Repo, &r.Enabled, &r.TimeZone, &r.secretEnc, &r.tokenEnc, &r.CreatedAt, &r.LastWebhookAt, &r.LastReconcileAt, &r.LastError, &r.backfillCursor, &r.backfillComplete)
+	err := row.Scan(&r.ID, &r.OrgID, &r.publicID, &r.Repo.Repo, &r.PublicCounter, &r.Enabled, &r.TimeZone, &r.secretEnc, &r.tokenEnc, &r.CreatedAt, &r.LastWebhookAt, &r.LastReconcileAt, &r.LastError, &r.backfillCursor, &r.backfillComplete)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return repoRow{}, ErrNotFound
 	}
@@ -188,19 +209,27 @@ func (s *Service) scan(row pgx.Row) (repoRow, error) {
 	return r, nil
 }
 
+// load reads a repository by id without checking its organization; it is for
+// the scheduler and the webhook, which are not acting for an organization.
 func (s *Service) load(ctx context.Context, id int64) (repoRow, error) {
 	return s.scan(s.pool.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where id=$1`, id))
 }
 
-// Get returns one repository.
-func (s *Service) Get(ctx context.Context, id int64) (Repo, error) {
-	r, err := s.load(ctx, id)
+// loadIn reads a repository of one organization; another organization's
+// repository is ErrNotFound.
+func (s *Service) loadIn(ctx context.Context, orgID, id int64) (repoRow, error) {
+	return s.scan(s.pool.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where id=$1 and org_id=$2`, id, orgID))
+}
+
+// Get returns one repository of the organization.
+func (s *Service) Get(ctx context.Context, orgID, id int64) (Repo, error) {
+	r, err := s.loadIn(ctx, orgID, id)
 	return r.Repo, err
 }
 
-// List returns every tracked repository, oldest first.
-func (s *Service) List(ctx context.Context) ([]Repo, error) {
-	rows, err := s.pool.Query(ctx, `select `+repoColumns+` from github_star_repos order by id`)
+// List returns the organization's tracked repositories, oldest first.
+func (s *Service) List(ctx context.Context, orgID int64) ([]Repo, error) {
+	rows, err := s.pool.Query(ctx, `select `+repoColumns+` from github_star_repos where org_id=$1 order by id`, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("list star repos: %w", err)
 	}
@@ -231,11 +260,11 @@ func (s *Service) open(sealed []byte) (string, error) {
 	return string(plain), err
 }
 
-func (s *Service) audit(ctx context.Context, tx pgx.Tx, actor int64, action string, id int64, repo string) error {
+func (s *Service) audit(ctx context.Context, tx pgx.Tx, orgID, actor int64, action string, id int64, repo string) error {
 	meta, _ := json.Marshal(map[string]any{"repo": repo})
 	_, err := tx.Exec(ctx, `
 		insert into audit_log(org_id,actor_user_id,action,target_type,target_id,metadata)
-		values (null,nullif($1::bigint,0),$2,'github_star_repo',$3,$4)`, actor, action, id, meta)
+		values ($5,nullif($1::bigint,0),$2,'github_star_repo',$3,$4)`, actor, action, id, meta, orgID)
 	if err != nil {
 		return fmt.Errorf("audit %s: %w", action, err)
 	}
@@ -246,7 +275,7 @@ func (s *Service) audit(ctx context.Context, tx pgx.Tx, actor int64, action stri
 // secret, which is not retrievable afterwards. It checks that the repository
 // exists with one GitHub call; a GitHub outage or rate limit does not block
 // the save.
-func (s *Service) Create(ctx context.Context, in CreateInput, actor int64) (Repo, string, error) {
+func (s *Service) Create(ctx context.Context, orgID int64, in CreateInput, actor int64) (Repo, string, error) {
 	repo := strings.ToLower(strings.TrimSpace(in.Repo))
 	if !repoPattern.MatchString(repo) {
 		return Repo{}, "", fmt.Errorf("%w: repository must be owner/name", ErrInvalid)
@@ -284,21 +313,31 @@ func (s *Service) Create(ctx context.Context, in CreateInput, actor int64) (Repo
 	}
 	var out repoRow
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		var count int
-		if err := tx.QueryRow(ctx, `select count(*) from github_star_repos`).Scan(&count); err != nil {
+		// The organization row is locked so two creations cannot both slip under the cap.
+		var orgLimit *int
+		if err := tx.QueryRow(ctx, `select github_star_repo_limit from orgs where id=$1 and deleted_at is null for update`, orgID).Scan(&orgLimit); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
 			return err
 		}
-		if count >= MaxRepos {
-			return ErrLimit
+		if max, capped := s.effectiveLimit(orgLimit); capped {
+			var count int
+			if err := tx.QueryRow(ctx, `select count(*) from github_star_repos where org_id=$1`, orgID).Scan(&count); err != nil {
+				return err
+			}
+			if count >= max {
+				return fmt.Errorf("%w: this organization may track %d %s", ErrLimit, max, plural(max))
+			}
 		}
 		row, err := s.scan(tx.QueryRow(ctx, `
-			insert into github_star_repos(public_id,repo,timezone,webhook_secret_enc,token_enc)
-			values ($1,$2,$3,$4,$5) returning `+repoColumns, publicID, repo, zone, s.seal(secret), tokenEnc))
+			insert into github_star_repos(org_id,public_id,repo,timezone,webhook_secret_enc,token_enc,public_counter)
+			values ($1,$2,$3,$4,$5,$6,$7) returning `+repoColumns, orgID, publicID, repo, zone, s.seal(secret), tokenEnc, in.PublicCounter))
 		if err != nil {
 			return err
 		}
 		out = row
-		return s.audit(ctx, tx, actor, "instance.github_stars.repo_added", row.ID, repo)
+		return s.audit(ctx, tx, orgID, actor, "github_stars.repo_added", row.ID, repo)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -311,7 +350,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput, actor int64) (Repo
 }
 
 // Update changes the enabled flag, the time zone or the token.
-func (s *Service) Update(ctx context.Context, id int64, in UpdateInput, actor int64) (Repo, error) {
+func (s *Service) Update(ctx context.Context, orgID, id int64, in UpdateInput, actor int64) (Repo, error) {
 	if in.TimeZone != nil {
 		if _, err := validZone(strings.TrimSpace(*in.TimeZone)); err != nil {
 			return Repo{}, err
@@ -319,13 +358,16 @@ func (s *Service) Update(ctx context.Context, id int64, in UpdateInput, actor in
 	}
 	var out repoRow
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		cur, err := s.scan(tx.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where id=$1 for update`, id))
+		cur, err := s.scan(tx.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where id=$1 and org_id=$2 for update`, id, orgID))
 		if err != nil {
 			return err
 		}
-		enabled, zone, tokenEnc := cur.Enabled, cur.TimeZone, cur.tokenEnc
+		enabled, zone, tokenEnc, public := cur.Enabled, cur.TimeZone, cur.tokenEnc, cur.PublicCounter
 		if in.Enabled != nil {
 			enabled = *in.Enabled
+		}
+		if in.PublicCounter != nil {
+			public = *in.PublicCounter
 		}
 		if in.TimeZone != nil {
 			zone = strings.TrimSpace(*in.TimeZone)
@@ -337,18 +379,18 @@ func (s *Service) Update(ctx context.Context, id int64, in UpdateInput, actor in
 			tokenEnc = s.seal(strings.TrimSpace(*in.Token))
 		}
 		out, err = s.scan(tx.QueryRow(ctx, `
-			update github_star_repos set enabled=$2, timezone=$3, token_enc=$4 where id=$1 returning `+repoColumns,
-			id, enabled, zone, tokenEnc))
+			update github_star_repos set enabled=$2, timezone=$3, token_enc=$4, public_counter=$5 where id=$1 returning `+repoColumns,
+			id, enabled, zone, tokenEnc, public))
 		if err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, actor, "instance.github_stars.repo_updated", id, out.Repo.Repo)
+		return s.audit(ctx, tx, orgID, actor, "github_stars.repo_updated", id, out.Repo.Repo)
 	})
 	return out.Repo, err
 }
 
 // RotateSecret replaces the webhook secret and returns the new one, once.
-func (s *Service) RotateSecret(ctx context.Context, id int64, actor int64) (Repo, string, error) {
+func (s *Service) RotateSecret(ctx context.Context, orgID, id int64, actor int64) (Repo, string, error) {
 	secret, err := newSecret()
 	if err != nil {
 		return Repo{}, "", err
@@ -356,11 +398,11 @@ func (s *Service) RotateSecret(ctx context.Context, id int64, actor int64) (Repo
 	var out repoRow
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var err error
-		out, err = s.scan(tx.QueryRow(ctx, `update github_star_repos set webhook_secret_enc=$2 where id=$1 returning `+repoColumns, id, s.seal(secret)))
+		out, err = s.scan(tx.QueryRow(ctx, `update github_star_repos set webhook_secret_enc=$2 where id=$1 and org_id=$3 returning `+repoColumns, id, s.seal(secret), orgID))
 		if err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, actor, "instance.github_stars.secret_rotated", id, out.Repo.Repo)
+		return s.audit(ctx, tx, orgID, actor, "github_stars.secret_rotated", id, out.Repo.Repo)
 	})
 	if err != nil {
 		return Repo{}, "", err
@@ -368,14 +410,15 @@ func (s *Service) RotateSecret(ctx context.Context, id int64, actor int64) (Repo
 	return out.Repo, secret, nil
 }
 
-// Delete removes a repository. With deleteData it also deletes its events,
-// state, snapshots, annotations and erasure tombstones in the same
-// transaction; without it the repository is only disabled and its history is
-// kept. It reports whether the configuration was removed.
-func (s *Service) Delete(ctx context.Context, id int64, deleteData bool, actor int64) (bool, error) {
+// Delete removes a repository. With deleteData the row goes and its events,
+// state, snapshots, annotations and erasure tombstones follow through the
+// foreign keys in the same statement; without it the repository is only
+// disabled and its history is kept. It reports whether the configuration was
+// removed.
+func (s *Service) Delete(ctx context.Context, orgID, id int64, deleteData bool, actor int64) (bool, error) {
 	removed := false
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		cur, err := s.scan(tx.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where id=$1 for update`, id))
+		cur, err := s.scan(tx.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where id=$1 and org_id=$2 for update`, id, orgID))
 		if err != nil {
 			return err
 		}
@@ -383,25 +426,20 @@ func (s *Service) Delete(ctx context.Context, id int64, deleteData bool, actor i
 			if _, err := tx.Exec(ctx, `update github_star_repos set enabled=false where id=$1`, id); err != nil {
 				return err
 			}
-			return s.audit(ctx, tx, actor, "instance.github_stars.repo_disabled", id, cur.Repo.Repo)
-		}
-		for _, table := range []string{"github_star_events", "github_star_state", "github_star_snapshots", "github_star_annotations", "github_star_erasures"} {
-			if _, err := tx.Exec(ctx, `delete from `+table+` where repo=$1`, cur.Repo.Repo); err != nil {
-				return fmt.Errorf("delete %s: %w", table, err)
-			}
+			return s.audit(ctx, tx, orgID, actor, "github_stars.repo_disabled", id, cur.Repo.Repo)
 		}
 		if _, err := tx.Exec(ctx, `delete from github_star_repos where id=$1`, id); err != nil {
 			return err
 		}
 		removed = true
-		return s.audit(ctx, tx, actor, "instance.github_stars.repo_removed", id, cur.Repo.Repo)
+		return s.audit(ctx, tx, orgID, actor, "github_stars.repo_removed", id, cur.Repo.Repo)
 	})
 	return removed, err
 }
 
 // StoreFor returns the data store of one repository, bucketed in its time zone.
-func (s *Service) StoreFor(ctx context.Context, id int64) (*Store, Repo, error) {
-	r, err := s.load(ctx, id)
+func (s *Service) StoreFor(ctx context.Context, orgID, id int64) (*Store, Repo, error) {
+	r, err := s.loadIn(ctx, orgID, id)
 	if err != nil {
 		return nil, Repo{}, err
 	}
@@ -413,7 +451,7 @@ func (s *Service) storeOf(r repoRow) *Store {
 	if err != nil {
 		loc = time.UTC
 	}
-	return NewStore(s.pool, r.Repo.Repo, loc)
+	return NewStore(s.pool, r.ID, r.Repo.Repo, loc)
 }
 
 func truncateError(err error) string {
@@ -428,5 +466,99 @@ func (s *Service) byPublicID(ctx context.Context, publicID string) (repoRow, err
 	if len(publicID) != publicIDLength {
 		return repoRow{}, ErrNotFound
 	}
-	return s.scan(s.pool.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where public_id=$1`, publicID))
+	return s.scan(s.pool.QueryRow(ctx, `select `+repoColumns+` from github_star_repos where public_id=$1
+		and exists (select 1 from orgs o where o.id = org_id and o.deleted_at is null)`, publicID))
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return "repository"
+	}
+	return "repositories"
+}
+
+// effectiveLimit resolves an organization's setting (nil means "use the
+// default") to a number; capped is false when there is no cap.
+func (s *Service) effectiveLimit(orgLimit *int) (max int, capped bool) {
+	switch {
+	case orgLimit == nil:
+		if s.RepoLimit > 0 {
+			return s.RepoLimit, true
+		}
+		return DefaultRepoLimit, true
+	case *orgLimit == limitUnlimited:
+		return 0, false
+	default:
+		return *orgLimit, true
+	}
+}
+
+// OrgLimit describes how many repositories an organization may track.
+type OrgLimit struct {
+	// Limit is the cap; nil means unlimited.
+	Limit *int `json:"limit"`
+	// Source is "org" when the organization has its own setting and "default"
+	// when the instance default applies.
+	Source string `json:"source"`
+	// Tracked is how many repositories the organization tracks now.
+	Tracked int `json:"tracked"`
+}
+
+// GetOrgLimit returns the effective repository limit of an organization.
+func (s *Service) GetOrgLimit(ctx context.Context, orgID int64) (OrgLimit, error) {
+	var raw *int
+	var tracked int
+	err := s.pool.QueryRow(ctx, `
+		select o.github_star_repo_limit, (select count(*) from github_star_repos where org_id=o.id)
+		from orgs o where o.id=$1`, orgID).Scan(&raw, &tracked)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return OrgLimit{}, ErrNotFound
+	}
+	if err != nil {
+		return OrgLimit{}, err
+	}
+	out := OrgLimit{Source: "default", Tracked: tracked}
+	if raw != nil {
+		out.Source = "org"
+	}
+	if max, capped := s.effectiveLimit(raw); capped {
+		out.Limit = &max
+	}
+	return out, nil
+}
+
+// SetOrgLimit sets an organization's own limit: a number (0 or more), nil for
+// unlimited. Lowering it below the current count deletes nothing; it only
+// refuses new repositories. The change is audited against the organization.
+func (s *Service) SetOrgLimit(ctx context.Context, orgID int64, limit *int, actor int64) error {
+	value := limitUnlimited
+	if limit != nil {
+		if *limit < 0 {
+			return fmt.Errorf("%w: limit must be 0 or more", ErrInvalid)
+		}
+		value = *limit
+	}
+	return s.writeOrgLimit(ctx, orgID, &value, actor)
+}
+
+// ResetOrgLimit removes an organization's own limit so the instance default applies.
+func (s *Service) ResetOrgLimit(ctx context.Context, orgID int64, actor int64) error {
+	return s.writeOrgLimit(ctx, orgID, nil, actor)
+}
+
+func (s *Service) writeOrgLimit(ctx context.Context, orgID int64, value *int, actor int64) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `update orgs set github_star_repo_limit=$2 where id=$1`, orgID, value)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNotFound
+		}
+		meta, _ := json.Marshal(map[string]any{"limit": value})
+		_, err = tx.Exec(ctx, `
+			insert into audit_log(org_id,actor_user_id,action,target_type,target_id,metadata)
+			values ($1,nullif($2::bigint,0),'github_stars.limit_changed','organization',$1,$3)`, orgID, actor, meta)
+		return err
+	})
 }

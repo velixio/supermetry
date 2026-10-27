@@ -24,7 +24,7 @@ func newTestStore(t *testing.T) (*Store, *pgxpool.Pool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewStore(pool, testRepo, loc), pool
+	return NewStore(pool, insertRepoRow(t, pool, firstOrg(t, pool), testRepo), testRepo, loc), pool
 }
 
 func at(s string) time.Time {
@@ -140,7 +140,7 @@ func TestSummaryNetChange(t *testing.T) {
 	if got.Stars != 3 || got.Forks != 1 || got.Watchers != 2 || got.OpenIssues != 4 || got.Net24h != 0 || got.Net7d != 3 {
 		t.Fatalf("summary = %+v", got)
 	}
-	empty := NewStore(s.pool, "other/repo", nil)
+	empty := NewStore(s.pool, insertRepoRow(t, s.pool, firstOrg(t, s.pool), "other/repo"), "other/repo", nil)
 	if got, err := empty.Summary(ctx, now); err != nil || got.UpdatedAt != nil || got.Stars != 0 {
 		t.Fatalf("empty summary = %+v, %v", got, err)
 	}
@@ -243,7 +243,7 @@ func TestEraseUserDeletesEventsAndAudits(t *testing.T) {
 		t.Fatalf("remaining = %d", count)
 	}
 	var audits int
-	if err := pool.QueryRow(ctx, `select count(*) from audit_log where action='instance.github_stars.user_erased' and metadata->>'events'='2'`).Scan(&audits); err != nil || audits != 1 {
+	if err := pool.QueryRow(ctx, `select count(*) from audit_log where action='github_stars.user_erased' and org_id is not null and metadata->>'events'='2'`).Scan(&audits); err != nil || audits != 1 {
 		t.Fatalf("audits = %d, %v", audits, err)
 	}
 }
@@ -271,7 +271,7 @@ func TestEraseUserWritesTombstoneAndBlocksFutureEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	var ids []int64
-	rows, err := pool.Query(ctx, `select user_id from github_star_erasures where repo=$1`, testRepo)
+	rows, err := pool.Query(ctx, `select user_id from github_star_erasures where repo_id=$1`, s.repoID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,9 +319,9 @@ func TestSummaryRecordedCountsCurrentStargazers(t *testing.T) {
 func TestImportPageSavesEventsAndCursorTogether(t *testing.T) {
 	svc, _ := newTestService(t)
 	ctx := context.Background()
-	repo, _, _ := svc.Create(ctx, CreateInput{Repo: "a/b"}, 0)
-	store, _, _ := svc.StoreFor(ctx, repo.ID)
-	if _, err := svc.pool.Exec(ctx, `insert into github_star_erasures(repo,user_id) values ('a/b',2)`); err != nil {
+	repo, _, _ := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "a/b"}, 0)
+	store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), repo.ID)
+	if _, err := svc.pool.Exec(ctx, `insert into github_star_erasures(repo_id,user_id) values ($1,2)`, repo.ID); err != nil {
 		t.Fatal(err)
 	}
 	page := []Event{

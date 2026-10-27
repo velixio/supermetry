@@ -18,7 +18,7 @@ import type { Me } from '@/lib/me'
 import { en } from '@/messages/en'
 import { ui } from '@/messages/ui'
 
-import { GitHubStarsNav, OrganizationMenuGroup, SidebarAccountFooter, SidebarBrandLink } from './Sidebar'
+import { OrganizationMenuGroup, SidebarAccountFooter, SidebarBrandLink } from './Sidebar'
 
 export type AccountDestination = 'account' | 'admin'
 
@@ -87,7 +87,6 @@ export function AccountSidebar({ me }: { me: Me }) {
             </nav>
           </SidebarGroupContent>
         </SidebarGroup>
-        <GitHubStarsNav me={me} onNavigate={closeMobile} />
       </SidebarContent>
       <SidebarAccountFooter me={me} />
     </Sidebar>

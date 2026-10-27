@@ -5,7 +5,7 @@ import { activeLocale } from '@/lib/i18n/intl'
 import { en } from '@/messages/en'
 import type { StarsAnnotation, StarsGranularity, StarsPoint } from './githubStarsApi'
 
-const stepMs: Record<StarsGranularity, number> = { hour: 3_600_000, day: 86_400_000 }
+const stepMs: Record<StarsGranularity, number> = { hour: 3_600_000, day: 86_400_000, month: 31 * 86_400_000 }
 
 /** The bucket (its `bucket` string) an annotation falls in, or undefined when it is outside the shown range. */
 export function markerBucket(points: StarsPoint[], granularity: StarsGranularity, at: string): string | undefined {
@@ -13,7 +13,11 @@ export function markerBucket(points: StarsPoint[], granularity: StarsGranularity
   if (Number.isNaN(time) || points.length === 0) return undefined
   for (let i = points.length - 1; i >= 0; i--) {
     const start = Date.parse(points[i].bucket)
-    if (time >= start) return time < start + stepMs[granularity] ? points[i].bucket : undefined
+    if (time >= start) {
+      // Months differ in length, so a month bucket ends where the next one starts.
+      const next = granularity === 'month' && i + 1 < points.length ? Date.parse(points[i + 1].bucket) : start + stepMs[granularity]
+      return time < next ? points[i].bucket : undefined
+    }
   }
   return undefined
 }
@@ -22,7 +26,9 @@ export function bucketLabel(bucket: string, granularity: StarsGranularity, timeZ
   // The bucket carries its own offset; format the wall clock of the configured zone, not the browser's.
   const options: Intl.DateTimeFormatOptions = granularity === 'hour'
     ? { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone }
-    : { month: 'short', day: 'numeric', timeZone }
+    : granularity === 'month'
+      ? { month: 'short', year: 'numeric', timeZone }
+      : { month: 'short', day: 'numeric', timeZone }
   return new Date(bucket).toLocaleString(activeLocale(), options)
 }
 

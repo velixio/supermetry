@@ -83,11 +83,11 @@ func repoService(t *testing.T, server *httptest.Server) (*Service, Repo, *Store)
 	svc.APIBase = server.URL
 	svc.HTTP = server.Client()
 	svc.Now = func() time.Time { return at("2026-10-10T20:00:00Z") }
-	repo, _, err := svc.Create(context.Background(), CreateInput{Repo: testRepo, Token: "tok-123", TimeZone: "Asia/Kathmandu"}, 0)
+	repo, _, err := svc.Create(context.Background(), orgOf(t, svc), CreateInput{Repo: testRepo, Token: "tok-123", TimeZone: "Asia/Kathmandu"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, _, err := svc.StoreFor(context.Background(), repo.ID)
+	store, _, err := svc.StoreFor(context.Background(), orgOf(t, svc), repo.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestReconcileBackfillsEmptyHistory(t *testing.T) {
 	if got := fake.lastAccepts.Load(); got != "application/vnd.github.star+json" {
 		t.Errorf("accept = %v", got)
 	}
-	got, _ := svc.Get(ctx, repo.ID)
+	got, _ := svc.Get(ctx, orgOf(t, svc), repo.ID)
 	if got.LastReconcileAt == nil || got.LastError != nil {
 		t.Errorf("status = %+v", got)
 	}
@@ -204,7 +204,7 @@ func TestReconcileRecordsRateLimitOnTheRepository(t *testing.T) {
 		if err := svc.ReconcileRepo(ctx, repo.ID); !errors.Is(err, ErrRateLimited) {
 			t.Fatalf("status %d: err = %v", status, err)
 		}
-		got, _ := svc.Get(ctx, repo.ID)
+		got, _ := svc.Get(ctx, orgOf(t, svc), repo.ID)
 		if got.LastError == nil || got.LastReconcileAt == nil {
 			t.Fatalf("status %d: repo = %+v", status, got)
 		}
@@ -219,16 +219,16 @@ func TestReconcileAllIsolatesFailures(t *testing.T) {
 	svc, good, goodStore := repoService(t, server)
 	ctx := context.Background()
 	// "gone/repo" exists at creation but starts failing; a disabled repository is not touched.
-	bad, _, err := svc.Create(ctx, CreateInput{Repo: "gone/repo"}, 0)
+	bad, _, err := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "gone/repo"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	off, _, err := svc.Create(ctx, CreateInput{Repo: "velixio/off"}, 0)
+	off, _, err := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "velixio/off"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	disabled := false
-	if _, err := svc.Update(ctx, off.ID, UpdateInput{Enabled: &disabled}, 0); err != nil {
+	if _, err := svc.Update(ctx, orgOf(t, svc), off.ID, UpdateInput{Enabled: &disabled}, 0); err != nil {
 		t.Fatal(err)
 	}
 	failing := newFailingTransport(server, "/repos/gone/repo")
@@ -236,18 +236,18 @@ func TestReconcileAllIsolatesFailures(t *testing.T) {
 	if err := svc.ReconcileAll(ctx); err != nil {
 		t.Fatalf("job should not fail: %v", err)
 	}
-	gotBad, _ := svc.Get(ctx, bad.ID)
+	gotBad, _ := svc.Get(ctx, orgOf(t, svc), bad.ID)
 	if gotBad.LastError == nil {
 		t.Fatalf("bad repo status = %+v", gotBad)
 	}
-	gotGood, _ := svc.Get(ctx, good.ID)
+	gotGood, _ := svc.Get(ctx, orgOf(t, svc), good.ID)
 	if gotGood.LastError != nil || gotGood.LastReconcileAt == nil {
 		t.Fatalf("good repo status = %+v", gotGood)
 	}
 	if n, _ := goodStore.EventCount(ctx); n != 1 {
 		t.Fatalf("good events = %d", n)
 	}
-	gotOff, _ := svc.Get(ctx, off.ID)
+	gotOff, _ := svc.Get(ctx, orgOf(t, svc), off.ID)
 	if gotOff.LastReconcileAt != nil {
 		t.Fatalf("disabled repo was reconciled: %+v", gotOff)
 	}
@@ -277,7 +277,7 @@ func TestReconcileUsesEachRepositorysOwnToken(t *testing.T) {
 	fake, server := newFakeGitHub(t, 0)
 	svc, _, _ := repoService(t, server)
 	ctx := context.Background()
-	other, _, err := svc.Create(ctx, CreateInput{Repo: "velixio/public"}, 0)
+	other, _, err := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "velixio/public"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,22 +293,22 @@ func TestStartSyncRunsInBackgroundAndIsRateLimited(t *testing.T) {
 	_, server := newFakeGitHub(t, 1, [3]string{"1", "a", "2026-01-01T00:00:00Z"})
 	svc, repo, store := repoService(t, server)
 	ctx := context.Background()
-	if err := svc.StartSync(ctx, repo.ID); err != nil {
+	if err := svc.StartSync(ctx, orgOf(t, svc), repo.ID); err != nil {
 		t.Fatal(err)
 	}
 	svc.Wait()
 	if n, _ := store.EventCount(ctx); n != 1 {
 		t.Fatalf("events = %d", n)
 	}
-	if err := svc.StartSync(ctx, repo.ID); !errors.Is(err, ErrTooSoon) {
+	if err := svc.StartSync(ctx, orgOf(t, svc), repo.ID); !errors.Is(err, ErrTooSoon) {
 		t.Fatalf("second sync err = %v", err)
 	}
 	svc.Now = func() time.Time { return at("2026-10-10T20:02:00Z") }
-	if err := svc.StartSync(ctx, repo.ID); err != nil {
+	if err := svc.StartSync(ctx, orgOf(t, svc), repo.ID); err != nil {
 		t.Fatalf("sync after the gap: %v", err)
 	}
 	svc.Wait()
-	if err := svc.StartSync(ctx, 99999); !errors.Is(err, ErrNotFound) {
+	if err := svc.StartSync(ctx, orgOf(t, svc), 99999); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("unknown repo err = %v", err)
 	}
 }
@@ -346,7 +346,7 @@ func TestBackfillSkipsErasedUsers(t *testing.T) {
 		[3]string{"2", "b", "2026-02-01T00:00:00Z"})
 	svc, repo, store := repoService(t, server)
 	ctx := context.Background()
-	if _, err := svc.pool.Exec(ctx, `insert into github_star_erasures(repo,user_id) values ($1,2)`, repo.Repo); err != nil {
+	if _, err := svc.pool.Exec(ctx, `insert into github_star_erasures(repo_id,user_id) values ($1,2)`, repo.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.ReconcileRepo(ctx, repo.ID); err != nil {
@@ -371,7 +371,7 @@ func TestReconcileFallsBackWhenTheTokenIsRejected(t *testing.T) {
 	if n, _ := store.EventCount(ctx); n != 1 {
 		t.Fatalf("events = %d, want the star saved without the token", n)
 	}
-	got, _ := svc.Get(ctx, repo.ID)
+	got, _ := svc.Get(ctx, orgOf(t, svc), repo.ID)
 	if got.LastError == nil || !strings.Contains(*got.LastError, "token") || got.LastReconcileAt == nil {
 		t.Fatalf("repo = %+v, want a token warning and a reconcile time", got)
 	}
@@ -383,7 +383,7 @@ func TestReconcileReportsATokenIsNeededWhenThereIsNoFallback(t *testing.T) {
 	fake, server := newFakeGitHub(t, 1)
 	svc, _, _ := repoService(t, server)
 	ctx := context.Background()
-	other, _, err := svc.Create(ctx, CreateInput{Repo: "velixio/public"}, 0)
+	other, _, err := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "velixio/public"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,20 +437,20 @@ func TestReconcileTellsWhenAStargazerListNeedsAToken(t *testing.T) {
 	fake.needAuthStars = true
 	svc, _, _ := repoService(t, server)
 	ctx := context.Background()
-	other, _, err := svc.Create(ctx, CreateInput{Repo: "velixio/public"}, 0)
+	other, _, err := svc.Create(ctx, orgOf(t, svc), CreateInput{Repo: "velixio/public"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.ReconcileRepo(ctx, other.ID); !errors.Is(err, ErrTokenRequired) {
 		t.Fatalf("err = %v, want ErrTokenRequired", err)
 	}
-	got, _ := svc.Get(ctx, other.ID)
+	got, _ := svc.Get(ctx, orgOf(t, svc), other.ID)
 	if got.LastError == nil || !strings.Contains(*got.LastError, "needs a token") || strings.Contains(*got.LastError, "rejected") {
 		t.Fatalf("last error = %v", got.LastError)
 	}
-	store, _, _ := svc.StoreFor(ctx, other.ID)
+	store, _, _ := svc.StoreFor(ctx, orgOf(t, svc), other.ID)
 	var snapshots int
-	_ = svc.pool.QueryRow(ctx, `select count(*) from github_star_snapshots where repo=$1`, store.Repo()).Scan(&snapshots)
+	_ = svc.pool.QueryRow(ctx, `select count(*) from github_star_snapshots where repo_id=$1`, store.repoID).Scan(&snapshots)
 	if snapshots != 1 {
 		t.Fatalf("snapshots = %d, want today's counts saved even without the stargazer list", snapshots)
 	}
@@ -486,7 +486,7 @@ func TestReconcileErrorNamesTheRefusedRequestAndNeededPermissions(t *testing.T) 
 	if err := svc.ReconcileRepo(ctx, repo.ID); !errors.Is(err, ErrRepoNotFound) {
 		t.Fatalf("err = %v, want ErrRepoNotFound", err)
 	}
-	got, _ := svc.Get(ctx, repo.ID)
+	got, _ := svc.Get(ctx, orgOf(t, svc), repo.ID)
 	if got.LastError == nil || !strings.Contains(*got.LastError, "/stargazers") || !strings.Contains(*got.LastError, "metadata=read") {
 		t.Fatalf("last error = %v, want the request path and needed permissions", got.LastError)
 	}
@@ -510,7 +510,7 @@ func TestReconcileErrorIncludesGitHubsMessageForOtherStatuses(t *testing.T) {
 	if err := svc.ReconcileRepo(ctx, repo.ID); err == nil {
 		t.Fatal("want an error")
 	}
-	got, _ := svc.Get(ctx, repo.ID)
+	got, _ := svc.Get(ctx, orgOf(t, svc), repo.ID)
 	if got.LastError == nil {
 		t.Fatal("no last error saved")
 	}

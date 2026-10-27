@@ -57,6 +57,10 @@ const (
 	ActionOrgUpdate       Action = "org.update"
 	ActionOrgDelete       Action = "org.delete"
 	ActionOrgTransfer     Action = "org.transfer"
+	// ActionGitHubStarsRead views the organization's GitHub star history; every member has it.
+	ActionGitHubStarsRead Action = "github_stars.read"
+	// ActionGitHubStarsManage adds, changes and removes tracked repositories and erases stargazers.
+	ActionGitHubStarsManage Action = "github_stars.manage"
 )
 
 var roleActions = map[Role]map[Action]bool{
@@ -67,6 +71,7 @@ var roleActions = map[Role]map[Action]bool{
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
 		ActionOrgUpdate: true, ActionOrgDelete: true, ActionOrgTransfer: true,
+		ActionGitHubStarsRead: true, ActionGitHubStarsManage: true,
 	},
 	RoleAdmin: {
 		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true,
@@ -74,14 +79,16 @@ var roleActions = map[Role]map[Action]bool{
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
 		ActionChannelsRead: true, ActionChannelsManage: true, ActionAlertsManage: true,
-		ActionOrgUpdate: true,
+		ActionOrgUpdate:       true,
+		ActionGitHubStarsRead: true, ActionGitHubStarsManage: true,
 	},
 	RoleEditor: {
 		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionLinksManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionChannelsRead: true, ActionAlertsManage: true,
+		ActionGitHubStarsRead: true,
 	},
 	RoleViewer: {
-		ActionStatsRead: true, ActionReportsManage: true,
+		ActionStatsRead: true, ActionReportsManage: true, ActionGitHubStarsRead: true,
 	},
 }
 
@@ -221,6 +228,11 @@ func EffectiveCapabilities(p Principal) []string {
 		}
 	}
 	for action := range actions {
+		if action == ActionGitHubStarsRead || action == ActionGitHubStarsManage {
+			// Membership-wide, not a capability a member can be granted or restricted;
+			// the SPA derives the split from the role, so the list stays unchanged.
+			continue
+		}
 		siteID := int32(0)
 		if isSiteAction(action) {
 			if p.SiteIDs != nil && len(p.SiteIDs) == 0 && p.Role != RoleOwner && p.Role != RoleAdmin {

@@ -28,7 +28,7 @@ describe('paletteCommands', () => {
     const commands = run()
     expect(labels(commands, 'pages')).toEqual([
       'Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays', 'Journeys', 'Retention', 'Profiles', 'Cohorts',
-      'Heatmaps', 'Web Vitals', 'Funnels', 'Goals', 'Revenue', 'Sites', 'Links and pixels', 'Data health',
+      'Heatmaps', 'Web Vitals', 'Funnels', 'Goals', 'Revenue', 'Sites', 'Links and pixels', 'Data health', 'GitHub stars',
       'Site settings', 'Organization settings', 'Account settings',
     ])
     expect(hrefOf(commands, 'Dashboard')).toBe(`/app/acme/docs${base}`)
@@ -55,7 +55,7 @@ describe('paletteCommands', () => {
       sites: acme.sites.map((site) => ({ ...site, tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] } })),
     }
     const commands = run({ membership: anonymous })
-    expect(labels(commands, 'pages')).toEqual(['Dashboard', 'Sites', 'Links and pixels', 'Data health', 'Site settings', 'Organization settings', 'Account settings'])
+    expect(labels(commands, 'pages')).toEqual(['Dashboard', 'Sites', 'Links and pixels', 'Data health', 'GitHub stars', 'Site settings', 'Organization settings', 'Account settings'])
     for (const command of commands) {
       if (command.kind === 'navigate') expect(anonymousRouteRestricted(command.href), command.href).toBe(false)
     }
@@ -79,20 +79,19 @@ describe('paletteCommands', () => {
 
   it('offers account pages and every organization outside an organization', () => {
     const commands = run({ membership: undefined, requestedSite: undefined })
-    expect(labels(commands, 'pages')).toEqual(['Account settings'])
+    expect(labels(commands, 'pages')).toEqual(['Account settings', 'GitHub stars'])
     expect(labels(commands, 'sites')).toEqual([])
     expect(commands.filter((command) => command.group === 'organizations').map((command) => command.kind === 'navigate' && command.href)).toEqual([`/app/acme/docs${base}`, '/app/other/settings'])
+    expect(hrefOf(commands, 'GitHub stars')).toBe('/app/github-stars')
     const admin = run({ me: { ...me, user: { ...me.user, instance_admin: true } }, membership: undefined })
     expect(labels(admin, 'pages')).toEqual(['Account settings', 'Instance administration', 'GitHub stars'])
     expect(hrefOf(admin, 'Instance administration')).toBe('/app/admin/users')
-    expect(hrefOf(admin, 'GitHub stars')).toBe('/app/github-stars')
   })
 
-  it('offers GitHub stars inside an organization only to instance admins, at the organization URL', () => {
-    expect(labels(run(), 'pages')).not.toContain('GitHub stars')
-    const admin = run({ me: { ...me, user: { ...me.user, instance_admin: true } } })
-    expect(labels(admin, 'pages').filter((label) => label === 'GitHub stars')).toHaveLength(1)
-    expect(hrefOf(admin, 'GitHub stars')).toBe('/app/acme/github-stars')
+  it('offers GitHub stars inside an organization to every member, once, at the organization URL', () => {
+    const member = run({ me: { ...me, memberships: [{ ...acme, role: 'viewer' }, other] }, membership: { ...acme, role: 'viewer' } })
+    expect(labels(member, 'pages').filter((label) => label === 'GitHub stars')).toHaveLength(1)
+    expect(hrefOf(member, 'GitHub stars')).toBe('/app/acme/github-stars')
   })
 
   it('offers only existing actions, labels theme for the current theme, and keeps ids unique', () => {

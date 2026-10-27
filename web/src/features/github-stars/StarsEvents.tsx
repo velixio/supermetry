@@ -12,10 +12,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { en } from '@/messages/en'
 import { ErrorLine, formatDate } from '@/features/admin/AdminCommon'
 import { useEraseStarsUser, useStarsEvents } from './githubStarsApi'
+import { useStarsOrg } from './starsOrg'
 
 const loginPattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/
 
 export function StarsEvents({ repoId }: { repoId: number }) {
+  const { canManage } = useStarsOrg()
   const events = useStarsEvents(repoId)
   const erase = useEraseStarsUser(repoId)
   const [login, setLogin] = useState('')
@@ -45,7 +47,7 @@ export function StarsEvents({ repoId }: { repoId: number }) {
               <TableRow>
                 <TableHead>{en.githubStars.user}</TableHead><TableHead>{en.githubStars.action}</TableHead>
                 <TableHead>{en.githubStars.when}</TableHead><TableHead>{en.githubStars.source}</TableHead>
-                <TableHead><span className="sr-only">{en.githubStars.erase}</span></TableHead>
+                {canManage ? <TableHead><span className="sr-only">{en.githubStars.erase}</span></TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -55,9 +57,9 @@ export function StarsEvents({ repoId }: { repoId: number }) {
                   <TableCell><Badge variant={row.action === 'starred' ? 'secondary' : 'outline'}>{row.action === 'starred' ? en.githubStars.starred : en.githubStars.unstarred}</Badge></TableCell>
                   <TableCell>{formatDate(row.occurred_at)}</TableCell>
                   <TableCell>{row.source}</TableCell>
-                  <TableCell className="text-right">
+                  {canManage ? <TableCell className="text-right">
                     <Button type="button" variant="ghost" size="sm" className="min-h-11" aria-label={en.githubStars.eraseRow(row.login)} onClick={() => ask(row.login)}>{en.githubStars.erase}</Button>
-                  </TableCell>
+                  </TableCell> : null}
                 </TableRow>
               ))}
             </TableBody>
@@ -70,7 +72,7 @@ export function StarsEvents({ repoId }: { repoId: number }) {
         </Button>
       ) : null}
 
-      <form className="flex flex-col gap-2 rounded-lg border p-3" onSubmit={submit}>
+      {canManage ? <form className="flex flex-col gap-2 rounded-lg border p-3" onSubmit={submit}>
         <h3 className="text-sm font-semibold">{en.githubStars.erase}</h3>
         <p className="text-sm text-muted-foreground">{en.githubStars.eraseDescription}</p>
         <div className="flex flex-wrap items-end gap-2">
@@ -81,7 +83,7 @@ export function StarsEvents({ repoId }: { repoId: number }) {
           <Button type="submit" variant="destructive" className="min-h-11" disabled={!validLogin}>{en.githubStars.erase}</Button>
         </div>
         {done !== null ? <p role="status" className="text-sm">{en.githubStars.erased(done)}</p> : null}
-      </form>
+      </form> : null}
 
       <AlertDialog open={target !== null} onOpenChange={(open) => { if (!open && !erase.isPending) setTarget(null) }}>
         <AlertDialogContent>

@@ -580,6 +580,24 @@ func (e FunnelStepType) Valid() bool {
 	}
 }
 
+// Defines values for GitHubStarRepoLimitSource.
+const (
+	Default GitHubStarRepoLimitSource = "default"
+	Org     GitHubStarRepoLimitSource = "org"
+)
+
+// Valid indicates whether the value is a known member of the GitHubStarRepoLimitSource enum.
+func (e GitHubStarRepoLimitSource) Valid() bool {
+	switch e {
+	case Default:
+		return true
+	case Org:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GoalKind.
 const (
 	GoalEvent  GoalKind = "event"
@@ -2623,6 +2641,27 @@ type FunnelStepResult struct {
 	Visitors int64 `json:"visitors"`
 }
 
+// GitHubStarRepoLimit defines model for GitHubStarRepoLimit.
+type GitHubStarRepoLimit struct {
+	// Limit Most repositories the organization may track; null means unlimited.
+	Limit *int `json:"limit"`
+
+	// Source org when the organization has its own limit
+	Source GitHubStarRepoLimitSource `json:"source"`
+
+	// Tracked Repositories the organization tracks now.
+	Tracked int `json:"tracked"`
+}
+
+// GitHubStarRepoLimitSource org when the organization has its own limit
+type GitHubStarRepoLimitSource string
+
+// GitHubStarRepoLimitInput defines model for GitHubStarRepoLimitInput.
+type GitHubStarRepoLimitInput struct {
+	// Limit The cap; 0 allows none and null means unlimited.
+	Limit *int `json:"limit"`
+}
+
 // GitHubStarsAnnotation defines model for GitHubStarsAnnotation.
 type GitHubStarsAnnotation struct {
 	At        time.Time `json:"at"`
@@ -2689,8 +2728,14 @@ type GitHubStarsRepo struct {
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
 	LastWebhookAt   *time.Time `json:"last_webhook_at"`
 
+	// OrgId The organization that tracks the repository.
+	OrgId int64 `json:"org_id"`
+
 	// PublicCountUrl Public, unauthenticated endpoint returning {"stars":N} for this repository.
 	PublicCountUrl string `json:"public_count_url"`
+
+	// PublicCounter When true the GitHub-verified star count (the value the sync jobs last read from GitHub, not the webhook-updated live count) is readable without signing in at public_count_url; off by default. A repository never synced from GitHub is not served.
+	PublicCounter bool `json:"public_counter"`
 
 	// Repo Lowercase owner/name.
 	Repo     string `json:"repo"`
@@ -2702,6 +2747,9 @@ type GitHubStarsRepo struct {
 
 // GitHubStarsRepoInput defines model for GitHubStarsRepoInput.
 type GitHubStarsRepoInput struct {
+	// PublicCounter Publish the GitHub-verified star count at the public counter endpoint once a sync has read it from GitHub; defaults to false.
+	PublicCounter *bool `json:"public_counter,omitempty"`
+
 	// Repo owner/name
 	Repo string `json:"repo"`
 
@@ -2714,9 +2762,10 @@ type GitHubStarsRepoInput struct {
 
 // GitHubStarsRepoPatch defines model for GitHubStarsRepoPatch.
 type GitHubStarsRepoPatch struct {
-	ClearToken *bool   `json:"clear_token,omitempty"`
-	Enabled    *bool   `json:"enabled,omitempty"`
-	TimeZone   *string `json:"time_zone,omitempty"`
+	ClearToken    *bool   `json:"clear_token,omitempty"`
+	Enabled       *bool   `json:"enabled,omitempty"`
+	PublicCounter *bool   `json:"public_counter,omitempty"`
+	TimeZone      *string `json:"time_zone,omitempty"`
 
 	// Token Replaces the stored token when not empty.
 	Token *string `json:"token,omitempty"`
@@ -4149,51 +4198,6 @@ type AdminListAuditParams struct {
 	Limit *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
-// AdminListGitHubStarsAnnotationsParams defines parameters for AdminListGitHubStarsAnnotations.
-type AdminListGitHubStarsAnnotationsParams struct {
-	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
-}
-
-// AdminCreateGitHubStarsAnnotationParams defines parameters for AdminCreateGitHubStarsAnnotation.
-type AdminCreateGitHubStarsAnnotationParams struct {
-	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
-}
-
-// AdminDeleteGitHubStarsAnnotationParams defines parameters for AdminDeleteGitHubStarsAnnotation.
-type AdminDeleteGitHubStarsAnnotationParams struct {
-	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
-}
-
-// AdminListGitHubStarsEventsParams defines parameters for AdminListGitHubStarsEvents.
-type AdminListGitHubStarsEventsParams struct {
-	RepoId GitHubStarsRepoID      `form:"repo_id" json:"repo_id"`
-	Cursor *string                `form:"cursor,omitempty" json:"cursor,omitempty"`
-	Limit  *GitHubStarsEventLimit `form:"limit,omitempty" json:"limit,omitempty"`
-}
-
-// AdminDeleteGitHubStarsRepoParams defines parameters for AdminDeleteGitHubStarsRepo.
-type AdminDeleteGitHubStarsRepoParams struct {
-	DeleteData bool `form:"delete_data" json:"delete_data"`
-}
-
-// AdminGetGitHubStarsSeriesParams defines parameters for AdminGetGitHubStarsSeries.
-type AdminGetGitHubStarsSeriesParams struct {
-	RepoId      GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
-	Granularity string            `form:"granularity" json:"granularity"`
-	From        *time.Time        `form:"from,omitempty" json:"from,omitempty"`
-	To          *time.Time        `form:"to,omitempty" json:"to,omitempty"`
-}
-
-// AdminGetGitHubStarsSummaryParams defines parameters for AdminGetGitHubStarsSummary.
-type AdminGetGitHubStarsSummaryParams struct {
-	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
-}
-
-// AdminEraseGitHubStarsUserParams defines parameters for AdminEraseGitHubStarsUser.
-type AdminEraseGitHubStarsUserParams struct {
-	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
-}
-
 // AdminListOrganizationsParams defines parameters for AdminListOrganizations.
 type AdminListOrganizationsParams struct {
 	Search *string     `form:"search,omitempty" json:"search,omitempty"`
@@ -4276,6 +4280,51 @@ type DeleteOrganizationJSONBody struct {
 // RenameOrganizationJSONBody defines parameters for RenameOrganization.
 type RenameOrganizationJSONBody struct {
 	Name string `json:"name"`
+}
+
+// OrgListGitHubStarsAnnotationsParams defines parameters for OrgListGitHubStarsAnnotations.
+type OrgListGitHubStarsAnnotationsParams struct {
+	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
+}
+
+// OrgCreateGitHubStarsAnnotationParams defines parameters for OrgCreateGitHubStarsAnnotation.
+type OrgCreateGitHubStarsAnnotationParams struct {
+	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
+}
+
+// OrgDeleteGitHubStarsAnnotationParams defines parameters for OrgDeleteGitHubStarsAnnotation.
+type OrgDeleteGitHubStarsAnnotationParams struct {
+	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
+}
+
+// OrgListGitHubStarsEventsParams defines parameters for OrgListGitHubStarsEvents.
+type OrgListGitHubStarsEventsParams struct {
+	RepoId GitHubStarsRepoID      `form:"repo_id" json:"repo_id"`
+	Cursor *string                `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *GitHubStarsEventLimit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// OrgDeleteGitHubStarsRepoParams defines parameters for OrgDeleteGitHubStarsRepo.
+type OrgDeleteGitHubStarsRepoParams struct {
+	DeleteData bool `form:"delete_data" json:"delete_data"`
+}
+
+// OrgGetGitHubStarsSeriesParams defines parameters for OrgGetGitHubStarsSeries.
+type OrgGetGitHubStarsSeriesParams struct {
+	RepoId      GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
+	Granularity string            `form:"granularity" json:"granularity"`
+	From        *time.Time        `form:"from,omitempty" json:"from,omitempty"`
+	To          *time.Time        `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// OrgGetGitHubStarsSummaryParams defines parameters for OrgGetGitHubStarsSummary.
+type OrgGetGitHubStarsSummaryParams struct {
+	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
+}
+
+// OrgEraseGitHubStarsUserParams defines parameters for OrgEraseGitHubStarsUser.
+type OrgEraseGitHubStarsUserParams struct {
+	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
 }
 
 // GetSitesOverviewParams defines parameters for GetSitesOverview.
@@ -4571,14 +4620,8 @@ type TrackingPixelParams struct {
 // TrackingPixelParamsStyle defines parameters for TrackingPixel.
 type TrackingPixelParamsStyle string
 
-// AdminCreateGitHubStarsAnnotationJSONRequestBody defines body for AdminCreateGitHubStarsAnnotation for application/json ContentType.
-type AdminCreateGitHubStarsAnnotationJSONRequestBody = GitHubStarsAnnotationInput
-
-// AdminCreateGitHubStarsRepoJSONRequestBody defines body for AdminCreateGitHubStarsRepo for application/json ContentType.
-type AdminCreateGitHubStarsRepoJSONRequestBody = GitHubStarsRepoInput
-
-// AdminUpdateGitHubStarsRepoJSONRequestBody defines body for AdminUpdateGitHubStarsRepo for application/json ContentType.
-type AdminUpdateGitHubStarsRepoJSONRequestBody = GitHubStarsRepoPatch
+// AdminSetGitHubStarRepoLimitJSONRequestBody defines body for AdminSetGitHubStarRepoLimit for application/json ContentType.
+type AdminSetGitHubStarRepoLimitJSONRequestBody = GitHubStarRepoLimitInput
 
 // AdminSetTwoFactorExemptionJSONRequestBody defines body for AdminSetTwoFactorExemption for application/json ContentType.
 type AdminSetTwoFactorExemptionJSONRequestBody = AdminTwoFactorExemption
@@ -4633,6 +4676,15 @@ type RenameOrganizationJSONRequestBody RenameOrganizationJSONBody
 
 // CreateDemoProjectJSONRequestBody defines body for CreateDemoProject for application/json ContentType.
 type CreateDemoProjectJSONRequestBody = CreateDemoRequest
+
+// OrgCreateGitHubStarsAnnotationJSONRequestBody defines body for OrgCreateGitHubStarsAnnotation for application/json ContentType.
+type OrgCreateGitHubStarsAnnotationJSONRequestBody = GitHubStarsAnnotationInput
+
+// OrgCreateGitHubStarsRepoJSONRequestBody defines body for OrgCreateGitHubStarsRepo for application/json ContentType.
+type OrgCreateGitHubStarsRepoJSONRequestBody = GitHubStarsRepoInput
+
+// OrgUpdateGitHubStarsRepoJSONRequestBody defines body for OrgUpdateGitHubStarsRepo for application/json ContentType.
+type OrgUpdateGitHubStarsRepoJSONRequestBody = GitHubStarsRepoPatch
 
 // SaveNotificationSettingsJSONRequestBody defines body for SaveNotificationSettings for application/json ContentType.
 type SaveNotificationSettingsJSONRequestBody = NotificationSettings
@@ -5196,45 +5248,6 @@ type ServerInterface interface {
 	// AdminListAudit List instance administration audit entries
 	// (GET /api/private/admin/audit)
 	AdminListAudit(w http.ResponseWriter, r *http.Request, params AdminListAuditParams)
-	// AdminListGitHubStarsAnnotations List chart annotations
-	// (GET /api/private/admin/github-stars/annotations)
-	AdminListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request, params AdminListGitHubStarsAnnotationsParams)
-	// AdminCreateGitHubStarsAnnotation Add a chart annotation such as a launch marker
-	// (POST /api/private/admin/github-stars/annotations)
-	AdminCreateGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request, params AdminCreateGitHubStarsAnnotationParams)
-	// AdminDeleteGitHubStarsAnnotation Delete a chart annotation
-	// (DELETE /api/private/admin/github-stars/annotations/{annotation})
-	AdminDeleteGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request, annotation int64, params AdminDeleteGitHubStarsAnnotationParams)
-	// AdminListGitHubStarsEvents List the user-attributed star and unstar log, newest first
-	// (GET /api/private/admin/github-stars/events)
-	AdminListGitHubStarsEvents(w http.ResponseWriter, r *http.Request, params AdminListGitHubStarsEventsParams)
-	// AdminListGitHubStarsRepos List the tracked GitHub repositories
-	// (GET /api/private/admin/github-stars/repos)
-	AdminListGitHubStarsRepos(w http.ResponseWriter, r *http.Request)
-	// AdminCreateGitHubStarsRepo Track a repository
-	// (POST /api/private/admin/github-stars/repos)
-	AdminCreateGitHubStarsRepo(w http.ResponseWriter, r *http.Request)
-	// AdminDeleteGitHubStarsRepo Disable a repository, or remove it with its data
-	// (DELETE /api/private/admin/github-stars/repos/{id})
-	AdminDeleteGitHubStarsRepo(w http.ResponseWriter, r *http.Request, id int64, params AdminDeleteGitHubStarsRepoParams)
-	// AdminUpdateGitHubStarsRepo Enable or disable a repository, change its time zone, or set or clear its token
-	// (PATCH /api/private/admin/github-stars/repos/{id})
-	AdminUpdateGitHubStarsRepo(w http.ResponseWriter, r *http.Request, id int64)
-	// AdminRotateGitHubStarsSecret Replace the webhook secret
-	// (POST /api/private/admin/github-stars/repos/{id}/rotate-secret)
-	AdminRotateGitHubStarsSecret(w http.ResponseWriter, r *http.Request, id int64)
-	// AdminSyncGitHubStarsRepo Reconcile and backfill a repository now
-	// (POST /api/private/admin/github-stars/repos/{id}/sync)
-	AdminSyncGitHubStarsRepo(w http.ResponseWriter, r *http.Request, id int64)
-	// AdminGetGitHubStarsSeries Gained, lost, net and cumulative stars per bucket
-	// (GET /api/private/admin/github-stars/series)
-	AdminGetGitHubStarsSeries(w http.ResponseWriter, r *http.Request, params AdminGetGitHubStarsSeriesParams)
-	// AdminGetGitHubStarsSummary Live star counters and the net change over 24 hours and 7 days
-	// (GET /api/private/admin/github-stars/summary)
-	AdminGetGitHubStarsSummary(w http.ResponseWriter, r *http.Request, params AdminGetGitHubStarsSummaryParams)
-	// AdminEraseGitHubStarsUser Erase every recorded star event of a GitHub user
-	// (DELETE /api/private/admin/github-stars/users/{login})
-	AdminEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request, login string, params AdminEraseGitHubStarsUserParams)
 	// AdminListOrganizations List organizations, including restorable deletions, with member, site, quota and storage totals
 	// (GET /api/private/admin/organizations)
 	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
@@ -5244,6 +5257,15 @@ type ServerInterface interface {
 	// AdminGetOrganization Get an organization with its members, sites, quota and storage total
 	// (GET /api/private/admin/organizations/{org})
 	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminResetGitHubStarRepoLimit Remove an organization's own limit so the instance default applies
+	// (DELETE /api/private/admin/organizations/{org}/github-star-repo-limit)
+	AdminResetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminGetGitHubStarRepoLimit How many GitHub repositories an organization may track
+	// (GET /api/private/admin/organizations/{org}/github-star-repo-limit)
+	AdminGetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// AdminSetGitHubStarRepoLimit Set an organization's own limit on tracked GitHub repositories
+	// (PUT /api/private/admin/organizations/{org}/github-star-repo-limit)
+	AdminSetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminRestoreOrganization Restore a deleted organization within the deletion grace period
 	// (POST /api/private/admin/organizations/{org}/restore)
 	AdminRestoreOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -5355,6 +5377,45 @@ type ServerInterface interface {
 	// CreateDemoProject Create and start seeding the organization's demo project
 	// (POST /api/private/orgs/{org}/demo)
 	CreateDemoProject(w http.ResponseWriter, r *http.Request, org int64)
+	// OrgListGitHubStarsAnnotations List chart annotations
+	// (GET /api/private/orgs/{org}/github-stars/annotations)
+	OrgListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgListGitHubStarsAnnotationsParams)
+	// OrgCreateGitHubStarsAnnotation Add a chart annotation such as a launch marker
+	// (POST /api/private/orgs/{org}/github-stars/annotations)
+	OrgCreateGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgCreateGitHubStarsAnnotationParams)
+	// OrgDeleteGitHubStarsAnnotation Delete a chart annotation
+	// (DELETE /api/private/orgs/{org}/github-stars/annotations/{annotation})
+	OrgDeleteGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request, org OrgPathID, annotation int64, params OrgDeleteGitHubStarsAnnotationParams)
+	// OrgListGitHubStarsEvents List the user-attributed star and unstar log, newest first
+	// (GET /api/private/orgs/{org}/github-stars/events)
+	OrgListGitHubStarsEvents(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgListGitHubStarsEventsParams)
+	// OrgListGitHubStarsRepos List the organization's tracked GitHub repositories
+	// (GET /api/private/orgs/{org}/github-stars/repos)
+	OrgListGitHubStarsRepos(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgCreateGitHubStarsRepo Track a repository
+	// (POST /api/private/orgs/{org}/github-stars/repos)
+	OrgCreateGitHubStarsRepo(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgDeleteGitHubStarsRepo Disable a repository, or remove it with its data
+	// (DELETE /api/private/orgs/{org}/github-stars/repos/{id})
+	OrgDeleteGitHubStarsRepo(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64, params OrgDeleteGitHubStarsRepoParams)
+	// OrgUpdateGitHubStarsRepo Enable or disable a repository, change its time zone or public counter, or set or clear its token
+	// (PATCH /api/private/orgs/{org}/github-stars/repos/{id})
+	OrgUpdateGitHubStarsRepo(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
+	// OrgRotateGitHubStarsSecret Replace the webhook secret
+	// (POST /api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret)
+	OrgRotateGitHubStarsSecret(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
+	// OrgSyncGitHubStarsRepo Reconcile and backfill a repository now
+	// (POST /api/private/orgs/{org}/github-stars/repos/{id}/sync)
+	OrgSyncGitHubStarsRepo(w http.ResponseWriter, r *http.Request, org OrgPathID, id int64)
+	// OrgGetGitHubStarsSeries Gained, lost, net and cumulative stars per bucket
+	// (GET /api/private/orgs/{org}/github-stars/series)
+	OrgGetGitHubStarsSeries(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgGetGitHubStarsSeriesParams)
+	// OrgGetGitHubStarsSummary Live star counters and the net change over 24 hours and 7 days
+	// (GET /api/private/orgs/{org}/github-stars/summary)
+	OrgGetGitHubStarsSummary(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgGetGitHubStarsSummaryParams)
+	// OrgEraseGitHubStarsUser Erase every recorded star event of a GitHub user
+	// (DELETE /api/private/orgs/{org}/github-stars/users/{login})
+	OrgEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request, org OrgPathID, login string, params OrgEraseGitHubStarsUserParams)
 	// SaveNotificationSettings Set notification history retention
 	// (PUT /api/private/orgs/{org}/notification-settings)
 	SaveNotificationSettings(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -5732,468 +5793,6 @@ func (siw *ServerInterfaceWrapper) AdminListAudit(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
-// AdminListGitHubStarsAnnotations operation middleware
-func (siw *ServerInterfaceWrapper) AdminListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminListGitHubStarsAnnotationsParams
-
-	// ------------- Required query parameter "repo_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminListGitHubStarsAnnotations(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminCreateGitHubStarsAnnotation operation middleware
-func (siw *ServerInterfaceWrapper) AdminCreateGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminCreateGitHubStarsAnnotationParams
-
-	// ------------- Required query parameter "repo_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminCreateGitHubStarsAnnotation(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminDeleteGitHubStarsAnnotation operation middleware
-func (siw *ServerInterfaceWrapper) AdminDeleteGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "annotation" -------------
-	var annotation int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "annotation", r.PathValue("annotation"), &annotation, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "annotation", Err: err})
-		return
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminDeleteGitHubStarsAnnotationParams
-
-	// ------------- Required query parameter "repo_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminDeleteGitHubStarsAnnotation(w, r, annotation, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminListGitHubStarsEvents operation middleware
-func (siw *ServerInterfaceWrapper) AdminListGitHubStarsEvents(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminListGitHubStarsEventsParams
-
-	// ------------- Required query parameter "repo_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
-		}
-		return
-	}
-
-	// ------------- Optional query parameter "cursor" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
-		}
-		return
-	}
-
-	// ------------- Optional query parameter "limit" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminListGitHubStarsEvents(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminListGitHubStarsRepos operation middleware
-func (siw *ServerInterfaceWrapper) AdminListGitHubStarsRepos(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminListGitHubStarsRepos(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminCreateGitHubStarsRepo operation middleware
-func (siw *ServerInterfaceWrapper) AdminCreateGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminCreateGitHubStarsRepo(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminDeleteGitHubStarsRepo operation middleware
-func (siw *ServerInterfaceWrapper) AdminDeleteGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "id" -------------
-	var id int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminDeleteGitHubStarsRepoParams
-
-	// ------------- Required query parameter "delete_data" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "delete_data", r.URL.Query(), &params.DeleteData, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "delete_data"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delete_data", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminDeleteGitHubStarsRepo(w, r, id, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminUpdateGitHubStarsRepo operation middleware
-func (siw *ServerInterfaceWrapper) AdminUpdateGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "id" -------------
-	var id int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminUpdateGitHubStarsRepo(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminRotateGitHubStarsSecret operation middleware
-func (siw *ServerInterfaceWrapper) AdminRotateGitHubStarsSecret(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "id" -------------
-	var id int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminRotateGitHubStarsSecret(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminSyncGitHubStarsRepo operation middleware
-func (siw *ServerInterfaceWrapper) AdminSyncGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "id" -------------
-	var id int64
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminSyncGitHubStarsRepo(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminGetGitHubStarsSeries operation middleware
-func (siw *ServerInterfaceWrapper) AdminGetGitHubStarsSeries(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminGetGitHubStarsSeriesParams
-
-	// ------------- Required query parameter "repo_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
-		}
-		return
-	}
-
-	// ------------- Required query parameter "granularity" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "granularity", r.URL.Query(), &params.Granularity, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "granularity"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "granularity", Err: err})
-		}
-		return
-	}
-
-	// ------------- Optional query parameter "from" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
-		}
-		return
-	}
-
-	// ------------- Optional query parameter "to" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminGetGitHubStarsSeries(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminGetGitHubStarsSummary operation middleware
-func (siw *ServerInterfaceWrapper) AdminGetGitHubStarsSummary(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminGetGitHubStarsSummaryParams
-
-	// ------------- Required query parameter "repo_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminGetGitHubStarsSummary(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// AdminEraseGitHubStarsUser operation middleware
-func (siw *ServerInterfaceWrapper) AdminEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "login" -------------
-	var login string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "login", r.PathValue("login"), &login, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "login", Err: err})
-		return
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params AdminEraseGitHubStarsUserParams
-
-	// ------------- Required query parameter "repo_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminEraseGitHubStarsUser(w, r, login, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // AdminListOrganizations operation middleware
 func (siw *ServerInterfaceWrapper) AdminListOrganizations(w http.ResponseWriter, r *http.Request) {
 
@@ -6283,6 +5882,84 @@ func (siw *ServerInterfaceWrapper) AdminGetOrganization(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminGetOrganization(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminResetGitHubStarRepoLimit operation middleware
+func (siw *ServerInterfaceWrapper) AdminResetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminResetGitHubStarRepoLimit(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetGitHubStarRepoLimit operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetGitHubStarRepoLimit(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminSetGitHubStarRepoLimit operation middleware
+func (siw *ServerInterfaceWrapper) AdminSetGitHubStarRepoLimit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminSetGitHubStarRepoLimit(w, r, org)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7118,6 +6795,591 @@ func (siw *ServerInterfaceWrapper) CreateDemoProject(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateDemoProject(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgListGitHubStarsAnnotations operation middleware
+func (siw *ServerInterfaceWrapper) OrgListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgListGitHubStarsAnnotationsParams
+
+	// ------------- Required query parameter "repo_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgListGitHubStarsAnnotations(w, r, org, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgCreateGitHubStarsAnnotation operation middleware
+func (siw *ServerInterfaceWrapper) OrgCreateGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgCreateGitHubStarsAnnotationParams
+
+	// ------------- Required query parameter "repo_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgCreateGitHubStarsAnnotation(w, r, org, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgDeleteGitHubStarsAnnotation operation middleware
+func (siw *ServerInterfaceWrapper) OrgDeleteGitHubStarsAnnotation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "annotation" -------------
+	var annotation int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "annotation", r.PathValue("annotation"), &annotation, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "annotation", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgDeleteGitHubStarsAnnotationParams
+
+	// ------------- Required query parameter "repo_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgDeleteGitHubStarsAnnotation(w, r, org, annotation, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgListGitHubStarsEvents operation middleware
+func (siw *ServerInterfaceWrapper) OrgListGitHubStarsEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgListGitHubStarsEventsParams
+
+	// ------------- Required query parameter "repo_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgListGitHubStarsEvents(w, r, org, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgListGitHubStarsRepos operation middleware
+func (siw *ServerInterfaceWrapper) OrgListGitHubStarsRepos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgListGitHubStarsRepos(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgCreateGitHubStarsRepo operation middleware
+func (siw *ServerInterfaceWrapper) OrgCreateGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgCreateGitHubStarsRepo(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgDeleteGitHubStarsRepo operation middleware
+func (siw *ServerInterfaceWrapper) OrgDeleteGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgDeleteGitHubStarsRepoParams
+
+	// ------------- Required query parameter "delete_data" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "delete_data", r.URL.Query(), &params.DeleteData, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "delete_data"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delete_data", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgDeleteGitHubStarsRepo(w, r, org, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgUpdateGitHubStarsRepo operation middleware
+func (siw *ServerInterfaceWrapper) OrgUpdateGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgUpdateGitHubStarsRepo(w, r, org, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgRotateGitHubStarsSecret operation middleware
+func (siw *ServerInterfaceWrapper) OrgRotateGitHubStarsSecret(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgRotateGitHubStarsSecret(w, r, org, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgSyncGitHubStarsRepo operation middleware
+func (siw *ServerInterfaceWrapper) OrgSyncGitHubStarsRepo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgSyncGitHubStarsRepo(w, r, org, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgGetGitHubStarsSeries operation middleware
+func (siw *ServerInterfaceWrapper) OrgGetGitHubStarsSeries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgGetGitHubStarsSeriesParams
+
+	// ------------- Required query parameter "repo_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "granularity" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "granularity", r.URL.Query(), &params.Granularity, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "granularity"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "granularity", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgGetGitHubStarsSeries(w, r, org, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgGetGitHubStarsSummary operation middleware
+func (siw *ServerInterfaceWrapper) OrgGetGitHubStarsSummary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgGetGitHubStarsSummaryParams
+
+	// ------------- Required query parameter "repo_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgGetGitHubStarsSummary(w, r, org, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgEraseGitHubStarsUser operation middleware
+func (siw *ServerInterfaceWrapper) OrgEraseGitHubStarsUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "login" -------------
+	var login string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "login", r.PathValue("login"), &login, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "login", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgEraseGitHubStarsUserParams
+
+	// ------------- Required query parameter "repo_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "repo_id", r.URL.Query(), &params.RepoId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "repo_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "repo_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgEraseGitHubStarsUser(w, r, org, login, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11690,19 +11952,22 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminDeleteTwoFactorExemption)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminSetTwoFactorExemption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/audit", wrapper.AdminListAudit)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/repos", wrapper.AdminListGitHubStarsRepos)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/github-stars/repos", wrapper.AdminCreateGitHubStarsRepo)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/github-stars/repos/{id}", wrapper.AdminDeleteGitHubStarsRepo)
-	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/github-stars/repos/{id}", wrapper.AdminUpdateGitHubStarsRepo)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/github-stars/repos/{id}/rotate-secret", wrapper.AdminRotateGitHubStarsSecret)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/github-stars/repos/{id}/sync", wrapper.AdminSyncGitHubStarsRepo)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/summary", wrapper.AdminGetGitHubStarsSummary)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/series", wrapper.AdminGetGitHubStarsSeries)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/events", wrapper.AdminListGitHubStarsEvents)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/github-stars/annotations", wrapper.AdminListGitHubStarsAnnotations)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/github-stars/annotations", wrapper.AdminCreateGitHubStarsAnnotation)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/github-stars/annotations/{annotation}", wrapper.AdminDeleteGitHubStarsAnnotation)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/github-stars/users/{login}", wrapper.AdminEraseGitHubStarsUser)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminResetGitHubStarRepoLimit)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminGetGitHubStarRepoLimit)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/organizations/{org}/github-star-repo-limit", wrapper.AdminSetGitHubStarRepoLimit)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgListGitHubStarsRepos)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgCreateGitHubStarsRepo)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}", wrapper.OrgDeleteGitHubStarsRepo)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}", wrapper.OrgUpdateGitHubStarsRepo)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/rotate-secret", wrapper.OrgRotateGitHubStarsSecret)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}/sync", wrapper.OrgSyncGitHubStarsRepo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/summary", wrapper.OrgGetGitHubStarsSummary)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/series", wrapper.OrgGetGitHubStarsSeries)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/events", wrapper.OrgListGitHubStarsEvents)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/annotations", wrapper.OrgListGitHubStarsAnnotations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/annotations", wrapper.OrgCreateGitHubStarsAnnotation)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/annotations/{annotation}", wrapper.OrgDeleteGitHubStarsAnnotation)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/users/{login}", wrapper.OrgEraseGitHubStarsUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/update", wrapper.AdminGetUpdateStatus)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/update/check", wrapper.AdminCheckUpdate)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/update/apply", wrapper.AdminApplyUpdate)

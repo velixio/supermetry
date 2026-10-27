@@ -15,6 +15,7 @@ import {
   useAddStarsRepo, useDeleteStarsRepo, useRotateStarsSecret, useSyncStarsRepo, useUpdateStarsRepo,
   type StarsRepo, type StarsRepoSecret,
 } from './githubStarsApi'
+import { useStarsOrg } from './starsOrg'
 
 const t = en.githubStars
 
@@ -73,14 +74,15 @@ export function AddRepoDialog({ open, onOpenChange, onCreated }: { open: boolean
   const [repo, setRepo] = useState('')
   const [token, setToken] = useState('')
   const [zone, setZone] = useState('UTC')
+  const [publicCounter, setPublicCounter] = useState(false)
   const close = (next: boolean) => {
-    if (!next) { add.reset(); setRepo(''); setToken(''); setZone('UTC') }
+    if (!next) { add.reset(); setRepo(''); setToken(''); setZone('UTC'); setPublicCounter(false) }
     onOpenChange(next)
   }
   const submit = (event: FormEvent) => {
     event.preventDefault()
     add.mutate(
-      { repo: repo.trim(), time_zone: zone.trim() || 'UTC', ...(token.trim() ? { token: token.trim() } : {}) },
+      { repo: repo.trim(), time_zone: zone.trim() || 'UTC', ...(publicCounter ? { public_counter: true } : {}), ...(token.trim() ? { token: token.trim() } : {}) },
       { onSuccess: (result) => { onCreated({ repo: result.repo.repo, webhook_secret: result.webhook_secret, webhook_url: result.webhook_url }, result.repo.id); close(false) } },
     )
   }
@@ -106,6 +108,10 @@ export function AddRepoDialog({ open, onOpenChange, onCreated }: { open: boolean
             <Input className="min-h-11" value={zone} required maxLength={64} onChange={(event) => setZone(event.target.value)} />
             <span className="text-xs font-normal text-muted-foreground">{t.repoTimeZoneHint}</span>
           </label>
+          <label className="flex min-h-11 items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1 size-5" checked={publicCounter} onChange={(event) => setPublicCounter(event.target.checked)} />
+            <span className="flex flex-col"><span className="font-medium">{t.publicCounter}</span><span className="text-xs text-muted-foreground">{t.publicCounterHint}</span></span>
+          </label>
           <ErrorLine error={add.error} />
           <DialogFooter>
             <Button type="button" variant="outline" className="min-h-11" onClick={() => close(false)}>{t.cancel}</Button>
@@ -122,10 +128,11 @@ function SettingsDialog({ repo, open, onOpenChange }: { repo: StarsRepo; open: b
   const [zone, setZone] = useState(repo.time_zone)
   const [token, setToken] = useState('')
   const [clear, setClear] = useState(false)
+  const [publicCounter, setPublicCounter] = useState(repo.public_counter)
   const submit = (event: FormEvent) => {
     event.preventDefault()
     update.mutate(
-      { id: repo.id, patch: { time_zone: zone.trim(), ...(clear ? { clear_token: true } : token.trim() ? { token: token.trim() } : {}) } },
+      { id: repo.id, patch: { time_zone: zone.trim(), public_counter: publicCounter, ...(clear ? { clear_token: true } : token.trim() ? { token: token.trim() } : {}) } },
       { onSuccess: () => { setToken(''); setClear(false); onOpenChange(false) } },
     )
   }
@@ -152,6 +159,10 @@ function SettingsDialog({ repo, open, onOpenChange }: { repo: StarsRepo; open: b
               {t.clearToken}
             </label>
           ) : null}
+          <label className="flex min-h-11 items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1 size-5" checked={publicCounter} onChange={(event) => setPublicCounter(event.target.checked)} />
+            <span className="flex flex-col"><span className="font-medium">{t.publicCounter}</span><span className="text-xs text-muted-foreground">{t.publicCounterHint}</span></span>
+          </label>
           <ErrorLine error={update.error} />
           <DialogFooter>
             <Button type="button" variant="outline" className="min-h-11" onClick={() => onOpenChange(false)}>{t.cancel}</Button>
@@ -233,6 +244,7 @@ function RotateDialog({ repo, open, onOpenChange, onRotated }: { repo: StarsRepo
 /** Status line and actions of the selected repository. */
 /** `onRemoved` runs after the repository and its data were removed (not after a plain disable). */
 export function RepoPanel({ repo, onReveal, onRemoved }: { repo: StarsRepo; onReveal: (reveal: Reveal) => void; onRemoved?: () => void }) {
+  const { canManage } = useStarsOrg()
   const update = useUpdateStarsRepo()
   const sync = useSyncStarsRepo()
   const [dialog, setDialog] = useState<'settings' | 'rotate' | 'remove' | null>(null)
@@ -243,17 +255,20 @@ export function RepoPanel({ repo, onReveal, onRemoved }: { repo: StarsRepo; onRe
         <div><dt className="inline text-muted-foreground">{t.lastWebhook}: </dt><dd className="inline">{repo.last_webhook_at ? formatDate(repo.last_webhook_at) : t.neverWebhook}</dd></div>
         <div><dt className="inline text-muted-foreground">{t.lastSync}: </dt><dd className="inline">{repo.last_reconcile_at ? formatDate(repo.last_reconcile_at) : t.neverSynced}</dd></div>
         <div><dt className="inline text-muted-foreground">{t.repoTimeZone}: </dt><dd className="inline">{repo.time_zone}</dd></div>
-        <div><dt className="inline text-muted-foreground">{t.webhookUrl}: </dt><dd className="inline break-all">{repo.webhook_url}</dd></div>
+        {canManage ? <div><dt className="inline text-muted-foreground">{t.webhookUrl}: </dt><dd className="inline break-all">{repo.webhook_url}</dd></div> : null}
       </dl>
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-sm text-muted-foreground">{t.publicCountUrl}</span>
-        <div className="flex items-center gap-2">
-          <code className="min-w-0 flex-1 break-all rounded-md border bg-muted px-2 py-2 text-xs">{repo.public_count_url}</code>
-          <CopyButton text={repo.public_count_url} label={t.copyLabel(t.publicCountUrl)} />
+      {repo.public_counter ? (
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-sm text-muted-foreground">{t.publicCountUrl}</span>
+          <div className="flex items-center gap-2">
+            <code className="min-w-0 flex-1 break-all rounded-md border bg-muted px-2 py-2 text-xs">{repo.public_count_url}</code>
+            <CopyButton text={repo.public_count_url} label={t.copyLabel(t.publicCountUrl)} />
+          </div>
+          <span className="text-xs text-muted-foreground">{t.publicCountHint}</span>
         </div>
-        <span className="text-xs text-muted-foreground">{t.publicCountHint}</span>
-      </div>
+      ) : <p className="text-xs text-muted-foreground">{t.publicCounterOff}</p>}
       {repo.last_error ? <p role="alert" className="text-sm text-destructive">{t.lastError}: {repo.last_error}</p> : null}
+      {canManage ? (
       <div className="flex flex-wrap items-center gap-2">
         <label htmlFor={switchId} className="flex min-h-11 items-center gap-2 pr-2 text-sm">
           <Switch id={switchId} checked={repo.enabled} disabled={update.isPending}
@@ -265,11 +280,14 @@ export function RepoPanel({ repo, onReveal, onRemoved }: { repo: StarsRepo; onRe
         <Button type="button" variant="outline" className="min-h-11" onClick={() => setDialog('rotate')}>{t.rotate}</Button>
         <Button type="button" variant="outline" className="min-h-11" onClick={() => setDialog('remove')}>{t.remove}</Button>
       </div>
+      ) : <p className="text-xs text-muted-foreground">{t.viewOnly}</p>}
       {sync.isSuccess ? <p role="status" className="text-sm">{t.syncStarted}</p> : null}
       <ErrorLine error={update.error ?? sync.error} />
+      {canManage ? <>
       <SettingsDialog key={`s-${repo.id}-${repo.time_zone}-${repo.has_token}`} repo={repo} open={dialog === 'settings'} onOpenChange={(open) => setDialog(open ? 'settings' : null)} />
       <RotateDialog repo={repo} open={dialog === 'rotate'} onOpenChange={(open) => setDialog(open ? 'rotate' : null)} onRotated={onReveal} />
       <RemoveDialog repo={repo} open={dialog === 'remove'} onOpenChange={(open) => setDialog(open ? 'remove' : null)} onRemoved={onRemoved} />
+      </> : null}
     </section>
   )
 }

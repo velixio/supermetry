@@ -384,6 +384,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("github stars secret box: %w", err)
 	}
 	starService := ghstars.NewService(pool, starBox, cfg.BaseURL, settings.clock.Now)
+	starService.RepoLimit = cfg.MaxGitHubReposPerOrg
 	updateController, updateMode := managedUpdater(version)
 	platformHandler := platformhttp.New(platformhttp.Deps{
 		GitHubStars:        starService,

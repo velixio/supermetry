@@ -119,7 +119,7 @@ describe('SPA navigation', () => {
       Analyze: ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays'],
       Behaviour: ['Journeys', 'Retention', 'Profiles', 'Cohorts', 'Heatmaps', 'Web Vitals'],
       Conversion: ['Funnels', 'Goals', 'Revenue'],
-      Manage: ['Sites', 'Links and pixels', 'Data health'],
+      Manage: ['Sites', 'Links and pixels', 'Data health', 'GitHub stars'],
     }
     for (const [name, links] of Object.entries(expected)) {
       const navigation = await screen.findByRole('navigation', { name })
@@ -189,8 +189,8 @@ describe('SPA navigation', () => {
     expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument()
   })
 
-  it('shows the GitHub stars link inside an organization for instance admins only', async () => {
-    renderSidebar('/app/acme/docs-public', { me: { ...me, user: { ...me.user, instance_admin: true } } })
+  it('shows the GitHub stars link inside an organization to every member', async () => {
+    renderSidebar('/app/acme/docs-public')
     const link = await screen.findByRole('link', { name: 'GitHub stars' })
     expect(link).toHaveAttribute('href', '/app/acme/github-stars')
     // It sits in the Manage section with Sites and Health, not in a group of its own.
@@ -198,9 +198,9 @@ describe('SPA navigation', () => {
     expect(within(manage).getByRole('link', { name: 'Sites' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Community' })).toBeNull()
     cleanup()
-    renderSidebar('/app/acme/docs-public')
+    renderSidebar('/app/acme/docs-public', { me: { ...me, memberships: [{ ...me.memberships[0], role: 'viewer' }] } })
     await screen.findByRole('link', { name: 'Realtime' })
-    expect(screen.queryByRole('link', { name: 'GitHub stars' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'GitHub stars' })).toHaveAttribute('href', '/app/acme/github-stars')
   })
 
   it('keeps every sidebar and switcher link target unchanged', async () => {
@@ -229,6 +229,7 @@ describe('SPA navigation', () => {
       ['Sites', '/app/acme/sites'],
       ['Links and pixels', `${site}/links`],
       ['Data health', '/app/acme/health'],
+      ['GitHub stars', '/app/acme/github-stars'],
     ])
     fireEvent.pointerDown(screen.getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
     const menu = await screen.findByRole('menu')

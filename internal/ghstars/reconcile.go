@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"supermetry/internal/scheduler"
@@ -25,6 +26,9 @@ const (
 	maxPages       = 1000
 	requestTimeout = 20 * time.Second
 	maxResponse    = 4 << 20
+
+	defaultConcurrency = 2
+	defaultStagger     = time.Second
 )
 
 // ErrRateLimited reports a 403 or 429 from GitHub. The next scheduled run retries.
@@ -207,34 +211,83 @@ func (s *Service) ReconcileJob() scheduler.Job {
 	return scheduler.Job{Name: "github-stars-reconcile", Every: 24 * time.Hour, RunOnStart: true, Run: s.ReconcileAll}
 }
 
-// ReconcileAll reconciles every enabled repository.
+// ReconcileAll reconciles every enabled repository of every live organization.
 func (s *Service) ReconcileAll(ctx context.Context) error {
-	rows, err := s.pool.Query(ctx, `select id from github_star_repos where enabled order by id`)
+	ids, err := s.queryIDs(ctx, `
+		select r.id from github_star_repos r join orgs o on o.id = r.org_id
+		where r.enabled and o.deleted_at is null order by r.id`)
 	if err != nil {
 		return fmt.Errorf("list star repos: %w", err)
 	}
+	return s.forEachRepo(ctx, ids, "github star reconcile failed")
+}
+
+func (s *Service) queryIDs(ctx context.Context, sql string, args ...any) ([]int64, error) {
+	rows, err := s.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 	var ids []int64
 	for rows.Next() {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
+			return nil, err
 		}
 		ids = append(ids, id)
 	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
+	return ids, rows.Err()
+}
+
+func (s *Service) concurrency() int {
+	if s.Concurrency > 0 {
+		return s.Concurrency
 	}
-	for _, id := range ids {
-		if ctx.Err() != nil {
+	return defaultConcurrency
+}
+
+func (s *Service) stagger() time.Duration {
+	switch {
+	case s.Stagger < 0:
+		return 0
+	case s.Stagger == 0:
+		return defaultStagger
+	}
+	return s.Stagger
+}
+
+// forEachRepo reconciles the repositories with a global cap on how many run at
+// once and a pause between starts, so many organizations cannot stampede
+// GitHub. A failure is logged and recorded on that repository only.
+func (s *Service) forEachRepo(ctx context.Context, ids []int64, failure string) error {
+	slots := make(chan struct{}, s.concurrency())
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for i, id := range ids {
+		if i > 0 {
+			if d := s.stagger(); d > 0 {
+				select {
+				case <-time.After(d):
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+		}
+		select {
+		case slots <- struct{}{}:
+		case <-ctx.Done():
 			return ctx.Err()
 		}
-		if err := s.ReconcileRepo(ctx, id); err != nil && !errors.Is(err, ErrBusy) {
-			slog.Warn("github star reconcile failed", "repo_id", id, "error", err)
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-slots }()
+			if err := s.ReconcileRepo(ctx, id); err != nil && !errors.Is(err, ErrBusy) {
+				slog.Warn(failure, "repo_id", id, "error", err)
+			}
+		}()
 	}
-	return nil
+	return ctx.Err()
 }
 
 // acquire takes the per-repository lock shared by the daily job, the import
@@ -258,8 +311,8 @@ func (s *Service) release(id int64) {
 // StartSync reconciles one repository in the background (for a large
 // repository that is one import chunk). At most one run happens per repository
 // and manual syncs are at least a minute apart.
-func (s *Service) StartSync(ctx context.Context, id int64) error {
-	if _, err := s.load(ctx, id); err != nil {
+func (s *Service) StartSync(ctx context.Context, orgID, id int64) error {
+	if _, err := s.loadIn(ctx, orgID, id); err != nil {
 		return err
 	}
 	now := s.Now()
@@ -351,6 +404,9 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	client, store, now := s.client(token), s.storeOf(r), s.Now()
 	counts, err := client.Counts(ctx, store.Repo())
 	if err != nil {
+		return err
+	}
+	if err := store.SaveVerified(ctx, counts.Stars, now); err != nil {
 		return err
 	}
 	if counts.Stars > s.largeThreshold() {

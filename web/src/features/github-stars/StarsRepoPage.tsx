@@ -23,6 +23,7 @@ import { StarsAnnotations } from './StarsAnnotations'
 import { bucketLabel, StarsChart } from './StarsChart'
 import { gainStats } from './gain'
 import { StarsEvents } from './StarsEvents'
+import { StarsOrgProvider } from './starsOrg'
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : undefined
@@ -32,21 +33,25 @@ function signed(value: number) {
   return `${value > 0 ? '+' : ''}${fmt.full(value)}`
 }
 
-/** Gain in the chart's own bucket size: per hour in hour mode, per day in day mode. */
+/** Gain in the chart's own bucket size: per hour, day or calendar month. */
 function GainSummary({ points, granularity, timeZone }: { points: StarsPoint[]; granularity: StarsGranularity; timeZone?: string }) {
   const stats = gainStats(points)
   if (!stats) return null
-  const hourly = granularity === 'hour'
   const t = en.githubStars
+  const labels = {
+    hour: { current: t.gainThisHour, previous: t.gainPreviousHour, average: t.gainAvgHour, peak: t.gainPeakHour, group: t.gainHourLabel },
+    day: { current: t.gainToday, previous: t.gainYesterday, average: t.gainAvgDay, peak: t.gainBestDay, group: t.gainDayLabel },
+    month: { current: t.gainThisMonth, previous: t.gainPreviousMonth, average: t.gainAvgMonth, peak: t.gainBestMonth, group: t.gainMonthLabel },
+  }[granularity]
   const average = new Intl.NumberFormat(activeLocale(), { maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(stats.average)
   const items: Array<[string, string]> = [
-    [hourly ? t.gainThisHour : t.gainToday, signed(stats.current)],
-    ...(stats.previous === undefined ? [] : [[hourly ? t.gainPreviousHour : t.gainYesterday, signed(stats.previous)] as [string, string]]),
-    [hourly ? t.gainAvgHour : t.gainAvgDay, average],
-    ...(stats.peak ? [[hourly ? t.gainPeakHour : t.gainBestDay, `${signed(stats.peak.net)} · ${bucketLabel(stats.peak.bucket, granularity, timeZone)}`] as [string, string]] : []),
+    [labels.current, signed(stats.current)],
+    ...(stats.previous === undefined ? [] : [[labels.previous, signed(stats.previous)] as [string, string]]),
+    [labels.average, average],
+    ...(stats.peak ? [[labels.peak, `${signed(stats.peak.net)} · ${bucketLabel(stats.peak.bucket, granularity, timeZone)}`] as [string, string]] : []),
   ]
   return (
-    <dl role="group" aria-label={hourly ? t.gainHourLabel : t.gainDayLabel} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
+    <dl role="group" aria-label={labels.group} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
       {items.map(([label, value]) => (
         <div key={label} className="flex min-w-0 flex-col">
           <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -92,13 +97,14 @@ function GrowthChart({ repoId }: { repoId: number }) {
         <div className="flex flex-col gap-1">
           <h2 id="stars-chart" className="text-base font-semibold">{en.githubStars.chartTitle}</h2>
           <p className="text-xs text-muted-foreground">
-            {granularity === 'hour' ? en.githubStars.rangeHour : en.githubStars.rangeDay}
+            {granularity === 'hour' ? en.githubStars.rangeHour : granularity === 'month' ? en.githubStars.rangeMonth : en.githubStars.rangeDay}
             {series.data ? ` · ${en.githubStars.timeZone(series.data.time_zone)}` : ''}
           </p>
         </div>
-        <ToggleGroup aria-label={en.githubStars.granularity} type="single" value={granularity} onValueChange={(value) => (value === 'hour' || value === 'day') && setGranularity(value)}>
+        <ToggleGroup aria-label={en.githubStars.granularity} type="single" value={granularity} onValueChange={(value) => (value === 'hour' || value === 'day' || value === 'month') && setGranularity(value)}>
           <ToggleGroupItem className="h-11 min-w-11" value="hour">{en.githubStars.hour}</ToggleGroupItem>
           <ToggleGroupItem className="h-11 min-w-11" value="day">{en.githubStars.day}</ToggleGroupItem>
+          <ToggleGroupItem className="h-11 min-w-11" value="month">{en.githubStars.month}</ToggleGroupItem>
         </ToggleGroup>
       </div>
       {series.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-64 w-full" /> : series.isError ? (
@@ -134,7 +140,7 @@ function RepoImport({ repo }: { repo: StarsRepo }) {
 }
 
 /** One repository's page: status and actions, counters, chart, annotations and events. */
-export function StarsRepoPage({ org, owner, name, onRemoved }: { org: string; owner: string; name: string; onRemoved: () => void }) {
+function RepoPageBody({ org, owner, name, onRemoved }: { org: string; owner: string; name: string; onRemoved: () => void }) {
   const repos = useStarsRepos()
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const wanted = `${owner}/${name}`.toLowerCase()
@@ -168,4 +174,8 @@ export function StarsRepoPage({ org, owner, name, onRemoved }: { org: string; ow
       </section>
     </PageContainer>
   )
+}
+
+export function StarsRepoPage({ org, orgId, canManage, owner, name, onRemoved }: { org: string; orgId: number; canManage: boolean; owner: string; name: string; onRemoved: () => void }) {
+  return <StarsOrgProvider value={{ orgId, canManage }}><RepoPageBody org={org} owner={owner} name={name} onRemoved={onRemoved} /></StarsOrgProvider>
 }
