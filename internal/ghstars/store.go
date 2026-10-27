@@ -50,6 +50,8 @@ type Counts struct {
 	Forks      int `json:"forks"`
 	Watchers   int `json:"watchers"`
 	OpenIssues int `json:"open_issues"`
+	// Language is the primary language GitHub reports; it is not a counter and is not stored with them.
+	Language string `json:"-"`
 }
 
 // Event is one star or unstar by one user.

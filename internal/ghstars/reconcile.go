@@ -164,15 +164,20 @@ func (c *Client) get(ctx context.Context, path string, query url.Values, accept 
 // Counts fetches the repository counters.
 func (c *Client) Counts(ctx context.Context, repo string) (Counts, error) {
 	var body struct {
-		Stars      int `json:"stargazers_count"`
-		Forks      int `json:"forks_count"`
-		Watchers   int `json:"subscribers_count"`
-		OpenIssues int `json:"open_issues_count"`
+		Stars      int     `json:"stargazers_count"`
+		Forks      int     `json:"forks_count"`
+		Watchers   int     `json:"subscribers_count"`
+		OpenIssues int     `json:"open_issues_count"`
+		Language   *string `json:"language"`
 	}
 	if err := c.get(ctx, "/repos/"+repo, nil, "application/vnd.github+json", &body); err != nil {
 		return Counts{}, err
 	}
-	return Counts{Stars: body.Stars, Forks: body.Forks, Watchers: body.Watchers, OpenIssues: body.OpenIssues}, nil
+	counts := Counts{Stars: body.Stars, Forks: body.Forks, Watchers: body.Watchers, OpenIssues: body.OpenIssues}
+	if body.Language != nil {
+		counts.Language = *body.Language
+	}
+	return counts, nil
 }
 
 // Stargazers pages through every current stargazer.
@@ -408,6 +413,10 @@ func (s *Service) reconcileWith(ctx context.Context, r repoRow, token string) er
 	}
 	if err := store.SaveVerified(ctx, counts.Stars, now); err != nil {
 		return err
+	}
+	// Keep the primary language current for the trending watcher.
+	if _, err := s.pool.Exec(ctx, `update github_star_repos set language=$2 where id=$1 and language is distinct from $2`, r.ID, counts.Language); err != nil {
+		return fmt.Errorf("save repository language: %w", err)
 	}
 	if counts.Stars > s.largeThreshold() {
 		return s.reconcileLarge(ctx, r, store, client, counts)
