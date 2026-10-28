@@ -77,6 +77,8 @@ export const uiFlows = {
   site: {
     domain: 'Domain',
     domainHint: 'Your site’s hostname, without https:// or a path, for example supermetry.com. You can add more hostnames later in Site settings.',
+    domainHintManaged: 'Use a full domain name with a dot, such as example.com or blog.example.co.uk.',
+    notDomain: (host: string) => `host "${host}" is not a domain: use something like example.com`,
     timezone: 'Time zone',
     timezoneHint: 'Reports start and end each day at midnight in this time zone.',
     timezoneSearch: 'Search time zones…',

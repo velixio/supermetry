@@ -46,7 +46,7 @@ function NewSiteRoute() {
         <KindChoice value={kind} onChange={setKind} />
         {kind === 'pixel'
           ? <PixelProjectForm submitLabel={en.pixels.createProject} onSubmit={submit} />
-          : <SiteForm submitLabel="Add site" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} />}
+          : <SiteForm submitLabel="Add site" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} requireDomain={config.data?.managed === true} />}
       </section>
     </PageContainer>
   )

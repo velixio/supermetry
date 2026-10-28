@@ -77,6 +77,8 @@ const messages: MessageTree = {
   site: {
     domain: 'ডোমেইন',
     domainHint: 'আপনার সাইটের হোস্টনেম, https:// বা পাথ ছাড়া, যেমন supermetry.com। পরে সাইট সেটিংসে আরও হোস্টনেম যোগ করতে পারবেন।',
+    domainHintManaged: 'ডট সহ পূর্ণ ডোমেইন নাম ব্যবহার করুন, যেমন example.com বা blog.example.co.uk।',
+    notDomain: (host: string) => `হোস্ট "${host}" কোনো ডোমেইন নয়: example.com-এর মতো কিছু ব্যবহার করুন`,
     timezone: 'টাইম জোন',
     timezoneHint: 'রিপোর্টে প্রতিটি দিন এই টাইম জোনের মধ্যরাতে শুরু ও শেষ হয়।',
     timezoneSearch: 'টাইম জোন খুঁজুন…',

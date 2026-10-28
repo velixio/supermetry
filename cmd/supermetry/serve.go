@@ -330,6 +330,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
 	siteService.SetClock(settings.clock.Now)
 	siteService.SetSiteLimit(cfg.MaxSitesPerOrg)
+	siteService.SetRequireDomain(cfg.Managed)
 	siteService.SetRetentionPolicy(cfg.DefaultRetentionDays, cfg.RetentionForever)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
 	overviewService := sitesvc.NewOverview(platformStore, sessions)

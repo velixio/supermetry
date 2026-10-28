@@ -295,6 +295,7 @@ export function SiteGeneralPage({
                   />
                   <FieldDescription>
                     Separate multiple hosts with commas.
+                    {config.data?.managed === true ? ` ${uiFlows.site.domainHintManaged}` : ""}
                   </FieldDescription>
                 </Field>
                 <TimezoneSelect key={site.data.timezone} defaultValue={site.data.timezone} hint={uiFlows.site.timezoneHint} />
