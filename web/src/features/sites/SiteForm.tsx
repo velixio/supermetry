@@ -33,6 +33,17 @@ export function siteErrorField(message: string): FieldName {
   return 'domain'
 }
 
+/**
+ * The first host that is not a domain: no dot, and not localhost. Managed instances reject these
+ * because the tracker could never match them. Mirrors the server rule; `*.` wildcards are looked through.
+ */
+export function firstNonDomainHost(hosts: string[]): string | undefined {
+  return hosts.find((host) => {
+    const name = host.trim().toLowerCase().replace(/^\*\./, '')
+    return !name.includes('.') && name !== 'localhost'
+  })
+}
+
 /** The site name a hostname suggests: supermetry.com for www.supermetry.com. */
 export function nameFromDomain(host: string): string {
   return host.replace(/^www\./i, '')
@@ -47,12 +58,15 @@ export function SiteForm({
   onSubmit,
   secondaryAction,
   retention,
+  requireDomain = false,
 }: {
   submitLabel: string
   onSubmit: (input: WebSiteInput) => Promise<void>
   secondaryAction?: React.ReactNode
   /** The instance policy once loaded. Until then keep-forever stays hidden and the server's default applies. */
   retention?: RetentionPolicy
+  /** True on managed instances, where a host must look like a domain. Self-hosted sites may use single-label names. */
+  requireDomain?: boolean
 }) {
   const policy = retention ?? { ...retentionPolicy(undefined), forever: false }
   // Only a retention the user picked is sent; otherwise the server applies the instance default.
@@ -77,6 +91,13 @@ export function SiteForm({
       .split(',')
       .map((host) => host.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, ''))
       .filter(Boolean)
+    const bad = requireDomain ? firstNonDomainHost(hosts) : undefined
+    if (bad) {
+      setError({ field: 'domain', message: uiFlows.site.notDomain(bad) })
+      focusField('domain')
+      setSubmitting(false)
+      return
+    }
     const currency = String(data.get('revenue_currency') ?? '').trim().toUpperCase()
     try {
       await onSubmit({
@@ -118,7 +139,7 @@ export function SiteForm({
             aria-describedby={domainError ? 'site-domains-hint site-domains-error' : 'site-domains-hint'}
             required
           />
-          <FieldDescription id="site-domains-hint">{uiFlows.site.domainHint}</FieldDescription>
+          <FieldDescription id="site-domains-hint">{uiFlows.site.domainHint}{requireDomain ? ` ${uiFlows.site.domainHintManaged}` : ''}</FieldDescription>
           {domainError ? <FieldError id="site-domains-error">{domainError}</FieldError> : null}
         </Field>
         <TimezoneSelect error={errorFor('timezone')} hint={uiFlows.site.timezoneHint} />

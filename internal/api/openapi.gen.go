@@ -2422,6 +2422,7 @@ type CreateShareRequest struct {
 
 // CreateSiteRequest hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel.
 type CreateSiteRequest struct {
+	// Hosts Hostnames the tracker may report. On a managed instance (SUPERMETRY_MANAGED) each new host must look like a domain (contain a dot, for example example.com or *.example.com); localhost and IPv4 addresses are also accepted, and any other single-label host is rejected with 400.
 	Hosts *[]string `json:"hosts,omitempty"`
 
 	// Kind Fixed at creation.

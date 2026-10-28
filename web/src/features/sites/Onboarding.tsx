@@ -61,6 +61,7 @@ export function Onboarding({ me, createSite, navigate }: {
           <SiteForm
             submitLabel="Create site"
             retention={config.data ? retentionPolicy(config.data) : undefined}
+            requireDomain={config.data?.managed === true}
             onSubmit={async (input) => {
               const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
               navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/installation`)

@@ -77,6 +77,8 @@ const messages: MessageTree = {
   site: {
     domain: 'Dominio',
     domainHint: 'El nombre de host de tu sitio, sin https:// ni ruta; por ejemplo, supermetry.com. Puedes añadir más nombres de host después en Ajustes del sitio.',
+    domainHintManaged: 'Usa un nombre de dominio completo con un punto, como example.com o blog.example.co.uk.',
+    notDomain: (host: string) => `el host "${host}" no es un dominio: usa algo como example.com`,
     timezone: 'Zona horaria',
     timezoneHint: 'Los informes empiezan y terminan cada día a medianoche en esta zona horaria.',
     timezoneSearch: 'Buscar zonas horarias…',

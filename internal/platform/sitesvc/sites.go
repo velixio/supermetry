@@ -64,13 +64,15 @@ type SitePatch struct {
 }
 
 type Sites struct {
-	trackingMode       privacy.Mode
-	store              *store.Store
-	registry           *Registry
-	now                func() time.Time
-	discoverIcon       func(context.Context, string) string
-	invalidateSite     func(int32)
-	maxSites           int
+	trackingMode   privacy.Mode
+	store          *store.Store
+	registry       *Registry
+	now            func() time.Time
+	discoverIcon   func(context.Context, string) string
+	invalidateSite func(int32)
+	maxSites       int
+	// requireDomain rejects new single-label hosts (managed instances only).
+	requireDomain      bool
 	restoreInvalidator interface{ Invalidate() error }
 	// defaultRetention is the retention a new site gets when the request names none.
 	defaultRetention int
@@ -111,6 +113,10 @@ func (s *Sites) checkForever(days int) error {
 // SetSiteLimit caps live non-demo sites created or restored for an organization
 // by anyone who is not an instance admin. Zero means no limit.
 func (s *Sites) SetSiteLimit(max int) { s.maxSites = max }
+
+// SetRequireDomain makes new hosts have to look like a domain (contain a dot),
+// except localhost and IP literals. Hosts a site already stores stay valid.
+func (s *Sites) SetRequireDomain(v bool) { s.requireDomain = v }
 
 // SetInvalidator replaces the post-restore registry invalidator.
 func (s *Sites) SetInvalidator(invalidator interface{ Invalidate() error }) {
@@ -168,7 +174,7 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, input any
 	)
 	switch in.Kind {
 	case coresites.KindWeb:
-		name, hosts, location, retention, err = validateSite(in.Name, in.Hosts, in.Timezone, in.RetentionDays)
+		name, hosts, location, retention, err = validateSite(in.Name, in.Hosts, in.Timezone, in.RetentionDays, s.requireDomain, nil)
 		// Without a currency the project stays unconfigured; an owner picks it once later.
 		if in.RevenueCurrency == "" {
 			state = string(coresites.RevenueCurrencyUnconfigured)
@@ -176,7 +182,7 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, input any
 			err = fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
 		}
 	case coresites.KindPixel:
-		name, _, location, retention, err = validateSite(in.Name, []string{"pixel.invalid"}, in.Timezone, in.RetentionDays)
+		name, _, location, retention, err = validateSite(in.Name, []string{"pixel.invalid"}, in.Timezone, in.RetentionDays, false, nil)
 		hosts, in.RevenueCurrency, state = []string{}, "", string(coresites.RevenueCurrencyUnconfigured)
 	default:
 		err = fmt.Errorf("%w: kind must be web or pixel", ErrInvalid)
@@ -257,6 +263,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if patch.Name != nil {
 			current.Name = *patch.Name
 		}
+		storedHosts := append([]string(nil), current.AllowedHosts...)
 		if patch.Hosts != nil {
 			current.AllowedHosts = append([]string(nil), (*patch.Hosts)...)
 		}
@@ -337,7 +344,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 			validationHosts = []string{"pixel.invalid"}
 		}
 		name, hosts, location, retention, err := validateSite(
-			current.Name, validationHosts, current.Timezone, int(current.RetentionClass),
+			current.Name, validationHosts, current.Timezone, int(current.RetentionClass), s.requireDomain, storedHosts,
 		)
 		if err != nil {
 			return err
@@ -438,7 +445,7 @@ func (s *Sites) AdminSetRetention(ctx context.Context, actorUserID int64, siteID
 		if current.Kind == coresites.KindPixel {
 			validationHosts = []string{"pixel.invalid"}
 		}
-		_, _, _, retention, err := validateSite(current.Name, validationHosts, current.Timezone, days)
+		_, _, _, retention, err := validateSite(current.Name, validationHosts, current.Timezone, days, false, nil)
 		if err != nil {
 			return err
 		}
@@ -654,7 +661,7 @@ func (s *Sites) List(ctx context.Context, principal authz.Principal, cursor stri
 	return result, next, nil
 }
 
-func validateSite(name string, hosts []string, timezone string, retentionDays int) (string, []string, *time.Location, db.RetentionClass, error) {
+func validateSite(name string, hosts []string, timezone string, retentionDays int, requireDomain bool, existing []string) (string, []string, *time.Location, db.RetentionClass, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", nil, nil, 0, fmt.Errorf("%w: name is required", ErrInvalid)
@@ -667,14 +674,17 @@ func validateSite(name string, hosts []string, timezone string, retentionDays in
 	if !ok {
 		return "", nil, nil, 0, fmt.Errorf("%w: unsupported retention", ErrInvalid)
 	}
-	hosts, err = normalizeHosts(hosts)
+	hosts, err = normalizeHosts(hosts, requireDomain, existing)
 	if err != nil {
 		return "", nil, nil, 0, err
 	}
 	return name, hosts, location, retention, nil
 }
 
-func normalizeHosts(hosts []string) ([]string, error) {
+// normalizeHosts lowercases, validates and de-duplicates hosts. With requireDomain a
+// host must contain a dot unless it is localhost or an IP literal, or already
+// appears in existing (stored sites keep working).
+func normalizeHosts(hosts []string, requireDomain bool, existing []string) ([]string, error) {
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("%w: at least one host is required", ErrInvalid)
 	}
@@ -689,6 +699,9 @@ func normalizeHosts(hosts []string) ([]string, error) {
 		if !validHostname(name) || strings.ContainsAny(host, ":/?#@") {
 			return nil, fmt.Errorf("%w: invalid host %q", ErrInvalid, raw)
 		}
+		if requireDomain && !looksLikeDomain(name) && !containsHost(existing, host) {
+			return nil, fmt.Errorf("%w: host %q is not a domain: use something like example.com", ErrInvalid, strings.TrimSpace(raw))
+		}
 		if _, ok := seen[host]; ok {
 			continue
 		}
@@ -696,6 +709,20 @@ func normalizeHosts(hosts []string) ([]string, error) {
 		normalized = append(normalized, host)
 	}
 	return normalized, nil
+}
+
+func containsHost(list []string, host string) bool {
+	for _, h := range list {
+		if strings.ToLower(strings.TrimSpace(h)) == host {
+			return true
+		}
+	}
+	return false
+}
+
+// looksLikeDomain reports whether a validated hostname has a dot, is localhost or an IP literal.
+func looksLikeDomain(name string) bool {
+	return strings.Contains(name, ".") || name == "localhost"
 }
 
 func validHostname(host string) bool {
