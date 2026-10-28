@@ -126,7 +126,7 @@ export default async function globalSetup(config: FullConfig) {
       name: "Site 1",
       hosts: ["site1.test"],
       timezone: "America/New_York",
-      retention_days: 30,
+      retention_days: 0,
       revenue_currency: "USD",
     },
   });
