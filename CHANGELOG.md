@@ -6,6 +6,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.19 (2026-10-28)
+
 ### Changed
 
 - On managed instances (`SUPERMETRY_MANAGED=true`) a site's host must now look like a domain: it needs a dot (`example.com`, `blog.example.co.uk`, `*.example.com`). `localhost` and IP addresses are still accepted for testing, and other single-label hosts such as `afaridar`, which the tracker can never match, are rejected with 400 (`host "afaridar" is not a domain: use something like example.com`). The new-site form and the site settings show the same hint. Self-hosted instances are unchanged and keep intranet names like `wiki`. Existing sites are untouched, and saving a site that already stores a single-label host keeps working.
