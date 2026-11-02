@@ -203,6 +203,12 @@ That depends on the laws that apply to you and on what else your site runs, so a
 </details>
 
 <details>
+<summary><b>What about ad blockers?</b></summary>
+
+The tracker sends events to neutral, per-site URLs with ordinary requests, which most blocker rules don't match. To also count visitors whose blocker blocks the Supermetry domain itself, serve tracking from your own domain through a small proxy (nginx, Caddy, Cloudflare Worker or Next.js; the filled-in configuration is in Settings → Installation), or send events from your server. See [Ad blockers](docs/guide/ad-blockers.md).
+</details>
+
+<details>
 <summary><b>Can I move my existing data in?</b></summary>
 
 Yes. Import from Google Analytics 4, Plausible, Umami, Mixpanel or Amplitude in the project settings, then export to CSV whenever you like.
@@ -223,6 +229,7 @@ An EU-hosted Cloud is open: [start free](https://app.supermetry.com/signup?utm_s
 ## Documentation
 
 - [Configuration](docs/guide/configuration.md)
+- [Ad blockers](docs/guide/ad-blockers.md): proxy through your own domain, or send events from your server
 - [Tracking and privacy](docs/tracking-privacy.md)
 - [API](docs/api.md) and [API authentication](docs/api-auth.md)
 - [Authorization](docs/authorization.md)
