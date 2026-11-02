@@ -73,9 +73,26 @@ To check the setup, set `SUPERMETRY_INGEST_DIAG=1` (below) and look at `peer_tru
 |---|---|---|---|
 | `SUPERMETRY_EVENT_PATH` | URL path the tracker posts events to. Must start with `/`. | `/api/public/v1/events` | `/a/e` |
 | `SUPERMETRY_TRACKER_PATH` | URL path the tracker script is served from. Must start with `/`. | `/js/script.js` | `/a/t.js` |
+| `SUPERMETRY_NEUTRAL_PATHS` | Per-site scripts loaded straight from `SUPERMETRY_BASE_URL` send events and replay to the site's own `/e/<site>` paths (see below). `false` keeps the classic paths. The `/e/` routes are served either way. | `true` | `false` |
 | `SUPERMETRY_TRACKING_MODE` | `identified` collects real page paths, referrers and campaigns, and new projects start with profiles on. `anonymous` is the strictest mode. See [Tracking and privacy](../tracking-privacy.md). Changing it needs a restart. | `identified` | `anonymous` |
 
 Ad blockers match on well-known names such as `script.js` or `/events`. Changing both paths to neutral values avoids those filters. The tracking snippet shown in the dashboard is built from `SUPERMETRY_BASE_URL` plus these paths, so reinstall the snippet on your sites after changing them. Whether the old paths keep working after a change: see source (`internal/api/router.go`). If a proxy routes only specific paths to Supermetry, update it to match.
+
+### Neutral per-site paths
+
+Each site also has its own intake paths under `/e/<site public ID>`. None of them contains a word that ad blocker rules look for:
+
+| Classic path | Neutral path |
+|---|---|
+| `POST /api/public/v1/events` (`SUPERMETRY_EVENT_PATH`) | `POST /e/<site>` |
+| `GET /replay.js` | `GET /e/<site>/r.js` |
+| `POST /api/replay/start` | `POST /e/<site>/s` |
+| `POST /api/replay/chunk?s=<site>` | `POST /e/<site>/c?s=<site>` |
+| `PUT /api/replay/css/<hash>?s=<site>` | `PUT /e/<site>/k/<hash>?s=<site>` |
+
+A site's script (`/js/<site>.js`) uses the neutral paths when it is loaded straight from `SUPERMETRY_BASE_URL`. When it is loaded from any other origin, such as a first-party proxy that forwards only the classic paths, it keeps the classic paths, so existing proxies keep working. The script names its lazily loaded modules by short code (`?m=v,h,r`), so its URL never contains `replay` or `heatmap`. The server rejects a request whose body or `?s=` names a site other than the one in the path. The classic paths stay available.
+
+Neutral paths do not help when a filter list blocks the Supermetry host itself. Only a first-party proxy on your own domain avoids that.
 
 ### Referrer spam list
 

@@ -736,3 +736,25 @@ func TestLoadSMTPHello(t *testing.T) {
 		t.Fatalf("invalid SUPERMETRY_SMTP_HELO error = %v", err)
 	}
 }
+
+func TestNeutralPathsOnByDefaultAndSwitchable(t *testing.T) {
+	load := func(raw string) (Config, error) {
+		values := baseEnv()
+		if raw != "" {
+			values["SUPERMETRY_NEUTRAL_PATHS"] = raw
+		}
+		return LoadLookup(func(key string) (string, bool) {
+			value, ok := values[key]
+			return value, ok
+		})
+	}
+	if c, err := load(""); err != nil || !c.NeutralPaths {
+		t.Fatalf("default: NeutralPaths=%v err=%v, want on", c.NeutralPaths, err)
+	}
+	if c, err := load("false"); err != nil || c.NeutralPaths {
+		t.Fatalf("false: NeutralPaths=%v err=%v, want off", c.NeutralPaths, err)
+	}
+	if _, err := load("maybe"); err == nil || !strings.Contains(err.Error(), "SUPERMETRY_NEUTRAL_PATHS") {
+		t.Fatalf("invalid value error = %v", err)
+	}
+}

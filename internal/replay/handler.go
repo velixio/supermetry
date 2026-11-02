@@ -182,6 +182,10 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		h.reject(w, http.StatusBadRequest)
 		return
 	}
+	if pathSite, ok := ingest.PathSite(r.Context()); ok && pathSite != request.Site {
+		h.reject(w, http.StatusBadRequest)
+		return
+	}
 	if err := ensureJSONEnd(decoder); err != nil {
 		h.reject(w, http.StatusBadRequest)
 		return

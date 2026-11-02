@@ -29,7 +29,6 @@ import (
 	"supermetry/internal/opencounters"
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
-	"supermetry/internal/replay"
 	"supermetry/internal/routehits"
 	"supermetry/internal/session"
 	"supermetry/internal/sites"
@@ -177,11 +176,15 @@ func NewRouter(deps Deps) http.Handler {
 	mux.Handle(privatePrefix+"/", authenticate(deps.PrivateAuth, deps.Sites, requireCSRF(trackingReads(deps.Config.Tracking.Mode, routehits.WrapFile(private, routehits.File(deps.Config.RouteHitsFile))))))
 	registerPlatformRoutes(mux, deps.Platform, deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow)
 
+	neutral := neutralDeps{replay: deps.Replay, replayCSS: deps.ReplayCSS, recorder: recorderHandler(deps.Config.Replay.Enabled), replayEnabled: deps.Config.Replay.Enabled, eventPath: deps.Config.EventPath}
 	if deps.Ingest != nil && deps.Config.EventPath != "" {
 		ingest := trackerCORS(deps.Ingest)
 		mux.Handle("POST "+deps.Config.EventPath, ingest)
 		mux.Handle("OPTIONS "+deps.Config.EventPath, ingest)
+		neutral.ingest = ingest
 	}
+	mux.Handle(neutralPrefix+"{site}", neutralHandler(neutral))
+	mux.Handle(neutralPrefix+"{site}/{rest...}", neutralHandler(neutral))
 	if deps.Links != nil {
 		mux.HandleFunc("GET /l/{slug}", deps.Links.ServeRedirect)
 		if deps.Pixels != nil {
@@ -217,28 +220,16 @@ func NewRouter(deps Deps) http.Handler {
 		mux.Handle("GET "+tracker.FullPath(deps.Config.TrackerPath), tracker.FullHandler())
 		if deps.Sites != nil {
 			tracker.SetEventPath(deps.Config.EventPath)
+			if deps.Config.NeutralPaths {
+				tracker.SetNeutralBase(deps.Config.BaseURL)
+			} else {
+				tracker.SetNeutralBase("")
+			}
 			tracker.SetScriptDir(path.Dir(deps.Config.TrackerPath))
 			mux.Handle("GET "+path.Dir(deps.Config.TrackerPath)+"/", tracker.SiteHandlerWithPolicy(deps.Sites, deps.Config.Replay, deps.Config.Tracking.Mode))
 		}
 	}
-	mux.HandleFunc("GET /replay.js", func(w http.ResponseWriter, request *http.Request) {
-		if !deps.Config.Replay.Enabled {
-			http.NotFound(w, request)
-			return
-		}
-		body, etag := replay.ReplayJS()
-		w.Header().Set("Content-Type", "application/javascript")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
-		w.Header().Set("ETag", etag)
-		if request.Header.Get("If-None-Match") == etag {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		if request.Method != http.MethodHead {
-			_, _ = w.Write(body)
-		}
-	})
+	mux.Handle("GET /replay.js", recorderHandler(deps.Config.Replay.Enabled))
 	mux.HandleFunc("GET /api/public/openapi.json", serveOpenAPI)
 	if deps.UI != nil {
 		// Least specific pattern: API, intake, tracker and ops routes above take precedence.

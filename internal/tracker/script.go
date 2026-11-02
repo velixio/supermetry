@@ -82,8 +82,35 @@ func buildScript(publicID string, settings sites.TrackerSettings, replaySettings
 	return Script{Body: body, ETag: etag}
 }
 
+// moduleCodes are the short names the lazy-module loader puts in ?m=, so the
+// script URL never spells out a module name a filter list could match.
+var moduleCodes = map[string]string{"vitals": "v", "heatmap": "h", "replay": "r"}
+
 func moduleLoader(names string) []byte {
-	return []byte(`(()=>{var s=document.currentScript.cloneNode(),u=new URL(s.src);u.searchParams.set("module",` + strconv.Quote(names) + `);s.src=u;document.head.appendChild(s)})()`)
+	codes := strings.Split(names, ",")
+	for index, name := range codes {
+		codes[index] = moduleCodes[name]
+	}
+	return []byte(`(()=>{var s=document.currentScript.cloneNode(),u=new URL(s.src);u.searchParams.set("m",` + strconv.Quote(strings.Join(codes, ",")) + `);s.src=u;document.head.appendChild(s)})()`)
+}
+
+// moduleNames turns ?m= codes back into module names; ok is false for an
+// unknown code.
+func moduleNames(codes string) (string, bool) {
+	names := strings.Split(codes, ",")
+	for index, code := range names {
+		found := false
+		for name, short := range moduleCodes {
+			if short == code {
+				names[index], found = name, true
+				break
+			}
+		}
+		if !found {
+			return "", false
+		}
+	}
+	return strings.Join(names, ","), true
 }
 
 func buildModuleScript(names string, settings sites.TrackerSettings, replaySettings replay.SiteSettings) (Script, bool) {
@@ -144,6 +171,23 @@ func SetEventPath(p string) {
 	eventPath.Store(p)
 }
 
+var neutralBase atomic.Value // string
+
+// SetNeutralBase sets the Supermetry base URL (SUPERMETRY_BASE_URL) that
+// per-site scripts compare their own URL with. A script loaded directly from
+// "<base><script dir>/" posts events to "<base>/e/<site>" instead of the
+// classic event path; loaded from anywhere else (a first-party proxy that
+// forwards only the classic paths) it keeps the classic path. An empty base
+// turns neutral paths off. Call it before serving scripts.
+func SetNeutralBase(base string) {
+	neutralBase.Store(strings.TrimRight(base, "/"))
+}
+
+func currentNeutralBase() string {
+	base, _ := neutralBase.Load().(string)
+	return base
+}
+
 var scriptDir atomic.Value // string
 
 // SetScriptDir sets the directory per-site scripts are served from (the
@@ -180,11 +224,25 @@ func prelude(publicID string, settings sites.TrackerSettings, replaySettings rep
 	// came from (the Supermetry host, or the site's own proxy), never to a path on
 	// the page's origin. A first-party proxy under a prefix (/sm/js/<site>.js)
 	// keeps that prefix (/sm/api/public/v1/events). An explicit data-api still wins.
-	builder.WriteString(`d.api??=document.currentScript.src.replace(/`)
+	base := currentNeutralBase()
+	if base != "" {
+		builder.WriteString(`d.api??=(u=>u.startsWith(`)
+		builder.WriteString(strconv.Quote(base + currentScriptDir() + "/"))
+		builder.WriteString(`)?`)
+		builder.WriteString(strconv.Quote(base + "/e/" + publicID))
+		builder.WriteString(`:u`)
+	} else {
+		builder.WriteString(`d.api??=document.currentScript.src`)
+	}
+	builder.WriteString(`.replace(/`)
 	builder.WriteString(strings.ReplaceAll(regexp.QuoteMeta(currentScriptDir()), "/", `\/`))
 	builder.WriteString(`\/[^/?#]*([?#].*)?$/,`)
 	builder.WriteString(strconv.Quote(currentEventPath()))
-	builder.WriteString(`);`)
+	if base != "" {
+		builder.WriteString(`))(document.currentScript.src);`)
+	} else {
+		builder.WriteString(`);`)
+	}
 	off := func(attribute string, enabled bool) {
 		if !enabled {
 			builder.WriteString(`d`)
@@ -305,7 +363,16 @@ func SiteHandlerWithPolicy(registry sites.Registry, replayEnv config.ReplayEnv, 
 		}
 		settings := site.Tracker.Resolve(site.HeatmapsEnabled)
 		replaySettings := replay.ResolveSite(replayEnv, site.Replay)
-		if modules := request.URL.Query().Get("module"); modules != "" {
+		modules := request.URL.Query().Get("module")
+		if codes := request.URL.Query().Get("m"); codes != "" {
+			names, known := moduleNames(codes)
+			if !known {
+				http.NotFound(w, request)
+				return
+			}
+			modules = names
+		}
+		if modules != "" {
 			generated, valid := buildModuleScript(modules, settings, replaySettings)
 			if !valid {
 				http.NotFound(w, request)

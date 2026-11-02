@@ -1539,3 +1539,27 @@ func TestBackgroundPingsAfterIdleDoNotStartSessions(t *testing.T) {
 		t.Fatalf("sessions=%d events=%d, want 2 sessions (pageview, signup) and 2 stored events", sessions, events)
 	}
 }
+
+func TestNeutralPathSiteMustMatchBody(t *testing.T) {
+	f := newHandlerFixture(t, 32, nil)
+	for _, tt := range []struct {
+		name, pathSite string
+		want           int
+	}{
+		{"matching path site", "abc123", http.StatusAccepted},
+		{"other path site", "zzz999", http.StatusBadRequest},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/public/v1/events", strings.NewReader(okBody))
+			req = req.WithContext(ingest.WithPathSite(req.Context(), tt.pathSite))
+			req.Header.Set("User-Agent", testUA)
+			req.RemoteAddr = "198.51.100.7:5555"
+			rr := httptest.NewRecorder()
+			f.h.ServeHTTP(rr, req)
+			if rr.Code != tt.want {
+				t.Fatalf("code=%d, want %d; body=%q", rr.Code, tt.want, rr.Body.String())
+			}
+		})
+	}
+	f.stop(t)
+}

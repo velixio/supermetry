@@ -17,6 +17,7 @@ import (
 
 	"supermetry/internal/config"
 	"supermetry/internal/health"
+	"supermetry/internal/ingest"
 	"supermetry/internal/salts"
 	"supermetry/internal/session"
 	"supermetry/internal/sites"
@@ -942,5 +943,30 @@ func TestChunkRechecksPolicyAfterBodyWait(t *testing.T) {
 	h.Chunk(response, request)
 	if response.Code != http.StatusForbidden || len(blob.bodies) != 0 {
 		t.Fatalf("status=%d writes=%d", response.Code, len(blob.bodies))
+	}
+}
+
+func TestStartRejectsSiteOtherThanNeutralPath(t *testing.T) {
+	h, _, _, _, _ := newReplayTestHandler(t, replayInput(100))
+	for _, tt := range []struct {
+		pathSite string
+		want     int
+	}{
+		{"site-public", http.StatusOK},
+		{"other-site", http.StatusBadRequest},
+	} {
+		body, err := json.Marshal(map[string]string{"s": "site-public", "u": "https://supermetry.com/page"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodPost, "/api/replay/start", bytes.NewReader(body))
+		request = request.WithContext(ingest.WithPathSite(request.Context(), tt.pathSite))
+		request.RemoteAddr = "192.0.2.1:1234"
+		request.Header.Set("User-Agent", "test-agent")
+		response := httptest.NewRecorder()
+		h.Start(response, request)
+		if response.Code != tt.want {
+			t.Fatalf("path site %s: status %d, want %d", tt.pathSite, response.Code, tt.want)
+		}
 	}
 }

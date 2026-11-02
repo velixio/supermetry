@@ -3,6 +3,9 @@ import { record, type eventWithTime } from "rrweb";
 type ReplayConfig = {
   s: string;
   o: string;
+  // Neutral base (<origin>/e/<site>) when the tracker posts to the site's
+  // neutral path; uploads then avoid the classic "replay" URLs.
+  p?: string;
   v?: string;
 };
 
@@ -29,6 +32,7 @@ declare global {
 
 const supermetry = window.supermetry;
 const config = supermetry?._replay;
+const endpoint = (classic: string, neutral: string) => (config?.p ? config.p + neutral : config?.o + classic);
 
 if (supermetry && config) void start(supermetry, config);
 
@@ -36,7 +40,7 @@ async function start(supermetry: NonNullable<Window["supermetry"]>, config: Repl
   if (!allowed(supermetry)) return;
   let response: Response;
   try {
-    response = await fetch(config.o + "/api/replay/start", {
+    response = await fetch(endpoint("/api/replay/start", "/s"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ s: config.s, u: location.href, c: !!supermetry._replayConsent }),
@@ -186,7 +190,7 @@ async function start(supermetry: NonNullable<Window["supermetry"]>, config: Repl
       });
       if (trigger) query.set("t", trigger);
       totalBytes += compressed.byteLength;
-      await fetch(config.o + "/api/replay/chunk?" + query, {
+      await fetch(endpoint("/api/replay/chunk", "/c") + "?" + query, {
         method: "POST",
         headers: { "Content-Type": "application/octet-stream" },
         body: compressed,
@@ -334,7 +338,7 @@ async function deduplicateSnapshotCSS(event: eventWithTime, sent: Set<string>, c
       if (!sent.has(hash)) {
         const body = await gzip(css);
         if (!canUpload()) return;
-        const response = await fetch(config.o + "/api/replay/css/" + hash + "?s=" + encodeURIComponent(config.s) + "&c=" + (supermetry._replayConsent ? "1" : "0") + "&v=" + encodeURIComponent(config.v || ""), {
+        const response = await fetch(endpoint("/api/replay/css/", "/k/") + hash + "?s=" + encodeURIComponent(config.s) + "&c=" + (supermetry._replayConsent ? "1" : "0") + "&v=" + encodeURIComponent(config.v || ""), {
           method: "PUT",
           headers: { "Content-Type": "application/gzip" },
           body,
