@@ -8,12 +8,12 @@ export type RecipeInput = {
   scriptUrl: string
 }
 
-export type RecipeLanguage = 'html' | 'tsx' | 'ts' | 'js' | 'php' | 'liquid' | 'sh' | 'python' | 'go'
+export type RecipeLanguage = 'html' | 'tsx' | 'ts' | 'js' | 'php' | 'liquid' | 'sh' | 'python' | 'go' | 'nginx' | 'caddy'
 
 export type Recipe = {
   id: string
   label: string
-  group: 'browser' | 'server' | 'mobile'
+  group: 'browser' | 'server' | 'mobile' | 'proxy'
   /** Package install command, for recipes built on an @supermetry package. */
   install?: string
   /** File or place the snippet goes. */
@@ -306,4 +306,112 @@ Host: ${host}
 5. Package docs: https://github.com/velixio/supermetry/tree/main/sdk
 
 When done, tell me which files you changed.`
+}
+
+// First-party proxy recipes: the customer's own server forwards the tracking
+// paths, under PROXY_PREFIX, to the Supermetry host, so blockers that block
+// the Supermetry domain see only the customer's domain. On a managed (Cloud)
+// instance each recipe sends the site's proxy key and the visitor's address so
+// Cloud counts real visitors; self-hosted instances trust X-Forwarded-For from
+// SUPERMETRY_TRUSTED_PROXIES instead.
+
+export const PROXY_PREFIX = '/sm'
+
+/** The snippet to use once the proxy is live: the script from the site's own domain. */
+export function firstPartySnippet({ publicId }: RecipeInput): string {
+  return `<script defer src="${PROXY_PREFIX}/js/${publicId}.js"></script>`
+}
+
+const trustedProxiesNote = 'Self-hosted: add this server\'s address to SUPERMETRY_TRUSTED_PROXIES on your Supermetry server, so it reads the visitor address from X-Forwarded-For instead of counting every visitor as your proxy.'
+const proxyKeyNote = 'Keep the proxy key on the server only (config file, environment or secret store). Never put it in HTML or client code.'
+
+export function buildProxyRecipes(input: RecipeInput, { managed }: { managed: boolean }): Recipe[] {
+  const host = trackerHost(input.scriptUrl)
+  const hostname = new URL(host).host
+  const p = PROXY_PREFIX
+  const note = managed ? proxyKeyNote : trustedProxiesNote
+
+  const nginxKey = managed ? `    proxy_set_header X-Supermetry-Proxy-Key $sm_key;
+    proxy_set_header X-Supermetry-Client-IP $remote_addr;   # overwrites any value from the browser
+` : ''
+  const nginx = `${managed ? `# The proxy key stays in this file (or an include only nginx can read).
+set $sm_key "smpk_REPLACE_WITH_YOUR_KEY";
+
+` : ''}# Forward only the tracking paths, never the whole app.
+location ~ ^${p}/(js/|px/|api/public/|replay\\.js$|api/replay/) {
+    rewrite ^${p}/(.*)$ /$1 break;
+    proxy_pass ${host};
+    proxy_ssl_server_name on;
+    client_max_body_size 2m;                                 # session replay uploads
+    proxy_set_header Host ${hostname};
+${nginxKey}    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header Cookie "";                              # tracking needs no cookies
+}`
+
+  const caddyKey = managed ? `			header_up X-Supermetry-Proxy-Key {env.SUPERMETRY_PROXY_KEY}
+			header_up X-Supermetry-Client-IP {client_ip}
+` : ''
+  const caddy = `your-site.example {
+	@supermetry path ${p}/js/* ${p}/px/* ${p}/api/public/* ${p}/replay.js ${p}/api/replay/*
+	handle @supermetry {
+		uri strip_prefix ${p}
+		reverse_proxy ${host} {
+			header_up Host ${hostname}
+${caddyKey}			header_up X-Forwarded-For {client_ip}
+			header_up -Cookie
+		}
+	}
+}`
+
+  const workerKey = managed ? `const visitor = request.headers.get('CF-Connecting-IP')
+headers.delete('X-Supermetry-Client-IP') // never pass on what the browser sent
+if (visitor) {
+  headers.set('X-Supermetry-Proxy-Key', env.SUPERMETRY_PROXY_KEY)
+  headers.set('X-Supermetry-Client-IP', visitor)
+}` : `const visitor = request.headers.get('CF-Connecting-IP')
+if (visitor) headers.set('X-Forwarded-For', visitor)`
+  const worker = `// Route: your-site.example${p}/*${managed ? `
+// Secret: wrangler secret put SUPERMETRY_PROXY_KEY` : ''}
+const prefixes = [${['js/', 'px/', 'api/public/', 'api/replay/'].map((path) => q(`${p}/${path}`)).join(', ')}]
+const files = [${q(`${p}/replay.js`)}]
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url)
+    const path = url.pathname
+    if (!files.includes(path) && !prefixes.some((prefix) => path.startsWith(prefix))) {
+      return new Response('Not found', { status: 404 })
+    }
+    const target = new URL(path.slice(${p.length}) + url.search, ${q(host)})
+    const headers = new Headers(request.headers)
+    headers.delete('Cookie')
+${workerKey.replace(/^/gm, '    ')}
+    return fetch(target, { method: request.method, headers, body: request.body, redirect: 'manual' })
+  },
+}`
+
+  const nextjs = `// lib/supermetry.ts
+import { createSupermetryProxy } from '@supermetry/nextjs/proxy'
+
+export const proxy = createSupermetryProxy({
+  host: ${q(host)},${managed ? `
+  proxyKey: process.env.SUPERMETRY_PROXY_KEY,
+  // The visitor address from a header your platform sets and browsers cannot
+  // (x-real-ip on Vercel; adjust for your host).
+  getClientIp: (request) => request.headers.get('x-real-ip'),` : ''}
+})
+
+// Then add one route file per path, each re-exporting the proxy:
+//   app/js/[file]/route.ts            export const { GET, HEAD } = proxy
+//   app/api/public/v1/events/route.ts export const { POST } = proxy
+//   app/replay.js/route.ts            export const { GET, HEAD } = proxy   (session replay)
+//   app/api/replay/[...path]/route.ts export const { POST, PUT } = proxy  (session replay)
+// and render <Supermetry site=${q(input.publicId)} host="" /> so the script loads from your origin.`
+
+  return [
+    { id: 'proxy-nginx', label: 'nginx', group: 'proxy', where: 'Your site\'s server block', language: 'nginx', note, code: nginx },
+    { id: 'proxy-caddy', label: 'Caddy', group: 'proxy', where: 'Your Caddyfile', language: 'caddy', note: managed ? `${proxyKeyNote} Set SUPERMETRY_PROXY_KEY in Caddy's environment.` : note, code: caddy },
+    { id: 'proxy-cloudflare', label: 'Cloudflare Worker', group: 'proxy', where: `A Worker on the route your-site.example${p}/*`, language: 'js', note, code: worker },
+    { id: 'proxy-nextjs', label: 'Next.js proxy', group: 'proxy', install: 'npm install @supermetry/nextjs', where: 'lib/supermetry.ts and four route files', language: 'ts', note, code: nextjs },
+  ]
 }

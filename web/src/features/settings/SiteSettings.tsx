@@ -7,7 +7,7 @@ import type { Role } from '@/components/Sidebar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { refetchSiteIcon } from '@/features/sites/api'
-import { AiInstallPrompt, InstallRecipes, SiteDetails, type VerifyResult } from './InstallRecipes'
+import { AdBlockerSetup, AiInstallPrompt, InstallRecipes, SiteDetails, type VerifyResult } from './InstallRecipes'
 import { TrackingSnippet } from './TrackingSnippet'
 import { InstallStatusCard, InstallTroubleshooting, type InstallStatus } from '@/features/sites/InstallStatus'
 import { uiFlows } from '@/messages/uiFlows'
@@ -169,8 +169,10 @@ function FeatureSetup({ currency }: { currency?: string }) {
   )
 }
 
-export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, verify, now = new Date(), dashboardHref, domainsHref, snippetLoading = false, snippetFailed = false, onRetrySnippet }: {
+export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, lastSeenAt, revenueCurrency, verify, now = new Date(), dashboardHref, domainsHref, snippetLoading = false, snippetFailed = false, onRetrySnippet, managed = false }: {
   publicId: string; snippet?: string; fullSnippet?: string; installStatus?: InstallStatus; lastSeenAt?: string | null; revenueCurrency?: string
+  /** Managed (Cloud) instance: the proxy recipes use the site's proxy key. */
+  managed?: boolean
   verify?: () => Promise<VerifyResult | undefined>; now?: Date
   /** In-app links for the status card; omitted outside the router. */
   dashboardHref?: string; domainsHref?: string
@@ -197,10 +199,7 @@ export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, la
         <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>
         <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all" tabIndex={0}><code>{'<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>'}</code></pre>
       </aside>
-      <aside className="border-l-2 border-accent pl-4 text-sm">
-        <p className="font-medium">Reduce ad-blocker losses</p>
-        <p className="text-muted-foreground">Proxy the script through your own domain and forward the event endpoint from the same host.</p>
-      </aside>
+      <AdBlockerSetup publicId={publicId} snippet={snippet} managed={managed} />
     </div>
   )
 }

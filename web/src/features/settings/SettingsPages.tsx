@@ -426,6 +426,7 @@ export function InstallationPage({
     refetchInterval: (query) => installationStatusInterval(query.state.data?.install_status),
     enabled: !isDemo,
   });
+  const config = useInstanceConfig();
   const snippet = useQuery({
     queryKey: ["site-snippet", orgId, siteId],
     queryFn: () =>
@@ -455,6 +456,7 @@ export function InstallationPage({
           snippetLoading={snippet.isPending}
           snippetFailed={snippet.isError}
           onRetrySnippet={() => void snippet.refetch()}
+          managed={config.data?.managed === true}
           verify={async () => {
             const result = await status.refetch();
             return { status: result.data?.install_status, lastSeenAt: result.data?.last_seen_at };

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const copyText = vi.fn((_value: string) => Promise.resolve(true))
 vi.mock('@/lib/clipboard', () => ({ copyText: (value: string) => copyText(value) }))
 
-import { AiInstallPrompt, InstallRecipes, SiteDetails, VerifyInstallation } from './InstallRecipes'
+import { AdBlockerSetup, AiInstallPrompt, InstallRecipes, SiteDetails, VerifyInstallation } from './InstallRecipes'
 
 const snippet = '<script defer data-site="abc123def456" src="https://stats.supermetry.com/js/script.js"></script>'
 
@@ -81,5 +81,37 @@ describe('AiInstallPrompt', () => {
     await waitFor(() => expect(copyText).toHaveBeenCalledTimes(1))
     expect(copyText.mock.calls[0]?.[0]).toContain('Site ID: abc123def456')
     expect(copyText.mock.calls[0]?.[0]).toContain('Host: https://stats.supermetry.com')
+  })
+})
+
+describe('AdBlockerSetup', () => {
+  afterEach(() => { cleanup(); copyText.mockClear() })
+  const cloudSnippet = '<script defer src="https://app.supermetry.com/js/abc123def456.js"></script>'
+
+  it('explains the options and offers proxy recipes with the site filled in', () => {
+    render(<AdBlockerSetup publicId="abc123def456" snippet={cloudSnippet} managed />)
+    expect(screen.getByRole('heading', { name: 'Ad blockers' })).toBeVisible()
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['nginx', 'Caddy', 'Cloudflare Worker', 'Next.js proxy'])
+    expect(screen.getByLabelText('nginx snippet')).toHaveTextContent('proxy_pass https://app.supermetry.com')
+    expect(screen.getByLabelText('First-party snippet')).toHaveTextContent('<script defer src="/sm/js/abc123def456.js"></script>')
+    expect(screen.getByText(/From your server/)).toBeVisible()
+  })
+
+  it('links the Cloud proxy key page on managed instances', () => {
+    render(<AdBlockerSetup publicId="abc123def456" snippet={cloudSnippet} managed />)
+    expect(screen.getByRole('link', { name: 'Create the proxy key' })).toHaveAttribute('href', '/cloud/sites/abc123def456/proxy')
+  })
+
+  it('asks self-hosters to trust the proxy instead of a key', () => {
+    render(<AdBlockerSetup publicId="abc123def456" snippet={snippet} managed={false} />)
+    expect(screen.queryByRole('link', { name: 'Create the proxy key' })).toBeNull()
+    expect(screen.getAllByText(/SUPERMETRY_TRUSTED_PROXIES/).length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('nginx snippet')).not.toHaveTextContent('Proxy-Key')
+  })
+
+  it('copies the first-party snippet', async () => {
+    render(<AdBlockerSetup publicId="abc123def456" snippet={cloudSnippet} managed />)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy first-party snippet' }))
+    await waitFor(() => expect(copyText).toHaveBeenCalledWith('<script defer src="/sm/js/abc123def456.js"></script>'))
   })
 })
