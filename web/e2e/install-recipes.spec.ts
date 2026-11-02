@@ -28,12 +28,12 @@ test('install recipes show real snippets, switch platforms and verify the instal
   await expect(html).toContainText(`data-site="${owner.sitePublicID}"`)
   await expect(html).toContainText('/js/')
 
-  await page.getByRole('tab', { name: 'Next.js' }).click()
+  await page.getByRole('tab', { name: 'Next.js', exact: true }).click()
   await expect(page.getByLabel('Next.js install command')).toHaveText('npm install @supermetry/nextjs')
   await expect(page.getByLabel('Next.js snippet')).toContainText(`site="${owner.sitePublicID}" host="${origin}"`)
   await page.getByRole('tab', { name: 'Go', exact: true }).click()
   await expect(page.getByLabel('Go snippet')).toContainText('/api/public/v1/events')
-  await page.getByRole('tab', { name: 'Google Tag Manager' }).click()
+  await page.getByRole('tab', { name: 'Google Tag Manager', exact: true }).click()
   await expect(page.getByLabel('Google Tag Manager snippet')).toContainText('createElement')
 
   await noHorizontalOverflow(page)
@@ -48,7 +48,7 @@ test('install recipes show real snippets, switch platforms and verify the instal
   await expect(page.getByText(/Waiting for the first event/)).toBeVisible()
   const sent = await page.request.post('/api/public/v1/events', {
     headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0 Safari/537.36', Origin: 'https://site1.test' },
-    data: { site: owner.siteSlug, name: 'pageview', url: 'https://site1.test/install-check' },
+    data: { site: owner.sitePublicID, name: 'pageview', url: 'https://site1.test/install-check' },
   })
   expect(sent.status()).toBe(202)
   await expect(page.getByText('Events are arriving. Installation verified.')).toBeVisible({ timeout: 30_000 })
