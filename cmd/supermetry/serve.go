@@ -903,6 +903,11 @@ func classifySecurityRoute(cfg config.Config, requestPath string) securityRouteC
 	if requestPath == "/replay.js" || isTrackerPath(cfg.TrackerPath, requestPath) {
 		return securityRouteTracker
 	}
+	if intake, recorder := api.NeutralPathKind(requestPath); intake {
+		return securityRouteCrossOriginIntake
+	} else if recorder {
+		return securityRouteTracker
+	}
 	if strings.HasPrefix(requestPath, "/share/") {
 		return securityRouteShare
 	}

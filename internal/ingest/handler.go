@@ -100,6 +100,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.invalid(w)
 		return
 	}
+	if pathSite, ok := PathSite(r.Context()); ok && pathSite != payload.Site {
+		h.invalid(w)
+		return
+	}
 	if h.Sites == nil || h.Enricher == nil || h.Salts == nil || h.Dict == nil || h.Sessions == nil || h.Writer == nil {
 		h.unavailable(w)
 		return
