@@ -31,6 +31,10 @@ type AxePageReport = {
   }>
 }
 
+// The e2e fixture data is fixed in 2026-09; a rolling default period would
+// lose it (and the world map) as the calendar moves on.
+const fixtureRange = '?period=custom&from=2026-09-28&to=2026-09-30'
+
 const emptyCounts = (): ImpactCounts => ({ critical: 0, serious: 0, moderate: 0, minor: 0 })
 
 async function waitForDashboard(page: Page) {
@@ -113,7 +117,7 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   reports.push(await audit(page, 'login'))
 
   const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
-  await owner.login(page, dashboard)
+  await owner.login(page, dashboard + fixtureRange)
   await waitForDashboard(page)
   reports.push(await audit(page, 'dashboard'))
   await page.getByRole('button', { name: 'Open command palette' }).click()
@@ -121,7 +125,7 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   reports.push(await audit(page, 'command-palette'))
   await page.keyboard.press('Escape')
 
-  await page.goto(`${dashboard}/sessions`)
+  await page.goto(`${dashboard}/sessions${fixtureRange}`)
   await waitForSessions(page)
   reports.push(await audit(page, 'sessions'))
 
@@ -234,8 +238,8 @@ test('the first dashboard Tab offers a skip link that focuses the sole main land
   mkdirSync(screenshotDir, { recursive: true })
   const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
   await page.setViewportSize({ width: 1440, height: 1_000 })
-  await owner.login(page, dashboard)
-  await page.goto(dashboard)
+  await owner.login(page, dashboard + fixtureRange)
+  await page.goto(dashboard + fixtureRange)
   await waitForDashboard(page)
 
   const skipLink = page.getByRole('link', { name: 'Skip to main content' })
@@ -253,7 +257,7 @@ test('captures the dashboard and grouped sidebar at the requested breakpoints', 
   mkdirSync(screenshotDir, { recursive: true })
   const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}`
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await owner.login(page, dashboard)
+  await owner.login(page, dashboard + fixtureRange)
   await waitForDashboard(page)
 
   for (const name of ['Analyze', 'Behaviour', 'Conversion', 'Manage', 'Settings']) {
