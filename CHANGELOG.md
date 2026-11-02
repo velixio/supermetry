@@ -6,6 +6,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.20 (2026-11-03)
+
 ### Added
 
 - Neutral per-site intake paths to get past ad blocker rules for analytics URLs. Events go to `POST /e/<site>`. Replay uses `/e/<site>/r.js` for the recorder, `/e/<site>/s` to start, `/e/<site>/c` for chunks and `/e/<site>/k/<hash>` for stylesheets. A site's script uses them when it is loaded straight from `SUPERMETRY_BASE_URL`, and keeps the classic paths behind a first-party proxy. Requests whose body or `?s=` names another site are rejected. The classic paths are unchanged. `SUPERMETRY_NEUTRAL_PATHS=false` turns this off.
