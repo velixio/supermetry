@@ -12,9 +12,13 @@
     var events = new URL(data.api || "/api/public/v1/events", location.href);
     var prefix = events.pathname.match(/^(.*)\/api\/public\/v1\/events\/?$/);
     var base = events.origin + (prefix ? prefix[1] : "");
-    api._replay = {s: data.site, o: base};
+    // The site's neutral events path (<base>/e/<site>) carries the recorder
+    // and its uploads under the same base, away from "replay" URLs.
+    var path = events.pathname.replace(/\/$/, "");
+    var neutral = path.endsWith("/e/" + data.site) ? events.origin + path : "";
+    api._replay = {s: data.site, o: base, p: neutral};
     var replayScript = document.createElement("script");
-    replayScript.src = base + "/replay.js";
+    replayScript.src = neutral ? neutral + "/r.js" : base + "/replay.js";
     document.head.appendChild(replayScript);
   }
   api.replay = {trigger: (reason) => api._replayTrigger = reason || "manual"};

@@ -24,7 +24,9 @@ function load(api, href = "https://supermetry.com/page") {
     URL,
   });
   assert.equal(appended.length, 1, `replay.js not requested for data-api=${api}`);
-  return {src: appended[0].src, base: supermetry._replay.o};
+  const result = {src: appended[0].src, base: supermetry._replay.o};
+  if (supermetry._replay.p) result.neutral = supermetry._replay.p;
+  return result;
 }
 
 // Default and direct events endpoints load replay from the origin.
@@ -38,5 +40,12 @@ assert.deepEqual(load("/sm/api/public/v1/events/"), {src: "https://supermetry.co
 
 // A custom event path (SUPERMETRY_EVENT_PATH) has no known suffix: fall back to the origin.
 assert.deepEqual(load("/a/e"), {src: "https://supermetry.com/replay.js", base: "https://supermetry.com"});
+
+// The site's neutral events path loads the recorder from the neutral base and
+// hands that base to the recorder; a custom path that merely contains /e/
+// for another name stays classic.
+assert.deepEqual(load("https://app.supermetry.com/e/abc123def456"), {src: "https://app.supermetry.com/e/abc123def456/r.js", base: "https://app.supermetry.com", neutral: "https://app.supermetry.com/e/abc123def456"});
+assert.deepEqual(load("/sm/e/abc123def456/"), {src: "https://supermetry.com/sm/e/abc123def456/r.js", base: "https://supermetry.com", neutral: "https://supermetry.com/sm/e/abc123def456"});
+assert.deepEqual(load("/e/collect"), {src: "https://supermetry.com/replay.js", base: "https://supermetry.com"});
 
 console.log("tracker replay runtime contract ok");

@@ -83,13 +83,17 @@ type Config struct {
 	OpenCounterBlocklist string
 	EventPath            string
 	TrackerPath          string
-	GeoIPPath            string
-	DataDir              string
-	MaxMindAccountID     string
-	MaxMindLicenseKey    string
-	MaxMindEditions      []string
-	SitesFile            string
-	QueueSize            int
+	// NeutralPaths makes per-site scripts loaded straight from BaseURL send to
+	// /e/<site> instead of the classic intake paths (SUPERMETRY_NEUTRAL_PATHS,
+	// default on). The /e/ routes are served either way.
+	NeutralPaths      bool
+	GeoIPPath         string
+	DataDir           string
+	MaxMindAccountID  string
+	MaxMindLicenseKey string
+	MaxMindEditions   []string
+	SitesFile         string
+	QueueSize         int
 	// MaxOrgsPerUser and MaxSitesPerOrg limit what a user who is not an instance
 	// admin may create. Instance admins are unlimited.
 	MaxOrgsPerUser int
@@ -198,6 +202,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		OpenCounterBlocklist: strings.TrimSpace(getenv("SUPERMETRY_OPEN_COUNTER_BLOCKLIST")),
 		EventPath:            valueOrDefault(getenv("SUPERMETRY_EVENT_PATH"), defaultEventPath),
 		TrackerPath:          valueOrDefault(getenv("SUPERMETRY_TRACKER_PATH"), defaultTrackerPath),
+		NeutralPaths:         true,
 		GeoIPPath:            geo.GeoIPPath,
 		DataDir:              geo.DataDir,
 		MaxMindAccountID:     geo.MaxMindAccountID,
@@ -293,6 +298,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
+	parseOptionalBool(getenv("SUPERMETRY_NEUTRAL_PATHS"), "SUPERMETRY_NEUTRAL_PATHS", &c.NeutralPaths, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_MANAGED"), "SUPERMETRY_MANAGED", &c.Managed, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_RETENTION_FOREVER"), "SUPERMETRY_RETENTION_FOREVER", &c.RetentionForever, &errs)
 	if raw := strings.TrimSpace(getenv("SUPERMETRY_DEFAULT_RETENTION_DAYS")); raw != "" {

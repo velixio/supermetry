@@ -35,7 +35,7 @@ func TestBuildScriptDefaultsToEnabledModules(t *testing.T) {
 	if bytes.Contains(got.Body, []byte("/replay.js")) {
 		t.Fatal("default script contains disabled replay module")
 	}
-	if !bytes.Contains(got.Body, []byte(`searchParams.set("module","vitals,heatmap")`)) {
+	if !bytes.Contains(got.Body, []byte(`searchParams.set("m","v,h")`)) {
 		t.Fatal("default script does not lazily load Vitals and heatmaps")
 	}
 	if len(wantPrelude) >= 300 {
@@ -127,10 +127,10 @@ func TestBuildScriptSelectsModuleForEachSetting(t *testing.T) {
 		{name: "outbound", settings: sites.TrackerSettings{Outbound: true}, marker: "Outbound Link: Click"},
 		{name: "downloads", settings: sites.TrackerSettings{Downloads: true}, marker: "File Download"},
 		{name: "forms", settings: sites.TrackerSettings{Forms: true}, marker: "Form: Submit"},
-		{name: "vitals", settings: sites.TrackerSettings{Vitals: true}, marker: `searchParams.set("module","vitals")`},
+		{name: "vitals", settings: sites.TrackerSettings{Vitals: true}, marker: `searchParams.set("m","v")`},
 		{name: "not found", settings: sites.TrackerSettings{NotFound: true}, marker: `track("404"`},
 		{name: "hash routing", settings: sites.TrackerSettings{Hash: true}, marker: "hashchange"},
-		{name: "clicks", settings: sites.TrackerSettings{Clicks: true}, marker: `searchParams.set("module","heatmap")`},
+		{name: "clicks", settings: sites.TrackerSettings{Clicks: true}, marker: `searchParams.set("m","h")`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -497,5 +497,72 @@ func TestBuildScriptUsesConfiguredScriptDir(t *testing.T) {
 	out, err := exec.Command("node", "-e", script, prelude, "https://shop.supermetry.com/sm/insights/abc123def456.js").CombinedOutput()
 	if want := "https://shop.supermetry.com/sm/insights/collect"; err != nil || string(out) != want {
 		t.Fatalf("api = %q (%v), want %q", out, err, want)
+	}
+}
+
+// Loaded straight from the Supermetry host, a site's script posts to its
+// neutral /e/<site> path, which ad blocker rules for analytics endpoints do
+// not match. Loaded through anything else (a first-party proxy forwarding only
+// the classic paths), it keeps the classic event path.
+func TestBuildScriptUsesNeutralPathOnlyOnDirectLoads(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is required to evaluate the generated prelude")
+	}
+	SetNeutralBase("https://app.supermetry.com/")
+	t.Cleanup(func() { SetNeutralBase("") })
+	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
+	prelude, _, _ := strings.Cut(body, "\n")
+	if got := len(prelude) + 1; got >= 400 {
+		t.Fatalf("neutral prelude = %d bytes, want under 400", got)
+	}
+	for src, want := range map[string]string{
+		"https://app.supermetry.com/js/abc123def456.js":      "https://app.supermetry.com/e/abc123def456",
+		"https://app.supermetry.com/js/abc123def456.js?v=2":  "https://app.supermetry.com/e/abc123def456",
+		"https://shop.supermetry.com/sm/js/abc123def456.js":  "https://shop.supermetry.com/sm/api/public/v1/events",
+		"https://app.supermetry.com.evil/js/abc123def456.js": "https://app.supermetry.com.evil/api/public/v1/events",
+	} {
+		script := `const vm=require("node:vm");const d={};vm.runInNewContext(process.argv[1],{document:{currentScript:{src:process.argv[2],dataset:d}},URL});process.stdout.write(d.api)`
+		out, err := exec.Command("node", "-e", script, prelude, src).CombinedOutput()
+		if err != nil || string(out) != want {
+			t.Errorf("src %s: api = %q (%v), want %q", src, out, err, want)
+		}
+	}
+}
+
+func TestBuildScriptWithoutNeutralBaseKeepsClassicPrelude(t *testing.T) {
+	SetNeutralBase("")
+	body := string(BuildScript("abc123def456", sites.TrackerSettings{}, noReplay()).Body)
+	if strings.Contains(body, "/e/") {
+		t.Fatalf("prelude names a neutral path without a base:\n%s", body[:200])
+	}
+}
+
+// The lazy-module loader names modules by short code so the script URL never
+// spells out "replay" or "heatmap"; the long names keep working for loaders
+// already cached in browsers.
+func TestSiteHandlerServesModulesByShortCode(t *testing.T) {
+	enabled := true
+	registry := scriptRegistry{"abc123def456": {
+		PublicID: "abc123def456",
+		Tracker:  sites.TrackerSettingsInput{Vitals: &enabled, Clicks: &enabled},
+	}}
+	handler := SiteHandler(registry, config.ReplayEnv{})
+	main := httptest.NewRecorder()
+	handler.ServeHTTP(main, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js", nil))
+	if !bytes.Contains(main.Body.Bytes(), []byte(`u.searchParams.set("m","v,h")`)) || bytes.Contains(main.Body.Bytes(), []byte(`"module"`)) {
+		t.Fatalf("loader does not use short module codes:\n%s", main.Body.String())
+	}
+	short, long := httptest.NewRecorder(), httptest.NewRecorder()
+	handler.ServeHTTP(short, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js?m=v,h", nil))
+	handler.ServeHTTP(long, httptest.NewRequest(http.MethodGet, "/js/abc123def456.js?module=vitals,heatmap", nil))
+	if short.Code != http.StatusOK || short.Body.String() != long.Body.String() {
+		t.Fatalf("short-code modules = %d, same as long names %v", short.Code, short.Body.String() == long.Body.String())
+	}
+	for _, target := range []string{"/js/abc123def456.js?m=x", "/js/abc123def456.js?m=v,v", "/js/abc123def456.js?m=r"} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
+		if response.Code != http.StatusNotFound {
+			t.Errorf("%s: status %d, want 404", target, response.Code)
+		}
 	}
 }
