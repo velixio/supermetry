@@ -96,6 +96,7 @@ type Memory struct {
 
 var _ Store = (*Memory)(nil)
 var _ Joiner = (*Memory)(nil)
+var _ SnapshotJoiner = (*Memory)(nil)
 var _ RealtimeStore = (*Memory)(nil)
 var _ RichRealtimeStore = (*Memory)(nil)
 var _ ActivityRecorder = (*Memory)(nil)
@@ -201,6 +202,25 @@ func (m *Memory) Touch(h Hit) Result {
 // without extending or dirtying it. It checks the previous-day visitor hash
 // during the same midnight window used by Touch.
 func (m *Memory) Join(h Hit) Result {
+	var result Result
+	m.join(h, func(_ *memoryShard, live *memorySession) {
+		result = Result{SessionID: live.sessionID, VisitorID: live.visitorID}
+	})
+	return result
+}
+
+// JoinSnapshot is Join that also returns the session's current dimensions,
+// such as its acquisition source and campaign. It never changes the session.
+func (m *Memory) JoinSnapshot(h Hit) (Snapshot, bool) {
+	var snapshot Snapshot
+	found := false
+	m.join(h, func(sh *memoryShard, live *memorySession) {
+		snapshot, found = m.snapshot(sh, live), true
+	})
+	return snapshot, found
+}
+
+func (m *Memory) join(h Hit, found func(*memoryShard, *memorySession)) {
 	if h.TS.IsZero() && m.clock != nil {
 		h.TS = m.clock.Now()
 	}
@@ -225,15 +245,15 @@ func (m *Memory) Join(h Hit) Result {
 	}()
 	currentKey := sessionKey{siteID: h.SiteID, visitorID: h.VisitorID}
 	if live := m.shards[currentIndex].sessions[currentKey]; m.canContinue(live, h.TS) {
-		return Result{SessionID: live.sessionID, VisitorID: live.visitorID}
+		found(&m.shards[currentIndex], live)
+		return
 	}
 	if h.PrevVisitorID != 0 {
 		previousKey := sessionKey{siteID: h.SiteID, visitorID: h.PrevVisitorID}
 		if live := m.shards[previousIndex].sessions[previousKey]; m.canContinue(live, h.TS) {
-			return Result{SessionID: live.sessionID, VisitorID: live.visitorID}
+			found(&m.shards[previousIndex], live)
 		}
 	}
-	return Result{}
 }
 
 // Dirty returns at most max changed sessions and removes those entries from
