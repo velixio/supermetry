@@ -35,8 +35,14 @@ const top = {
   ],
 }
 
+const stripeOff = {
+  enabled: false, secret_configured: false, record_payment_intents: false, events: [], optional_events: [],
+  events_received: 0, revenue_events: 0, refunds_30d: 0, refunded_micros_30d: 0,
+}
+
 function serve(entries: unknown[], rows = top) {
   request.mockImplementation(async (method, path) => {
+    if (String(path).endsWith('/integrations/stripe')) return method === 'GET' ? stripeOff : undefined
     if (method === 'GET' && String(path).endsWith('/integrations')) return { data: entries }
     if (method === 'GET' && String(path).includes('/search-console/top')) return rows
     if (method === 'POST') return { authorization_url: 'https://accounts.example.test/auth?state=s' }
