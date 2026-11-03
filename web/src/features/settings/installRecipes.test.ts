@@ -151,3 +151,23 @@ describe('first-party proxy recipes', () => {
     expect(firstPartySnippet(cloud)).toBe('<script defer src="/sm/js/abc123def456.js"></script>')
   })
 })
+
+describe('first-party proxy recipes with a custom tracker path', () => {
+  const custom = { publicId: 'abc123def456', scriptUrl: 'https://stats.example.org/a/abc123def456.js' }
+
+  it('uses the configured script directory in the snippet and every proxy', () => {
+    expect(firstPartySnippet(custom)).toBe('<script defer src="/sm/a/abc123def456.js"></script>')
+    const recipes = buildProxyRecipes(custom, { managed: false })
+    const code = (id: string) => recipes.find((recipe) => recipe.id === id)?.code ?? ''
+    expect(code('proxy-nginx')).toContain('^/sm/(a/|px/|api/public/|')
+    expect(code('proxy-caddy')).toContain('/sm/a/*')
+    expect(code('proxy-cloudflare')).toContain('"/sm/a/"')
+    for (const recipe of recipes) expect(recipe.code, recipe.id).not.toContain('/sm/js/')
+  })
+
+  it('tells self-hosters to forward a changed event path', () => {
+    for (const recipe of buildProxyRecipes(custom, { managed: false })) {
+      expect(recipe.note ?? '', recipe.id).toContain('SUPERMETRY_EVENT_PATH')
+    }
+  })
+})

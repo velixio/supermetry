@@ -318,17 +318,29 @@ When done, tell me which files you changed.`
 export const PROXY_PREFIX = '/sm'
 
 /** The snippet to use once the proxy is live: the script from the site's own domain. */
-export function firstPartySnippet({ publicId }: RecipeInput): string {
-  return `<script defer src="${PROXY_PREFIX}/js/${publicId}.js"></script>`
+/**
+ * The directory per-site scripts are served from, taken from the real script
+ * URL: "/js" by default, or the directory of SUPERMETRY_TRACKER_PATH.
+ */
+function scriptDir(scriptUrl: string): string {
+  const pathname = new URL(scriptUrl).pathname
+  const dir = pathname.slice(0, pathname.lastIndexOf('/'))
+  return dir || '/js'
 }
 
-const trustedProxiesNote = 'Self-hosted: add this server\'s address to SUPERMETRY_TRUSTED_PROXIES on your Supermetry server, so it reads the visitor address from X-Forwarded-For instead of counting every visitor as your proxy.'
+export function firstPartySnippet({ publicId, scriptUrl }: RecipeInput): string {
+  return `<script defer src="${PROXY_PREFIX}${scriptDir(scriptUrl)}/${publicId}.js"></script>`
+}
+
+const trustedProxiesNote = 'Self-hosted: add this server\'s address to SUPERMETRY_TRUSTED_PROXIES on your Supermetry server, so it reads the visitor address from X-Forwarded-For instead of counting every visitor as your proxy. If you changed SUPERMETRY_EVENT_PATH, forward that path under /sm too.'
 const proxyKeyNote = 'Keep the proxy key on the server only (config file, environment or secret store). Never put it in HTML or client code.'
 
 export function buildProxyRecipes(input: RecipeInput, { managed }: { managed: boolean }): Recipe[] {
   const host = trackerHost(input.scriptUrl)
   const hostname = new URL(host).host
   const p = PROXY_PREFIX
+  // Script directory without its leading slash, as a path segment ("js/").
+  const scripts = `${scriptDir(input.scriptUrl).slice(1)}/`
   const note = managed ? proxyKeyNote : trustedProxiesNote
 
   const nginxKey = managed ? `    proxy_set_header X-Supermetry-Proxy-Key $sm_key;
@@ -338,7 +350,7 @@ export function buildProxyRecipes(input: RecipeInput, { managed }: { managed: bo
 set $sm_key "smpk_REPLACE_WITH_YOUR_KEY";
 
 ` : ''}# Forward only the tracking paths, never the whole app.
-location ~ ^${p}/(js/|px/|api/public/|replay\\.js$|api/replay/) {
+location ~ ^${p}/(${scripts}|px/|api/public/|replay\\.js$|api/replay/) {
     rewrite ^${p}/(.*)$ /$1 break;
     proxy_pass ${host};
     proxy_ssl_server_name on;
@@ -352,7 +364,7 @@ ${nginxKey}    proxy_set_header X-Forwarded-For $remote_addr;
 			header_up X-Supermetry-Client-IP {client_ip}
 ` : ''
   const caddy = `your-site.example {
-	@supermetry path ${p}/js/* ${p}/px/* ${p}/api/public/* ${p}/replay.js ${p}/api/replay/*
+	@supermetry path ${p}/${scripts}* ${p}/px/* ${p}/api/public/* ${p}/replay.js ${p}/api/replay/*
 	handle @supermetry {
 		uri strip_prefix ${p}
 		reverse_proxy ${host} {
@@ -372,7 +384,7 @@ if (visitor) {
 if (visitor) headers.set('X-Forwarded-For', visitor)`
   const worker = `// Route: your-site.example${p}/*${managed ? `
 // Secret: wrangler secret put SUPERMETRY_PROXY_KEY` : ''}
-const prefixes = [${['js/', 'px/', 'api/public/', 'api/replay/'].map((path) => q(`${p}/${path}`)).join(', ')}]
+const prefixes = [${[scripts, 'px/', 'api/public/', 'api/replay/'].map((path) => q(`${p}/${path}`)).join(', ')}]
 const files = [${q(`${p}/replay.js`)}]
 
 export default {
