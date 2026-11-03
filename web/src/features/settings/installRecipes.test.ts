@@ -165,6 +165,16 @@ describe('first-party proxy recipes with a custom tracker path', () => {
     for (const recipe of recipes) expect(recipe.code, recipe.id).not.toContain('/sm/js/')
   })
 
+  it('escapes regex characters of the script directory in the nginx rule only', () => {
+    const odd = { publicId: 'abc123def456', scriptUrl: 'https://stats.example.org/v1+prod.x/abc123def456.js' }
+    const recipes = buildProxyRecipes(odd, { managed: false })
+    const code = (id: string) => recipes.find((recipe) => recipe.id === id)?.code ?? ''
+    expect(code('proxy-nginx')).toContain('^/sm/(v1\\+prod\\.x/|px/|')
+    expect(code('proxy-caddy')).toContain('/sm/v1+prod.x/*')
+    expect(code('proxy-cloudflare')).toContain('"/sm/v1+prod.x/"')
+    expect(firstPartySnippet(odd)).toBe('<script defer src="/sm/v1+prod.x/abc123def456.js"></script>')
+  })
+
   it('tells self-hosters to forward a changed event path', () => {
     for (const recipe of buildProxyRecipes(custom, { managed: false })) {
       expect(recipe.note ?? '', recipe.id).toContain('SUPERMETRY_EVENT_PATH')

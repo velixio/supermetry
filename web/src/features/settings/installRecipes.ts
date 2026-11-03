@@ -317,7 +317,6 @@ When done, tell me which files you changed.`
 
 export const PROXY_PREFIX = '/sm'
 
-/** The snippet to use once the proxy is live: the script from the site's own domain. */
 /**
  * The directory per-site scripts are served from, taken from the real script
  * URL: "/js" by default, or the directory of SUPERMETRY_TRACKER_PATH.
@@ -328,6 +327,12 @@ function scriptDir(scriptUrl: string): string {
   return dir || '/js'
 }
 
+/** Escapes PCRE metacharacters so a path matches literally in an nginx regex. */
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** The snippet to use once the proxy is live: the script from the site's own domain. */
 export function firstPartySnippet({ publicId, scriptUrl }: RecipeInput): string {
   return `<script defer src="${PROXY_PREFIX}${scriptDir(scriptUrl)}/${publicId}.js"></script>`
 }
@@ -350,7 +355,7 @@ export function buildProxyRecipes(input: RecipeInput, { managed }: { managed: bo
 set $sm_key "smpk_REPLACE_WITH_YOUR_KEY";
 
 ` : ''}# Forward only the tracking paths, never the whole app.
-location ~ ^${p}/(${scripts}|px/|api/public/|replay\\.js$|api/replay/) {
+location ~ ^${p}/(${escapeRegex(scripts)}|px/|api/public/|replay\\.js$|api/replay/) {
     rewrite ^${p}/(.*)$ /$1 break;
     proxy_pass ${host};
     proxy_ssl_server_name on;
