@@ -260,6 +260,25 @@ Rules worth knowing:
 - Tokens are sealed with the instance secret key and never logged or returned. The authorization `state` is random, bound to the user, organization and site, expires after 10 minutes and works once; PKCE (S256) is used.
 - A scheduled job imports due connections every 30 minutes, at most 7 days per connection per run, up to two days behind today (the provider lags). The last 3 days are re-fetched on every run, and a day is replaced as a whole, so reruns never duplicate and revised numbers win.
 - Failures back off (5 minutes doubling to 6 hours); a revoked grant parks the connection as `reauth` until the user reconnects.
+
+## Stripe revenue
+
+Record Stripe payments as revenue through a per-site webhook. Setup, attribution and privacy are in the [Stripe guide](guide/stripe.md); the design is in `docs/superpowers/specs/2026-11-03-stripe-revenue-design.md`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/private/sites/{site}/integrations/stripe` | Status: `enabled`, `webhook_url`, `secret_configured`, `record_payment_intents`, the `events` to select in Stripe (and `optional_events`), `revenue_currency`, counters (`events_received`, `revenue_events`, `refunds_30d`, `refunded_micros_30d`), last event and last error (owner, admin, editor). Never returns the secret |
+| POST | `/api/private/sites/{site}/integrations/stripe` | Enable: creates the webhook endpoint, idempotent (owner or admin; audited) |
+| PATCH | `/api/private/sites/{site}/integrations/stripe` | Body `signing_secret` (`whsec_…`, write-only) and/or `record_payment_intents` (owner or admin; audited) |
+| DELETE | `/api/private/sites/{site}/integrations/stripe` | Disconnect: deletes the endpoint, the sealed secret, customer channels, the refund ledger and handled event ids. Recorded revenue stays (owner or admin; audited) |
+| POST | `/api/public/v1/integrations/stripe/webhook/{endpoint}` | Stripe webhook target. Verifies `Stripe-Signature` (HMAC-SHA256, 5 minute tolerance), body at most 256 KiB, 20 requests per second per address. `200` when handled or ignored, `400` for an unknown endpoint or a bad signature, `413`, `503` when the event queue is full (Stripe retries) |
+| POST | `/api/public/v1/attribution` | Browser call with `{"site": "<public id>"}`. Returns `{"id": "sm1_…"}`, a 24 hour attribution id for the visitor's current session, or `{"id": null}`. CORS for the site's allowed hosts, no cookies, 1 per second per address |
+
+Rules worth knowing:
+
+- Handled: `checkout.session.completed` (paid, `amount_total`) as `Stripe: Purchase`; `invoice.paid` renewals (`amount_paid`, not the first invoice) as `Stripe: Renewal`; `charge.refunded` into the refund ledger; `payment_intent.succeeded` as `Stripe: Payment` only when `record_payment_intents` is on. Other types are acknowledged and ignored.
+- Each Stripe event id is handled once per site. Test-mode events update the status only. Payments in a currency other than the site's revenue currency are skipped and reported in `last_error`.
+- Attribution comes from `client_reference_id` or `metadata.supermetry_id`; `metadata.supermetry_user_id` sets the profile, `metadata.supermetry_product` the `product` property. Renewals reuse the channel stored for the Stripe customer. In anonymous mode or without profiles, payments are unattributed.
 - Storage keeps the top 5,000 rows per day, 490 days and 3,000,000 rows per site (oldest days are dropped first). Search queries are never shown through public share links.
 ## Imports (session endpoints, owner or admin)
 
