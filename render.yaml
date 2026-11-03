@@ -1,0 +1,53 @@
+# Render Blueprint for Supermetry: https://render.com/docs/blueprint-spec
+# Deploy: https://render.com/deploy?repo=https://github.com/velixio/supermetry
+# Guide: deploy/README.md#render
+services:
+  - type: web
+    name: supermetry
+    runtime: image
+    image:
+      # Pin a release (for example :0.1.22) for reproducible deploys.
+      url: ghcr.io/velixio/supermetry:latest
+    # Persistent disks need a paid instance type.
+    plan: starter
+    region: oregon
+    numInstances: 1 # live sessions are kept in memory: run exactly one instance
+    healthCheckPath: /healthz
+    disk:
+      name: supermetry-data
+      mountPath: /data
+      sizeGB: 5
+    envVars:
+      - key: SUPERMETRY_BASE_URL
+        # The public URL, for example https://supermetry-abcd.onrender.com or
+        # your custom domain. Render shows the onrender.com URL after creation;
+        # update this value if it differs and redeploy.
+        sync: false
+      - key: SUPERMETRY_SECRET_KEY
+        # Render generates a base64-encoded 256-bit value, which is the
+        # required format (base64 of at least 32 bytes). Never change it later.
+        generateValue: true
+      - key: SUPERMETRY_DATABASE_URL
+        fromDatabase:
+          name: supermetry-db
+          property: connectionString
+      - key: SUPERMETRY_LISTEN
+        value: 0.0.0.0:8787
+      - key: PORT
+        value: 8787
+      - key: SUPERMETRY_DATA_DIR
+        # A subdirectory, so Supermetry owns it on the mounted disk.
+        value: /data/supermetry
+      - key: SUPERMETRY_TRUSTED_PROXIES
+        # Render's load balancer reaches the service from a private address.
+        value: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,fc00::/7,127.0.0.1,::1
+      - key: SUPERMETRY_SIGNUP
+        value: invite
+
+databases:
+  - name: supermetry-db
+    databaseName: supermetry
+    user: supermetry
+    plan: basic-256mb
+    region: oregon
+    postgresMajorVersion: "18"
