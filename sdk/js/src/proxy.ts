@@ -19,6 +19,7 @@ export interface ProxyOptions {
 export type ProxyHandler = (request: Request) => Promise<Response>;
 
 const eventsPath = "/api/public/v1/events";
+const attributionPath = "/api/public/v1/attribution";
 const forwardedRequestHeaders = ["user-agent", "content-type", "origin", "referer", "dnt", "sec-gpc", "accept-language"];
 const forwardedResponseHeaders = ["content-type", "cache-control", "etag", "last-modified", "retry-after"];
 
@@ -83,28 +84,33 @@ export function createProxyHandler(options: ProxyOptions = {}): ProxyHandler {
     const { pathname, search } = new URL(request.url);
     const read = request.method === "GET" || request.method === "HEAD";
     const isEvent = request.method === "POST" && pathname.endsWith(eventsPath);
+    // Stripe attribution ids are bound to the visitor's address and browser,
+    // so they must come through the same proxy as the events.
+    const isAttribution = request.method === "POST" && pathname.endsWith(attributionPath);
     const isScript = read && /\/js\/[\w.-]+\.js$/.test(pathname);
     // Session replay: the recorder script and its uploads, kept next to the
     // events endpoint (so under the same path prefix).
     const isRecorder = read && pathname.endsWith("/replay.js");
     const replay = pathname.match(/\/api\/replay\/(start|chunk|css\/[0-9a-f]+)$/);
     const isReplay = replay !== null && (replay[1].startsWith("css/") ? request.method === "PUT" : request.method === "POST");
-    if (!isEvent && !isScript && !isRecorder && !isReplay) return new Response("Not Found", { status: 404 });
+    if (!isEvent && !isAttribution && !isScript && !isRecorder && !isReplay) return new Response("Not Found", { status: 404 });
 
     const target = isEvent
       ? `${host}${eventsPath}`
-      : isScript
+      : isAttribution
+        ? `${host}${attributionPath}`
+        : isScript
         ? `${host}${pathname.slice(pathname.lastIndexOf("/js/"))}${search}`
         : isRecorder
           ? `${host}/replay.js${search}`
           : `${host}/api/replay/${replay![1]}${search}`;
-    const upload = isEvent || isReplay;
+    const upload = isEvent || isAttribution || isReplay;
     let body: string | ArrayBuffer | undefined;
     if (upload) {
-      const max = isEvent || replay![1] === "start" ? maxEventBytes : maxReplayBytes;
+      const max = isEvent || isAttribution || replay![1] === "start" ? maxEventBytes : maxReplayBytes;
       try {
         const bytes = await readLimited(request, max);
-        body = isEvent ? new TextDecoder().decode(bytes) : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+        body = isEvent || isAttribution ? new TextDecoder().decode(bytes) : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
       } catch (err) {
         if (!(err instanceof TooLarge)) throw err;
         return new Response("Payload Too Large", { status: 413, headers: { "cache-control": "no-store" } });
