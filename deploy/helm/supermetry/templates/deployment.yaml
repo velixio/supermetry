@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "supermetry.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "supermetry.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 3
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "supermetry.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- if include "supermetry.createSecret" . }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "supermetry.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "supermetry.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- if and .Values.postgresql.enabled .Values.waitForDatabase }}
+      initContainers:
+        - name: wait-for-database
+          image: {{ include "supermetry.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -q -h "$PGHOST" -p "$PGPORT"; do
+                echo "waiting for PostgreSQL at $PGHOST:$PGPORT"
+                sleep 2
+              done
+          env:
+            - name: PGHOST
+              value: {{ include "supermetry.postgresql.fullname" . }}
+            - name: PGPORT
+              value: "5432"
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+      {{- end }}
+      containers:
+        - name: supermetry
+          image: {{ include "supermetry.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve"]
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+          env:
+            - name: SUPERMETRY_LISTEN
+              value: "0.0.0.0:8787"
+            - name: SUPERMETRY_BASE_URL
+              value: {{ include "supermetry.baseUrl" . | quote }}
+            - name: SUPERMETRY_DATA_DIR
+              value: {{ .Values.config.dataDir | quote }}
+            {{- with .Values.config.trustedProxies }}
+            - name: SUPERMETRY_TRUSTED_PROXIES
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.config.signup }}
+            - name: SUPERMETRY_SIGNUP
+              value: {{ . | quote }}
+            {{- end }}
+            - name: SUPERMETRY_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "supermetry.secretKeySecretName" . }}
+                  key: {{ include "supermetry.secretKeySecretKey" . }}
+            {{- if .Values.postgresql.enabled }}
+            - name: SUPERMETRY_DATABASE_HOST
+              value: {{ include "supermetry.postgresql.fullname" . }}
+            - name: SUPERMETRY_DATABASE_PORT
+              value: "5432"
+            - name: SUPERMETRY_DATABASE_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: SUPERMETRY_DATABASE_NAME
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: SUPERMETRY_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "supermetry.postgresql.secretName" . }}
+                  key: {{ include "supermetry.postgresql.secretKey" . }}
+            {{- else }}
+            - name: SUPERMETRY_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "supermetry.databaseUrlSecretName" . }}
+                  key: {{ include "supermetry.databaseUrlSecretKey" . }}
+            {{- end }}
+            {{- range $key, $value := .Values.config.env }}
+            - name: {{ $key }}
+              value: {{ $value | toString | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            - name: tmp
+              mountPath: /tmp
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ default (include "supermetry.fullname" .) .Values.persistence.existingClaim }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        # Dashboard imports are buffered in the OS temp directory.
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
