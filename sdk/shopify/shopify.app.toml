@@ -1,0 +1,13 @@
+# Shopify app configuration. Run `shopify app config link` to fill in client_id
+# (and name/handle) for the app you created in the Partner Dashboard.
+# https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = ""
+name = "Supermetry"
+
+[access_scopes]
+# The web pixel is connected with the webPixelCreate mutation, which needs both scopes.
+scopes = "write_pixels,read_customer_events"
+
+[build]
+include_config_on_deploy = true
