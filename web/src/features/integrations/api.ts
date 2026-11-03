@@ -70,3 +70,44 @@ export function useSearchConsoleTop(
       ),
   })
 }
+
+export type StripeIntegration = components['schemas']['StripeIntegration']
+export type StripeIntegrationUpdate = components['schemas']['StripeIntegrationUpdate']
+
+export const stripeKey = (siteId: number) => ['sites', siteId, 'stripe'] as const
+
+function stripePath(siteId: number): string {
+  return `/api/private/sites/${siteId}/integrations/stripe`
+}
+
+export function useStripe(siteId: number, orgId: number, enabled = true) {
+  return useQuery({
+    queryKey: stripeKey(siteId),
+    queryFn: () => privateRequest<StripeIntegration>('GET', stripePath(siteId), { orgId }),
+    enabled,
+  })
+}
+
+function useStripeMutation<Input>(siteId: number, orgId: number, request: (input: Input) => Promise<StripeIntegration | void>) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: request,
+    onSuccess: async (data) => {
+      if (data) client.setQueryData(stripeKey(siteId), data)
+      await client.invalidateQueries({ queryKey: stripeKey(siteId) })
+    },
+  })
+}
+
+export function useEnableStripe(siteId: number, orgId: number) {
+  return useStripeMutation<void>(siteId, orgId, () => privateRequest<StripeIntegration>('POST', stripePath(siteId), { orgId }))
+}
+
+export function useConfigureStripe(siteId: number, orgId: number) {
+  return useStripeMutation<StripeIntegrationUpdate>(siteId, orgId, (body) =>
+    privateRequest<StripeIntegration>('PATCH', stripePath(siteId), { orgId, body }))
+}
+
+export function useDisconnectStripe(siteId: number, orgId: number) {
+  return useStripeMutation<void>(siteId, orgId, () => privateRequest<void>('DELETE', stripePath(siteId), { orgId }))
+}
