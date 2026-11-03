@@ -462,3 +462,29 @@ func TestJoinOnlyHitJoinsLiveSession(t *testing.T) {
 		t.Fatalf("bad snapshot after join: %+v", snapshot)
 	}
 }
+
+func TestJoinSnapshotReturnsDimensionsWithoutChangingSession(t *testing.T) {
+	m := session.NewMemory(4, realClock{})
+	t0 := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	first := m.Touch(session.Hit{SiteID: 1, TS: t0, LocalDay: t0, VisitorID: 7, Kind: 0, PathID: 1, Source: 11, UTMSource: 12, Medium: 13, Campaign: 14, Country: "DE", Region: 15})
+	m.Dirty(10)
+	snapshot, ok := m.JoinSnapshot(session.Hit{SiteID: 1, TS: t0.Add(10 * time.Minute), VisitorID: 7})
+	if !ok || snapshot.SessionID != first.SessionID || snapshot.VisitorID != first.VisitorID {
+		t.Fatalf("snapshot=%+v ok=%v", snapshot, ok)
+	}
+	if snapshot.Source != 11 || snapshot.UTMSource != 12 || snapshot.Medium != 13 || snapshot.Campaign != 14 || snapshot.Country != "DE" || snapshot.Region != 15 {
+		t.Fatalf("dimensions=%+v", snapshot)
+	}
+	if dirty := m.Dirty(10); len(dirty) != 0 {
+		t.Fatalf("join dirtied the session: %+v", dirty)
+	}
+	if !snapshot.Last.Equal(t0) {
+		t.Fatalf("join extended the session: last=%v", snapshot.Last)
+	}
+	if _, ok := m.JoinSnapshot(session.Hit{SiteID: 1, TS: t0.Add(2 * time.Hour), VisitorID: 7}); ok {
+		t.Fatal("expired session joined")
+	}
+	if _, ok := m.JoinSnapshot(session.Hit{SiteID: 2, TS: t0, VisitorID: 7}); ok {
+		t.Fatal("other site joined")
+	}
+}
