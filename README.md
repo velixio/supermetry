@@ -245,6 +245,7 @@ An EU-hosted Cloud is open: [start free](https://app.supermetry.com/signup?utm_s
 - [API](docs/api.md) and [API authentication](docs/api-auth.md)
 - [Authorization](docs/authorization.md)
 - [Notifications](docs/guide/notifications.md)
+- [Stripe revenue](docs/guide/stripe.md)
 - Full docs at [supermetry.com/docs](https://supermetry.com/docs/?utm_source=github&utm_medium=readme&utm_campaign=supermetry-repo&utm_content=docs-link)
 
 ## Build from source
