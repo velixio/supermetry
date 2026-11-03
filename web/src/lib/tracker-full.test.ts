@@ -39,11 +39,18 @@ function load(attributes = '', body = '', withObservers = false, navigationRespo
     }
   }
   Object.defineProperty(dom.window, 'Blob', { configurable: true, value: BodyBlob })
+  // Events go out with fetch(keepalive); sendBeacon is a "ping" request that
+  // filter lists block wholesale, so the tracker must not use it.
   Object.defineProperty(dom.window.navigator, 'sendBeacon', {
     configurable: true,
-    value: (_url: string, data: BodyBlob | string) => {
-      payloads.push(JSON.parse(typeof data === 'string' ? data : data.body) as EventPayload)
-      return true
+    value: () => { throw new Error('tracker used sendBeacon') },
+  })
+  Object.defineProperty(dom.window, 'fetch', {
+    configurable: true,
+    value: (_url: string, init: { method?: string; body: string; keepalive?: boolean }) => {
+      if (init.method !== 'POST' || init.keepalive !== true) throw new Error(`unexpected fetch ${JSON.stringify(init)}`)
+      payloads.push(JSON.parse(init.body) as EventPayload)
+      return Promise.resolve({})
     },
   })
   const observerHarness: ObserverHarness = { emit: () => {}, queue: () => {}, observed: [] }
@@ -160,16 +167,8 @@ describe('full tracker', () => {
     expect(event(payloads, 'heatmap')).toMatchObject({ doc_h: 100000, vw: 10000 })
   })
 
-  it('uses the core transport fallback when sendBeacon is unavailable', () => {
+  it('sends heatmap clicks with fetch keepalive on pagehide', () => {
     const { dom, payloads } = load('data-heatmap="true"')
-    Object.defineProperty(dom.window.navigator, 'sendBeacon', { configurable: true, value: undefined })
-    Object.defineProperty(dom.window, 'fetch', {
-      configurable: true,
-      value: (_url: string, init: { body: string }) => {
-        payloads.push(JSON.parse(init.body) as EventPayload)
-        return Promise.resolve({})
-      },
-    })
     dom.window.document.body.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
 
     dom.window.dispatchEvent(new dom.window.Event('pagehide'))

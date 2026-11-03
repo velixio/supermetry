@@ -39,11 +39,14 @@
   function post(payload) {
     if (!permitted()) return;
     payload = JSON.stringify(payload);
-    navigator.sendBeacon?.(endpoint, payload) || fetch(endpoint, {
+    // fetch(keepalive) survives page exit like sendBeacon, but blockers file
+    // it as a regular request instead of a "ping", which lists block
+    // wholesale. A string body keeps it a simple request: no preflight.
+    fetch(endpoint, {
       method: "POST",
       body: payload,
-        keepalive: true
-      }).catch(() => 0);
+      keepalive: true
+    }).catch(() => 0);
   }
 
   function key(url) {

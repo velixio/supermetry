@@ -4,7 +4,7 @@ import { CheckIcon, CopyIcon, SparklesIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { copyText } from '@/lib/clipboard'
-import { aiInstallPrompt, buildRecipes, parseSnippet, trackerHost, type Recipe } from './installRecipes'
+import { aiInstallPrompt, buildProxyRecipes, buildRecipes, firstPartySnippet, parseSnippet, trackerHost, type Recipe } from './installRecipes'
 
 export type VerifyResult = { status?: 'waiting' | 'receiving' | 'quiet'; lastSeenAt?: string | null }
 
@@ -175,6 +175,66 @@ export function InstallRecipes({ publicId, snippet, verify, troubleshooting }: {
         ))}
       </Tabs>
       {verify ? <VerifyInstallation verify={verify} troubleshooting={troubleshooting} /> : null}
+    </section>
+  )
+}
+
+/**
+ * How to count visitors whose ad blocker blocks the Supermetry domain: a
+ * first-party proxy on the customer's own domain (with the Cloud proxy key on
+ * managed instances), or server-side events.
+ */
+export function AdBlockerSetup({ publicId, snippet, managed }: { publicId: string; snippet?: string; managed: boolean }) {
+  const input = useRecipeInput(publicId, snippet)
+  const recipes = useMemo(() => buildProxyRecipes(input, { managed }), [input, managed])
+  const tag = firstPartySnippet(input)
+  let step = 0
+  return (
+    <section aria-labelledby="ad-blockers-title" className="flex min-w-0 flex-col gap-3">
+      <h2 id="ad-blockers-title" className="text-lg font-semibold">Ad blockers</h2>
+      <p className="text-sm text-muted-foreground">
+        The tracker already sends events to neutral URLs for this site, which most blocker rules don&apos;t match. Some blockers block the Supermetry domain itself.
+        To count those visitors too, serve tracking from your own domain.
+      </p>
+
+      <h3 className="font-medium">Option 1: Proxy through your own domain (recommended)</h3>
+      <p className="text-sm text-muted-foreground">
+        Your server forwards the tracking requests under <code>/sm/</code> to {trackerHost(input.scriptUrl)}. Blockers then only see your own domain.
+      </p>
+      <ol className="flex min-w-0 flex-col gap-4">
+        {managed ? (
+          <li className="flex flex-col gap-1 text-sm">
+            <p className="font-medium">{++step}. Create the site&apos;s proxy key</p>
+            <p className="text-muted-foreground">
+              With the key, Supermetry Cloud counts each visitor&apos;s own location instead of your server&apos;s. Keep it on the server only.
+            </p>
+            <p><a className="font-medium text-foreground underline underline-offset-4" href={`/cloud/sites/${encodeURIComponent(input.publicId)}/proxy`}>Create the proxy key</a></p>
+          </li>
+        ) : null}
+        <li className="flex min-w-0 flex-col gap-2 text-sm">
+          <p className="font-medium">{++step}. Add the proxy to your server</p>
+          <Tabs defaultValue={recipes[0]?.id} className="min-w-0">
+            <TabsList aria-label="Proxy server" className="h-auto max-w-full flex-wrap justify-start">
+              {recipes.map((recipe) => <TabsTrigger key={recipe.id} value={recipe.id} className="h-11 px-3">{recipe.label}</TabsTrigger>)}
+            </TabsList>
+            {recipes.map((recipe) => (
+              <TabsContent key={recipe.id} value={recipe.id} className="min-w-0 pt-3"><RecipePanel recipe={recipe} /></TabsContent>
+            ))}
+          </Tabs>
+        </li>
+        <li className="flex min-w-0 flex-col gap-2 text-sm">
+          <p className="font-medium">{++step}. Replace the snippet on your pages</p>
+          <p className="text-muted-foreground">Load the script from your own domain. With the Next.js proxy, render the component with <code>host=&quot;&quot;</code> instead.</p>
+          <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all" tabIndex={0} aria-label="First-party snippet"><code>{tag}</code></pre>
+          <CopyButton value={tag} label="Copy first-party snippet" />
+        </li>
+      </ol>
+
+      <h3 className="font-medium">Option 2: Send events from your server</h3>
+      <p className="text-sm text-muted-foreground">
+        Events your backend sends can&apos;t be blocked, but they miss what only the browser knows: screen size, engagement time, scroll depth and session replay.
+        Use them alongside the script. See <span className="font-medium text-foreground">From your server</span> in the install recipes above.
+      </p>
     </section>
   )
 }

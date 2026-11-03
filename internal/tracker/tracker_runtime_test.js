@@ -151,8 +151,14 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
       events.set(key, (...args) => registered.forEach((callback) => callback(...args)));
     },
     document,
-    fetch() {
-      throw new Error("sendBeacon unexpectedly fell back to fetch");
+    // Events go out with fetch(keepalive), never sendBeacon: blockers file
+    // beacons under the "ping" type, which filter lists block wholesale.
+    fetch(_endpoint, options) {
+      if (!options || options.method !== "POST" || options.keepalive !== true || typeof options.body !== "string") {
+        throw new Error(`unexpected fetch options ${JSON.stringify(options)}`);
+      }
+      payloads.push(JSON.parse(options.body));
+      return Promise.resolve({ok: true});
     },
     history,
     innerHeight: 500,
@@ -163,9 +169,8 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
       globalPrivacyControl,
       doNotTrack,
       webdriver: false,
-      sendBeacon(_endpoint, body) {
-        payloads.push(JSON.parse(body));
-        return true;
+      sendBeacon() {
+        throw new Error("tracker used sendBeacon");
       },
     },
     screen: {width: 1440},

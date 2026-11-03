@@ -92,7 +92,7 @@ Each site also has its own intake paths under `/e/<site public ID>`. None of the
 
 A site's script (`/js/<site>.js`) uses the neutral paths when it is loaded straight from `SUPERMETRY_BASE_URL`. When it is loaded from any other origin, such as a first-party proxy that forwards only the classic paths, it keeps the classic paths, so existing proxies keep working. The script names its lazily loaded modules by short code (`?m=v,h,r`), so its URL never contains `replay` or `heatmap`. The server rejects a request whose body or `?s=` names a site other than the one in the path. The classic paths stay available.
 
-Neutral paths do not help when a filter list blocks the Supermetry host itself. Only a first-party proxy on your own domain avoids that.
+Neutral paths do not help when a filter list blocks the Supermetry host itself. A first-party proxy on your own domain, or server-side events, avoids that: see [Ad blockers](ad-blockers.md).
 
 ### Referrer spam list
 

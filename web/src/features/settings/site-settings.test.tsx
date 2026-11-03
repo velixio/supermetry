@@ -79,7 +79,8 @@ describe('site settings', () => {
 
     expect(screen.getByText('Receiving')).toBeVisible()
     expect(screen.getByText('Last event 20 seconds ago')).toBeVisible()
-    expect(screen.getByText(/proxy the script through your own domain/i)).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Ad blockers' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: /Proxy through your own domain/ })).toBeVisible()
     expect(screen.getByText('Track custom clicks')).toBeVisible()
     expect(screen.getByText(/data-supermetry-event="Signup"/)).toBeVisible()
     const setup = screen.getByRole('region', { name: 'Feature setup' })

@@ -92,7 +92,6 @@ func TestScriptContract(t *testing.T) {
 		`/api/public/v1/events`,
 		`data-allow-localhost`,
 		`navigator.webdriver`,
-		`navigator.sendBeacon`,
 		`keepalive: true`,
 		`route("pushState")`,
 		`route("replaceState")`,

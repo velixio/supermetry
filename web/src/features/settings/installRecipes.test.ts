@@ -1,7 +1,7 @@
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { aiInstallPrompt, buildRecipes, eventsUrl, parseSnippet, trackerHost, type Recipe } from './installRecipes'
+import { aiInstallPrompt, buildProxyRecipes, buildRecipes, eventsUrl, firstPartySnippet, parseSnippet, trackerHost, type Recipe } from './installRecipes'
 
 const input = { publicId: 'abc123def456', scriptUrl: 'https://stats.supermetry.com/js/script.js' }
 const recipes = buildRecipes(input)
@@ -102,5 +102,52 @@ describe('install recipes', () => {
     expect(parseSnippet(undefined, 'pid', 'https://o.test')).toEqual({ publicId: 'pid', scriptUrl: 'https://o.test/js/script.js' })
     expect(parseSnippet('<script src="/js/s.js"></script>', 'pid', 'https://o.test').scriptUrl).toBe('https://o.test/js/s.js')
     expect(eventsUrl('https://a.example:8443/js/script.js')).toBe('https://a.example:8443/api/public/v1/events')
+  })
+})
+
+describe('first-party proxy recipes', () => {
+  const cloud = { publicId: 'abc123def456', scriptUrl: 'https://app.supermetry.com/js/abc123def456.js' }
+  const proxyById = (recipes: Recipe[], id: string): Recipe => {
+    const found = recipes.find((recipe) => recipe.id === id)
+    if (!found) throw new Error(`missing proxy recipe ${id}`)
+    return found
+  }
+
+  it('offers nginx, Caddy, a Cloudflare Worker and Next.js', () => {
+    expect(buildProxyRecipes(cloud, { managed: true }).map((recipe) => recipe.id)).toEqual(['proxy-nginx', 'proxy-caddy', 'proxy-cloudflare', 'proxy-nextjs'])
+  })
+
+  it('forwards every tracking path to the real host', () => {
+    for (const recipe of buildProxyRecipes(cloud, { managed: true })) {
+      expect(recipe.code, recipe.id).toContain('app.supermetry.com')
+      if (recipe.id === 'proxy-nextjs') continue
+      for (const path of ['js/', 'px/', 'api/public/', 'replay', 'api/replay/']) expect(recipe.code, `${recipe.id} ${path}`).toContain(path)
+    }
+  })
+
+  it('sends the Cloud proxy key and visitor address only on managed instances', () => {
+    for (const recipe of buildProxyRecipes(cloud, { managed: true })) {
+      expect(recipe.code, recipe.id).toMatch(/X-Supermetry-Proxy-Key|proxyKey/)
+    }
+    for (const recipe of buildProxyRecipes({ ...cloud, scriptUrl: 'https://stats.example.org/js/abc123def456.js' }, { managed: false })) {
+      expect(recipe.code, recipe.id).not.toMatch(/Proxy-Key|proxyKey|smpk_/)
+      expect(recipe.note ?? '', recipe.id).toContain('SUPERMETRY_TRUSTED_PROXIES')
+    }
+  })
+
+  it('never puts a real-looking key in the snippet', () => {
+    for (const recipe of buildProxyRecipes(cloud, { managed: true })) {
+      expect(recipe.code, recipe.id).not.toMatch(/smpk_[A-Za-z0-9]{8,}/)
+    }
+  })
+
+  it('gives JavaScript recipes valid syntax', () => {
+    const recipes = buildProxyRecipes(cloud, { managed: true })
+    expect(syntaxErrors(proxyById(recipes, 'proxy-cloudflare').code, ts.ScriptKind.JS)).toEqual([])
+    expect(syntaxErrors(proxyById(recipes, 'proxy-nextjs').code, ts.ScriptKind.TS)).toEqual([])
+  })
+
+  it('points the first-party snippet at the proxy prefix', () => {
+    expect(firstPartySnippet(cloud)).toBe('<script defer src="/sm/js/abc123def456.js"></script>')
   })
 })
