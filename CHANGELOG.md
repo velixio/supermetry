@@ -12,6 +12,10 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 - Guides: [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md). They cover exporting, importing, mapping the tracking calls and attributes, and what does not carry over. The Umami guide includes a ready-to-run export query.
 - A Helm chart in `deploy/helm/supermetry`. It runs Supermetry with a bundled PostgreSQL 18 StatefulSet or an external database, generates the secret key once and keeps it across upgrades, and supports ingress with TLS, a persistent data volume and the `restricted` Pod Security Standard. `helm test` checks `/healthz`.
 - One-click deploy templates for Railway (`railway.json`), Render (`render.yaml`), DigitalOcean App Platform (`.do/deploy.template.yaml`) and Coolify (`deploy/coolify/docker-compose.yml`), with deploy buttons in the README. See [One-click deploy](deploy/README.md#one-click-deploy).
+- Platform integrations:
+  - [WordPress](https://github.com/velixio/supermetry-wordpress): a `supermetry` plugin (GPL-2.0-or-later, in its own repository) with a Settings → Supermetry page, role exclusions, tracker options, an optional first-party proxy through the WordPress REST API, and WooCommerce `Purchase` events with revenue, sent once per order.
+  - [Shopify](sdk/shopify): a Shopify CLI app with a theme app embed that loads the tracker and a web pixel that sends `Product Viewed`, `Add to Cart`, `Checkout Started` and `Purchase` (with revenue, deduplicated per order) from checkout. Stores without an app can paste a theme snippet and a custom pixel.
+  - [Ghost](sdk/ghost): a code injection snippet and a theme partial that also send `Signup` and `Subscription` events after Portal signups and Stripe checkouts.
 
 ### Fixed
 
