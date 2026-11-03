@@ -6,6 +6,11 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Fixed
+
+- The tracker sends events with `mode: "no-cors"`. Like the old beacons, it now follows a redirect that has no CORS headers (for example from a first-party proxy) instead of dropping the event.
+- The ad blocker proxy recipes in Settings → Installation use the instance's script directory. With a custom `SUPERMETRY_TRACKER_PATH`, the first-party snippet and the forwarded paths now match. The self-hosted note also mentions forwarding a changed `SUPERMETRY_EVENT_PATH`.
+
 ## v0.1.22 (2026-11-03)
 
 ### Changed
