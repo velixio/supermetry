@@ -139,6 +139,24 @@ func TestParseUmamiBucketsSessionsInSiteTimezone(t *testing.T) {
 	assertDimension(t, got, DimensionKey{Day: localDay, Dim: DimEvent, Value: "Signup"}, Metrics{Visitors: 1, Visits: 1, Events: 1})
 }
 
+func TestParseUmamiAcceptsPostgresTimestamptzText(t *testing.T) {
+	csv := `session_id,created_at,event_type,event_name,url_path
+s1,2026-01-01 23:30:00.123+00,1,,/one
+s1,2026-01-02 01:30:00+02,1,,/two
+s2,2026-01-01 10:00:00.5-05,1,,/three
+`
+	got, stats, err := ParseUmami(bytes.NewBufferString(csv))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Rows != 3 || stats.BadRows != 0 {
+		t.Fatalf("stats = %+v, want 3 good rows", stats)
+	}
+	if got.Days[date(t, "2026-01-01")] != (Metrics{Visitors: 2, Visits: 2, Pageviews: 3, Bounces: 1}) {
+		t.Fatalf("daily = %+v", got.Days[date(t, "2026-01-01")])
+	}
+}
+
 func TestParseUmamiRejectsMissingRequiredHeader(t *testing.T) {
 	_, _, err := ParseUmami(bytes.NewBufferString("created_at,url_path\n2026-01-01T00:00:00Z,/\n"))
 	if err == nil {

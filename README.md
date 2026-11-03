@@ -188,6 +188,8 @@ Yes. It measures visitors, pageviews, sources, goals and conversions without coo
 <summary><b>How is it different from Plausible or Umami?</b></summary>
 
 Plausible's self-hosted edition needs ClickHouse next to PostgreSQL, and Umami runs on Node.js. Supermetry is a single Go binary and PostgreSQL only, and it includes funnels, revenue, retention, session replay and heatmaps in the open-source release.
+
+Switching keeps your history: see [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md).
 </details>
 
 <details>
@@ -232,6 +234,7 @@ An EU-hosted Cloud is open: [start free](https://app.supermetry.com/signup?utm_s
 - [Ad blockers](docs/guide/ad-blockers.md): proxy through your own domain, or send events from your server
 - [Desktop and mobile apps](docs/guide/apps.md): rules for sending events and failure reports from apps
 - App Health client kits: [TypeScript](sdk/typescript/README.md) and [Python](sdk/python/README.md), MIT licensed, no dependencies
+- [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md): import your history and swap the script
 - [Tracking and privacy](docs/tracking-privacy.md)
 - [API](docs/api.md) and [API authentication](docs/api-auth.md)
 - [Authorization](docs/authorization.md)

@@ -4,6 +4,16 @@ All notable changes to Supermetry are listed here, newest release first.
 
 Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL, no ClickHouse, no Kafka, no Node in production.
 
+## Unreleased
+
+### Added
+
+- Guides: [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md). They cover exporting, importing, mapping the tracking calls and attributes, and what does not carry over. The Umami guide includes a ready-to-run export query.
+
+### Fixed
+
+- Umami imports accept PostgreSQL's default timestamp text (`2026-01-31 14:05:09.123+00`), which is what `psql \copy` writes. Such rows were previously skipped as invalid.
+
 ## v0.1.25 (2026-11-16)
 
 ### Added
