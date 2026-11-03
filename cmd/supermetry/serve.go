@@ -45,6 +45,7 @@ import (
 	"supermetry/internal/imports"
 	"supermetry/internal/ingest"
 	"supermetry/internal/integrations"
+	"supermetry/internal/integrations/stripe"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
 	"supermetry/internal/opencounters"
@@ -308,6 +309,19 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	integrationService := integrations.New(platformStore, integrationBox, cfg.BaseURL, integrations.NewGoogle(integrations.GoogleOptions{
 		ClientID: cfg.SearchConsoleClientID, ClientSecret: cfg.SearchConsoleClientSecret,
 	}))
+	stripeSecrets, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/stripe/v1")
+	if err != nil {
+		return fmt.Errorf("initialize Stripe encryption: %w", err)
+	}
+	stripeTokenBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/stripe-attribution/v1")
+	if err != nil {
+		return fmt.Errorf("initialize Stripe attribution encryption: %w", err)
+	}
+	stripeTokens := stripe.NewTokens(stripeTokenBox)
+	stripeService := stripe.New(stripe.Deps{
+		Store: platformStore, Secrets: stripeSecrets, Tokens: stripeTokens, Sites: registry, Dictionary: dictionary,
+		Sink: stripe.WriterSink{Writer: w}, Mode: cfg.Tracking.Mode, BaseURL: cfg.BaseURL, Now: settings.clock.Now,
+	})
 	demoService := demo.New(demo.Deps{
 		Pool: pool, Registry: databaseRegistry, Dict: dictionary,
 		Authz: func(_ context.Context, principal authz.Principal, orgID int64) error {
@@ -435,6 +449,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Reports:            reportService,
 		Alerts:             alertService,
 		Integrations:       integrationService,
+		Stripe:             stripeService,
 		Query:              engine,
 		Imports:            importStore,
 		ImportQueue:        importManager,
@@ -505,6 +520,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		UI:     web.Handler(),
 		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now), Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
+		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
+		StripeAttribution: &stripe.AttributionHandler{
+			Sites: registry, Salts: saltStore, Sessions: sessions, Tokens: stripeTokens, Limiter: ingest.NewTokenBuckets(1, 10),
+			TrustedProxies: cfg.TrustedProxies, Mode: cfg.Tracking.Mode, Now: settings.clock.Now,
+		},
 		GitHubStarCount: &ghstars.PublicCount{
 			Service: starService, Limiter: ingest.NewTokenBuckets(10, 120),
 			ClientKey: func(r *http.Request) string {
@@ -582,7 +602,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
 	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
-	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob())
+	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob(), stripeService.RetentionJob())
 	starService.AlertChannels = alertService
 	trendingService.Notifier = trendingAlerts{alerts: starService}
 	starService.AlertSender = alertDispatcher
