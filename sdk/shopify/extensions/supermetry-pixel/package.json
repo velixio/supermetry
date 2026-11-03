@@ -1,0 +1,14 @@
+{
+  "name": "supermetry-pixel",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@shopify/web-pixels-extension": "^2.18.0"
+  }
+}

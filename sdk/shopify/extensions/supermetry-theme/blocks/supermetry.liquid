@@ -1,0 +1,85 @@
+{%- comment -%}
+  Supermetry app embed: adds the site's tracker to <head> on every storefront page.
+  Turn it on in Online Store → Themes → Customize → App embeds.
+{%- endcomment -%}
+{%- liquid
+  assign site = block.settings.site | strip | downcase
+  assign host = block.settings.host | strip | default: 'https://app.supermetry.com'
+  assign last = host | slice: -1
+  if last == '/'
+    assign host_length = host | size | minus: 1
+    assign host = host | slice: 0, host_length
+  endif
+-%}
+{%- if site != blank and request.design_mode == false -%}
+  <script
+    defer
+    data-site="{{ site | escape }}"
+    {% if block.settings.consent %}data-consent="required"{% endif %}
+    {% unless block.settings.outbound %}data-outbound="false"{% endunless %}
+    {% unless block.settings.downloads %}data-downloads="false"{% endunless %}
+    src="{{ host | escape }}/js/{{ site | escape }}.js"
+  ></script>
+  {%- if block.settings.consent -%}
+    <script>
+      (function () {
+        // Follow Shopify's cookie banner: start counting once analytics is allowed.
+        function apply(allowed, tries) {
+          var api = window.supermetry;
+          if (api && api.consent) return api.consent(allowed);
+          if ((tries || 0) < 50) setTimeout(function () { apply(allowed, (tries || 0) + 1); }, 100);
+        }
+        document.addEventListener('visitorConsentCollected', function (event) {
+          apply(!!(event.detail && event.detail.analyticsAllowed));
+        });
+        if (window.Shopify && window.Shopify.loadFeatures) {
+          window.Shopify.loadFeatures([{ name: 'consent-tracking-api', version: '0.1' }], function (error) {
+            var privacy = window.Shopify.customerPrivacy;
+            if (!error && privacy && privacy.analyticsProcessingAllowed) apply(privacy.analyticsProcessingAllowed());
+          });
+        }
+      })();
+    </script>
+  {%- endif -%}
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "t:name",
+  "target": "head",
+  "settings": [
+    {
+      "type": "text",
+      "id": "site",
+      "label": "t:settings.site.label",
+      "info": "t:settings.site.info"
+    },
+    {
+      "type": "text",
+      "id": "host",
+      "label": "t:settings.host.label",
+      "info": "t:settings.host.info",
+      "default": "https://app.supermetry.com"
+    },
+    {
+      "type": "checkbox",
+      "id": "outbound",
+      "label": "t:settings.outbound.label",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "downloads",
+      "label": "t:settings.downloads.label",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "consent",
+      "label": "t:settings.consent.label",
+      "info": "t:settings.consent.info",
+      "default": false
+    }
+  ]
+}
+{% endschema %}
