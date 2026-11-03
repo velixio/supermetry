@@ -1,0 +1,8 @@
+{
+  "name": "@supermetry/ghost-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/ webhook-relay/test/"
+  }
+}
