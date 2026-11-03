@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { getTracker, init, type TrackerEvent } from "./index";
+import { attributionEndpoint, attributionId, getTracker, init, type TrackerEvent } from "./index";
 
 type Listener = () => void;
 
@@ -229,5 +229,64 @@ describe("init", () => {
     init({ site: "site-id", src: "/script.js" });
 
     expect(Object.fromEntries(script.attributes)).toEqual({ "data-site": "site-id" });
+  });
+});
+
+describe("attributionId", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function stubFetch(respond: () => Response | Promise<Response>): { url?: string; init?: RequestInit } {
+    const seen: { url?: string; init?: RequestInit } = {};
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      seen.url = url;
+      seen.init = init;
+      return respond();
+    }) as typeof fetch;
+    return seen;
+  }
+
+  test("derives the endpoint from host or api", () => {
+    expect(attributionEndpoint({ site: "s" })).toBe("https://app.supermetry.com/api/public/v1/attribution");
+    expect(attributionEndpoint({ site: "s", host: "https://stats.example.test/" })).toBe("https://stats.example.test/api/public/v1/attribution");
+    expect(attributionEndpoint({ site: "s", host: "" })).toBe("/api/public/v1/attribution");
+    expect(attributionEndpoint({ site: "s", src: "/js/script.js", api: "/stats/api/public/v1/events" })).toBe("/stats/api/public/v1/attribution");
+  });
+
+  test("returns null during server rendering", async () => {
+    const seen = stubFetch(() => Response.json({ id: "sm1_x" }));
+    expect(await attributionId({ site: "site-id" })).toBeNull();
+    expect(seen.url).toBeUndefined();
+  });
+
+  test("posts the site without credentials and returns the id", async () => {
+    installBrowser();
+    const seen = stubFetch(() => Response.json({ id: "sm1_token" }));
+    expect(await attributionId({ site: "site-id", host: "https://stats.example.test" })).toBe("sm1_token");
+    expect(seen.url).toBe("https://stats.example.test/api/public/v1/attribution");
+    expect(seen.init?.method).toBe("POST");
+    expect(seen.init?.credentials).toBe("omit");
+    expect(seen.init?.body).toBe(JSON.stringify({ site: "site-id" }));
+  });
+
+  test("uses the options from init", async () => {
+    installBrowser();
+    init({ site: "from-init", host: "https://init.example.test" });
+    const seen = stubFetch(() => Response.json({ id: null }));
+    expect(await attributionId()).toBeNull();
+    expect(seen.url).toBe("https://init.example.test/api/public/v1/attribution");
+    expect(seen.init?.body).toBe(JSON.stringify({ site: "from-init" }));
+  });
+
+  test("returns null on errors", async () => {
+    installBrowser();
+    stubFetch(() => new Response("nope", { status: 429 }));
+    expect(await attributionId({ site: "site-id" })).toBeNull();
+    stubFetch(() => {
+      throw new TypeError("offline");
+    });
+    expect(await attributionId({ site: "site-id" })).toBeNull();
   });
 });
