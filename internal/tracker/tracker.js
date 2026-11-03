@@ -41,11 +41,13 @@
     payload = JSON.stringify(payload);
     // fetch(keepalive) survives page exit like sendBeacon, but blockers file
     // it as a regular request instead of a "ping", which lists block
-    // wholesale. A string body keeps it a simple request: no preflight.
+    // wholesale. no-cors with a string body keeps it a simple request (no
+    // preflight) that follows redirects without CORS headers, as beacons do.
     fetch(endpoint, {
       method: "POST",
       body: payload,
-      keepalive: true
+      keepalive: true,
+      mode: "no-cors"
     }).catch(() => 0);
   }
 

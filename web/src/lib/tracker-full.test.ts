@@ -47,8 +47,8 @@ function load(attributes = '', body = '', withObservers = false, navigationRespo
   })
   Object.defineProperty(dom.window, 'fetch', {
     configurable: true,
-    value: (_url: string, init: { method?: string; body: string; keepalive?: boolean }) => {
-      if (init.method !== 'POST' || init.keepalive !== true) throw new Error(`unexpected fetch ${JSON.stringify(init)}`)
+    value: (_url: string, init: { method?: string; body: string; keepalive?: boolean; mode?: string }) => {
+      if (init.method !== 'POST' || init.keepalive !== true || init.mode !== 'no-cors') throw new Error(`unexpected fetch ${JSON.stringify(init)}`)
       payloads.push(JSON.parse(init.body) as EventPayload)
       return Promise.resolve({})
     },

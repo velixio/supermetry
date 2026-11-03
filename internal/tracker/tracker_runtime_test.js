@@ -154,7 +154,7 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
     // Events go out with fetch(keepalive), never sendBeacon: blockers file
     // beacons under the "ping" type, which filter lists block wholesale.
     fetch(_endpoint, options) {
-      if (!options || options.method !== "POST" || options.keepalive !== true || typeof options.body !== "string") {
+      if (!options || options.method !== "POST" || options.keepalive !== true || options.mode !== "no-cors" || typeof options.body !== "string") {
         throw new Error(`unexpected fetch options ${JSON.stringify(options)}`);
       }
       payloads.push(JSON.parse(options.body));
