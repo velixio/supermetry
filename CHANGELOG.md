@@ -6,6 +6,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.22 (2026-11-03)
+
 ### Changed
 
 - The tracker sends events with `fetch` (`keepalive`) instead of `navigator.sendBeacon`. Blockers file beacons as "ping" requests, which many filter lists block outright. Events still arrive when the page closes, and there is no extra preflight request.
@@ -14,6 +16,10 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 - An "Ad blockers" section in Settings → Installation. It explains what the tracker already does and has ready-to-copy first-party proxy configurations for nginx, Caddy, a Cloudflare Worker and Next.js, filled in with the site's ID and host. On Supermetry Cloud it links to the site's proxy key and includes the key headers. Self-hosted, it explains `SUPERMETRY_TRUSTED_PROXIES`. It also offers the first-party snippet and points to server-side events.
 - A guide, [Ad blockers](docs/guide/ad-blockers.md), linked from the README.
+
+## v0.1.21 (2026-11-03)
+
+Same code as v0.1.20.
 
 ## v0.1.20 (2026-11-03)
 
