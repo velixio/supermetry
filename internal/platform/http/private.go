@@ -181,6 +181,8 @@ type Deps struct {
 
 	// Integrations serves the third-party connection endpoints. Optional.
 	Integrations IntegrationsService
+	// Stripe serves the per-site Stripe revenue connection. Optional.
+	Stripe StripeService
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -457,6 +459,10 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/integrations/{provider}/backfill", h.backfillIntegration)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/integrations/{provider}", h.disconnectIntegration)
 	mux.HandleFunc("GET /api/private/integrations/{provider}/callback", h.integrationCallback)
+	mux.HandleFunc("GET /api/private/sites/{site}/integrations/stripe", h.getStripe)
+	mux.HandleFunc("POST /api/private/sites/{site}/integrations/stripe", h.enableStripe)
+	mux.HandleFunc("PATCH /api/private/sites/{site}/integrations/stripe", h.configureStripe)
+	mux.HandleFunc("DELETE /api/private/sites/{site}/integrations/stripe", h.disconnectStripe)
 	mux.HandleFunc("GET /api/private/sites/{site}/search-console/top", h.searchConsoleTop)
 	mux.HandleFunc("GET /api/private/invitations/{token}", h.previewInvitation)
 	mux.HandleFunc("POST /api/private/invitations/{token}/accept", h.acceptInvitation)

@@ -26,6 +26,7 @@ import (
 	"supermetry/internal/dict"
 	"supermetry/internal/heatmap"
 	"supermetry/internal/ingest"
+	"supermetry/internal/integrations/stripe"
 	"supermetry/internal/minutes"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authn"
@@ -42,6 +43,7 @@ import (
 	"supermetry/internal/privacy"
 	analyticsquery "supermetry/internal/query"
 	"supermetry/internal/routehits"
+	"supermetry/internal/salts"
 	"supermetry/internal/session"
 	coresites "supermetry/internal/sites"
 	"supermetry/internal/testpg"
@@ -132,12 +134,26 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 	engine.SetTrackingMode(privacy.Identified)
 	engine.SetClock(func() time.Time { return now })
 	live := session.NewMemory(4, clockFunc(func() time.Time { return now }))
+	stripeSecrets, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/stripe/v1")
+	if err != nil {
+		t.Fatalf("create Stripe secret box: %v", err)
+	}
+	stripeTokenBox, err := platformcrypto.NewSecretBox([]byte("0123456789abcdef0123456789abcdef"), "supermetry/stripe-attribution/v1")
+	if err != nil {
+		t.Fatalf("create Stripe token box: %v", err)
+	}
+	stripeTokens := stripe.NewTokens(stripeTokenBox)
+	stripeService := stripe.New(stripe.Deps{
+		Store: data, Secrets: stripeSecrets, Tokens: stripeTokens, Sites: registry, Dictionary: dictionary,
+		Sink: unavailableSink{}, Mode: privacy.Identified, BaseURL: "https://supermetry.example", Now: func() time.Time { return now },
+	})
 	platform := platformhttp.New(platformhttp.Deps{
 		Now: func() time.Time { return now }, TrackingMode: privacy.Identified,
 		BaseURL: "https://supermetry.example", TrackerPath: "/js/script.js",
 		Authenticator: platformAuthenticator, Sites: registry, Store: data, Auth: authService,
 		Orgs: orgService, Keys: keyService, Definitions: definitions,
 		Mutations: platformhttp.Services{Sites: siteService, Keys: keyService, Store: data},
+		Stripe:    stripeService,
 	})
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js", Tracking: config.TrackingMode{Mode: privacy.Identified}},
@@ -145,8 +161,13 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 		PublicAuth: analyticsAuthenticator, PrivateAuth: analyticsAuthenticator, Sites: registry,
 		Platform: platform, Sessions: live, MinuteSource: minutes.NewStore(pool), Dictionary: dictionary,
 		Now: func() time.Time { return now }, RateLimitNow: func() time.Time { return now },
-		RateLimiter: ingest.NewTokenBuckets(rate, burst),
-		Ingest:      http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) }),
+		RateLimiter:   ingest.NewTokenBuckets(rate, burst),
+		Ingest:        http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) }),
+		StripeWebhook: &stripe.WebhookHandler{Service: stripeService},
+		StripeAttribution: &stripe.AttributionHandler{
+			Sites: registry, Salts: salts.New(pool, clockFunc(func() time.Time { return now })), Sessions: live, Tokens: stripeTokens,
+			Mode: privacy.Identified, Now: func() time.Time { return now },
+		},
 	})
 	env := &Env{Pool: pool, Handler: router, Now: now, data: data, registry: registry, sites: siteService, keys: keyService, auth: authService, orgs: orgService, definitions: definitions}
 	t.Cleanup(func() {
@@ -161,6 +182,12 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 	})
 	return env
 }
+
+// unavailableSink refuses writer capacity; the matrix never delivers signed
+// Stripe events.
+type unavailableSink struct{}
+
+func (unavailableSink) Reserve() (stripe.Slot, bool) { return nil, false }
 
 // Org creates an owner and organization.
 func (e *Env) Org(t testing.TB) Org {

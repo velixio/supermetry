@@ -2903,6 +2903,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/integrations/stripe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Stripe revenue connection status of a site */
+        get: operations["getStripeIntegration"];
+        put?: never;
+        /** Create the site's Stripe webhook endpoint (idempotent) */
+        post: operations["enableStripeIntegration"];
+        /** Disconnect Stripe, deleting the secret, endpoint, customer channels and refund ledger */
+        delete: operations["disconnectStripeIntegration"];
+        options?: never;
+        head?: never;
+        /** Save the webhook signing secret or change options */
+        patch: operations["configureStripeIntegration"];
+        trace?: never;
+    };
+    "/api/public/v1/integrations/stripe/webhook/{endpoint}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive a signed Stripe webhook delivery
+         * @description Stripe calls this URL; it is not meant for other clients. The body (at
+         *     most 256 KiB) must carry a valid `Stripe-Signature` made with the
+         *     site's signing secret. Unknown endpoints and bad signatures both
+         *     answer 400.
+         */
+        post: operations["receiveStripeWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/attribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue a short-lived checkout attribution id for the caller's live session
+         * @description Called from the tracked page before redirecting to Stripe Checkout.
+         *     Pass the returned id as `client_reference_id` (or
+         *     `metadata.supermetry_id`). The id is sealed, valid for 24 hours and
+         *     bound to the site. It is `null` in anonymous tracking mode, when
+         *     profiles are off, when a privacy signal is honored, or when the
+         *     caller has no live session.
+         */
+        post: operations["createAttributionId"];
+        delete?: never;
+        /** Negotiate cross-origin attribution requests */
+        options: operations["preflightAttribution"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/search-console/top": {
         parameters: {
             query?: never;
@@ -2983,6 +3056,39 @@ export interface components {
         IntegrationAuthorization: {
             /** Format: uri */
             authorization_url: string;
+        };
+        StripeIntegration: {
+            enabled: boolean;
+            /** @description Endpoint URL to add in Stripe; a path when no public base URL is configured. */
+            webhook_url?: string;
+            secret_configured: boolean;
+            record_payment_intents: boolean;
+            /** @description Stripe event types to select for the endpoint. */
+            events: string[];
+            optional_events: string[];
+            revenue_currency?: string;
+            /** Format: int64 */
+            events_received: number;
+            /** Format: int64 */
+            revenue_events: number;
+            /** Format: int64 */
+            refunds_30d: number;
+            /** Format: int64 */
+            refunded_micros_30d: number;
+            /** Format: date-time */
+            last_event_at?: string;
+            last_event_type?: string;
+            last_event_livemode?: boolean;
+            last_error?: string;
+            /** Format: date-time */
+            last_error_at?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        StripeIntegrationUpdate: {
+            /** @description The whsec_ signing secret of the Stripe webhook endpoint. Write-only. */
+            signing_secret?: string;
+            record_payment_intents?: boolean;
         };
         SearchConsoleTopRow: {
             key: string;
@@ -11347,6 +11453,211 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getStripeIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection status; enabled is false when Stripe is not set up. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeIntegration"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    enableStripeIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection status with the webhook URL to add in Stripe. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeIntegration"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    disconnectStripeIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected. Revenue events already recorded stay. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    configureStripeIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StripeIntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated connection status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeIntegration"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    receiveStripeWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "Stripe-Signature": string;
+            };
+            path: {
+                endpoint: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Delivery handled or deliberately skipped. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        received: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Body larger than 256 KiB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description The event writer is saturated; Stripe retries the delivery. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createAttributionId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    site: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Attribution id or null. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description The Origin is not one of the site's allowed hosts. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    preflightAttribution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cross-origin requests are permitted from the site's allowed hosts. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getSearchConsoleTop: {
