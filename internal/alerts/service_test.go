@@ -541,3 +541,45 @@ func newServiceTestWithDeliverer(t *testing.T, deliverer Deliverer) (*Service, *
 	service := New(&store.Store{Pool: pool}, box, deliverer)
 	return service, pool, authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}, siteID, goalID
 }
+
+func TestServiceAppAlertKindsFollowSiteKindAndPersistConfig(t *testing.T) {
+	service, pool, principal, webSiteID, _ := newServiceTest(t)
+	ctx := context.Background()
+	var appSiteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,timezone,retention_class,kind) values ($1,'appabcdefghi','App','UTC',30,'app') returning id`, principal.OrgID).Scan(&appSiteID); err != nil {
+		t.Fatal(err)
+	}
+	channel, err := service.CreateChannel(ctx, principal, ChannelInput{Kind: ChannelEmail, Name: "Owners", Recipients: []string{"owner@example.test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	appInput := AlertInput{Kind: AlertAppCrashFreeBelow, Threshold: 98.5, Config: &AlertConfig{Metric: MetricSessions}, ChannelIDs: []int64{channel.ID}}
+	if _, err := service.CreateAlert(ctx, principal, webSiteID, appInput); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("app kind on web site error = %v, want ErrInvalid", err)
+	}
+	if _, err := service.CreateAlert(ctx, principal, appSiteID, AlertInput{Kind: AlertTrafficSpike, Threshold: 5, ChannelIDs: []int64{channel.ID}}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("web kind on app site error = %v, want ErrInvalid", err)
+	}
+	created, err := service.CreateAlert(ctx, principal, appSiteID, appInput)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Kind != AlertAppCrashFreeBelow || created.Threshold != 98.5 || created.Config == nil || created.Config.Metric != MetricSessions {
+		t.Fatalf("created = %+v", created)
+	}
+	if _, err := service.CreateAlert(ctx, principal, appSiteID, AlertInput{Kind: AlertAppNewIssue, Threshold: 1, Config: &AlertConfig{Kinds: []string{"crash"}}, ChannelIDs: []int64{channel.ID}}); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := service.ListAlerts(ctx, principal, appSiteID)
+	if err != nil || len(listed) != 2 || listed[1].Config == nil || len(listed[1].Config.Kinds) != 1 {
+		t.Fatalf("ListAlerts() = %+v, %v", listed, err)
+	}
+	enabled, err := service.EnabledAlerts(ctx)
+	if err != nil || len(enabled) != 2 || enabled[0].Config == nil || enabled[0].Config.Metric != MetricSessions {
+		t.Fatalf("EnabledAlerts() = %+v, %v", enabled, err)
+	}
+	updated, err := service.UpdateAlert(ctx, principal, appSiteID, created.ID, AlertInput{Kind: AlertAppIssueSpike, Threshold: 1, ChannelIDs: []int64{channel.ID}})
+	if err != nil || updated.Kind != AlertAppIssueSpike {
+		t.Fatalf("UpdateAlert() = %+v, %v", updated, err)
+	}
+}

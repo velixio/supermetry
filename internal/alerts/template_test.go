@@ -68,3 +68,83 @@ func TestScrubDeliveryError(t *testing.T) {
 		}
 	}
 }
+
+func appNotification(kind AlertKind) Notification {
+	n := Notification{
+		AlertID: 3, SiteID: 9, Kind: kind, FiredAt: time.Date(2026, 11, 15, 12, 30, 0, 0, time.UTC),
+		From: time.Date(2026, 11, 15, 11, 0, 0, 0, time.UTC), To: time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC),
+		App: &AppNotification{
+			AppName: "VoiceStudio", IssueID: 42, IssueTitle: "SegFault in render <loop>", IssueKind: "crash", Release: "1.4.0",
+			IssueURL: "/app/acme/voicestudio/issues/42", Events: 30, Installs: 250, Metric: MetricUsers, Baseline: 5,
+		},
+	}
+	switch kind {
+	case AlertAppCrashFreeBelow:
+		n.Value, n.Threshold = 97.25, 99
+	case AlertAppIssueSpike:
+		n.Value, n.Threshold = 30, 15
+	default:
+		n.Value, n.Threshold = 30, 1
+	}
+	return n
+}
+
+func TestDefaultTemplateForEachAppKind(t *testing.T) {
+	cases := []struct {
+		kind AlertKind
+		want []string
+	}{
+		{AlertAppNewIssue, []string{"New issue in VoiceStudio", "SegFault in render <loop>", "crash", "1.4.0", "/app/acme/voicestudio/issues/42"}},
+		{AlertAppIssueRegressed, []string{"Regression in VoiceStudio", "SegFault in render <loop>", "1.4.0", "/app/acme/voicestudio/issues/42"}},
+		{AlertAppCrashFreeBelow, []string{"Crash-free users", "VoiceStudio 1.4.0", "97.25%", "99.00%", "250 installs"}},
+		{AlertAppIssueSpike, []string{"Spike in VoiceStudio", "SegFault in render <loop>", "30 events", "5.00", "/app/acme/voicestudio/issues/42"}},
+	}
+	for _, c := range cases {
+		t.Run(string(c.kind), func(t *testing.T) {
+			for _, channel := range []ChannelKind{ChannelEmail, ChannelWebhook, ChannelTelegram} {
+				rendered, err := RenderTemplate(channel, DefaultTemplateFor(channel, c.kind), appNotification(c.kind))
+				if err != nil {
+					t.Fatalf("%s: %v", channel, err)
+				}
+				for _, want := range c.want {
+					if !strings.Contains(rendered.Body, want) {
+						t.Errorf("%s body %q lacks %q", channel, rendered.Body, want)
+					}
+				}
+				if strings.Contains(strings.ToLower(rendered.Body), "frame") || strings.Contains(strings.ToLower(rendered.Body), "tag") {
+					t.Errorf("%s body leaks frames or tags: %q", channel, rendered.Body)
+				}
+				if channel == ChannelEmail && !strings.Contains(rendered.Subject, "VoiceStudio") {
+					t.Errorf("email subject %q lacks the app name", rendered.Subject)
+				}
+			}
+		})
+	}
+}
+
+func TestAppTemplateVariablesAreEscapedPerChannelAndEmptyForWebAlerts(t *testing.T) {
+	custom := TemplateInput{Body: "{{.app_name}}|{{.issue_title}}|{{.issue_kind}}|{{.release}}|{{.events}}|{{.installs}}|{{.crash_free}}|{{.issue_url}}"}
+	slack, err := RenderTemplate(ChannelSlack, custom, appNotification(AlertAppNewIssue))
+	if err != nil || !strings.Contains(slack.Body, "SegFault in render &lt;loop&gt;") {
+		t.Fatalf("slack = %q, %v", slack.Body, err)
+	}
+	web, err := RenderTemplate(ChannelEmail, TemplateInput{Subject: "s", Body: "[{{.app_name}}][{{.issue_title}}][{{.events}}]"}, Notification{Kind: AlertTrafficSpike, FiredAt: time.Now()})
+	if err != nil || web.Body != "[][][]" {
+		t.Fatalf("web alert with app variables = %q, %v", web.Body, err)
+	}
+	for _, name := range []string{"app_name", "issue_title", "issue_kind", "release", "events", "installs", "crash_free", "issue_url"} {
+		found := false
+		for _, v := range TemplateVariables {
+			found = found || v == name
+		}
+		if !found {
+			t.Errorf("TemplateVariables lacks %q", name)
+		}
+	}
+}
+
+func TestDefaultTemplateForTrafficKindsIsUnchanged(t *testing.T) {
+	if got, want := DefaultTemplateFor(ChannelEmail, AlertTrafficSpike), DefaultTemplate(ChannelEmail); got != want {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}

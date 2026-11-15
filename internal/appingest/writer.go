@@ -371,7 +371,7 @@ func regress(ctx context.Context, tx pgx.Tx, groups []*issueGroup) error {
 		if !shouldRegress(releases, g.resolvedIn, g.resolvedNext, seen[g.siteID]) {
 			continue
 		}
-		if _, err := tx.Exec(ctx, `update app_issues set status = 'regressed' where id = $1 and status = 'resolved'`, g.id); err != nil {
+		if _, err := tx.Exec(ctx, `update app_issues set status = 'regressed', regressed_at = now() where id = $1 and status = 'resolved'`, g.id); err != nil {
 			return fmt.Errorf("mark issue regressed: %w", err)
 		}
 	}

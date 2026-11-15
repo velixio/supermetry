@@ -54,6 +54,7 @@ type Alert struct {
 	Kind          AlertKind      `json:"kind"`
 	Threshold     float64        `json:"threshold"`
 	GoalID        *int64         `json:"goal_id,omitempty"`
+	Config        *AlertConfig   `json:"config,omitempty"`
 	ChannelIDs    []int64        `json:"channel_ids"`
 	Enabled       bool           `json:"enabled"`
 	LastFiredAt   *time.Time     `json:"last_fired_at,omitempty"`
@@ -62,11 +63,12 @@ type Alert struct {
 }
 
 type AlertInput struct {
-	Kind       AlertKind `json:"kind"`
-	Threshold  float64   `json:"threshold"`
-	GoalID     *int64    `json:"goal_id,omitempty"`
-	ChannelIDs []int64   `json:"channel_ids"`
-	Enabled    *bool     `json:"enabled,omitempty"`
+	Kind       AlertKind    `json:"kind"`
+	Threshold  float64      `json:"threshold"`
+	GoalID     *int64       `json:"goal_id,omitempty"`
+	Config     *AlertConfig `json:"config,omitempty"`
+	ChannelIDs []int64      `json:"channel_ids"`
+	Enabled    *bool        `json:"enabled,omitempty"`
 }
 
 type DeliveryChannel struct {
@@ -92,6 +94,8 @@ type Notification struct {
 	From      time.Time `json:"from"`
 	To        time.Time `json:"to"`
 	FiredAt   time.Time `json:"fired_at"`
+	// App carries the app-alert details; nil for traffic and goal alerts.
+	App *AppNotification `json:"app,omitempty"`
 }
 
 // DeliveryState is the durable progress for one fired evaluation. ChannelIDs

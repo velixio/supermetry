@@ -23,7 +23,8 @@ const (
 var (
 	ErrInvalidTemplate = errors.New("invalid notification template")
 	secretErrorPattern = regexp.MustCompile(`(?i)(?:bearer|token|secret|authorization)[\s=:]+[^\s,;]+`)
-	TemplateVariables  = []string{"alert_id", "alert_kind", "site_id", "value", "threshold", "from", "to", "fired_at"}
+	TemplateVariables  = []string{"alert_id", "alert_kind", "site_id", "value", "threshold", "from", "to", "fired_at",
+		"app_name", "issue_title", "issue_kind", "release", "events", "installs", "crash_free", "metric", "baseline", "issue_url"}
 )
 
 type TemplateInput struct {
@@ -50,6 +51,33 @@ func DefaultTemplate(kind ChannelKind) TemplateInput {
 		return TemplateInput{Subject: "Supermetry analytics alert", Body: body}
 	}
 	return TemplateInput{Body: body}
+}
+
+// DefaultTemplateFor is the default message for an alert kind on a channel
+// kind: the generic text for traffic and goal alerts, a written one per app
+// kind. Messages carry no stack frames or tags.
+func DefaultTemplateFor(kind ChannelKind, alert AlertKind) TemplateInput {
+	var subject, body string
+	switch alert {
+	case AlertAppNewIssue:
+		subject = "New issue in {{.app_name}}"
+		body = "New issue in {{.app_name}} ({{.issue_kind}}, release {{.release}}): {{.issue_title}} ({{.events}} events)\n{{.issue_url}}"
+	case AlertAppIssueRegressed:
+		subject = "Regression in {{.app_name}}"
+		body = "Regression in {{.app_name}} ({{.issue_kind}}, release {{.release}}): {{.issue_title}}\n{{.issue_url}}"
+	case AlertAppCrashFreeBelow:
+		subject = "Crash-free {{.metric}} below threshold in {{.app_name}}"
+		body = "Crash-free {{.metric}} for {{.app_name}} {{.release}} is {{.crash_free}}%, below the {{.threshold}}% threshold ({{.installs}} installs in the last 24 hours)"
+	case AlertAppIssueSpike:
+		subject = "Spike in {{.app_name}}"
+		body = "Spike in {{.app_name}} ({{.issue_kind}}, release {{.release}}): {{.issue_title}}\n{{.events}} events in the last full hour against an average of {{.baseline}} for this hour of the day\n{{.issue_url}}"
+	default:
+		return DefaultTemplate(kind)
+	}
+	if kind != ChannelEmail {
+		subject = ""
+	}
+	return TemplateInput{Subject: subject, Body: body}
 }
 
 func RenderTemplate(kind ChannelKind, input TemplateInput, notification Notification) (RenderedMessage, error) {
@@ -91,12 +119,31 @@ func executeTemplate(name, source string, values map[string]string) (string, err
 
 func templateValues(kind ChannelKind, notification Notification) map[string]string {
 	escape := func(value string) string { return escapeTemplateValue(kind, value) }
-	return map[string]string{
+	app := AppNotification{}
+	crashFree := ""
+	if notification.App != nil {
+		app = *notification.App
+	}
+	if notification.Kind == AlertAppCrashFreeBelow {
+		crashFree = fmt.Sprintf("%.2f", notification.Value)
+	}
+	values := map[string]string{
+		"app_name": escape(app.AppName), "issue_title": escape(app.IssueTitle), "issue_kind": escape(app.IssueKind),
+		"release": escape(app.Release), "events": strconv.FormatInt(app.Events, 10), "installs": strconv.FormatInt(app.Installs, 10),
+		"crash_free": crashFree, "metric": escape(app.Metric), "baseline": fmt.Sprintf("%.2f", app.Baseline), "issue_url": escape(app.IssueURL),
+	}
+	if notification.App == nil {
+		values["events"], values["installs"], values["baseline"] = "", "", ""
+	}
+	for key, value := range map[string]string{
 		"alert_id": strconv.FormatInt(notification.AlertID, 10), "site_id": strconv.FormatInt(int64(notification.SiteID), 10),
 		"alert_kind": escape(string(notification.Kind)), "value": fmt.Sprintf("%.2f", notification.Value),
 		"threshold": fmt.Sprintf("%.2f", notification.Threshold), "from": notification.From.UTC().Format(time.RFC3339),
 		"to": notification.To.UTC().Format(time.RFC3339), "fired_at": notification.FiredAt.UTC().Format(time.RFC3339),
+	} {
+		values[key] = value
 	}
+	return values
 }
 
 func escapeTemplateValue(kind ChannelKind, value string) string {

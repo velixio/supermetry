@@ -208,7 +208,7 @@ func (s *Service) ListAlerts(ctx context.Context, principal authz.Principal, sit
 	if !authz.Can(principal, authz.ActionAlertsManage, siteID) {
 		return nil, ErrForbidden
 	}
-	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at from alerts a join sites s on s.id=a.site_id where a.site_id=$1 and s.org_id=$2 and s.deleted_at is null order by a.id`, siteID, principal.OrgID)
+	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at,a.config from alerts a join sites s on s.id=a.site_id where a.site_id=$1 and s.org_id=$2 and s.deleted_at is null order by a.id`, siteID, principal.OrgID)
 	if err != nil {
 		return nil, fmt.Errorf("list alerts: %w", err)
 	}
@@ -238,16 +238,17 @@ func (s *Service) CreateAlert(ctx context.Context, principal authz.Principal, si
 	if input.ChannelIDs == nil {
 		input.ChannelIDs = []int64{}
 	}
-	if err := validateAlertInput(input, enabled); err != nil {
+	input, err := validateAlertInput(input, enabled)
+	if err != nil {
 		return Alert{}, err
 	}
 	var created Alert
-	err := s.store.Tx(ctx, func(tx pgx.Tx) error {
+	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
 		if err := validateAlertRelations(ctx, tx, principal.OrgID, siteID, input); err != nil {
 			return err
 		}
 		var err error
-		created, err = scanAlert(tx.QueryRow(ctx, `insert into alerts(site_id,kind,threshold,goal_id,channel_ids,enabled) values ($1,$2,$3,$4,$5,$6) returning id,site_id,kind,threshold,goal_id,channel_ids,enabled,last_fired_at,created_at`, siteID, input.Kind, input.Threshold, input.GoalID, input.ChannelIDs, enabled))
+		created, err = scanAlert(tx.QueryRow(ctx, `insert into alerts(site_id,kind,threshold,goal_id,channel_ids,enabled,config) values ($1,$2,$3,$4,$5,$6,$7) returning id,site_id,kind,threshold,goal_id,channel_ids,enabled,last_fired_at,created_at,config`, siteID, input.Kind, input.Threshold, input.GoalID, input.ChannelIDs, enabled, encodeAlertConfig(input.Config)))
 		if err != nil {
 			return fmt.Errorf("create alert: %w", err)
 		}
@@ -272,9 +273,6 @@ func (s *Service) UpdateAlert(ctx context.Context, principal authz.Principal, si
 		if !authz.Can(principal, authz.ActionAlertsManage, siteID) {
 			return ErrForbidden
 		}
-		if err := validateAlertRelations(ctx, tx, principal.OrgID, siteID, input); err != nil {
-			return err
-		}
 		var enabled bool
 		if input.Enabled == nil {
 			if err := tx.QueryRow(ctx, `select enabled from alerts where id=$1`, id).Scan(&enabled); err != nil {
@@ -283,11 +281,14 @@ func (s *Service) UpdateAlert(ctx context.Context, principal authz.Principal, si
 		} else {
 			enabled = *input.Enabled
 		}
-		if err := validateAlertInput(input, enabled); err != nil {
+		var err error
+		if input, err = validateAlertInput(input, enabled); err != nil {
 			return err
 		}
-		var err error
-		updated, err = scanAlert(tx.QueryRow(ctx, `update alerts set kind=$2,threshold=$3,goal_id=$4,channel_ids=$5,enabled=$6,delivery_state=null where id=$1 returning id,site_id,kind,threshold,goal_id,channel_ids,enabled,last_fired_at,created_at`, id, input.Kind, input.Threshold, input.GoalID, input.ChannelIDs, enabled))
+		if err := validateAlertRelations(ctx, tx, principal.OrgID, siteID, input); err != nil {
+			return err
+		}
+		updated, err = scanAlert(tx.QueryRow(ctx, `update alerts set kind=$2,threshold=$3,goal_id=$4,channel_ids=$5,enabled=$6,config=$7,delivery_state=null where id=$1 returning id,site_id,kind,threshold,goal_id,channel_ids,enabled,last_fired_at,created_at,config`, id, input.Kind, input.Threshold, input.GoalID, input.ChannelIDs, enabled, encodeAlertConfig(input.Config)))
 		if err != nil {
 			return fmt.Errorf("update alert: %w", err)
 		}
@@ -316,7 +317,7 @@ func (s *Service) DeleteAlert(ctx context.Context, principal authz.Principal, si
 }
 
 func (s *Service) EnabledAlerts(ctx context.Context) ([]Alert, error) {
-	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at,a.delivery_state from alerts a join sites s on s.id=a.site_id join orgs o on o.id=s.org_id where a.enabled and s.deleted_at is null and o.deleted_at is null order by a.id`)
+	rows, err := s.store.Pool.Query(ctx, `select a.id,a.site_id,a.kind,a.threshold,a.goal_id,a.channel_ids,a.enabled,a.last_fired_at,a.created_at,a.config,a.delivery_state from alerts a join sites s on s.id=a.site_id join orgs o on o.id=s.org_id where a.enabled and s.deleted_at is null and o.deleted_at is null order by a.id`)
 	if err != nil {
 		return nil, fmt.Errorf("load enabled alerts: %w", err)
 	}
@@ -465,7 +466,12 @@ func scanChannel(row rowScanner) (Channel, error) {
 
 func scanAlert(row rowScanner) (Alert, error) {
 	var alert Alert
-	if err := row.Scan(&alert.ID, &alert.SiteID, &alert.Kind, &alert.Threshold, &alert.GoalID, &alert.ChannelIDs, &alert.Enabled, &alert.LastFiredAt, &alert.CreatedAt); err != nil {
+	var rawConfig []byte
+	var err error
+	if err := row.Scan(&alert.ID, &alert.SiteID, &alert.Kind, &alert.Threshold, &alert.GoalID, &alert.ChannelIDs, &alert.Enabled, &alert.LastFiredAt, &alert.CreatedAt, &rawConfig); err != nil {
+		return Alert{}, err
+	}
+	if alert.Config, err = decodeAlertConfig(rawConfig); err != nil {
 		return Alert{}, err
 	}
 	return alert, nil
@@ -473,8 +479,12 @@ func scanAlert(row rowScanner) (Alert, error) {
 
 func scanAlertWithDeliveryState(row rowScanner) (Alert, error) {
 	var alert Alert
-	var encoded []byte
-	if err := row.Scan(&alert.ID, &alert.SiteID, &alert.Kind, &alert.Threshold, &alert.GoalID, &alert.ChannelIDs, &alert.Enabled, &alert.LastFiredAt, &alert.CreatedAt, &encoded); err != nil {
+	var encoded, rawConfig []byte
+	var err error
+	if err = row.Scan(&alert.ID, &alert.SiteID, &alert.Kind, &alert.Threshold, &alert.GoalID, &alert.ChannelIDs, &alert.Enabled, &alert.LastFiredAt, &alert.CreatedAt, &rawConfig, &encoded); err != nil {
+		return Alert{}, err
+	}
+	if alert.Config, err = decodeAlertConfig(rawConfig); err != nil {
 		return Alert{}, err
 	}
 	if len(encoded) > 0 {
@@ -548,39 +558,69 @@ func (s *Service) openConfig(value string) (string, error) {
 	return string(plain), nil
 }
 
-func validateAlertInput(input AlertInput, enabled bool) error {
+func validateAlertInput(input AlertInput, enabled bool) (AlertInput, error) {
+	if input.Kind.IsApp() {
+		normalized, ok := NormalizeAppInput(input)
+		if !ok {
+			return input, ErrInvalid
+		}
+		input = normalized
+	}
 	if input.Threshold <= 0 || enabled && len(input.ChannelIDs) == 0 {
-		return ErrInvalid
+		return input, ErrInvalid
 	}
 	seen := make(map[int64]bool, len(input.ChannelIDs))
 	for _, id := range input.ChannelIDs {
 		if id <= 0 || seen[id] {
-			return ErrInvalid
+			return input, ErrInvalid
 		}
 		seen[id] = true
 	}
 	switch input.Kind {
 	case AlertGoalReached:
 		if input.GoalID == nil || *input.GoalID <= 0 {
-			return ErrInvalid
+			return input, ErrInvalid
 		}
 	case AlertTrafficSpike, AlertTrafficDrop:
-		if input.GoalID != nil {
-			return ErrInvalid
+		if input.GoalID != nil || input.Config != nil {
+			return input, ErrInvalid
 		}
+	case AlertAppNewIssue, AlertAppIssueRegressed, AlertAppCrashFreeBelow, AlertAppIssueSpike:
 	default:
-		return ErrInvalid
+		return input, ErrInvalid
 	}
-	return nil
+	return input, nil
+}
+
+func encodeAlertConfig(config *AlertConfig) []byte {
+	if config == nil {
+		return nil
+	}
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		return nil
+	}
+	return encoded
+}
+
+func decodeAlertConfig(raw []byte) (*AlertConfig, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var config AlertConfig
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return nil, fmt.Errorf("decode alert config: %w", err)
+	}
+	return &config, nil
 }
 
 func validateAlertRelations(ctx context.Context, tx pgx.Tx, orgID int64, siteID int32, input AlertInput) error {
-	var siteExists bool
-	if err := tx.QueryRow(ctx, `select exists(select 1 from sites where id=$1 and org_id=$2 and deleted_at is null)`, siteID, orgID).Scan(&siteExists); err != nil {
+	var siteKind string
+	if err := tx.QueryRow(ctx, `select kind from sites where id=$1 and org_id=$2 and deleted_at is null`, siteID, orgID).Scan(&siteKind); err != nil {
 		return err
 	}
-	if !siteExists {
-		return pgx.ErrNoRows
+	if !input.Kind.AllowedOnSiteKind(siteKind) {
+		return ErrInvalid
 	}
 	var channelCount int
 	if err := tx.QueryRow(ctx, `select count(*) from notification_channels where org_id=$1 and id=any($2)`, orgID, input.ChannelIDs).Scan(&channelCount); err != nil {

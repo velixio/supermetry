@@ -159,6 +159,16 @@ update app_issues set status='resolved', resolved_in_release='1.2.0', resolved_n
 		if got := readIssue(t, pool, fp).Status; got != status {
 			t.Errorf("%s: status %q, want %q", fp, got, status)
 		}
+		var regressedAt *time.Time
+		if err := pool.QueryRow(ctx, `select regressed_at from app_issues where site_id=7 and fingerprint=$1`, fp).Scan(&regressedAt); err != nil {
+			t.Fatal(err)
+		}
+		if status == "regressed" && (regressedAt == nil || time.Since(*regressedAt) > time.Minute) {
+			t.Errorf("%s: regressed_at = %v, want about now", fp, regressedAt)
+		}
+		if status != "regressed" && regressedAt != nil {
+			t.Errorf("%s: regressed_at = %v, want null", fp, regressedAt)
+		}
 	}
 }
 

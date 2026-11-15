@@ -17,13 +17,13 @@ vi.mock('@/features/goals/api', () => ({ useGoals }))
 
 import { AlertsPage } from './AlertsPage'
 
-function renderPage() {
+function renderPage(siteKind?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   render(
     <QueryClientProvider client={client}>
-      <AlertsPage orgId={3} siteId={7} />
+      <AlertsPage orgId={3} siteId={7} siteKind={siteKind} />
     </QueryClientProvider>,
   )
 }
@@ -96,5 +96,56 @@ describe('AlertsPage', () => {
     expect(screen.getByText('Percentage of visitors in the same 24-hour window seven days earlier.')).toBeVisible()
     fireEvent.change(screen.getByLabelText('Alert type'), { target: { value: 'goal_reached' } })
     expect(screen.getByText('Conversions in the current local day.')).toBeVisible()
+  })
+
+  it('offers only the four app kinds for an app project', async () => {
+    renderPage('app')
+    await screen.findByText('No alerts yet.')
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    const options = Array.from(screen.getByLabelText('Alert type').querySelectorAll('option')).map((option) => option.value)
+    expect(options).toEqual(['app_new_issue', 'app_issue_regressed', 'app_crash_free_below', 'app_issue_spike'])
+  })
+
+  it('keeps the three web kinds for a web site', async () => {
+    renderPage('web')
+    await screen.findByText('No alerts yet.')
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    const options = Array.from(screen.getByLabelText('Alert type').querySelectorAll('option')).map((option) => option.value)
+    expect(options).toEqual(['traffic_spike', 'traffic_drop', 'goal_reached'])
+  })
+
+  it('creates a crash-free alert with threshold and metric', async () => {
+    renderPage('app')
+    await screen.findByText('No alerts yet.')
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    fireEvent.change(screen.getByLabelText('Alert type'), { target: { value: 'app_crash_free_below' } })
+    expect(screen.getByLabelText('Crash-free threshold (%)')).toHaveValue(99)
+    fireEvent.change(screen.getByLabelText('Crash-free threshold (%)'), { target: { value: '98.5' } })
+    fireEvent.change(screen.getByLabelText('Metric'), { target: { value: 'sessions' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Operations' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save alert' }))
+    await waitFor(() => expect(post).toHaveBeenCalledWith(
+      '/api/private/sites/7/alerts',
+      expect.objectContaining({
+        body: { kind: 'app_crash_free_below', threshold: 98.5, config: { metric: 'sessions' }, channel_ids: [8], enabled: true },
+      }),
+    ))
+  })
+
+  it('creates a new-issue alert filtered by issue kind without a threshold field', async () => {
+    renderPage('app')
+    await screen.findByText('No alerts yet.')
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    expect(screen.getByLabelText('Alert type')).toHaveValue('app_new_issue')
+    expect(screen.queryByLabelText('Threshold')).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'crash' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Operations' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save alert' }))
+    await waitFor(() => expect(post).toHaveBeenCalledWith(
+      '/api/private/sites/7/alerts',
+      expect.objectContaining({
+        body: { kind: 'app_new_issue', config: { kinds: ['crash'] }, channel_ids: [8], enabled: true },
+      }),
+    ))
   })
 })
