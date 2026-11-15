@@ -61,6 +61,7 @@ type Site struct {
 	Tracker               TrackerSettingsInput
 	Replay                ReplaySiteInput
 	App                   *AppConfig // nil unless Kind is KindApp
+	LinkedAppID           int32      // web sites only: the app project that receives this site's diagnostic reports; 0 when unlinked
 	ProfilesEnabled       bool
 	HeatmapsEnabled       bool
 	RespectPrivacySignals bool

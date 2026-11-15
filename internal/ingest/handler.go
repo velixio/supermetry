@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"supermetry/internal/appingest"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
@@ -65,7 +66,10 @@ type Handler struct {
 	Clock          Clock
 	Dedup          *Deduplicator
 	DropStats      *dropstats.Recorder
-	Diag           bool // log how each client address was resolved (SUPERMETRY_INGEST_DIAG=1)
+	// AppIntake receives diagnostic reports of sites linked to an app project;
+	// nil leaves them as ordinary custom events.
+	AppIntake *appingest.Intake
+	Diag      bool // log how each client address was resolved (SUPERMETRY_INGEST_DIAG=1)
 	// DimensionCardinalityLimit configures the per-site, per-local-day limit
 	// shared by every dictionary kind. Zero uses 10,000 for previously
 	// unbounded kinds and retains 200 for version, language and hostname.
@@ -176,10 +180,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if payload.ID != "" && h.Dedup != nil {
 		defer h.Dedup.Release(site.ID, payload.ID)
 	}
+	linkedApp, linked := h.linkedApp(site, payload, identityAllowed)
 	eventTime := receivedAt
 	if payload.TimestampMS != nil {
 		eventTime = time.UnixMilli(*payload.TimestampMS)
-		if eventTime.Before(receivedAt.Add(-24 * time.Hour)) {
+		// A linked app applies its own max report age instead of 24 hours.
+		if !linked && eventTime.Before(receivedAt.Add(-24*time.Hour)) {
 			health.IngestLateDropped.Add(1)
 			h.recordDrop(site, dropstats.TooOld, "", receivedAt)
 			w.WriteHeader(http.StatusAccepted)
@@ -251,6 +257,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.recordDrop(site, dropReasonForRateLimit(reason), "", receivedAt)
 		w.Header().Set("Retry-After", "1")
 		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
+	if linked {
+		h.acceptDiagnostic(w, r, payload, profileID, site, linkedApp, ip, receivedAt, eventTime)
 		return
 	}
 	if payload.Name == "heatmap" {
