@@ -58,3 +58,53 @@ insert into sites(id,org_id,public_id,name,timezone,retention_class,kind) overri
 		t.Fatalf("forever retention must keep app_events: %v", dropped)
 	}
 }
+
+func TestRunDeletesExpiredAppRollupsAndEraseRemovesThem(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into orgs(name,slug) values('Org','org');
+insert into sites(id,org_id,public_id,name,timezone,retention_class,kind) overriding system value values
+ (1,1,'appret003abc','App','UTC',30,'app'), (2,1,'appret004abc','Forever','UTC',0,'app');
+insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overriding system value values
+ (1,1,'a','crash',now(),now()), (2,2,'b','crash',now(),now())`); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 7, 3, 0, 0, 0, time.UTC)
+	for _, site := range []int{1, 2} {
+		for _, day := range []string{"2026-08-01", "2026-10-06"} {
+			for _, q := range []string{
+				`insert into app_issue_daily(site_id,issue_id,day,events) values($1::int,$1::int,$2::date,1)`,
+				`insert into app_release_daily(site_id,day,release,platform,events) values($1::int,$2::date,'1.0','linux',1)`,
+				`insert into app_issue_hourly(site_id,issue_id,hour,events) values($1::int,$1::int,$2::date + time '05:00',1)`,
+			} {
+				if _, err := pool.Exec(ctx, q, site, day); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	if _, err := retention.Run(ctx, pool, now); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly"} {
+		var s1, s2 int
+		if err := pool.QueryRow(ctx, `select count(*) filter (where site_id=1), count(*) filter (where site_id=2) from `+table).Scan(&s1, &s2); err != nil {
+			t.Fatal(err)
+		}
+		if s1 != 1 || s2 != 2 {
+			t.Fatalf("%s: site 1 has %d rows (want 1), forever site has %d (want 2)", table, s1, s2)
+		}
+	}
+	if err := retention.Erase(ctx, pool, 1, 10, 0); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly"} {
+		var n int
+		if err := pool.QueryRow(ctx, `select count(*) from `+table+` where site_id=1`).Scan(&n); err != nil || n != 0 {
+			t.Fatalf("%s rows left after erase: %d %v", table, n, err)
+		}
+	}
+}

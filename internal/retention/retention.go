@@ -19,6 +19,9 @@ var eraseTables = []string{
 	"site_drop_daily",
 	"heatmap_cells",
 	"app_events",
+	"app_issue_daily",
+	"app_issue_hourly",
+	"app_release_daily",
 	"app_issues",
 	"app_hash_secrets",
 	"events",
@@ -51,6 +54,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		return nil, err
 	}
 	if err := deleteExpiredHourlyImpressions(ctx, pool, now); err != nil {
+		return nil, err
+	}
+	if err := deleteExpiredAppRollups(ctx, pool, now); err != nil {
 		return nil, err
 	}
 	var expired []db.Partition
@@ -220,6 +226,51 @@ func deleteExpiredPixelViews(ctx context.Context, pool *pgxpool.Pool, now time.T
 			delete from pixel_views_daily v using pixels p
 			where v.pixel_id = p.id and p.site_id = $1 and v.day < $2`, site.id, cutoff); err != nil {
 			return fmt.Errorf("delete expired pixel views: %w", err)
+		}
+	}
+	return nil
+}
+
+// deleteExpiredAppRollups applies each app project's retention class to its
+// rollup tables: daily rows older than the class plus one day of closing slack
+// in the site's local day (the same slack as the raw tiers), hourly rows older
+// than the class on the UTC clock. Forever (0) keeps everything.
+func deleteExpiredAppRollups(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	rows, err := pool.Query(ctx, "select id, retention_class, timezone from sites where kind = 'app'")
+	if err != nil {
+		return fmt.Errorf("list sites for app rollup retention: %w", err)
+	}
+	var sites []pixelSiteZone
+	for rows.Next() {
+		var site pixelSiteZone
+		if err := rows.Scan(&site.id, &site.retention, &site.timezone); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan site for app rollup retention: %w", err)
+		}
+		sites = append(sites, site)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("list sites for app rollup retention: %w", err)
+	}
+	for _, site := range sites {
+		if site.retention == 0 {
+			continue
+		}
+		local := site.localTime(now)
+		day := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -site.retention-1)
+		hour := now.UTC().AddDate(0, 0, -site.retention-1)
+		for _, q := range []struct {
+			table, column string
+			cutoff        time.Time
+		}{
+			{"app_issue_daily", "day", day},
+			{"app_release_daily", "day", day},
+			{"app_issue_hourly", "hour", hour},
+		} {
+			if _, err := pool.Exec(ctx, "delete from "+q.table+" where site_id = $1 and "+q.column+" < $2", site.id, q.cutoff); err != nil {
+				return fmt.Errorf("delete expired %s rows: %w", q.table, err)
+			}
 		}
 	}
 	return nil
