@@ -127,4 +127,16 @@ describe('site retention', () => {
     await waitFor(() => expect(privateRequest.mock.calls.some(([method]) => method === 'PATCH')).toBe(true))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
+
+  it('hides web-only settings for an app project but keeps name, time zone and retention', async () => {
+    privateRequest.mockImplementation(async () => ({ ...site, kind: 'app', allowed_hosts: [], revenue_currency_state: 'unconfigured', revenue_currency: undefined }))
+    renderPage()
+    await screen.findByLabelText('Name')
+    expect(screen.queryByLabelText('Allowed hosts')).toBeNull()
+    expect(screen.queryByLabelText('Revenue currency')).toBeNull()
+    expect(screen.queryByText(/Site icon/i)).toBeNull()
+    expect(screen.queryByText(/profiles/i)).toBeNull()
+    expect(screen.getByLabelText(/Time zone/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/retention/i)).toBeInTheDocument()
+  })
 })
