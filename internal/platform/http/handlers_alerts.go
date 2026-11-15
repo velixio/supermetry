@@ -49,11 +49,12 @@ type channelRequest struct {
 }
 
 type alertRequest struct {
-	Kind       alerts.AlertKind `json:"kind"`
-	Threshold  float64          `json:"threshold"`
-	GoalID     *int64           `json:"goal_id,omitempty"`
-	ChannelIDs []int64          `json:"channel_ids"`
-	Enabled    *bool            `json:"enabled,omitempty"`
+	Kind       alerts.AlertKind    `json:"kind"`
+	Threshold  float64             `json:"threshold"`
+	GoalID     *int64              `json:"goal_id,omitempty"`
+	Config     *alerts.AlertConfig `json:"config,omitempty"`
+	ChannelIDs []int64             `json:"channel_ids"`
+	Enabled    *bool               `json:"enabled,omitempty"`
 }
 
 func (h *handler) listChannels(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +232,7 @@ func (h *handler) createAlert(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	input, ok := decodeAlertInput(w, r)
+	input, ok := decodeAlertInput(w, r, site.Kind)
 	if !ok {
 		return
 	}
@@ -257,7 +258,7 @@ func (h *handler) updateAlert(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusNotFound, "Not found", "alert not found")
 		return
 	}
-	input, ok := decodeAlertInput(w, r)
+	input, ok := decodeAlertInput(w, r, site.Kind)
 	if !ok {
 		return
 	}
@@ -444,14 +445,26 @@ func (h *handler) saveNotificationSettings(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, settings)
 }
 
-func decodeAlertInput(w http.ResponseWriter, r *http.Request) (alerts.AlertInput, bool) {
+func decodeAlertInput(w http.ResponseWriter, r *http.Request, siteKind string) (alerts.AlertInput, bool) {
 	var request alertRequest
 	if !decodeJSON(w, r, &request) {
 		return alerts.AlertInput{}, false
 	}
 	input := alerts.AlertInput{
 		Kind: request.Kind, Threshold: request.Threshold, GoalID: request.GoalID,
-		ChannelIDs: request.ChannelIDs, Enabled: request.Enabled,
+		Config: request.Config, ChannelIDs: request.ChannelIDs, Enabled: request.Enabled,
+	}
+	if !input.Kind.AllowedOnSiteKind(siteKind) {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "this alert kind is not available for this project type")
+		return alerts.AlertInput{}, false
+	}
+	if input.Kind.IsApp() {
+		normalized, valid := alerts.NormalizeAppInput(input)
+		if !valid {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "alert fields are invalid")
+			return alerts.AlertInput{}, false
+		}
+		input = normalized
 	}
 	if !validAlertInput(input) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "alert fields are invalid")
@@ -476,7 +489,9 @@ func validAlertInput(input alerts.AlertInput) bool {
 	case alerts.AlertGoalReached:
 		return input.GoalID != nil && *input.GoalID > 0
 	case alerts.AlertTrafficSpike, alerts.AlertTrafficDrop:
-		return input.GoalID == nil
+		return input.GoalID == nil && input.Config == nil
+	case alerts.AlertAppNewIssue, alerts.AlertAppIssueRegressed, alerts.AlertAppCrashFreeBelow, alerts.AlertAppIssueSpike:
+		return true
 	default:
 		return false
 	}

@@ -299,6 +299,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			health.AlertDeliveryFailures.Add(1)
 			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
 		})
+	appAlertStore := alerts.NewAppStore(pool)
+	alertEvaluator.WithApp(appAlertStore, appAlertStore)
 	integrationBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/integrations/v1")
 	if err != nil {
 		return fmt.Errorf("initialize integration encryption: %w", err)
