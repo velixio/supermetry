@@ -73,8 +73,15 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 			return err
 		}
 	}
-	if err := ensureMonthlyTimestampPartitions(ctx, tx, "app_events", from, to); err != nil {
-		return err
+	// Migration tests build partitions on schemas older than app_events.
+	var hasAppEvents bool
+	if err := tx.QueryRow(ctx, `select to_regclass('app_events') is not null`).Scan(&hasAppEvents); err != nil {
+		return fmt.Errorf("check app_events: %w", err)
+	}
+	if hasAppEvents {
+		if err := ensureMonthlyTimestampPartitions(ctx, tx, "app_events", from, to); err != nil {
+			return err
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit partition creation: %w", err)
