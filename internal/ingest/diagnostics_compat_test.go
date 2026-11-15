@@ -224,6 +224,9 @@ func TestDiagnosticsCompatLateDropUsesReceiveDayInSiteTZ(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := salts.LocalDay(fakeNow(), loc)
+	if want.Format("2006-01-02") == fakeNow().UTC().Format("2006-01-02") {
+		t.Fatalf("test instant does not distinguish %s from UTC", tz)
+	}
 	if count != 1 || day.Format("2006-01-02") != want.Format("2006-01-02") {
 		t.Fatalf("day=%s count=%d, want day %s count 1", day.Format("2006-01-02"), count, want.Format("2006-01-02"))
 	}
@@ -370,5 +373,34 @@ func TestDiagnosticsCompatQueryableByErrorCode(t *testing.T) {
 	}
 	if len(list.Data) > 0 && list.Data[0].Props != nil {
 		t.Logf("first row props=%d frames=%dB", len(*list.Data[0].Props), len((*list.Data[0].Props)["frames"]))
+	}
+}
+
+func TestDiagnosticsCompatMissingSaltLateDropCountsTooOld(t *testing.T) {
+	f := diagFixture(t, true, true)
+	f.h.DropStats = dropstats.New(f.pool, dropstats.Options{MaxSites: 10})
+	f.clock.now = fakeNow().Add(5 * 24 * time.Hour)
+	if _, err := f.h.Salts.DeleteExpired(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	f.clock.now = fakeNow()
+	rr := diagPost(t, f.h, diagReport("f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6", fakeNow().Add(-23*time.Hour), diagFrames()), diagOrigin, diagUA)
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	n, _ := diagProps(t, f)
+	if n != 0 {
+		t.Fatalf("stored rows=%d, want 0", n)
+	}
+	if err := f.h.DropStats.Flush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	var day time.Time
+	var count int64
+	if err := f.pool.QueryRow(t.Context(), `select day, count from site_drop_daily where site_id=1 and reason='too_old'`).Scan(&day, &count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 || day.Format("2006-01-02") != fakeNow().UTC().Format("2006-01-02") {
+		t.Fatalf("day=%s count=%d, want receive day %s count 1", day.Format("2006-01-02"), count, fakeNow().UTC().Format("2006-01-02"))
 	}
 }
