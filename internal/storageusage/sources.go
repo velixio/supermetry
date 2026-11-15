@@ -59,6 +59,7 @@ var sourceRegistry = []Source{
 	{Table: "shared_links", Category: CategoryAuxiliary},
 	{Table: "site_bot_rule_daily", Category: CategoryAuxiliary},
 	{Table: "site_drop_daily", Category: CategoryAuxiliary},
+	{Table: "app_ingest_keys", Category: CategoryAuxiliary},
 	{Table: "site_last_event", Category: CategoryAuxiliary},
 	{Table: "tracking_pixels", Category: CategoryAuxiliary},
 	{Table: "verified_page_day", Category: CategoryRetained, Partitioned: true},
