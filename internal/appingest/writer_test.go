@@ -4,13 +4,16 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/db"
+	"supermetry/internal/health"
 	"supermetry/internal/testpg"
 )
 
@@ -120,31 +123,130 @@ func TestWriterOutOfOrderKeepsFirstAndLastSeen(t *testing.T) {
 func TestWriterRegression(t *testing.T) {
 	pool, _, w := writerFixture(t)
 	ctx := context.Background()
-	for _, fp := range []string{"same", "newer", "unset", "ignored"} {
+	fps := []string{"same", "newer", "older", "unset", "ignored", "nextsame", "nextolder", "nextnewer", "semver"}
+	for _, fp := range fps {
 		if err := w.flush(ctx, []Queued{queued("seed-"+fp, fp, "1.0.0", testNow.Add(-time.Hour), 1)}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := pool.Exec(ctx, `update app_issues set status='resolved', resolved_in_release='1.2.0' where fingerprint in ('same','newer');
+	if _, err := pool.Exec(ctx, `update app_issues set status='resolved', resolved_in_release='1.2.0' where fingerprint in ('same','newer','older','semver');
 update app_issues set status='resolved', resolved_in_release=null where fingerprint='unset';
-update app_issues set status='ignored' where fingerprint='ignored'`); err != nil {
+update app_issues set status='ignored' where fingerprint='ignored';
+update app_issues set status='resolved', resolved_in_release='1.2.0', resolved_next=true where fingerprint in ('nextsame','nextolder','nextnewer')`); err != nil {
 		t.Fatal(err)
 	}
 	in := testNow.Add(-time.Minute)
 	batch := []Queued{
-		queued("1", "same", "1.2.0", in, 1), // reported in the release that fixed it: not a regression
+		queued("1", "same", "1.2.0", in, 1), // the release that fixed it still crashes: regression
 		queued("2", "newer", "1.3.0", in, 1),
-		queued("3", "unset", "1.0.0", in, 1),
-		queued("4", "ignored", "1.3.0", in, 1),
+		queued("3", "older", "1.1.0", in, 1), // an older release is not a regression
+		queued("4", "unset", "1.0.0", in, 1),
+		queued("5", "ignored", "1.3.0", in, 1),
+		queued("6", "nextsame", "1.2.0", in, 1), // resolve-in-next: this release or an earlier one regresses
+		queued("7", "nextolder", "1.1.0", in, 1),
+		queued("8", "nextnewer", "1.3.0", in, 1), // a later release keeps it resolved
+		queued("9", "semver", "1.10.0", in, 1),   // 1.10.0 sorts after 1.2.0 (not as a string)
 	}
 	if err := w.flush(ctx, batch); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"same": "resolved", "newer": "regressed", "unset": "regressed", "ignored": "ignored"}
+	want := map[string]string{
+		"same": "regressed", "newer": "regressed", "older": "resolved", "unset": "regressed", "ignored": "ignored",
+		"nextsame": "regressed", "nextolder": "regressed", "nextnewer": "resolved", "semver": "regressed",
+	}
 	for fp, status := range want {
 		if got := readIssue(t, pool, fp).Status; got != status {
 			t.Errorf("%s: status %q, want %q", fp, got, status)
 		}
+	}
+}
+
+// failCopyTx fails the event copy after the issue upserts have run, so the
+// transaction rolls back with the issue counters already incremented inside it.
+type failCopyTx struct{ pgx.Tx }
+
+func (failCopyTx) CopyFrom(context.Context, pgx.Identifier, []string, pgx.CopyFromSource) (int64, error) {
+	return 0, errors.New("injected: connection lost during copy")
+}
+
+func failFirstRollback(w *Writer, calls *int) {
+	w.runTx = func(ctx context.Context, fn func(pgx.Tx) error) error {
+		*calls++
+		if *calls == 1 {
+			return pgx.BeginFunc(ctx, w.pool, func(tx pgx.Tx) error { return fn(failCopyTx{tx}) })
+		}
+		return pgx.BeginFunc(ctx, w.pool, fn)
+	}
+}
+
+func TestWriterRetriesOnceAfterARolledBackBatchWithoutDoubleCounting(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	w.retryDelay = time.Millisecond
+	calls := 0
+	failFirstRollback(w, &calls)
+	before := health.AppIngestWriteFailed.Load()
+	if err := w.flushRetry(context.Background(), []Queued{queued("a", "fp", "1.0.0", testNow.Add(-time.Hour), 2), queued("b", "fp", "1.0.0", testNow.Add(-time.Minute), 3)}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("transaction attempts = %d, want 2", calls)
+	}
+	if issue := readIssue(t, pool, "fp"); issue.EventCount != 5 {
+		t.Fatalf("event_count = %d, want 5 (the rolled back attempt must not count)", issue.EventCount)
+	}
+	var events int
+	if err := pool.QueryRow(context.Background(), `select count(*) from app_events`).Scan(&events); err != nil || events != 2 {
+		t.Fatalf("events = %d %v", events, err)
+	}
+	if health.AppIngestWriteFailed.Load() != before {
+		t.Fatal("a recovered batch must not be counted as dropped")
+	}
+}
+
+func TestWriterDropsAndCountsAfterTheRetryFails(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	w.retryDelay = time.Millisecond
+	calls := 0
+	w.runTx = func(ctx context.Context, fn func(pgx.Tx) error) error {
+		calls++
+		return errors.New("injected: database down")
+	}
+	before := health.AppIngestWriteFailed.Load()
+	batch := []Queued{queued("a", "fp", "1.0.0", testNow.Add(-time.Hour), 1), queued("b", "fp", "1.0.0", testNow.Add(-time.Minute), 1)}
+	if err := w.flushRetry(context.Background(), batch); err == nil {
+		t.Fatal("expected the failure to surface")
+	}
+	if calls != 2 {
+		t.Fatalf("attempts = %d, want exactly one retry", calls)
+	}
+	if got := health.AppIngestWriteFailed.Load() - before; got != 2 {
+		t.Fatalf("dropped counter moved by %d, want 2", got)
+	}
+	var n int
+	if err := pool.QueryRow(context.Background(), `select count(*) from app_events`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("events = %d %v", n, err)
+	}
+}
+
+func TestWriterDoesNotRetryWhenTheCommitOutcomeIsUnknown(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	w.retryDelay = time.Millisecond
+	calls := 0
+	w.runTx = func(ctx context.Context, fn func(pgx.Tx) error) error {
+		calls++
+		if err := pgx.BeginFunc(ctx, w.pool, fn); err != nil {
+			return err
+		}
+		return errors.New("injected: reply lost after commit")
+	}
+	if err := w.flushRetry(context.Background(), []Queued{queued("a", "fp", "1.0.0", testNow.Add(-time.Hour), 4)}); err == nil {
+		t.Fatal("expected an error")
+	}
+	if calls != 1 {
+		t.Fatalf("attempts = %d: a possibly committed batch must not be replayed", calls)
+	}
+	if issue := readIssue(t, pool, "fp"); issue.EventCount != 4 {
+		t.Fatalf("event_count = %d", issue.EventCount)
 	}
 }
 
