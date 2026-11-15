@@ -97,13 +97,17 @@ const settingsTabs = [
   ['alerts', 'Alerts', '/app/$org/$site/settings/alerts'],
   ['notification-history', 'History', '/app/$org/$site/settings/notification-history'],
   ['imports', 'Imports & export', '/app/$org/$site/settings/imports'],
+  ['app', 'App', '/app/$org/$site/settings/app'],
 ] as const
 
-export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean }) {
+/** Tabs that apply to an app: its own page, general settings and the general settings (name, time zone, retention, danger zone). */
+const appSettingsTabs: readonly string[] = ['general', 'app']
+
+export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false, kind }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean; kind?: string }) {
   return (
     <nav aria-label="Site settings" className="overflow-x-auto border-b">
       <div className="flex min-w-max gap-5">
-        {settingsTabs.filter(([value]) => (value !== 'replay' || showReplay) && (!trackingRestricted || !['imports', 'goals', 'funnels'].includes(value))).map(([value, label, to]) => (
+        {settingsTabs.filter(([value]) => (kind === 'app' ? appSettingsTabs.includes(value) : value !== 'app') && (value !== 'replay' || showReplay) && (!trackingRestricted || !['imports', 'goals', 'funnels'].includes(value))).map(([value, label, to]) => (
           <Link
             key={value}
             aria-current={current === value ? 'page' : undefined}

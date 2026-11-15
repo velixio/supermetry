@@ -15,7 +15,7 @@ function SiteSettingsLayout() {
   const current = pathname.split('/').filter(Boolean).at(-1) ?? 'general'
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <SiteSettingsTabs org={org} site={site} current={current} showReplay={replay.isSuccess} trackingRestricted={isAnonymousTracking(siteContext.site)} />
+      <SiteSettingsTabs org={org} site={site} current={current} showReplay={replay.isSuccess} kind={siteContext.site?.kind} trackingRestricted={isAnonymousTracking(siteContext.site)} />
       <Outlet />
     </div>
   )

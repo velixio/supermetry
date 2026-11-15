@@ -87,6 +87,8 @@ const managementNavigation = [
 
 export const PIXEL_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health', '/github-stars']
 
+export const APP_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health', '/settings']
+
 export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
@@ -105,12 +107,13 @@ export function visibleNavigation(role: Role, hasSite = true, authorization?: Au
   items.push(managementNavigation[3])
   return items.filter((item) => (hasSite || item.scope === 'org') &&
     (site?.kind !== 'pixel' || PIXEL_NAV_SUFFIXES.includes(item.suffix)) &&
+    (site?.kind !== 'app' || APP_NAV_SUFFIXES.includes(item.suffix)) &&
     (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && ((item.suffix !== '/profiles' && item.suffix !== '/cohorts') || hasCapability(authorization, 'profiles.read')))
 }
 
 /** Replays need a site that is not anonymous-tracking and the replay.read capability. */
 export function replaysAvailable(authorization: Authorization | undefined, site: Site | undefined): boolean {
-  return Boolean(site && site.kind !== 'pixel' && !isAnonymousTracking(site) && hasCapability(authorization, 'replay.read'))
+  return Boolean(site && site.kind !== 'pixel' && site.kind !== 'app' && !isAnonymousTracking(site) && hasCapability(authorization, 'replay.read'))
 }
 
 export function canCreateSites(role: Role): boolean {

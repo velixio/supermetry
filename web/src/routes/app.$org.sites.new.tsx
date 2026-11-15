@@ -11,7 +11,6 @@ import { SiteForm } from '@/features/sites/SiteForm'
 import { createSite } from '@/features/sites/api'
 import type { SiteInput, SiteKind } from '@/features/sites/types'
 import { en } from '@/messages/en'
-import { defaultSearch } from '@/lib/search'
 import { retentionPolicy, useInstanceConfig } from '@/lib/instanceConfig'
 import { useMe } from './app.$org'
 
@@ -53,7 +52,7 @@ function NewSiteRoute() {
               retention={config.data ? retentionPolicy(config.data) : undefined}
               onDone={(site) => {
                 void queryClient.invalidateQueries({ queryKey: ['me'] })
-                void navigate({ to: '/app/$org/$site', params: { org, site: site.slug ?? site.public_id }, search: defaultSearch() })
+                void navigate({ to: '/app/$org/$site/settings/app', params: { org, site: site.slug ?? site.public_id } })
               }}
             />
           : kind === 'pixel'

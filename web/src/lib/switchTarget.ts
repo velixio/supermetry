@@ -57,7 +57,7 @@ function fill(pattern: string, org: string, site?: string): string {
 /** Whether `pattern` (a site-level route) can be shown for `site` to this member. */
 function siteRouteAvailable(pattern: string, membership: Membership, site: Site): boolean {
   if (pattern === SITE_ROOT) return true
-  if (site.kind === 'pixel') return false
+  if (site.kind === 'pixel' || site.kind === 'app') return false
   const section = pattern.slice(SITE_ROOT.length + 1).split('/')[0] ?? ''
   if (section === 'settings' && membership.role === 'viewer') return false
   if (isAnonymousTracking(site) && anonymousRouteRestricted(fill(pattern, membership.org.slug, siteSlug(site)))) return false

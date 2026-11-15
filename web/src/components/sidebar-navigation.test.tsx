@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Site } from '@/lib/me'
 import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
-import { navigationHref, navigationIsActive, settingsDestinations, settingsIsActive, visibleNavigation } from './Sidebar'
+import { APP_NAV_SUFFIXES, navigationHref, replaysAvailable, navigationIsActive, settingsDestinations, settingsIsActive, visibleNavigation } from './Sidebar'
 import { accountDestinationIsActive, accountDestinations } from './AccountSidebar'
 
 describe('primary sidebar navigation', () => {
@@ -27,6 +27,12 @@ describe('primary sidebar navigation', () => {
   it('hides web-only pages for pixel projects', () => {
     const items = visibleNavigation('owner', true, undefined, { id: 1, name: 'R', kind: 'pixel' } as Site)
     expect(items.map((item) => item.suffix)).toEqual(['', '/sites', '/health', '/github-stars'])
+  })
+
+  it('limits app sites to the app navigation set', () => {
+    const items = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site)
+    expect(items.map((item) => item.suffix)).toEqual(APP_NAV_SUFFIXES.filter((suffix) => suffix !== '/settings'))
+    expect(replaysAvailable({ capabilities: ['replay.read'] } as never, { id: 1, name: 'D', kind: 'app' } as Site)).toBe(false)
   })
 
   it('keeps settings out of analytics navigation for every role and site state', () => {

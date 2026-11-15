@@ -25,7 +25,7 @@ import { useManagedState } from '@/lib/instanceConfig'
 import { useShortcuts } from '@/lib/shortcuts'
 import { useTheme } from '@/lib/theme'
 import { en } from '@/messages/en'
-import type { Me, Membership } from '@/lib/me'
+import { siteNeedsDetails, type Me, type Membership } from '@/lib/me'
 
 import { matchesSite, SupermetrySidebar, useCurrentRoute } from './Sidebar'
 import { DemoBanner } from '@/features/demo/DemoBanner'
@@ -87,7 +87,7 @@ export function AppShell({
   const siteDetails = useQuery({
     queryKey: ['site', scopedSite?.id],
     queryFn: () => getSite(scopedSite!.id, membership!.org.id),
-    enabled: Boolean(scopedSite && membership && scopedSite.kind !== 'web' && scopedSite.kind !== 'pixel'),
+    enabled: Boolean(scopedSite && membership && siteNeedsDetails(scopedSite.kind)),
   })
   const resolvedSite = siteDetails.data?.id === scopedSite?.id ? siteDetails.data : scopedSite
   const recordedLastSite = useRef(me.preferences?.last_site_id)

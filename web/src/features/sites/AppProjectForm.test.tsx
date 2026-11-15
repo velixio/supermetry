@@ -39,7 +39,7 @@ describe('creating an app', () => {
     expect(screen.getByText(/Shown once/)).toBeInTheDocument()
     expect(navigate).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(navigate).toHaveBeenCalledWith('/app/acme/desk')
+    expect(navigate).toHaveBeenCalledWith('/app/acme/desk/settings/app')
   })
 
   it('offers a retry when the key call fails, without creating the site again', async () => {

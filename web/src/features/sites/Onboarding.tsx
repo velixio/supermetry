@@ -55,7 +55,7 @@ export function Onboarding({ me, createSite, navigate }: {
             orgId={membership.org.id}
             createSite={(input) => (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)}
             retention={config.data ? retentionPolicy(config.data) : undefined}
-            onDone={(site) => navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}`)}
+            onDone={(site) => navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/app`)}
           />
         ) : kind === 'pixel' ? (
           <PixelProjectForm

@@ -36,7 +36,8 @@ import { en } from '../messages/en'
 import { createAuthConfigApi } from '@/features/auth/api'
 import { PixelDashboard } from '@/features/pixels/PixelDashboard'
 import { getSite } from '@/features/sites/api'
-import type { Site } from '@/lib/me'
+import { siteNeedsDetails, type Site } from '@/lib/me'
+import { AppEmptyState } from '@/features/apps/AppEmptyState'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import type { Dashboard } from '../features/dashboards/api'
@@ -88,11 +89,12 @@ function DashboardStateRoute() {
   const siteDetails = useQuery({
     queryKey: ['site', site?.id],
     queryFn: () => getSite(site!.id, membership!.org.id),
-    enabled: Boolean(site && membership && site.kind !== 'web' && site.kind !== 'pixel'),
+    enabled: Boolean(site && membership && siteNeedsDetails(site.kind)),
   })
   const resolvedSite = siteDetails.data?.id === site?.id ? siteDetails.data : site
-  if (site && site.kind !== 'web' && site.kind !== 'pixel' && siteDetails.isPending) return <PageContainer><PageHeader title={en.navigation.dashboard} /><p className="sr-only">{en.loadingDashboard}</p></PageContainer>
+  if (site && siteNeedsDetails(site.kind) && siteDetails.isPending) return <PageContainer><PageHeader title={en.navigation.dashboard} /><p className="sr-only">{en.loadingDashboard}</p></PageContainer>
   if (resolvedSite?.kind === 'pixel') return <PixelDashboardRoute site={resolvedSite} />
+  if (resolvedSite?.kind === 'app') return <AppEmptyState org={org} site={requestedSite} />
   return <WebDashboardStateRoute />
 }
 

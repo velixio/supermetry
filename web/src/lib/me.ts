@@ -5,6 +5,11 @@ import type { TrackingPolicy } from '@/features/sites/types'
 import { api } from '@/lib/api'
 import { apiProblem } from '@/lib/apiProblem'
 
+/** web, pixel and app sites carry everything the shell needs; other kinds need a details fetch. */
+export function siteNeedsDetails(kind: Site['kind']): boolean {
+  return kind !== 'web' && kind !== 'pixel' && kind !== 'app'
+}
+
 export type Site = {
   tracking_policy?: TrackingPolicy
   id: number
