@@ -6693,7 +6693,7 @@ components:
       properties:
         reason:
           type: string
-          enum: [bot_user_agent, bot_headless, bot_spam_referrer, rate_limited_ip, rate_limited_site, rate_limited_global, privacy_signal, dimension_overflow, host_not_allowed, clock_skew, too_old]
+          enum: [bot_user_agent, bot_headless, bot_spam_referrer, rate_limited_ip, rate_limited_site, rate_limited_global, privacy_signal, dimension_overflow, host_not_allowed, clock_skew, too_old, app_invalid, app_duplicate, app_rate_limited]
         today: { type: integer, format: int64, minimum: 0 }
         previous_7_days: { type: integer, format: int64, minimum: 0 }
         trailing_7_day_average: { type: number, format: double, minimum: 0 }

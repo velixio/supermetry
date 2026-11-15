@@ -28,3 +28,8 @@ it("falls back to the raw name for an unknown reason", () => {
   render(<DroppedTrafficCard site={site("brand_new_reason")} />);
   expect(screen.getByText("brand_new_reason")).toBeInTheDocument();
 });
+
+it("labels the app report drops", () => {
+  render(<DroppedTrafficCard site={site("app_invalid")} />);
+  expect(screen.getByText("App report invalid")).toBeInTheDocument();
+});

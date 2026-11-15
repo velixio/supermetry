@@ -318,3 +318,21 @@ func TestReasonTooOldName(t *testing.T) {
 		t.Fatal("TooOld missing from Reasons()")
 	}
 }
+
+func TestAppReasonNames(t *testing.T) {
+	want := map[dropstats.Reason]string{
+		dropstats.AppInvalid: "app_invalid", dropstats.AppDuplicate: "app_duplicate", dropstats.AppRateLimited: "app_rate_limited",
+	}
+	for reason, name := range want {
+		if reason.String() != name {
+			t.Errorf("name=%q want %q", reason.String(), name)
+		}
+		found := false
+		for _, r := range dropstats.Reasons() {
+			found = found || r == reason
+		}
+		if !found {
+			t.Errorf("%s missing from Reasons()", name)
+		}
+	}
+}
