@@ -255,6 +255,9 @@ func TestIssuesListFiltersSortAndPaging(t *testing.T) {
 	if out := q(func(in *appquery.IssueQuery) { in.Status = "regressed" }); !reflect.DeepEqual(titles(out.Issues), []string{i1}) {
 		t.Fatalf("status = %v", titles(out.Issues))
 	}
+	if all, none := q(func(in *appquery.IssueQuery) { in.Status = "all" }), q(func(in *appquery.IssueQuery) {}); !reflect.DeepEqual(titles(all.Issues), titles(none.Issues)) || len(all.Issues) == 0 {
+		t.Fatalf("status=all = %v, want same as no filter %v", titles(all.Issues), titles(none.Issues))
+	}
 	if out := q(func(in *appquery.IssueQuery) { in.Kind = "error" }); !reflect.DeepEqual(titles(out.Issues), []string{i2}) {
 		t.Fatalf("kind = %v", titles(out.Issues))
 	}
