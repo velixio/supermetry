@@ -303,3 +303,18 @@ func TestSpike(t *testing.T) {
 		})
 	}
 }
+
+func TestReasonTooOldName(t *testing.T) {
+	if dropstats.TooOld.String() != "too_old" {
+		t.Fatalf("name=%q", dropstats.TooOld.String())
+	}
+	found := false
+	for _, reason := range dropstats.Reasons() {
+		if reason == dropstats.TooOld {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("TooOld missing from Reasons()")
+	}
+}
