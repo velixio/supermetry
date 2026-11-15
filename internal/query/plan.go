@@ -170,6 +170,15 @@ func NewEngine(pool *pgxpool.Pool, dictionary *dict.Dict, registry sites.Registr
 // SetTrackingMode configures the restart-boundary policy before serving requests.
 func (e *Engine) SetTrackingMode(mode privacy.Mode) { e.trackingMode = mode }
 
+// SetClock replaces the wall clock used for "today", raw-retention windows and
+// open-day boundaries. Call it before serving requests; nil restores time.Now.
+func (e *Engine) SetClock(now func() time.Time) {
+	if now == nil {
+		now = time.Now
+	}
+	e.now = now
+}
+
 // SetPathPolicy configures immutable verified-path reads before serving.
 func (e *Engine) SetPathPolicy(policy privacy.PathPolicy) { e.pathPolicy = policy }
 
