@@ -45,6 +45,12 @@ export function createSite(input: SiteInput, orgId: number): Promise<ManagedSite
   })
 }
 
+export type AppIngestKeyIssued = { key: string; prefix: string; previous_expires_at: string | null }
+
+export function rotateAppIngestKey(siteId: number, orgId: number): Promise<AppIngestKeyIssued> {
+  return privateRequest<AppIngestKeyIssued>('POST', `/api/private/sites/${siteId}/ingest-keys`, { orgId })
+}
+
 export async function deleteSite(siteId: number, orgId: number): Promise<DeletionResult> {
   return (await privateRequest<DeletionResult | undefined>('DELETE', `/api/private/sites/${siteId}`, { orgId })) ?? {
     scheduled: false,

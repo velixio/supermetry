@@ -8,7 +8,7 @@ import { apiProblem } from '@/lib/apiProblem'
 export type Site = {
   tracking_policy?: TrackingPolicy
   id: number
-  kind?: 'web' | 'pixel'
+  kind?: 'web' | 'pixel' | 'app'
   name: string
   slug?: string
   public_id?: string

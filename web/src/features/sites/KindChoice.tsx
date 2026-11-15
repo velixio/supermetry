@@ -7,11 +7,12 @@ export function KindChoice({ value, onChange }: { value: SiteKind; onChange: (ki
   const options = [
     { kind: 'web' as const, title: en.pixels.website, hint: en.pixels.websiteHint },
     { kind: 'pixel' as const, title: en.pixels.anywhere, hint: en.pixels.anywhereHint },
+    { kind: 'app' as const, title: en.pixels.app, hint: en.pixels.appHint },
   ]
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="sr-only">{en.pixels.measureTitle}</legend>
-      <RadioGroup value={value} onValueChange={(next) => onChange(next as SiteKind)} className="grid gap-2 sm:grid-cols-2">
+      <RadioGroup value={value} onValueChange={(next) => onChange(next as SiteKind)} className="grid gap-2 sm:grid-cols-3">
         {options.map((option) => (
           <Label key={option.kind} htmlFor={`kind-${option.kind}`} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 has-[[data-state=checked]]:border-primary">
             <RadioGroupItem id={`kind-${option.kind}`} value={option.kind} aria-label={`${option.title}: ${option.hint}`} />
