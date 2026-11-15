@@ -70,6 +70,7 @@ export const en = {
     vitals: 'Web Vitals',
     funnels: 'Funnels',
     realtime: 'Realtime',
+    issues: 'Issues',
     goals: 'Goals',
     revenue: 'Revenue',
     settings: 'Site settings',

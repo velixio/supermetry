@@ -3,6 +3,7 @@ import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 import { hasCapability, type Authorization } from '@/lib/authorization'
 import {
   ActivityIcon,
+  BugIcon,
   Building2Icon,
   ChartNoAxesCombinedIcon,
   CircleDollarSignIcon,
@@ -67,6 +68,7 @@ const coreNavigation = [
   { get label() { return en.navigation.events }, suffix: '/events', icon: CodeXmlIcon, scope: 'site' },
   { get label() { return en.navigation.sessions }, suffix: '/sessions', icon: Rows3Icon, scope: 'site' },
   { get label() { return en.navigation.realtime }, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
+  { get label() { return en.navigation.issues }, suffix: '/issues', icon: BugIcon, scope: 'site' },
   { get label() { return en.navigation.journeys }, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { get label() { return en.navigation.retention }, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { get label() { return en.navigation.profiles }, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
@@ -87,14 +89,17 @@ const managementNavigation = [
 
 export const PIXEL_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health', '/github-stars']
 
-export const APP_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health', '/settings']
+/** Pages that exist only for app projects. */
+const APP_ONLY_SUFFIXES: readonly string[] = ['/issues']
+
+export const APP_NAV_SUFFIXES: readonly string[] = ['', '/issues', '/sites', '/health', '/settings']
 
 export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
 
 const navigationSections = [
-  { key: 'analyze', get label() { return en.a11y2.sidebarSections.analyze }, suffixes: ['', '/events', '/sessions', '/realtime'] },
+  { key: 'analyze', get label() { return en.a11y2.sidebarSections.analyze }, suffixes: ['', '/issues', '/events', '/sessions', '/realtime'] },
   { key: 'behaviour', get label() { return en.a11y2.sidebarSections.behaviour }, suffixes: ['/journeys', '/retention', '/profiles', '/cohorts', '/heatmaps', '/vitals'] },
   { key: 'conversion', get label() { return en.a11y2.sidebarSections.conversion }, suffixes: ['/funnels', '/goals', '/revenue'] },
   { key: 'manage', get label() { return en.a11y2.sidebarSections.manage }, suffixes: ['/sites', '/links', '/health', '/github-stars'] },
@@ -108,6 +113,7 @@ export function visibleNavigation(role: Role, hasSite = true, authorization?: Au
   return items.filter((item) => (hasSite || item.scope === 'org') &&
     (site?.kind !== 'pixel' || PIXEL_NAV_SUFFIXES.includes(item.suffix)) &&
     (site?.kind !== 'app' || APP_NAV_SUFFIXES.includes(item.suffix)) &&
+    (site?.kind === 'app' || !APP_ONLY_SUFFIXES.includes(item.suffix)) &&
     (item.scope === 'org' || !isAnonymousTracking(site) || !anonymousRouteRestricted(`/app/org/site${item.suffix}`)) && ((item.suffix !== '/profiles' && item.suffix !== '/cohorts') || hasCapability(authorization, 'profiles.read')))
 }
 
@@ -271,6 +277,8 @@ function navigationLink(
           {content}
         </Link>
       )
+    case '/issues':
+      return <Link to="/app/$org/$site/issues" params={{ org, site }} {...props}>{content}</Link>
     case '/realtime':
       return <Link to="/app/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':
