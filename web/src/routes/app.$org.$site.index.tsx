@@ -37,7 +37,7 @@ import { createAuthConfigApi } from '@/features/auth/api'
 import { PixelDashboard } from '@/features/pixels/PixelDashboard'
 import { getSite } from '@/features/sites/api'
 import { siteNeedsDetails, type Site } from '@/lib/me'
-import { AppEmptyState } from '@/features/apps/AppEmptyState'
+import { appFilterSearch, parseAppSearch } from '@/features/apps/search'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import type { Dashboard } from '../features/dashboards/api'
@@ -49,6 +49,11 @@ const loadDashboardBelowFold = () => import('@/components/DashboardBelowFold')
 const DashboardBelowFold = (import.meta as ImportMeta & { env: { MODE: string } }).env.MODE === 'test'
   ? (await loadDashboardBelowFold()).DashboardBelowFold
   : lazy(() => loadDashboardBelowFold().then((module) => ({ default: module.DashboardBelowFold })))
+
+const loadAppOverview = () => import('@/features/apps/AppOverview')
+const AppOverview = (import.meta as ImportMeta & { env: { MODE: string } }).env.MODE === 'test'
+  ? (await loadAppOverview()).AppOverview
+  : lazy(() => loadAppOverview().then((module) => ({ default: module.AppOverview })))
 
 const loadDashboardViewer = () => import('@/features/dashboards/DashboardViewer')
 const loadDashboardSwitcher = () => import('@/features/dashboards/DashboardSwitcher')
@@ -72,7 +77,7 @@ const DashboardManage = isTest
 type EditState = { kind: 'edit'; id: number } | { kind: 'new'; template: TemplateKey } | null
 
 export const Route = createFileRoute('/app/$org/$site/')({
-  validateSearch: (search) => ({ ...dashboardSearch.parse(search), ...parseInspectSearch(search) }),
+  validateSearch: (search) => ({ ...dashboardSearch.parse(search), ...parseInspectSearch(search), ...appFilterSearch(search) }),
   // Opening or closing the inspector must not re-run the dashboard prefetch.
   loaderDeps: ({ search }) => withoutInspect(search),
   loader: ({ deps, params }) => {
@@ -94,8 +99,21 @@ function DashboardStateRoute() {
   const resolvedSite = siteDetails.data?.id === site?.id ? siteDetails.data : site
   if (site && siteNeedsDetails(site.kind) && siteDetails.isPending) return <PageContainer><PageHeader title={en.navigation.dashboard} /><p className="sr-only">{en.loadingDashboard}</p></PageContainer>
   if (resolvedSite?.kind === 'pixel') return <PixelDashboardRoute site={resolvedSite} />
-  if (resolvedSite?.kind === 'app') return <AppEmptyState org={org} site={requestedSite} />
+  if (resolvedSite?.kind === 'app') return <AppOverviewRoute org={org} site={requestedSite} siteId={resolvedSite.id} timezone={resolvedSite.timezone ?? 'UTC'} />
   return <WebDashboardStateRoute />
+}
+
+function AppOverviewRoute({ org, site, siteId, timezone }: { org: string; site: string; siteId: number; timezone: string }) {
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+  return (
+    <Suspense fallback={null}>
+      <AppOverview
+        org={org} site={site} siteId={siteId} timezone={timezone} search={parseAppSearch(search)}
+        onSearch={(next) => void navigate({ search: (prev) => ({ ...prev, period: next.period, release: next.release, environment: next.environment, platform: next.platform }) })}
+      />
+    </Suspense>
+  )
 }
 
 function PixelDashboardRoute({ site }: { site: Site }) {
