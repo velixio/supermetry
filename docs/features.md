@@ -44,6 +44,7 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | "View full report" dialog for breakdown cards | ? | ? | ? | ✅ (search, sort, keyboard operable; export to CSV or JSON with column choice) |
 | Short links and tracking pixels | ? | ✓ | ? | ✅ (`/l/{slug}`, `/px/{id}.gif`, default UTM tags, expiry, click limits, QR code, per-link stats) |
 | Pixel analytics projects and open GitHub counters | ? | ? | ? | ✅ (aggregate-only GIF pixels, branded SVG badges, snippets and a dedicated dashboard; open counters are opt-in) |
+| App health for desktop, mobile and backend apps | ? | ? | ? | ✅ (app projects with a write-only ingest key, crash and error reports grouped into issues, crash-free users and sessions, regressions by release, compatibility matrix, releases page, issue alerts, TypeScript and Python client kits) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
@@ -155,6 +156,7 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 33. ~~Pixel analytics projects and opt-in open GitHub counters~~ ✅
 34. ~~GitHub star tracking per organization: each organization tracks its own repositories (5 by default, adjustable per organization): webhook, per-user event log, hourly and daily charts, daily reconcile; page at /app/{org}/github-stars, readable by every member and managed by owners and admins; opt-in public star-count endpoint `GET /api/github/stars/{owner}/{name}` returning `{"stars":N}`~~ ✅
 35. ~~Admin storage estimates per site and organization, with logical PostgreSQL bytes plus replay recording/CSS blobs~~ ✅
+36. ~~App health: app projects with ingest keys, `POST /api/public/v1/app-events`, issues with resolve/regress by release, crash-free users and sessions, compatibility and releases pages, four app alert kinds, MIT client kits for TypeScript and Python (`sdk/`); Swift and Kotlin kits later~~ ✅
 
 ### Later
 
