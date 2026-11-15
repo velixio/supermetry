@@ -18,6 +18,9 @@ export const reasonLabels: Record<string, string> = {
   host_not_allowed: "Host not allowed",
   clock_skew: "Clock skew",
   too_old: "Too old",
+  app_invalid: "App report invalid",
+  app_duplicate: "App report duplicate",
+  app_rate_limited: "App report rate limited",
 };
 
 export function DroppedTrafficCard({ site }: { site: SiteDropHealth }) {

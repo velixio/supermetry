@@ -1172,6 +1172,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/app-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit app health reports
+         * @description Intake for crashes, errors, hangs and install failures from an app. The body is at most
+         *     16 KB and carries 1 to 20 events. Authenticate with an app ingest key in `X-Supermetry-Key`
+         *     (`smk_...`); the key is write-only and safe to embed in a shipped app. A request is limited
+         *     to 60 per minute per client address, and a key to 600 events per minute.
+         *
+         *     Request-level problems fail the whole request: 400 for a bad method, body size or JSON, 401
+         *     for an unknown app or a wrong, expired or malformed key (the same body for every cause),
+         *     429 for the per-address limit. Otherwise the reply is 202 and lists every dropped event with
+         *     its reason (`too_old`, `invalid`, `rate_limited`, `duplicate`). Tags outside the app's allowlist
+         *     are removed, the event is kept, and a warning names each tag. Drops also appear under dropped
+         *     traffic in the site health page.
+         */
+        post: operations["submitAppEvents"];
+        delete?: never;
+        /**
+         * Negotiate cross-origin app report submission
+         * @description Allows any origin to POST with the Content-Type and X-Supermetry-Key headers; the ingest key is the trust signal.
+         */
+        options: operations["preflightAppEvents"];
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/mcp": {
         parameters: {
             query?: never;
@@ -1911,6 +1945,30 @@ export interface paths {
         get: operations["getAppSettings"];
         /** Replace an app project's settings; lists are lower-cased, deduped and sorted */
         put: operations["updateAppSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Read the app project a web site sends diagnostic reports to */
+        get: operations["getAppLink"];
+        /**
+         * Link a web site to an app project in the same organization, or unlink it with null
+         * @description A linked web site maps `diagnostic_report` events it receives on the regular event endpoint
+         *     into the app project, instead of storing them as custom events. Owner or admin only.
+         */
+        put: operations["updateAppLink"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3733,6 +3791,76 @@ export interface components {
             day?: string;
             text?: string;
         };
+        AppLink: {
+            /**
+             * Format: int32
+             * @description Id of an app project in the same organization, or null when unlinked.
+             */
+            app_site_id: number | null;
+        };
+        AppEventsRequest: {
+            /** @description Public id of the app project. */
+            site: string;
+            events: components["schemas"]["AppEvent"][];
+        };
+        /** @description One app report. Unknown fields are ignored. A wrong type, an over-long value or an unknown enum value drops the event as `invalid`. */
+        AppEvent: {
+            /** @description Client event id; the deduplication key. */
+            id: string;
+            /**
+             * Format: int64
+             * @description Event time in Unix milliseconds. Older than the app's report age (or retention) is dropped as too_old; more than 5 minutes ahead is clamped to receive time.
+             */
+            ts?: number;
+            /** @enum {string} */
+            kind: "crash" | "error" | "hang" | "install_failed" | "install_stalled" | "incompatibility" | "operation_failed" | "session";
+            /** @enum {string} */
+            level?: "fatal" | "error" | "warning";
+            handled?: boolean;
+            release?: string;
+            build?: string;
+            /** @description Stored as "(other)" when the app lists environments and this is not one. */
+            environment?: string;
+            /** @enum {string} */
+            platform?: "windows" | "macos" | "linux" | "ios" | "android" | "web" | "other";
+            os_version?: string;
+            /** @enum {string} */
+            arch?: "x64" | "arm64" | "x86" | "arm" | "other";
+            device_class?: string;
+            runtime?: string;
+            error_type?: string;
+            exit_reason?: string;
+            signal?: string;
+            /** Format: int32 */
+            exit_code?: number;
+            /** @description Newline-separated "path:line function". Home folders and absolute paths are scrubbed; the result is cut to 4 KB. */
+            frames?: string;
+            /** @description Optional grouping key; computed from kind */
+            fingerprint?: string;
+            occurrences?: number;
+            /** @description Pseudonymous install id. Stored only as an HMAC with a per-app secret. */
+            install_id?: string;
+            /** @description Pseudonymous app session id. Stored only as an HMAC. */
+            session_id?: string;
+            /** @description Up to 20 string, number or boolean values; keys at most 64 characters, values at most 200 bytes. */
+            tags?: {
+                [key: string]: unknown;
+            };
+        };
+        AppEventsResponse: {
+            accepted: number;
+            dropped: {
+                index: number;
+                /** @enum {string} */
+                reason: "too_old" | "invalid" | "tag_not_allowed" | "rate_limited" | "duplicate";
+            }[];
+            warnings: {
+                index: number;
+                /** @enum {string} */
+                reason: "tag_not_allowed";
+                tag: string;
+            }[];
+        };
         EventPayload: {
             /** @description Client event identifier used for bounded retry deduplication. */
             id?: string;
@@ -5019,7 +5147,7 @@ export interface components {
         };
         DropReasonHealth: {
             /** @enum {string} */
-            reason: "bot_user_agent" | "bot_headless" | "bot_spam_referrer" | "rate_limited_ip" | "rate_limited_site" | "rate_limited_global" | "privacy_signal" | "dimension_overflow" | "host_not_allowed" | "clock_skew" | "too_old";
+            reason: "bot_user_agent" | "bot_headless" | "bot_spam_referrer" | "rate_limited_ip" | "rate_limited_site" | "rate_limited_global" | "privacy_signal" | "dimension_overflow" | "host_not_allowed" | "clock_skew" | "too_old" | "app_invalid" | "app_duplicate" | "app_rate_limited";
             /** Format: int64 */
             today: number;
             /** Format: int64 */
@@ -7673,6 +7801,78 @@ export interface operations {
             };
         };
     };
+    submitAppEvents: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Supermetry-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppEventsRequest"];
+                "text/plain": components["schemas"]["AppEventsRequest"];
+            };
+        };
+        responses: {
+            /** @description The request was accepted; individual events may have been dropped. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppEventsResponse"];
+                };
+            };
+            /** @description The method, body size or JSON is invalid, or the batch is not 1 to 20 events. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The app is unknown, is not an app project, or the key is missing, malformed, wrong or expired. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 60 requests per minute from one client address. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preflightAppEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cross-origin submission is permitted. */
+            204: {
+                headers: {
+                    /** @description Origins permitted to submit reports. */
+                    "Access-Control-Allow-Origin"?: string;
+                    /** @description Methods accepted by the endpoint. */
+                    "Access-Control-Allow-Methods"?: string;
+                    /** @description Request headers accepted by the endpoint. */
+                    "Access-Control-Allow-Headers"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     mcp: {
         parameters: {
             query?: never;
@@ -9126,6 +9326,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLink"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppLink"];
+            };
+        };
+        responses: {
+            /** @description The stored link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLink"];
                 };
             };
             400: components["responses"]["BadRequest"];

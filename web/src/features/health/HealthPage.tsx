@@ -179,6 +179,9 @@ function reasonExplanation(reason: string): string {
     host_not_allowed: "the page host was not configured for this site.",
     clock_skew: "a future timestamp was clamped to server time.",
     too_old: "the event's timestamp was more than 24 hours old (queued offline too long).",
+    app_invalid: "an app report failed validation (a wrong type, an over-long value or an unknown enum value).",
+    app_duplicate: "an app report repeated an event id already received.",
+    app_rate_limited: "an app exceeded its key's event allowance, or the intake queue was full.",
   };
   return explanations[reason] ?? "traffic was not accepted for this reason.";
 }

@@ -72,10 +72,12 @@ import { lowersRetention, retentionOptions, retentionPolicy, useInstanceConfig }
 import { retentionLabel } from '@/features/sites/SiteForm'
 import { TimezoneSelect } from '@/features/sites/TimezoneSelect'
 import { nativeSelectClass } from '@/lib/nativeSelect'
+import { AppLinkSetting } from './AppLinkSetting'
 import { uiFlows } from '@/messages/uiFlows'
 
 type Site = {
   id: number;
+  kind?: string;
   public_id: string;
   slug?: string;
   name: string;
@@ -353,6 +355,11 @@ export function SiteGeneralPage({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            {site.data.kind === "web" && (role === "owner" || role === "admin") ? (
+              <div className="mt-5 border-t pt-5">
+                <AppLinkSetting orgId={orgId} siteId={siteId} />
+              </div>
+            ) : null}
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
