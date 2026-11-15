@@ -9,7 +9,7 @@ import supermetry_apps as sm
 
 sm.init(
     app_id="app_xxxxxxxx",
-    ingest_key="sk_app_xxxxxxxx",
+    ingest_key="smk_xxxxxxxx",
     host="https://app.supermetry.example",
     release="1.4.2",
     build="a1b2c3d",             # optional

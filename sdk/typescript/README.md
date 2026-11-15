@@ -9,7 +9,7 @@ import { init, startSession, captureException, captureCrash, flush } from "@supe
 
 init({
   appId: "app_xxxxxxxx",          // the app's public id
-  ingestKey: "sk_app_xxxxxxxx",   // the app's ingest key
+  ingestKey: "smk_xxxxxxxx",   // the app's ingest key
   host: "https://app.supermetry.example",
   release: "1.4.2",
   build: "a1b2c3d",                // optional
