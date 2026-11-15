@@ -39,6 +39,7 @@ const (
 	DimensionOverflow
 	HostNotAllowed
 	ClockSkew
+	TooOld
 	reasonCount
 )
 
@@ -46,6 +47,7 @@ var reasonNames = [...]string{
 	"bot_user_agent", "bot_headless", "bot_spam_referrer",
 	"rate_limited_ip", "rate_limited_site", "rate_limited_global",
 	"privacy_signal", "dimension_overflow", "host_not_allowed", "clock_skew",
+	"too_old",
 }
 
 func (r Reason) String() string {

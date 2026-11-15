@@ -178,6 +178,7 @@ function reasonExplanation(reason: string): string {
     dimension_overflow: "a high-cardinality value was grouped into Other.",
     host_not_allowed: "the page host was not configured for this site.",
     clock_skew: "a future timestamp was clamped to server time.",
+    too_old: "the event's timestamp was more than 24 hours old (queued offline too long).",
   };
   return explanations[reason] ?? "traffic was not accepted for this reason.";
 }

@@ -17,6 +17,7 @@ export const reasonLabels: Record<string, string> = {
   dimension_overflow: "Dimension overflow",
   host_not_allowed: "Host not allowed",
   clock_skew: "Clock skew",
+  too_old: "Too old",
 };
 
 export function DroppedTrafficCard({ site }: { site: SiteDropHealth }) {
