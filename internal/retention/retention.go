@@ -18,6 +18,9 @@ var eraseTables = []string{
 	"site_bot_rule_daily",
 	"site_drop_daily",
 	"heatmap_cells",
+	"app_events",
+	"app_issues",
+	"app_hash_secrets",
 	"events",
 	"sessions",
 	"profiles",
@@ -95,6 +98,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 			expired = append(expired, partition)
 		}
 	}
+	appPartitions, err := expiredAppEventPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, appPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -297,4 +305,40 @@ func deleteExpiredDropStats(ctx context.Context, pool *pgxpool.Pool, now time.Ti
 		}
 	}
 	return nil
+}
+
+// appEventsDefaultRetentionDays applies when no app project exists.
+const appEventsDefaultRetentionDays = 365
+
+// expiredAppEventPartitions returns the monthly app_events partitions that lie
+// wholly before the longest retention of any live app project, plus one day of
+// closing slack. A project that keeps data forever keeps every partition:
+// months are shared by all projects, so the longest retention decides.
+func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var apps int
+	var forever bool
+	var longest int
+	if err := pool.QueryRow(ctx, `
+		select count(*), coalesce(bool_or(retention_class = 0), false), coalesce(max(retention_class), 0)
+		from sites where kind = 'app' and deleted_at is null`).Scan(&apps, &forever, &longest); err != nil {
+		return nil, fmt.Errorf("read app retention classes: %w", err)
+	}
+	if forever {
+		return nil, nil
+	}
+	if apps == 0 {
+		longest = appEventsDefaultRetentionDays
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "app_events")
+	if err != nil {
+		return nil, fmt.Errorf("list app event retention partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -longest-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
 }

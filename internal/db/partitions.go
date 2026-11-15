@@ -73,8 +73,53 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 			return err
 		}
 	}
+	if err := ensureMonthlyTimestampPartitions(ctx, tx, "app_events", from, to); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit partition creation: %w", err)
+	}
+	return nil
+}
+
+// EnsureAppEventPartitions creates the monthly app_events partitions covering
+// [from, to). The app event writer calls it for late reports, whose month the
+// regular lookahead may not have created.
+func EnsureAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Time) error {
+	if !from.Before(to) {
+		return nil
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin app event partition creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
+		return fmt.Errorf("lock partition creation: %w", err)
+	}
+	if err := ensureMonthlyTimestampPartitions(ctx, tx, "app_events", from, to); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// ensureMonthlyTimestampPartitions creates UTC-month partitions of a table
+// partitioned by a timestamptz column.
+func ensureMonthlyTimestampPartitions(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+	start := time.Date(from.UTC().Year(), from.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
+	for lower := start; lower.Before(to); lower = lower.AddDate(0, 1, 0) {
+		upper := lower.AddDate(0, 1, 0)
+		name := table + "_" + lower.Format("200601")
+		sql := fmt.Sprintf(
+			"CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
+			pgx.Identifier{name}.Sanitize(),
+			pgx.Identifier{table}.Sanitize(),
+			lower.Format(time.RFC3339),
+			upper.Format(time.RFC3339),
+		)
+		if _, err := tx.Exec(ctx, sql); err != nil {
+			return fmt.Errorf("create %s partition for %s: %w", name, lower.Format("2006-01"), err)
+		}
 	}
 	return nil
 }
