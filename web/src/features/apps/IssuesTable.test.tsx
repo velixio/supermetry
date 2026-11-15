@@ -46,7 +46,8 @@ describe('IssuesTable', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Regressed' }))
     await waitFor(() => expect(issueCalls().some((path) => path.includes('status=regressed'))).toBe(true))
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'All' }))
-    await waitFor(() => expect(issueCalls().some((path) => path.includes('status=all'))).toBe(true))
+    await waitFor(() => expect(issueCalls().length).toBeGreaterThan(2))
+    expect(issueCalls().at(-1)).not.toContain('status=')
   })
 
   it('pages with the offset the API returns', async () => {

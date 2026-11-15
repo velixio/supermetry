@@ -5,6 +5,8 @@ import { ui } from '@/messages/ui'
 export type Crumb = { label: string; to?: string; params?: Record<string, string> }
 
 const labelOf = (segment: string) => ui.crumbs.segments[segment]
+// Section names that only exist under a site, so they cannot shadow an organization-level page.
+const siteLabelOf = (segment: string) => ui.crumbs.siteSegments[segment] ?? labelOf(segment)
 
 /**
  * Org / Site / Section / Detail from a pathname. Pure: no router access, so it is
@@ -38,15 +40,17 @@ export function buildCrumbs(pathname: string, membership?: Membership): Crumb[] 
 
   const site = membership.sites.find((item) => matchesSite(item, second))
   crumbs.push({ label: site?.name ?? second, to: '/app/$org/$site', params: { org, site: second } })
-  pushTail(crumbs, after.length === 0 ? ['dashboard'] : after, '/app/$org/$site', { org, site: second })
+  const home = site?.kind === 'app' ? ui.crumbs.appOverview : undefined
+  pushTail(crumbs, after.length === 0 ? ['dashboard'] : after, '/app/$org/$site', { org, site: second }, home)
   return finish(crumbs)
 }
 
 // Each tail crumb links to its own prefix of the path (the last is unlinked by finish()).
-function pushTail(crumbs: Crumb[], segments: string[], base: string, params?: Record<string, string>) {
+function pushTail(crumbs: Crumb[], segments: string[], base: string, params?: Record<string, string>, dashboardLabel?: string) {
+  const siteScoped = base === '/app/$org/$site'
   let previousKnown: string | undefined
   for (const [index, segment] of segments.entries()) {
-    const known = labelOf(segment)
+    const known = segment === 'dashboard' && dashboardLabel ? dashboardLabel : siteScoped ? siteLabelOf(segment) : labelOf(segment)
     let to = [base, ...segments.slice(0, index + 1)].join('/')
     // The site settings layout has no index route; its first tab is the landing page.
     if (segment === 'settings' && base === '/app/$org/$site') to += '/general'

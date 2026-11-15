@@ -125,7 +125,7 @@ export function AppHeader({
           </kbd>
         </span>
         <UpdateNotice instanceAdmin={instanceAdmin} />
-        {membership && site && requestedSite ? (
+        {membership && site && requestedSite && site.kind !== 'app' ? (
           <div className="hidden sm:block">
             <SiteLiveBadge
               detailsAvailable={!isAnonymousTracking(site)}

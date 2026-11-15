@@ -216,6 +216,7 @@ export function SiteGeneralPage({
   });
   const config = useInstanceConfig();
   const policy = retentionPolicy(config.data);
+  const isApp = site.data?.kind === "app";
   const [pendingLower, setPendingLower] = useState<Record<string, unknown> | null>(null);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -249,13 +250,15 @@ export function SiteGeneralPage({
       <Surface>
         {site.data ? (
           <>
-            <SiteIconSettings
-              iconUrl={site.data.icon_url}
-              name={site.data.name}
-              orgId={orgId}
-              role={role}
-              siteId={siteId}
-            />
+            {isApp ? null : (
+              <SiteIconSettings
+                iconUrl={site.data.icon_url}
+                name={site.data.name}
+                orgId={orgId}
+                role={role}
+                siteId={siteId}
+              />
+            )}
             <form className="flex flex-col gap-5" onSubmit={submit}>
               <FieldGroup>
                 <Field>
@@ -284,8 +287,8 @@ export function SiteGeneralPage({
                     </FieldDescription>
                   </Field>
                 ) : null}
-                <RevenueCurrencySettings site={site.data} role={role} />
-                <Field>
+                {isApp ? null : <RevenueCurrencySettings site={site.data} role={role} />}
+                {isApp ? null : <Field>
                   <FieldLabel htmlFor="site-hosts">Allowed hosts</FieldLabel>
                   <Input
                     id="site-hosts"
@@ -299,7 +302,7 @@ export function SiteGeneralPage({
                     Separate multiple hosts with commas.
                     {config.data?.managed === true ? ` ${uiFlows.site.domainHintManaged}` : ""}
                   </FieldDescription>
-                </Field>
+                </Field>}
                 <TimezoneSelect key={site.data.timezone} defaultValue={site.data.timezone} hint={uiFlows.site.timezoneHint} />
                 <Field>
                   <FieldLabel htmlFor="site-retention">{uiFlows.site.retention}</FieldLabel>
@@ -316,12 +319,14 @@ export function SiteGeneralPage({
                   </select>
                   <FieldDescription id="site-retention-hint">{uiFlows.site.retentionHint}</FieldDescription>
                 </Field>
-                <ProfilesSettings
-                  enabled={site.data.profiles_enabled}
-                  policy={site.data.tracking_policy}
-                  role={role}
-                  onChange={(profiles_enabled) => save.mutate({ profiles_enabled })}
-                />
+                {isApp ? null : (
+                  <ProfilesSettings
+                    enabled={site.data.profiles_enabled}
+                    policy={site.data.tracking_policy}
+                    role={role}
+                    onChange={(profiles_enabled) => save.mutate({ profiles_enabled })}
+                  />
+                )}
               </FieldGroup>
               <Message error={save.error} />
               {save.isSuccess && !save.isPending ? (

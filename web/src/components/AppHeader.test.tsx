@@ -31,13 +31,13 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function show(path: string, onOpenPalette = vi.fn(), locale: string = '', instanceAdmin = false) {
+function show(path: string, onOpenPalette = vi.fn(), locale: string = '', instanceAdmin = false, extra: Partial<React.ComponentProps<typeof AppHeader>> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   renderWithRouter(
     <QueryClientProvider client={client}>
     <TooltipProvider>
       <SidebarProvider>
-        <AppHeader instanceAdmin={instanceAdmin} locale={locale as '' | 'en'} theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} onOpenPalette={onOpenPalette} />
+        <AppHeader instanceAdmin={instanceAdmin} locale={locale as '' | 'en'} theme="light" onToggleTheme={vi.fn()} onOpenHelp={vi.fn()} onOpenPalette={onOpenPalette} {...extra} />
       </SidebarProvider>
     </TooltipProvider>
     </QueryClientProvider>,
@@ -69,6 +69,19 @@ describe('AppHeader outside an organization', () => {
   it('shows no breadcrumbs for an organization the user has no membership in', async () => {
     const header = await show('/app/missing')
     expect(within(header).queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull()
+  })
+})
+
+describe('AppHeader live badge', () => {
+  const membership = { org: { id: 1, name: 'Acme', slug: 'acme' }, role: 'owner' as const, sites: [] }
+  beforeEach(() => useLiveSummary.mockReturnValue({ data: { count: 2 }, isPending: false }))
+  it('shows the live badge for a web site but not for an app', async () => {
+    await show('/app/acme/docs', vi.fn(), '', false, { membership, site: { id: 7, name: 'Docs', kind: 'web' }, requestedSite: 'docs' })
+    expect(useLiveSummary).toHaveBeenCalled()
+    cleanup()
+    useLiveSummary.mockClear()
+    await show('/app/acme/desk', vi.fn(), '', false, { membership, site: { id: 8, name: 'Desk', kind: 'app' }, requestedSite: 'desk' })
+    expect(useLiveSummary).not.toHaveBeenCalled()
   })
 })
 

@@ -705,3 +705,24 @@ func TestCreateSiteRejectsUnknownKind(t *testing.T) {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body)
 	}
 }
+
+func TestListSitesReturnsKindAndSlug(t *testing.T) {
+	handler, _ := appKindHandler(t, "app-list", false)
+	if response := createAppSite(t, handler); response.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", response.Code, response.Body)
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, authenticatedRequest(http.MethodGet, "/api/private/sites?limit=100", ""))
+	var body struct {
+		Data []struct {
+			Kind string `json:"kind"`
+			Slug string `json:"slug"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || response.Code != http.StatusOK {
+		t.Fatalf("list: %d %s %v", response.Code, response.Body, err)
+	}
+	if len(body.Data) != 1 || body.Data[0].Kind != "app" || body.Data[0].Slug == "" {
+		t.Fatalf("list kind/slug wrong: %s", response.Body)
+	}
+}

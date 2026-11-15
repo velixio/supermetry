@@ -65,7 +65,7 @@ export function IssuesTable({ org, site, siteId, timezone, search, onSearch }: {
 }) {
   const offset = search.offset ?? 0
   const issues = useAppIssues(siteId, search, timezone, {
-    status: search.status, kind: search.kind, q: search.q, sort: search.sort, limit: PAGE_SIZE, offset: offset || undefined,
+    status: search.status === 'all' ? undefined : search.status, kind: search.kind, q: search.q, sort: search.sort, limit: PAGE_SIZE, offset: offset || undefined,
   })
   const [query, setQuery] = useState(search.q ?? '')
   // Any filter change returns to the first page.

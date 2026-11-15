@@ -67,6 +67,13 @@ describe('site settings', () => {
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
   })
 
+  it('shows General, Alerts and App tabs for an app', async () => {
+    renderWithRouter(<SiteSettingsTabs org="acme" site="desk" current="general" kind="app" />)
+    expect(await screen.findByRole('link', { name: 'Alerts' })).toBeVisible()
+    for (const label of ['General', 'App']) expect(screen.getByRole('link', { name: label })).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Goals' })).toBeNull()
+  })
+
   it('shows install guides, proxy advice, and a receiving status', () => {
     render(
       <InstallGuide

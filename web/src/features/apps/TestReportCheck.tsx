@@ -35,7 +35,7 @@ export function TestReportCheck({ appId, siteId, timezone, origin = window.locat
       <li><strong>1. Add the key to your build.</strong> Keep it in your app's build configuration.</li>
       <li className="flex flex-col gap-2">
         <span><strong>2. Send a test report.</strong> Replace the placeholder with your key and run it:</span>
-        <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs"><code>{snippet}</code></pre>
+        <pre className="whitespace-pre-wrap break-all rounded-lg bg-muted p-3 text-xs"><code>{snippet}</code></pre>
         <div><Button type="button" size="sm" variant="outline" onClick={() => void copyText(snippet)}>Copy command</Button></div>
       </li>
       <li className="flex flex-wrap items-center gap-2">

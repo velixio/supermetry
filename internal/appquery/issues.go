@@ -68,6 +68,9 @@ func (q *Querier) Issues(ctx context.Context, scope Scope, in IssueQuery) (Issue
 	if in.Offset < 0 {
 		return out, invalid("offset must not be negative")
 	}
+	if in.Status == "all" {
+		in.Status = "" // "all" means no status filter
+	}
 	if in.Status != "" && !issueStatuses[in.Status] {
 		return out, invalid("status must be open, resolved, ignored or regressed")
 	}
