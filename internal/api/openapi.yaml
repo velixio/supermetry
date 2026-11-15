@@ -4949,7 +4949,7 @@ components:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
         public_id: { type: string }
-        kind: { type: string, enum: [web, pixel] }
+        kind: { type: string, enum: [web, pixel, app] }
         slug: { type: string, pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', minLength: 1, maxLength: 63, description: Readable per-organization URL segment; public_id resolves too. }
         name: { type: string }
         timezone: { type: string }
@@ -5017,10 +5017,10 @@ components:
       type: object
       additionalProperties: false
       required: [name, timezone]
-      description: hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel.
+      description: hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel and app.
       properties:
         name: { type: string }
-        kind: { type: string, enum: [web, pixel], default: web, description: Fixed at creation. }
+        kind: { type: string, enum: [web, pixel, app], default: web, description: Fixed at creation. }
         hosts:
           type: array
           items: { type: string }

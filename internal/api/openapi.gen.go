@@ -297,6 +297,7 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 
 // Defines values for CreateSiteRequestKind.
 const (
+	CreateSiteRequestKindApp   CreateSiteRequestKind = "app"
 	CreateSiteRequestKindPixel CreateSiteRequestKind = "pixel"
 	CreateSiteRequestKindWeb   CreateSiteRequestKind = "web"
 )
@@ -304,6 +305,8 @@ const (
 // Valid indicates whether the value is a known member of the CreateSiteRequestKind enum.
 func (e CreateSiteRequestKind) Valid() bool {
 	switch e {
+	case CreateSiteRequestKindApp:
+		return true
 	case CreateSiteRequestKindPixel:
 		return true
 	case CreateSiteRequestKindWeb:
@@ -1428,6 +1431,7 @@ func (e SiteInstallStatus) Valid() bool {
 
 // Defines values for SiteKind.
 const (
+	SiteKindApp   SiteKind = "app"
 	SiteKindPixel SiteKind = "pixel"
 	SiteKindWeb   SiteKind = "web"
 )
@@ -1435,6 +1439,8 @@ const (
 // Valid indicates whether the value is a known member of the SiteKind enum.
 func (e SiteKind) Valid() bool {
 	switch e {
+	case SiteKindApp:
+		return true
 	case SiteKindPixel:
 		return true
 	case SiteKindWeb:
@@ -2420,7 +2426,7 @@ type CreateShareRequest struct {
 	Password      *string          `json:"password,omitempty"`
 }
 
-// CreateSiteRequest hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel.
+// CreateSiteRequest hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel and app.
 type CreateSiteRequest struct {
 	// Hosts Hostnames the tracker may report. On a managed instance (SUPERMETRY_MANAGED) each new host must look like a domain (contain a dot, for example example.com or *.example.com); localhost and IPv4 addresses are also accepted, and any other single-label host is rejected with 400.
 	Hosts *[]string `json:"hosts,omitempty"`

@@ -3741,7 +3741,7 @@ export interface components {
             org_id: number;
             public_id: string;
             /** @enum {string} */
-            kind: "web" | "pixel";
+            kind: "web" | "pixel" | "app";
             /** @description Readable per-organization URL segment; public_id resolves too. */
             slug: string;
             name: string;
@@ -3794,7 +3794,7 @@ export interface components {
             data: components["schemas"]["Site"][];
             next_cursor?: string | null;
         };
-        /** @description hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel. */
+        /** @description hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel and app. */
         CreateSiteRequest: {
             name: string;
             /**
@@ -3802,7 +3802,7 @@ export interface components {
              * @default web
              * @enum {string}
              */
-            kind: "web" | "pixel";
+            kind: "web" | "pixel" | "app";
             /** @description Hostnames the tracker may report. On a managed instance (SUPERMETRY_MANAGED) each new host must look like a domain (contain a dot, for example example.com or *.example.com); localhost and IPv4 addresses are also accepted, and any other single-label host is rejected with 400. */
             hosts?: string[];
             timezone: string;
