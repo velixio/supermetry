@@ -4,10 +4,18 @@ All notable changes to Supermetry are listed here, newest release first.
 
 Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL, no ClickHouse, no Kafka, no Node in production.
 
-## Unreleased
+## v0.1.23 (2026-11-16)
 
 ### Added
 
+- **App health** for desktop, mobile and backend apps. A new project type, **App**, on the new site page and in onboarding. Creating one shows a write-only ingest key once, with setup steps and a check that waits for the first test report. Keys can be rotated from the app's settings; the old key keeps working for 7 days.
+- App settings: a tag allowlist, a maximum report age (1 to 30 days, default 7) and an environments list.
+- App dashboard: crash-free users and crash-free sessions, events, crashes, new and regressed issues; an issues list with status tabs, search and sorting; issue detail with breakdowns by release, platform, OS, architecture, device class, environment and tags, and the latest scrubbed stack frames. Issues can be resolved, resolved in the next release, ignored or reopened.
+- A compatibility matrix by platform, OS version, architecture and device class, and a releases page with crash-free rates and new and regressed issues per release.
+- Four app alerts: new issue, regressed issue, crash-free rate below a threshold, and issue spike. They use the existing notification channels.
+- Client kits under `sdk/` (MIT): TypeScript (Node 18+, Electron, Bun, Deno, browsers) and Python (3.9+), with no runtime dependencies. They never send exception messages.
+- A guide, [Desktop and mobile apps](docs/guide/apps.md).
+- Late events now count as **Too old** drops on the Data health page instead of disappearing silently.
 - An app events endpoint, `POST /api/public/v1/app-events`, for crashes, errors, hangs and install failures. It takes up to 20 events per request with an app ingest key, scrubs home folders and absolute paths from stack frames, groups events into issues by fingerprint, tracks regressions of resolved issues, and stores install and session ids only as HMACs. The reply lists every dropped event with a reason, and drops show on the Data health page.
 - A web site can send its `diagnostic_report` events to an app project (Settings, General). They are stored as app events with the app's report age limit instead of the 24-hour rule.
 
