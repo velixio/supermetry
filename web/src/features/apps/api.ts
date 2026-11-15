@@ -15,7 +15,7 @@ export type AppReleasesData = components['schemas']['AppReleases']
 
 const base = (siteId: number) => `/api/private/sites/${siteId}/app`
 
-export function useAppOverview(siteId: number, search: AppSearch, timezone: string, options: { refetchInterval?: number } = {}) {
+export function useAppOverview(siteId: number, search: AppSearch, timezone: string, options: { refetchInterval?: number | false } = {}) {
   const query = appQuery(search, timezone).toString()
   return useQuery({ queryKey: ['app-overview', siteId, query], queryFn: () => privateRequest<AppOverviewData>('GET', `${base(siteId)}/overview?${query}`), ...options })
 }
