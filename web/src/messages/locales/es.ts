@@ -72,6 +72,7 @@ const messages: MessageTree = {
     vitals: 'Web Vitals',
     funnels: 'Embudos',
     realtime: 'Tiempo real',
+    issues: 'Problemas',
     goals: 'Objetivos',
     revenue: 'Ingresos',
     settings: 'Ajustes del sitio',
