@@ -53,7 +53,7 @@ func NewDispatcher(mailer mail.Sender, webhooks *WebhookClient, telegram Telegra
 func (d *Dispatcher) Deliver(ctx context.Context, channel DeliveryChannel, notification Notification) error {
 	templateInput := channel.Template
 	if templateInput.Body == "" {
-		templateInput = DefaultTemplate(channel.Kind)
+		templateInput = DefaultTemplateFor(channel.Kind, notification.Kind)
 	}
 	message, err := RenderTemplate(channel.Kind, templateInput, notification)
 	if err != nil {
@@ -88,7 +88,7 @@ func (d *Dispatcher) Deliver(ctx context.Context, channel DeliveryChannel, notif
 }
 
 func notificationText(notification Notification) string {
-	rendered, err := RenderTemplate(ChannelWebhook, DefaultTemplate(ChannelWebhook), notification)
+	rendered, err := RenderTemplate(ChannelWebhook, DefaultTemplateFor(ChannelWebhook, notification.Kind), notification)
 	if err != nil {
 		return fmt.Sprintf("%s alert", notification.Kind)
 	}
