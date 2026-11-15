@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { AppCreateFlow } from '@/features/sites/AppCreateFlow'
 import { KindChoice } from '@/features/sites/KindChoice'
 import { PixelProjectForm } from '@/features/sites/PixelProjectForm'
 import { SiteForm } from '@/features/sites/SiteForm'
@@ -44,7 +45,17 @@ function NewSiteRoute() {
       <PageHeader title={en.pixels.measureTitle} description="Choose web analytics or count views where JavaScript cannot run." />
       <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5">
         <KindChoice value={kind} onChange={setKind} />
-        {kind === 'pixel'
+        {kind === 'app'
+          ? <AppCreateFlow
+              orgId={membership.org.id}
+              createSite={(input) => createSite(input, membership.org.id)}
+              retention={config.data ? retentionPolicy(config.data) : undefined}
+              onDone={(site) => {
+                void queryClient.invalidateQueries({ queryKey: ['me'] })
+                void navigate({ to: '/app/$org/$site/settings/app', params: { org, site: site.slug ?? site.public_id } })
+              }}
+            />
+          : kind === 'pixel'
           ? <PixelProjectForm submitLabel={en.pixels.createProject} onSubmit={submit} />
           : <SiteForm submitLabel="Add site" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} requireDomain={config.data?.managed === true} />}
       </section>

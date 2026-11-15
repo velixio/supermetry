@@ -93,6 +93,22 @@ func (r *Registry) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	appKeys, err := r.store.ActiveAppKeys(ctx)
+	if err != nil {
+		return err
+	}
+	appSettings, err := r.store.AppSettingsBySite(ctx)
+	if err != nil {
+		return err
+	}
+	keysBySite := make(map[int32][]coresites.AppKey)
+	for _, key := range appKeys {
+		entry := coresites.AppKey{Hash: key.Hash}
+		if key.ExpiresAt != nil {
+			entry.ExpiresAt = *key.ExpiresAt
+		}
+		keysBySite[key.SiteID] = append(keysBySite[key.SiteID], entry)
+	}
 	next := &registrySnapshot{
 		byPublic: make(map[string]coresites.Site, len(stored)),
 		byID:     make(map[int32]coresites.Site, len(stored)),
@@ -103,6 +119,16 @@ func (r *Registry) refresh(ctx context.Context) error {
 			return err
 		}
 		site.Replay = replayBySite[site.ID]
+		if site.Kind == coresites.KindApp {
+			parsed, err := coresites.ParseAppSettings(appSettings[site.ID])
+			if err != nil {
+				return fmt.Errorf("site %d: %w", site.ID, err)
+			}
+			site.App = &coresites.AppConfig{
+				Keys: keysBySite[site.ID], TagAllowlist: parsed.TagAllowlist,
+				MaxReportAgeDays: parsed.MaxReportAgeDays, Environments: parsed.Environments,
+			}
+		}
 		next.byPublic[site.PublicID] = site
 		next.byID[site.ID] = site
 	}
@@ -147,6 +173,13 @@ func cloneSite(site coresites.Site) coresites.Site {
 	site.Exclusions = site.Exclusions.Clone()
 	site.Tracker = cloneTrackerSettings(site.Tracker)
 	site.Replay = cloneReplaySettings(site.Replay)
+	if site.App != nil {
+		app := *site.App
+		app.Keys = append([]coresites.AppKey(nil), app.Keys...)
+		app.TagAllowlist = append([]string(nil), app.TagAllowlist...)
+		app.Environments = append([]string(nil), app.Environments...)
+		site.App = &app
+	}
 	return site
 }
 

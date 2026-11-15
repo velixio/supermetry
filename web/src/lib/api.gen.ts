@@ -1898,6 +1898,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Read an app project's tag allowlist, report age limit and environments */
+        get: operations["getAppSettings"];
+        /** Replace an app project's settings; lists are lower-cased, deduped and sorted */
+        put: operations["updateAppSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/ingest-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** List an app project's current and grace-period ingest keys (prefixes only) */
+        get: operations["listAppIngestKeys"];
+        put?: never;
+        /** Issue a new ingest key; the previous key keeps working for 7 days */
+        post: operations["rotateAppIngestKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/pixels": {
         parameters: {
             query?: never;
@@ -2683,6 +2723,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AppSettings: {
+            tag_allowlist?: string[];
+            /** @description 0 means the default of 7. */
+            max_report_age_days?: number;
+            environments?: string[];
+        };
+        AppIngestKeyIssued: {
+            /** @description Plaintext key; returned once and never stored. */
+            key: string;
+            prefix: string;
+            /**
+             * Format: date-time
+             * @description When the replaced key stops working; null when none was replaced.
+             */
+            previous_expires_at: string | null;
+        };
+        AppIngestKeyList: {
+            keys: {
+                prefix: string;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: date-time */
+                expires_at: string | null;
+            }[];
+        };
         IntegrationConnection: {
             /** Format: int64 */
             id: number;
@@ -3741,7 +3806,7 @@ export interface components {
             org_id: number;
             public_id: string;
             /** @enum {string} */
-            kind: "web" | "pixel";
+            kind: "web" | "pixel" | "app";
             /** @description Readable per-organization URL segment; public_id resolves too. */
             slug: string;
             name: string;
@@ -3794,7 +3859,7 @@ export interface components {
             data: components["schemas"]["Site"][];
             next_cursor?: string | null;
         };
-        /** @description hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel. */
+        /** @description hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel and app. */
         CreateSiteRequest: {
             name: string;
             /**
@@ -3802,7 +3867,7 @@ export interface components {
              * @default web
              * @enum {string}
              */
-            kind: "web" | "pixel";
+            kind: "web" | "pixel" | "app";
             /** @description Hostnames the tracker may report. On a managed instance (SUPERMETRY_MANAGED) each new host must look like a domain (contain a dot, for example example.com or *.example.com); localhost and IPv4 addresses are also accepted, and any other single-label host is rejected with 400. */
             hosts?: string[];
             timezone: string;
@@ -9014,6 +9079,103 @@ export interface operations {
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getAppSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description App settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSettings"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppSettings"];
+            };
+        };
+        responses: {
+            /** @description The normalised settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppIngestKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ingest keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIngestKeyList"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    rotateAppIngestKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new key */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIngestKeyIssued"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listPixels: {

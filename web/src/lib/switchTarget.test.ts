@@ -6,6 +6,7 @@ import { orgSwitchHref, portableSearchParams, siteSwitchHref } from './switchTar
 const identified = { instance_mode: 'identified' as const, configured_profiles_enabled: true, effective_mode: 'identified' as const, restrictions: [] as string[] }
 const anonymous = { instance_mode: 'anonymous' as const, configured_profiles_enabled: false, effective_mode: 'anonymous' as const, restrictions: [] as string[] }
 const web: Site = { id: 2, name: 'B', slug: 'site-b', kind: 'web', tracking_policy: identified }
+const app: Site = { id: 5, name: 'D', slug: 'desk', kind: 'app', tracking_policy: identified }
 const pixel: Site = { id: 3, name: 'P', slug: 'pix', kind: 'pixel', tracking_policy: identified }
 const anon: Site = { id: 4, name: 'A', slug: 'anon', kind: 'web', tracking_policy: anonymous }
 const owner: Membership = {
@@ -49,6 +50,8 @@ describe('site switch target', () => {
 
   it('falls back to the dashboard when the new site or member cannot use the page', () => {
     expect(path(siteSwitchHref({ routeId: '/app/$org/$site/sessions', search: {} }, owner, pixel))).toBe('/app/acme/pix')
+    expect(path(siteSwitchHref({ routeId: '/app/$org/$site/sessions', search: {} }, owner, app))).toBe('/app/acme/desk')
+    expect(path(siteSwitchHref({ routeId: '/app/$org/$site/settings/tracking', search: {} }, owner, app))).toBe('/app/acme/desk')
     expect(path(siteSwitchHref({ routeId: '/app/$org/$site/settings/tracking', search: {} }, viewer, web))).toBe('/app/acme/site-b')
     expect(path(siteSwitchHref({ routeId: '/app/$org/$site/profiles/', search: {} }, viewer, web))).toBe('/app/acme/site-b')
     expect(path(siteSwitchHref({ routeId: '/app/$org/$site/replays/$id', search: {} }, owner, anon))).toBe('/app/acme/anon')

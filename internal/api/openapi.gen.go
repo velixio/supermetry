@@ -297,6 +297,7 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 
 // Defines values for CreateSiteRequestKind.
 const (
+	CreateSiteRequestKindApp   CreateSiteRequestKind = "app"
 	CreateSiteRequestKindPixel CreateSiteRequestKind = "pixel"
 	CreateSiteRequestKindWeb   CreateSiteRequestKind = "web"
 )
@@ -304,6 +305,8 @@ const (
 // Valid indicates whether the value is a known member of the CreateSiteRequestKind enum.
 func (e CreateSiteRequestKind) Valid() bool {
 	switch e {
+	case CreateSiteRequestKindApp:
+		return true
 	case CreateSiteRequestKindPixel:
 		return true
 	case CreateSiteRequestKindWeb:
@@ -1428,6 +1431,7 @@ func (e SiteInstallStatus) Valid() bool {
 
 // Defines values for SiteKind.
 const (
+	SiteKindApp   SiteKind = "app"
 	SiteKindPixel SiteKind = "pixel"
 	SiteKindWeb   SiteKind = "web"
 )
@@ -1435,6 +1439,8 @@ const (
 // Valid indicates whether the value is a known member of the SiteKind enum.
 func (e SiteKind) Valid() bool {
 	switch e {
+	case SiteKindApp:
+		return true
 	case SiteKindPixel:
 		return true
 	case SiteKindWeb:
@@ -2306,6 +2312,34 @@ type AnnotationPatch struct {
 	Text *string             `json:"text,omitempty"`
 }
 
+// AppIngestKeyIssued defines model for AppIngestKeyIssued.
+type AppIngestKeyIssued struct {
+	// Key Plaintext key; returned once and never stored.
+	Key    string `json:"key"`
+	Prefix string `json:"prefix"`
+
+	// PreviousExpiresAt When the replaced key stops working; null when none was replaced.
+	PreviousExpiresAt time.Time `json:"previous_expires_at"`
+}
+
+// AppIngestKeyList defines model for AppIngestKeyList.
+type AppIngestKeyList struct {
+	Keys []struct {
+		CreatedAt time.Time `json:"created_at"`
+		ExpiresAt time.Time `json:"expires_at"`
+		Prefix    string    `json:"prefix"`
+	} `json:"keys"`
+}
+
+// AppSettings defines model for AppSettings.
+type AppSettings struct {
+	Environments *[]string `json:"environments,omitempty"`
+
+	// MaxReportAgeDays 0 means the default of 7.
+	MaxReportAgeDays *int      `json:"max_report_age_days,omitempty"`
+	TagAllowlist     *[]string `json:"tag_allowlist,omitempty"`
+}
+
 // ChangeShareExpiryRequest defines model for ChangeShareExpiryRequest.
 type ChangeShareExpiryRequest struct {
 	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
@@ -2420,7 +2454,7 @@ type CreateShareRequest struct {
 	Password      *string          `json:"password,omitempty"`
 }
 
-// CreateSiteRequest hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel.
+// CreateSiteRequest hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel and app.
 type CreateSiteRequest struct {
 	// Hosts Hostnames the tracker may report. On a managed instance (SUPERMETRY_MANAGED) each new host must look like a domain (contain a dot, for example example.com or *.example.com); localhost and IPv4 addresses are also accepted, and any other single-label host is rejected with 400.
 	Hosts *[]string `json:"hosts,omitempty"`
@@ -5005,6 +5039,9 @@ type CreateSharedLinkJSONRequestBody = CreateShareRequest
 // ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
 type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
 
+// UpdateAppSettingsJSONRequestBody defines body for UpdateAppSettings for application/json ContentType.
+type UpdateAppSettingsJSONRequestBody = AppSettings
+
 // CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
 type CreateCohortJSONRequestBody = CohortInput
 
@@ -5813,6 +5850,12 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// GetAppSettings Read an app project's tag allowlist, report age limit and environments
+	// (GET /api/private/sites/{site}/app-settings)
+	GetAppSettings(w http.ResponseWriter, r *http.Request, site int32)
+	// UpdateAppSettings Replace an app project's settings; lists are lower-cased, deduped and sorted
+	// (PUT /api/private/sites/{site}/app-settings)
+	UpdateAppSettings(w http.ResponseWriter, r *http.Request, site int32)
 	// ListCohorts List saved cohorts
 	// (GET /api/private/sites/{site}/cohorts)
 	ListCohorts(w http.ResponseWriter, r *http.Request, site int32)
@@ -5852,6 +5895,12 @@ type ServerInterface interface {
 	// HeartbeatDemoProject Keep watched demo traffic active
 	// (POST /api/private/sites/{site}/demo/heartbeat)
 	HeartbeatDemoProject(w http.ResponseWriter, r *http.Request, site int32)
+	// ListAppIngestKeys List an app project's current and grace-period ingest keys (prefixes only)
+	// (GET /api/private/sites/{site}/ingest-keys)
+	ListAppIngestKeys(w http.ResponseWriter, r *http.Request, site int32)
+	// RotateAppIngestKey Issue a new ingest key; the previous key keeps working for 7 days
+	// (POST /api/private/sites/{site}/ingest-keys)
+	RotateAppIngestKey(w http.ResponseWriter, r *http.Request, site int32)
 	// ListSiteIntegrations List the integration catalog of a site with each connection state
 	// (GET /api/private/sites/{site}/integrations)
 	ListSiteIntegrations(w http.ResponseWriter, r *http.Request, site int32)
@@ -8853,6 +8902,58 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// GetAppSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAppSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppSettings(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppSettings(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCohorts operation middleware
 func (siw *ServerInterfaceWrapper) ListCohorts(w http.ResponseWriter, r *http.Request) {
 
@@ -9227,6 +9328,58 @@ func (siw *ServerInterfaceWrapper) HeartbeatDemoProject(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.HeartbeatDemoProject(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppIngestKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListAppIngestKeys(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppIngestKeys(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateAppIngestKey operation middleware
+func (siw *ServerInterfaceWrapper) RotateAppIngestKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateAppIngestKey(w, r, site)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12654,6 +12807,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties", wrapper.ListProperties)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties/{property_key}/values", wrapper.ListPropertyValues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/suggestions", wrapper.ListSuggestions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app-settings", wrapper.GetAppSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app-settings", wrapper.UpdateAppSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.ListAppIngestKeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.RotateAppIngestKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.CreatePixel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels/stats", wrapper.PixelStats)

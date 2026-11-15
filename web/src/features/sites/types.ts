@@ -7,7 +7,7 @@ export type TrackingPolicy = {
 
 export type RetentionDays = 0 | 7 | 30 | 90 | 365
 
-export type SiteKind = 'web' | 'pixel'
+export type SiteKind = 'web' | 'pixel' | 'app'
 
 export type WebSiteInput = {
   kind?: 'web'
@@ -27,7 +27,14 @@ export type PixelSiteInput = {
   retention_days: RetentionDays
 }
 
-export type SiteInput = WebSiteInput | PixelSiteInput
+export type AppSiteInput = {
+  kind: 'app'
+  name: string
+  timezone: string
+  retention_days: RetentionDays
+}
+
+export type SiteInput = WebSiteInput | PixelSiteInput | AppSiteInput
 
 export type TrackerSettings = {
   outbound: boolean

@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"supermetry/internal/db"
 	"supermetry/internal/platform/authz"
 	platformhttp "supermetry/internal/platform/http"
@@ -621,4 +623,85 @@ func authenticatedRequest(method, path, body string) *http.Request {
 		request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "token"})
 	}
 	return request
+}
+
+func appKindHandler(t *testing.T, slug string, requireDomain bool) (http.Handler, *pgxpool.Pool) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('you@example.com','Owner','hash') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Apps',$1) returning id`, slug).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values ($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	data := &store.Store{Pool: pool}
+	registry := sitesvc.NewRegistry(data, 0)
+	t.Cleanup(registry.Close)
+	service := sitesvc.New(data, registry)
+	service.SetRequireDomain(requireDomain)
+	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
+	return platformhttp.New(platformhttp.Deps{
+		Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
+		Mutations: platformhttp.Services{Sites: service}, Store: data,
+	}), pool
+}
+
+func createAppSite(t *testing.T, handler http.Handler) *httptest.ResponseRecorder {
+	t.Helper()
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, authenticatedRequest(http.MethodPost, "/api/private/sites", `{"name":"Desk","kind":"app","timezone":"UTC","retention_days":90}`))
+	return response
+}
+
+func TestCreateSiteAcceptsAppKind(t *testing.T) {
+	handler, pool := appKindHandler(t, "app-create", false)
+	response := createAppSite(t, handler)
+	body := response.Body.String()
+	if response.Code != http.StatusCreated || !strings.Contains(body, `"kind":"app"`) || !strings.Contains(body, `"allowed_hosts":[]`) {
+		t.Fatalf("status=%d body=%s", response.Code, body)
+	}
+	var kind string
+	if err := pool.QueryRow(context.Background(), `select kind from sites where name='Desk'`).Scan(&kind); err != nil || kind != "app" {
+		t.Fatalf("kind=%q err=%v", kind, err)
+	}
+}
+
+func TestCreateAppSiteIgnoresRequireDomain(t *testing.T) {
+	handler, _ := appKindHandler(t, "app-domain", true)
+	if response := createAppSite(t, handler); response.Code != http.StatusCreated {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body)
+	}
+}
+
+func TestUpdateAppSiteNameWithoutHosts(t *testing.T) {
+	handler, _ := appKindHandler(t, "app-update", true)
+	created := createAppSite(t, handler)
+	var site struct {
+		ID int32 `json:"id"`
+	}
+	if err := json.Unmarshal(created.Body.Bytes(), &site); err != nil || created.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s %v", created.Code, created.Body, err)
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, authenticatedRequest(http.MethodPatch, fmt.Sprintf("/api/private/sites/%d", site.ID), `{"name":"Desk 2","timezone":"Europe/Berlin"}`))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body)
+	}
+}
+
+func TestCreateSiteRejectsUnknownKind(t *testing.T) {
+	handler, _ := appKindHandler(t, "app-unknown", false)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, authenticatedRequest(http.MethodPost, "/api/private/sites", `{"name":"Desk","kind":"desktop","timezone":"UTC","retention_days":90}`))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body)
+	}
 }

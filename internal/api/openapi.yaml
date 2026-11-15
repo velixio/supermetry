@@ -2688,6 +2688,42 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/private/sites/{site}/app-settings:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppSettings
+      tags: [Sites]
+      summary: Read an app project's tag allowlist, report age limit and environments
+      responses:
+        '200': { description: App settings, content: { application/json: { schema: { $ref: '#/components/schemas/AppSettings' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateAppSettings
+      tags: [Sites]
+      summary: Replace an app project's settings; lists are lower-cased, deduped and sorted
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppSettings' } } } }
+      responses:
+        '200': { description: The normalised settings, content: { application/json: { schema: { $ref: '#/components/schemas/AppSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/ingest-keys:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppIngestKeys
+      tags: [Sites]
+      summary: List an app project's current and grace-period ingest keys (prefixes only)
+      responses:
+        '200': { description: Ingest keys, content: { application/json: { schema: { $ref: '#/components/schemas/AppIngestKeyList' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: rotateAppIngestKey
+      tags: [Sites]
+      summary: Issue a new ingest key; the previous key keeps working for 7 days
+      responses:
+        '201': { description: The new key, shown once, content: { application/json: { schema: { $ref: '#/components/schemas/AppIngestKeyIssued' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/pixels:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3768,6 +3804,32 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    AppSettings:
+      type: object
+      properties:
+        tag_allowlist: { type: array, maxItems: 50, items: { type: string, pattern: '^[a-z][a-z0-9_.]{0,39}$' } }
+        max_report_age_days: { type: integer, minimum: 0, maximum: 30, description: "0 means the default of 7." }
+        environments: { type: array, maxItems: 20, items: { type: string, pattern: '^[a-z0-9][a-z0-9_.-]{0,31}$' } }
+    AppIngestKeyIssued:
+      type: object
+      required: [key, prefix, previous_expires_at]
+      properties:
+        key: { type: string, description: Plaintext key; returned once and never stored. }
+        prefix: { type: string }
+        previous_expires_at: { type: string, format: date-time, nullable: true, description: When the replaced key stops working; null when none was replaced. }
+    AppIngestKeyList:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            required: [prefix, created_at, expires_at]
+            properties:
+              prefix: { type: string }
+              created_at: { type: string, format: date-time }
+              expires_at: { type: string, format: date-time, nullable: true }
     IntegrationConnection:
       type: object
       required: [id, provider, property, status, created_at]
@@ -4949,7 +5011,7 @@ components:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
         public_id: { type: string }
-        kind: { type: string, enum: [web, pixel] }
+        kind: { type: string, enum: [web, pixel, app] }
         slug: { type: string, pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', minLength: 1, maxLength: 63, description: Readable per-organization URL segment; public_id resolves too. }
         name: { type: string }
         timezone: { type: string }
@@ -5017,10 +5079,10 @@ components:
       type: object
       additionalProperties: false
       required: [name, timezone]
-      description: hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel.
+      description: hosts are required when kind is web (the default); hosts and revenue_currency are ignored for pixel and app.
       properties:
         name: { type: string }
-        kind: { type: string, enum: [web, pixel], default: web, description: Fixed at creation. }
+        kind: { type: string, enum: [web, pixel, app], default: web, description: Fixed at creation. }
         hosts:
           type: array
           items: { type: string }

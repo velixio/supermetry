@@ -71,6 +71,7 @@ import { Route as AppOrgSiteProfilesIdRouteImport } from './routes/app.$org.$sit
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
 import { Route as AppOrgSiteReplaysIdRouteImport } from './routes/app.$org.$site.replays.$id'
 import { Route as AppOrgSiteSettingsAlertsRouteImport } from './routes/app.$org.$site.settings.alerts'
+import { Route as AppOrgSiteSettingsAppRouteImport } from './routes/app.$org.$site.settings.app'
 import { Route as AppOrgSiteSettingsFunnelsRouteImport } from './routes/app.$org.$site.settings.funnels'
 import { Route as AppOrgSiteSettingsGeneralRouteImport } from './routes/app.$org.$site.settings.general'
 import { Route as AppOrgSiteSettingsGoalsRouteImport } from './routes/app.$org.$site.settings.goals'
@@ -399,6 +400,11 @@ const AppOrgSiteSettingsAlertsRoute =
     path: '/alerts',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteSettingsAppRoute = AppOrgSiteSettingsAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AppOrgSiteSettingsRoute,
+} as any)
 const AppOrgSiteSettingsFunnelsRoute =
   AppOrgSiteSettingsFunnelsRouteImport.update({
     id: '/funnels',
@@ -535,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
+  '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
   '/app/$org/$site/settings/general': typeof AppOrgSiteSettingsGeneralRoute
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
@@ -609,6 +616,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
+  '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
   '/app/$org/$site/settings/general': typeof AppOrgSiteSettingsGeneralRoute
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
@@ -687,6 +695,7 @@ export interface FileRoutesById {
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
+  '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
   '/app/$org/$site/settings/general': typeof AppOrgSiteSettingsGeneralRoute
   '/app/$org/$site/settings/goals': typeof AppOrgSiteSettingsGoalsRoute
@@ -766,6 +775,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
+    | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
     | '/app/$org/$site/settings/general'
     | '/app/$org/$site/settings/goals'
@@ -840,6 +850,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
+    | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
     | '/app/$org/$site/settings/general'
     | '/app/$org/$site/settings/goals'
@@ -917,6 +928,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
+    | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
     | '/app/$org/$site/settings/general'
     | '/app/$org/$site/settings/goals'
@@ -1385,6 +1397,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsAlertsRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
+    '/app/$org/$site/settings/app': {
+      id: '/app/$org/$site/settings/app'
+      path: '/app'
+      fullPath: '/app/$org/$site/settings/app'
+      preLoaderRoute: typeof AppOrgSiteSettingsAppRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/funnels': {
       id: '/app/$org/$site/settings/funnels'
       path: '/funnels'
@@ -1520,6 +1539,7 @@ const AppOrgSettingsRouteWithChildren = AppOrgSettingsRoute._addFileChildren(
 
 interface AppOrgSiteSettingsRouteChildren {
   AppOrgSiteSettingsAlertsRoute: typeof AppOrgSiteSettingsAlertsRoute
+  AppOrgSiteSettingsAppRoute: typeof AppOrgSiteSettingsAppRoute
   AppOrgSiteSettingsFunnelsRoute: typeof AppOrgSiteSettingsFunnelsRoute
   AppOrgSiteSettingsGeneralRoute: typeof AppOrgSiteSettingsGeneralRoute
   AppOrgSiteSettingsGoalsRoute: typeof AppOrgSiteSettingsGoalsRoute
@@ -1535,6 +1555,7 @@ interface AppOrgSiteSettingsRouteChildren {
 
 const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
   AppOrgSiteSettingsAlertsRoute: AppOrgSiteSettingsAlertsRoute,
+  AppOrgSiteSettingsAppRoute: AppOrgSiteSettingsAppRoute,
   AppOrgSiteSettingsFunnelsRoute: AppOrgSiteSettingsFunnelsRoute,
   AppOrgSiteSettingsGeneralRoute: AppOrgSiteSettingsGeneralRoute,
   AppOrgSiteSettingsGoalsRoute: AppOrgSiteSettingsGoalsRoute,

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { canCreateSites } from '@/components/Sidebar'
 import { DemoChoice } from '@/features/demo/DemoChoice'
 import { createSite as createManagedSite } from '@/features/sites/api'
+import { AppCreateFlow } from '@/features/sites/AppCreateFlow'
 import { KindChoice } from '@/features/sites/KindChoice'
 import { PixelProjectForm } from '@/features/sites/PixelProjectForm'
 import { SiteForm } from '@/features/sites/SiteForm'
@@ -49,7 +50,14 @@ export function Onboarding({ me, createSite, navigate }: {
         {me.demo_prompt_dismissed === false ? <DemoChoice org={{ id: membership.org.id, slug: membership.org.slug }} onDismissed={() => navigate(`/app/${membership.org.slug}/sites`)} /> : null}
         <PageHeader title={en.pixels.measureTitle} description="Choose web analytics or count views where JavaScript cannot run." />
         <KindChoice value={kind} onChange={setKind} />
-        {kind === 'pixel' ? (
+        {kind === 'app' ? (
+          <AppCreateFlow
+            orgId={membership.org.id}
+            createSite={(input) => (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)}
+            retention={config.data ? retentionPolicy(config.data) : undefined}
+            onDone={(site) => navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/app`)}
+          />
+        ) : kind === 'pixel' ? (
           <PixelProjectForm
             submitLabel={en.pixels.createProject}
             onSubmit={async (input) => {
