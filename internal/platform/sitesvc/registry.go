@@ -97,6 +97,10 @@ func (r *Registry) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	appSettings, err := r.store.AppSettingsBySite(ctx)
+	if err != nil {
+		return err
+	}
 	keysBySite := make(map[int32][]coresites.AppKey)
 	for _, key := range appKeys {
 		entry := coresites.AppKey{Hash: key.Hash}
@@ -116,7 +120,14 @@ func (r *Registry) refresh(ctx context.Context) error {
 		}
 		site.Replay = replayBySite[site.ID]
 		if site.Kind == coresites.KindApp {
-			site.App = &coresites.AppConfig{Keys: keysBySite[site.ID], MaxReportAgeDays: 7}
+			parsed, err := coresites.ParseAppSettings(appSettings[site.ID])
+			if err != nil {
+				return fmt.Errorf("site %d: %w", site.ID, err)
+			}
+			site.App = &coresites.AppConfig{
+				Keys: keysBySite[site.ID], TagAllowlist: parsed.TagAllowlist,
+				MaxReportAgeDays: parsed.MaxReportAgeDays, Environments: parsed.Environments,
+			}
 		}
 		next.byPublic[site.PublicID] = site
 		next.byID[site.ID] = site

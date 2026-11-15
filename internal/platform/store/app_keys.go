@@ -100,3 +100,40 @@ func (s *Store) ActiveAppKeys(ctx context.Context) ([]AppKeyRow, error) {
 	}
 	return out, rows.Err()
 }
+
+// AppSettings returns the raw settings->'app' JSON of a site, or nil when unset.
+func (s *Store) AppSettings(ctx context.Context, siteID int32) ([]byte, error) {
+	var raw []byte
+	err := s.Pool.QueryRow(ctx, `select settings->'app' from sites where id = $1 and deleted_at is null`, siteID).Scan(&raw)
+	if err != nil {
+		return nil, fmt.Errorf("load app settings: %w", err)
+	}
+	return raw, nil
+}
+
+// AppSettingsBySite returns settings->'app' for every live app site that has one.
+func (s *Store) AppSettingsBySite(ctx context.Context) (map[int32][]byte, error) {
+	rows, err := s.Pool.Query(ctx, `select id, settings->'app' from sites where kind = 'app' and deleted_at is null and settings ? 'app'`)
+	if err != nil {
+		return nil, fmt.Errorf("load app settings: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[int32][]byte)
+	for rows.Next() {
+		var id int32
+		var raw []byte
+		if err := rows.Scan(&id, &raw); err != nil {
+			return nil, fmt.Errorf("scan app settings: %w", err)
+		}
+		out[id] = raw
+	}
+	return out, rows.Err()
+}
+
+// SetAppSettings stores settings->'app' inside the caller's transaction.
+func (s *Store) SetAppSettings(ctx context.Context, tx pgx.Tx, siteID int32, raw []byte) error {
+	if _, err := tx.Exec(ctx, `update sites set settings = jsonb_set(settings, '{app}', $2::jsonb, true) where id = $1`, siteID, raw); err != nil {
+		return fmt.Errorf("save app settings: %w", err)
+	}
+	return nil
+}
