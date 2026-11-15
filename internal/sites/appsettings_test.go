@@ -46,3 +46,13 @@ func TestNormalize(t *testing.T) {
 		t.Fatalf("boundary: %+v %v", got, err)
 	}
 }
+
+func TestNormalizeSkipsBlankEntries(t *testing.T) {
+	got, err := (AppSettings{TagAllowlist: []string{"a", " ", ""}, Environments: []string{"", "beta"}}).Normalize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.TagAllowlist) != 1 || got.TagAllowlist[0] != "a" || len(got.Environments) != 1 || got.Environments[0] != "beta" {
+		t.Fatalf("got %+v", got)
+	}
+}
