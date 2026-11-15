@@ -94,6 +94,8 @@ type Notification struct {
 	From      time.Time `json:"from"`
 	To        time.Time `json:"to"`
 	FiredAt   time.Time `json:"fired_at"`
+	// App carries the app-alert details; nil for traffic and goal alerts.
+	App *AppNotification `json:"app,omitempty"`
 }
 
 // DeliveryState is the durable progress for one fired evaluation. ChannelIDs

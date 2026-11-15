@@ -51,6 +51,8 @@ type Evaluator struct {
 	deliverer  Deliverer
 	now        func() time.Time
 	onFailure  DeliveryFailureFunc
+	app        AppSource
+	appDedup   AppDedup
 }
 
 func NewEvaluator(repository Repository, metrics MetricSource, registry sites.Registry, active ActiveVisitorSource, deliverer Deliverer, now func() time.Time, failures ...DeliveryFailureFunc) *Evaluator {
@@ -90,6 +92,9 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 	site, ok := e.sites.Site(alert.SiteID)
 	if !ok || site.TZ == nil {
 		return fmt.Errorf("site %d is unavailable", alert.SiteID)
+	}
+	if alert.Kind.IsApp() {
+		return e.evaluateApp(ctx, alert, site, now)
 	}
 	var from, to time.Time
 	var value float64
@@ -139,6 +144,16 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 	if !fire {
 		return nil
 	}
+	notification := Notification{AlertID: alert.ID, SiteID: alert.SiteID, Kind: alert.Kind, Value: value, Threshold: alert.Threshold, From: from, To: to, FiredAt: now}
+	return e.fire(ctx, alert, notification, nil)
+}
+
+// fire records and delivers one notification to the alert's channels. persisted
+// runs once the delivery is durable (its state saved, or the evaluation
+// consumed because no channel is enabled); app alerts record their dedup key
+// there, so a crash in between re-fires instead of losing the notification.
+func (e *Evaluator) fire(ctx context.Context, alert Alert, notification Notification, persisted func() error) error {
+	now := notification.FiredAt
 	channels, err := e.repository.DeliveryChannels(ctx, alert.ChannelIDs)
 	if err != nil {
 		return err
@@ -146,7 +161,6 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 	if len(channels) != len(alert.ChannelIDs) {
 		return errors.New("one or more notification channels are unavailable")
 	}
-	notification := Notification{AlertID: alert.ID, SiteID: alert.SiteID, Kind: alert.Kind, Value: value, Threshold: alert.Threshold, From: from, To: to, FiredAt: now}
 	enabledChannelIDs := make([]int64, 0, len(channels))
 	for _, channel := range channels {
 		if channel.Enabled {
@@ -154,6 +168,11 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 		}
 	}
 	if len(enabledChannelIDs) == 0 {
+		if persisted != nil {
+			if err := persisted(); err != nil {
+				return err
+			}
+		}
 		return e.repository.MarkFired(ctx, alert.ID, now)
 	}
 	state := DeliveryState{Notification: notification, ChannelIDs: enabledChannelIDs}
@@ -166,6 +185,11 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 	}
 	if err := e.repository.SaveDeliveryState(ctx, alert.ID, state); err != nil {
 		return err
+	}
+	if persisted != nil {
+		if err := persisted(); err != nil {
+			return err
+		}
 	}
 	return e.deliver(ctx, alert.ID, state)
 }
