@@ -2331,6 +2331,15 @@ type AppIngestKeyList struct {
 	} `json:"keys"`
 }
 
+// AppSettings defines model for AppSettings.
+type AppSettings struct {
+	Environments *[]string `json:"environments,omitempty"`
+
+	// MaxReportAgeDays 0 means the default of 7.
+	MaxReportAgeDays *int      `json:"max_report_age_days,omitempty"`
+	TagAllowlist     *[]string `json:"tag_allowlist,omitempty"`
+}
+
 // ChangeShareExpiryRequest defines model for ChangeShareExpiryRequest.
 type ChangeShareExpiryRequest struct {
 	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
@@ -5030,6 +5039,9 @@ type CreateSharedLinkJSONRequestBody = CreateShareRequest
 // ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
 type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
 
+// UpdateAppSettingsJSONRequestBody defines body for UpdateAppSettings for application/json ContentType.
+type UpdateAppSettingsJSONRequestBody = AppSettings
+
 // CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
 type CreateCohortJSONRequestBody = CohortInput
 
@@ -5838,6 +5850,12 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// GetAppSettings Read an app project's tag allowlist, report age limit and environments
+	// (GET /api/private/sites/{site}/app-settings)
+	GetAppSettings(w http.ResponseWriter, r *http.Request, site int32)
+	// UpdateAppSettings Replace an app project's settings; lists are lower-cased, deduped and sorted
+	// (PUT /api/private/sites/{site}/app-settings)
+	UpdateAppSettings(w http.ResponseWriter, r *http.Request, site int32)
 	// ListCohorts List saved cohorts
 	// (GET /api/private/sites/{site}/cohorts)
 	ListCohorts(w http.ResponseWriter, r *http.Request, site int32)
@@ -8875,6 +8893,58 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeSharedLinkExpiry(w, r, siteId, shareId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAppSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppSettings(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppSettings(w, r, site)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12737,6 +12807,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties", wrapper.ListProperties)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties/{property_key}/values", wrapper.ListPropertyValues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/suggestions", wrapper.ListSuggestions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app-settings", wrapper.GetAppSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app-settings", wrapper.UpdateAppSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.ListAppIngestKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.RotateAppIngestKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)

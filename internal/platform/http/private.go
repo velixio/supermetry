@@ -323,6 +323,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/tracking-pixels/{id}", h.getTrackingPixel)
 	mux.HandleFunc("PATCH /api/private/tracking-pixels/{id}", h.updateTrackingPixel)
 	mux.HandleFunc("DELETE /api/private/tracking-pixels/{id}", h.deleteTrackingPixel)
+	mux.HandleFunc("GET /api/private/sites/{site}/app-settings", h.getAppSettings)
+	mux.HandleFunc("PUT /api/private/sites/{site}/app-settings", h.updateAppSettings)
 	mux.HandleFunc("GET /api/private/sites/{site}/ingest-keys", h.listAppIngestKeys)
 	mux.HandleFunc("POST /api/private/sites/{site}/ingest-keys", h.rotateAppIngestKey)
 	mux.HandleFunc("GET /api/private/sites/{site}/pixels", h.listPixels)

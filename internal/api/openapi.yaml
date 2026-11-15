@@ -2688,6 +2688,25 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/private/sites/{site}/app-settings:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppSettings
+      tags: [Sites]
+      summary: Read an app project's tag allowlist, report age limit and environments
+      responses:
+        '200': { description: App settings, content: { application/json: { schema: { $ref: '#/components/schemas/AppSettings' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateAppSettings
+      tags: [Sites]
+      summary: Replace an app project's settings; lists are lower-cased, deduped and sorted
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppSettings' } } } }
+      responses:
+        '200': { description: The normalised settings, content: { application/json: { schema: { $ref: '#/components/schemas/AppSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/ingest-keys:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3785,6 +3804,12 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    AppSettings:
+      type: object
+      properties:
+        tag_allowlist: { type: array, maxItems: 50, items: { type: string, pattern: '^[a-z][a-z0-9_.]{0,39}$' } }
+        max_report_age_days: { type: integer, minimum: 0, maximum: 30, description: "0 means the default of 7." }
+        environments: { type: array, maxItems: 20, items: { type: string, pattern: '^[a-z0-9][a-z0-9_.-]{0,31}$' } }
     AppIngestKeyIssued:
       type: object
       required: [key, prefix, previous_expires_at]
