@@ -87,6 +87,15 @@ describe('sites overview', () => {
     expect(screen.getByRole('link', { name: /Shop.*120 visitors/i }).getAttribute('href')).toMatch(/^\/app\/acme\/shop-public/)
   })
 
+  it('links an app with the app dashboard search, not the web metric params', async () => {
+    privateRequest.mockResolvedValue({ data: [{ ...site, id: 9, public_id: 'desk-public', name: 'Desk', kind: 'app' }, { ...site, kind: 'web' }] })
+    renderOverview()
+    const app = (await screen.findByRole('link', { name: /Desk.*120 visitors/i })).getAttribute('href') ?? ''
+    expect(app).toContain('period=30d')
+    expect(app).not.toMatch(/metric=|compare=|include_imported=/)
+    expect(screen.getByRole('link', { name: /Docs.*120 visitors/i }).getAttribute('href')).toContain('metric=visitors')
+  })
+
   it('shows loading, error, and filtered-empty states', async () => {
     privateRequest.mockImplementation(() => new Promise(() => undefined))
     const loading = renderOverview()

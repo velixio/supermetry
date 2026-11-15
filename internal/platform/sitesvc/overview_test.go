@@ -149,3 +149,31 @@ func TestOverviewAcceptsTimezoneNamesThePostgresBuildDoesNotKnow(t *testing.T) {
 		}
 	}
 }
+
+func TestOverviewReturnsSiteKind(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 12, 12, 30, 0, 0, time.UTC)
+	var userID, orgID int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('kind@example.test','Kind','x') returning id`).Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('Kinds','kinds') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values($1,$2,'owner')`, orgID, userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into sites(org_id,public_id,name,allowed_hosts,timezone,retention_class,kind,created_at) values($1,'kindweb00001','Web',array['w.example'],'UTC',30,'web',$2),($1,'kindapp00001','Desk',array[]::text[],'UTC',90,'app',$3)`, orgID, now.Add(-2*time.Hour), now.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	service := NewOverview(&store.Store{Pool: pool}, session.NewMemory(1, overviewClock{now}))
+	service.SetClock(func() time.Time { return now })
+	items, _, err := service.List(ctx, userID, Overview24Hours, "", 10)
+	if err != nil || len(items) != 2 || items[0].Kind != "web" || items[1].Kind != "app" {
+		t.Fatalf("items=%+v err=%v", items, err)
+	}
+}

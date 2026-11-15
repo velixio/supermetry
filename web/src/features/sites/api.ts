@@ -12,6 +12,7 @@ export type OverviewSite = {
   org_id: number
   public_id: string
   slug?: string
+  kind?: 'web' | 'pixel' | 'app'
   name: string
   domain: string
   timezone: string
