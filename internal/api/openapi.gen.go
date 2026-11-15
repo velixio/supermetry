@@ -2573,6 +2573,12 @@ type AppIngestKeyList struct {
 	} `json:"keys"`
 }
 
+// AppLink defines model for AppLink.
+type AppLink struct {
+	// AppSiteId Id of an app project in the same organization, or null when unlinked.
+	AppSiteId int32 `json:"app_site_id"`
+}
+
 // AppSettings defines model for AppSettings.
 type AppSettings struct {
 	Environments *[]string `json:"environments,omitempty"`
@@ -5286,6 +5292,9 @@ type CreateSharedLinkJSONRequestBody = CreateShareRequest
 // ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
 type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
 
+// UpdateAppLinkJSONRequestBody defines body for UpdateAppLink for application/json ContentType.
+type UpdateAppLinkJSONRequestBody = AppLink
+
 // UpdateAppSettingsJSONRequestBody defines body for UpdateAppSettings for application/json ContentType.
 type UpdateAppSettingsJSONRequestBody = AppSettings
 
@@ -6103,6 +6112,12 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// GetAppLink Read the app project a web site sends diagnostic reports to
+	// (GET /api/private/sites/{site}/app-link)
+	GetAppLink(w http.ResponseWriter, r *http.Request, site int32)
+	// UpdateAppLink Link a web site to an app project in the same organization, or unlink it with null
+	// (PUT /api/private/sites/{site}/app-link)
+	UpdateAppLink(w http.ResponseWriter, r *http.Request, site int32)
 	// GetAppSettings Read an app project's tag allowlist, report age limit and environments
 	// (GET /api/private/sites/{site}/app-settings)
 	GetAppSettings(w http.ResponseWriter, r *http.Request, site int32)
@@ -9152,6 +9167,58 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeSharedLinkExpiry(w, r, siteId, shareId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppLink operation middleware
+func (siw *ServerInterfaceWrapper) GetAppLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppLink(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppLink operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppLink(w, r, site)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13129,6 +13196,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/suggestions", wrapper.ListSuggestions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app-settings", wrapper.GetAppSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app-settings", wrapper.UpdateAppSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app-link", wrapper.GetAppLink)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app-link", wrapper.UpdateAppLink)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.ListAppIngestKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.RotateAppIngestKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)

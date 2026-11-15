@@ -156,3 +156,60 @@ func (s *Store) AppHashSecrets(ctx context.Context) (map[int32][]byte, error) {
 	}
 	return out, rows.Err()
 }
+
+// AppLinksBySite returns the app project each live web site sends diagnostic reports to.
+func (s *Store) AppLinksBySite(ctx context.Context) (map[int32]int32, error) {
+	rows, err := s.Pool.Query(ctx, `select id, (settings->>'app_link')::integer from sites
+		where kind = 'web' and deleted_at is null and settings ? 'app_link'`)
+	if err != nil {
+		return nil, fmt.Errorf("load app links: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[int32]int32)
+	for rows.Next() {
+		var id, target int32
+		if err := rows.Scan(&id, &target); err != nil {
+			return nil, fmt.Errorf("scan app link: %w", err)
+		}
+		out[id] = target
+	}
+	return out, rows.Err()
+}
+
+// AppLink returns the app project a web site is linked to, or 0 when unlinked.
+func (s *Store) AppLink(ctx context.Context, siteID int32) (int32, error) {
+	var target *int32
+	err := s.Pool.QueryRow(ctx, `select (settings->>'app_link')::integer from sites where id = $1 and deleted_at is null`, siteID).Scan(&target)
+	if err != nil {
+		return 0, fmt.Errorf("load app link: %w", err)
+	}
+	if target == nil {
+		return 0, nil
+	}
+	return *target, nil
+}
+
+// IsAppInOrg reports whether appSiteID is a live app project of org.
+func (s *Store) IsAppInOrg(ctx context.Context, orgID int64, appSiteID int32) (bool, error) {
+	var ok bool
+	err := s.Pool.QueryRow(ctx, `select exists(select 1 from sites where id = $1 and org_id = $2 and kind = 'app' and deleted_at is null)`, appSiteID, orgID).Scan(&ok)
+	if err != nil {
+		return false, fmt.Errorf("check app project: %w", err)
+	}
+	return ok, nil
+}
+
+// SetAppLink links a web site to an app project, or unlinks it when appSiteID
+// is nil, inside the caller's transaction.
+func (s *Store) SetAppLink(ctx context.Context, tx pgx.Tx, siteID int32, appSiteID *int32) error {
+	var err error
+	if appSiteID == nil {
+		_, err = tx.Exec(ctx, `update sites set settings = settings - 'app_link' where id = $1`, siteID)
+	} else {
+		_, err = tx.Exec(ctx, `update sites set settings = jsonb_set(settings, '{app_link}', to_jsonb($2::integer), true) where id = $1`, siteID, *appSiteID)
+	}
+	if err != nil {
+		return fmt.Errorf("save app link: %w", err)
+	}
+	return nil
+}

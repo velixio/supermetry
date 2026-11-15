@@ -481,6 +481,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"DELETE " + privatePrefix + "/tracking-pixels/{id}",
 		"GET " + privatePrefix + "/sites/{site}/app-settings",
 		"PUT " + privatePrefix + "/sites/{site}/app-settings",
+		"GET " + privatePrefix + "/sites/{site}/app-link",
+		"PUT " + privatePrefix + "/sites/{site}/app-link",
 		"GET " + privatePrefix + "/sites/{site}/ingest-keys",
 		"POST " + privatePrefix + "/sites/{site}/ingest-keys",
 		"GET " + privatePrefix + "/sites/{site}/pixels",

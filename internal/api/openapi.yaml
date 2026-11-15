@@ -2777,6 +2777,28 @@ paths:
         '200': { description: The normalised settings, content: { application/json: { schema: { $ref: '#/components/schemas/AppSettings' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app-link:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppLink
+      tags: [Sites]
+      summary: Read the app project a web site sends diagnostic reports to
+      responses:
+        '200': { description: The link, content: { application/json: { schema: { $ref: '#/components/schemas/AppLink' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateAppLink
+      tags: [Sites]
+      summary: Link a web site to an app project in the same organization, or unlink it with null
+      description: |
+        A linked web site maps `diagnostic_report` events it receives on the regular event endpoint
+        into the app project, instead of storing them as custom events. Owner or admin only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppLink' } } } }
+      responses:
+        '200': { description: The stored link, content: { application/json: { schema: { $ref: '#/components/schemas/AppLink' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/ingest-keys:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -4993,6 +5015,15 @@ components:
       properties:
         day: { type: string, format: date }
         text: { type: string, minLength: 1, maxLength: 200 }
+    AppLink:
+      type: object
+      required: [app_site_id]
+      properties:
+        app_site_id:
+          type: integer
+          format: int32
+          nullable: true
+          description: Id of an app project in the same organization, or null when unlinked.
     AppEventsRequest:
       type: object
       required: [site, events]

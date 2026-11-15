@@ -1952,6 +1952,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Read the app project a web site sends diagnostic reports to */
+        get: operations["getAppLink"];
+        /**
+         * Link a web site to an app project in the same organization, or unlink it with null
+         * @description A linked web site maps `diagnostic_report` events it receives on the regular event endpoint
+         *     into the app project, instead of storing them as custom events. Owner or admin only.
+         */
+        put: operations["updateAppLink"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/ingest-keys": {
         parameters: {
             query?: never;
@@ -3766,6 +3790,13 @@ export interface components {
             /** Format: date */
             day?: string;
             text?: string;
+        };
+        AppLink: {
+            /**
+             * Format: int32
+             * @description Id of an app project in the same organization, or null when unlinked.
+             */
+            app_site_id: number | null;
         };
         AppEventsRequest: {
             /** @description Public id of the app project. */
@@ -9295,6 +9326,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLink"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppLink"];
+            };
+        };
+        responses: {
+            /** @description The stored link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLink"];
                 };
             };
             400: components["responses"]["BadRequest"];

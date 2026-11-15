@@ -105,6 +105,10 @@ func (r *Registry) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	appLinks, err := r.store.AppLinksBySite(ctx)
+	if err != nil {
+		return err
+	}
 	keysBySite := make(map[int32][]coresites.AppKey)
 	for _, key := range appKeys {
 		entry := coresites.AppKey{Hash: key.Hash}
@@ -123,6 +127,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 			return err
 		}
 		site.Replay = replayBySite[site.ID]
+		site.LinkedAppID = appLinks[site.ID]
 		if site.Kind == coresites.KindApp {
 			parsed, err := coresites.ParseAppSettings(appSettings[site.ID])
 			if err != nil {
