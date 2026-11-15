@@ -49,6 +49,8 @@ const messages: MessageTree = {
   appShell: { loadingLive: 'সরাসরি দর্শনার্থী লোড হচ্ছে' },
   crumbs: {
     label: 'ব্রেডক্রাম্ব', detail: 'বিস্তারিত', account: 'অ্যাকাউন্ট', admin: 'অ্যাডমিন',
+    appOverview: 'ওভারভিউ',
+    siteSegments: { issues: 'সমস্যা', compatibility: 'সামঞ্জস্য', releases: 'রিলিজ', app: 'অ্যাপ' },
     segments: {
       sites: 'সাইট', health: 'স্বাস্থ্য', settings: 'সেটিংস', dashboard: 'ড্যাশবোর্ড', events: 'ইভেন্ট', sessions: 'সেশন',
       realtime: 'রিয়েলটাইম', replays: 'রিপ্লে', replay: 'রিপ্লে', journeys: 'যাত্রাপথ', retention: 'ধরে রাখা', profiles: 'প্রোফাইল',

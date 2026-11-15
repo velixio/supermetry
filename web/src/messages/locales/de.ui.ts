@@ -85,6 +85,8 @@ const messages: MessageTree = {
     detail: 'Details',
     account: 'Konto',
     admin: 'Administration',
+    appOverview: 'Übersicht',
+    siteSegments: { issues: 'Probleme', compatibility: 'Kompatibilität', releases: 'Releases', app: 'App' },
     segments: {
       sites: 'Websites',
       health: 'Status',
