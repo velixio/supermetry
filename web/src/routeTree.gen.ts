@@ -63,6 +63,8 @@ import { Route as AppOrgSitesNewRouteImport } from './routes/app.$org.sites.new'
 import { Route as AppAccountOrganizationsNewRouteImport } from './routes/app.account.organizations.new'
 import { Route as AppOrgSiteFunnelsIndexRouteImport } from './routes/app.$org.$site.funnels.index'
 import { Route as AppOrgSiteFunnelsIdRouteImport } from './routes/app.$org.$site.funnels.$id'
+import { Route as AppOrgSiteIssuesIndexRouteImport } from './routes/app.$org.$site.issues.index'
+import { Route as AppOrgSiteIssuesIssueRouteImport } from './routes/app.$org.$site.issues.$issue'
 import { Route as AppOrgSiteLinksIndexRouteImport } from './routes/app.$org.$site.links.index'
 import { Route as AppOrgSiteLinksIdRouteImport } from './routes/app.$org.$site.links.$id'
 import { Route as AppOrgSiteLinksPixelRouteImport } from './routes/app.$org.$site.links.pixel'
@@ -359,6 +361,16 @@ const AppOrgSiteFunnelsIdRoute = AppOrgSiteFunnelsIdRouteImport.update({
   path: '/$site/funnels/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteIssuesIndexRoute = AppOrgSiteIssuesIndexRouteImport.update({
+  id: '/$site/issues/',
+  path: '/$site/issues/',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteIssuesIssueRoute = AppOrgSiteIssuesIssueRouteImport.update({
+  id: '/$site/issues/$issue',
+  path: '/$site/issues/$issue',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgSiteLinksIndexRoute = AppOrgSiteLinksIndexRouteImport.update({
   id: '/$site/links/',
   path: '/$site/links/',
@@ -536,6 +548,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
@@ -555,6 +568,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/issues/': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
@@ -611,6 +625,7 @@ export interface FileRoutesByTo {
   '/app/$org/settings': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
@@ -630,6 +645,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/issues': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
@@ -690,6 +706,7 @@ export interface FileRoutesById {
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
   '/app/$org/sites/': typeof AppOrgSitesIndexRoute
   '/app/$org/$site/funnels/$id': typeof AppOrgSiteFunnelsIdRoute
+  '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
@@ -709,6 +726,7 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
+  '/app/$org/$site/issues/': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
@@ -770,6 +788,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/'
     | '/app/$org/sites/'
     | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/profiles/$id'
@@ -789,6 +808,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
+    | '/app/$org/$site/issues/'
     | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
@@ -845,6 +865,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings'
     | '/app/$org/sites'
     | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/profiles/$id'
@@ -864,6 +885,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels'
+    | '/app/$org/$site/issues'
     | '/app/$org/$site/links'
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
@@ -923,6 +945,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/'
     | '/app/$org/sites/'
     | '/app/$org/$site/funnels/$id'
+    | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/profiles/$id'
@@ -942,6 +965,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
+    | '/app/$org/$site/issues/'
     | '/app/$org/$site/links/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
@@ -1341,6 +1365,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteFunnelsIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/issues/': {
+      id: '/app/$org/$site/issues/'
+      path: '/$site/issues'
+      fullPath: '/app/$org/$site/issues/'
+      preLoaderRoute: typeof AppOrgSiteIssuesIndexRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/issues/$issue': {
+      id: '/app/$org/$site/issues/$issue'
+      path: '/$site/issues/$issue'
+      fullPath: '/app/$org/$site/issues/$issue'
+      preLoaderRoute: typeof AppOrgSiteIssuesIssueRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/links/': {
       id: '/app/$org/$site/links/'
       path: '/$site/links'
@@ -1592,11 +1630,13 @@ interface AppOrgRouteChildren {
   AppOrgSiteIndexRoute: typeof AppOrgSiteIndexRoute
   AppOrgSitesIndexRoute: typeof AppOrgSitesIndexRoute
   AppOrgSiteFunnelsIdRoute: typeof AppOrgSiteFunnelsIdRoute
+  AppOrgSiteIssuesIssueRoute: typeof AppOrgSiteIssuesIssueRoute
   AppOrgSiteLinksIdRoute: typeof AppOrgSiteLinksIdRoute
   AppOrgSiteLinksPixelRoute: typeof AppOrgSiteLinksPixelRoute
   AppOrgSiteProfilesIdRoute: typeof AppOrgSiteProfilesIdRoute
   AppOrgSiteReplaysIdRoute: typeof AppOrgSiteReplaysIdRoute
   AppOrgSiteFunnelsIndexRoute: typeof AppOrgSiteFunnelsIndexRoute
+  AppOrgSiteIssuesIndexRoute: typeof AppOrgSiteIssuesIndexRoute
   AppOrgSiteLinksIndexRoute: typeof AppOrgSiteLinksIndexRoute
   AppOrgSiteProfilesIndexRoute: typeof AppOrgSiteProfilesIndexRoute
   AppOrgSiteReplaysIndexRoute: typeof AppOrgSiteReplaysIndexRoute
@@ -1622,11 +1662,13 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteIndexRoute: AppOrgSiteIndexRoute,
   AppOrgSitesIndexRoute: AppOrgSitesIndexRoute,
   AppOrgSiteFunnelsIdRoute: AppOrgSiteFunnelsIdRoute,
+  AppOrgSiteIssuesIssueRoute: AppOrgSiteIssuesIssueRoute,
   AppOrgSiteLinksIdRoute: AppOrgSiteLinksIdRoute,
   AppOrgSiteLinksPixelRoute: AppOrgSiteLinksPixelRoute,
   AppOrgSiteProfilesIdRoute: AppOrgSiteProfilesIdRoute,
   AppOrgSiteReplaysIdRoute: AppOrgSiteReplaysIdRoute,
   AppOrgSiteFunnelsIndexRoute: AppOrgSiteFunnelsIndexRoute,
+  AppOrgSiteIssuesIndexRoute: AppOrgSiteIssuesIndexRoute,
   AppOrgSiteLinksIndexRoute: AppOrgSiteLinksIndexRoute,
   AppOrgSiteProfilesIndexRoute: AppOrgSiteProfilesIndexRoute,
   AppOrgSiteReplaysIndexRoute: AppOrgSiteReplaysIndexRoute,
