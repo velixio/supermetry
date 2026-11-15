@@ -2688,6 +2688,23 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/private/sites/{site}/ingest-keys:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppIngestKeys
+      tags: [Sites]
+      summary: List an app project's current and grace-period ingest keys (prefixes only)
+      responses:
+        '200': { description: Ingest keys, content: { application/json: { schema: { $ref: '#/components/schemas/AppIngestKeyList' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: rotateAppIngestKey
+      tags: [Sites]
+      summary: Issue a new ingest key; the previous key keeps working for 7 days
+      responses:
+        '201': { description: The new key, shown once, content: { application/json: { schema: { $ref: '#/components/schemas/AppIngestKeyIssued' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/pixels:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3768,6 +3785,26 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    AppIngestKeyIssued:
+      type: object
+      required: [key, prefix, previous_expires_at]
+      properties:
+        key: { type: string, description: Plaintext key; returned once and never stored. }
+        prefix: { type: string }
+        previous_expires_at: { type: string, format: date-time, nullable: true, description: When the replaced key stops working; null when none was replaced. }
+    AppIngestKeyList:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            required: [prefix, created_at, expires_at]
+            properties:
+              prefix: { type: string }
+              created_at: { type: string, format: date-time }
+              expires_at: { type: string, format: date-time, nullable: true }
     IntegrationConnection:
       type: object
       required: [id, provider, property, status, created_at]

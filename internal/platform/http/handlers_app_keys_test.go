@@ -1,0 +1,85 @@
+package platformhttp_test
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"testing"
+
+	"supermetry/internal/platform/appkeys"
+)
+
+func newAppKeyFixture(t *testing.T) linkFixture {
+	t.Helper()
+	f := newLinkFixture(t)
+	if _, err := f.pool.Exec(context.Background(), `update sites set kind='app' where id=$1`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+func TestAppIngestKeyIssueAndList(t *testing.T) {
+	f := newAppKeyFixture(t)
+	path := fmt.Sprintf("/api/private/sites/%d/ingest-keys", f.siteID)
+	res := f.request(t, "owner", http.MethodPost, path, ``)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("issue = %d %s", res.Code, res.Body)
+	}
+	var issued struct {
+		Key      string  `json:"key"`
+		Prefix   string  `json:"prefix"`
+		Previous *string `json:"previous_expires_at"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &issued); err != nil {
+		t.Fatal(err)
+	}
+	if !appkeys.Valid(issued.Key) || issued.Prefix != issued.Key[4:12] || issued.Previous != nil {
+		t.Fatalf("issued = %+v", issued)
+	}
+	site, ok := f.registry.Site(f.siteID)
+	if !ok || !site.App.KeyValid(appkeys.Hash(issued.Key), f.now) {
+		t.Fatal("registry did not pick up the new key")
+	}
+	list := f.request(t, "owner", http.MethodGet, path, ``)
+	if list.Code != http.StatusOK || strings.Contains(list.Body.String(), issued.Key) || !strings.Contains(list.Body.String(), issued.Prefix) {
+		t.Fatalf("list = %d %s", list.Code, list.Body)
+	}
+	second := f.request(t, "owner", http.MethodPost, path, ``)
+	if second.Code != http.StatusCreated || !strings.Contains(second.Body.String(), `"previous_expires_at":"`) {
+		t.Fatalf("rotate = %d %s", second.Code, second.Body)
+	}
+	var audits int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from audit_log where action='site.ingest_key_rotated'`).Scan(&audits); err != nil || audits != 2 {
+		t.Fatalf("audit rows = %d err=%v", audits, err)
+	}
+}
+
+func TestAppIngestKeyRoutesGuardKindAndRole(t *testing.T) {
+	f := newAppKeyFixture(t)
+	path := fmt.Sprintf("/api/private/sites/%d/ingest-keys", f.siteID)
+	for _, actor := range []string{"viewer", "editor"} {
+		if res := f.request(t, actor, http.MethodPost, path, ``); res.Code != http.StatusForbidden {
+			t.Fatalf("%s issue = %d", actor, res.Code)
+		}
+		if res := f.request(t, actor, http.MethodGet, path, ``); res.Code != http.StatusForbidden {
+			t.Fatalf("%s list = %d", actor, res.Code)
+		}
+	}
+	if _, err := f.pool.Exec(context.Background(), `update sites set kind='web' where id=$1`, f.siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	if res := f.request(t, "owner", http.MethodPost, path, ``); res.Code != http.StatusNotFound {
+		t.Fatalf("web site issue = %d", res.Code)
+	}
+	if res := f.request(t, "owner", http.MethodGet, path, ``); res.Code != http.StatusNotFound {
+		t.Fatalf("web site list = %d", res.Code)
+	}
+}

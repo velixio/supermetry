@@ -1898,6 +1898,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/ingest-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** List an app project's current and grace-period ingest keys (prefixes only) */
+        get: operations["listAppIngestKeys"];
+        put?: never;
+        /** Issue a new ingest key; the previous key keeps working for 7 days */
+        post: operations["rotateAppIngestKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/pixels": {
         parameters: {
             query?: never;
@@ -2683,6 +2703,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AppIngestKeyIssued: {
+            /** @description Plaintext key; returned once and never stored. */
+            key: string;
+            prefix: string;
+            /**
+             * Format: date-time
+             * @description When the replaced key stops working; null when none was replaced.
+             */
+            previous_expires_at: string | null;
+        };
+        AppIngestKeyList: {
+            keys: {
+                prefix: string;
+                /** Format: date-time */
+                created_at: string;
+                /** Format: date-time */
+                expires_at: string | null;
+            }[];
+        };
         IntegrationConnection: {
             /** Format: int64 */
             id: number;
@@ -9014,6 +9053,52 @@ export interface operations {
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAppIngestKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ingest keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIngestKeyList"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    rotateAppIngestKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new key */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIngestKeyIssued"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     listPixels: {

@@ -25,28 +25,35 @@ type AppKeyRow struct {
 // of that grace, or nil when no key was replaced.
 func (s *Store) RotateAppKey(ctx context.Context, siteID int32, createdBy *int64, prefix string, hash [32]byte, now time.Time) (*time.Time, error) {
 	var previous *time.Time
-	err := s.Tx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `delete from app_ingest_keys where site_id = $1 and expires_at <= $2`, siteID, now); err != nil {
-			return fmt.Errorf("delete expired ingest keys: %w", err)
-		}
-		grace := now.Add(AppKeyGrace)
-		tag, err := tx.Exec(ctx, `update app_ingest_keys set expires_at = $2 where site_id = $1 and expires_at is null`, siteID, grace)
-		if err != nil {
-			return fmt.Errorf("demote ingest key: %w", err)
-		}
-		if tag.RowsAffected() > 0 {
-			previous = &grace
-		}
-		if _, err := tx.Exec(ctx, `insert into app_ingest_keys(site_id, prefix, hash, created_by, created_at) values ($1,$2,$3,$4,$5)`,
-			siteID, prefix, hash[:], createdBy, now); err != nil {
-			return fmt.Errorf("insert ingest key: %w", err)
-		}
-		return nil
+	err := s.Tx(ctx, func(tx pgx.Tx) (err error) {
+		previous, err = s.RotateAppKeyTx(ctx, tx, siteID, createdBy, prefix, hash, now)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	return previous, nil
+}
+
+// RotateAppKeyTx is RotateAppKey inside the caller's transaction, so the caller
+// can write an audit row atomically.
+func (s *Store) RotateAppKeyTx(ctx context.Context, tx pgx.Tx, siteID int32, createdBy *int64, prefix string, hash [32]byte, now time.Time) (*time.Time, error) {
+	if _, err := tx.Exec(ctx, `delete from app_ingest_keys where site_id = $1 and expires_at <= $2`, siteID, now); err != nil {
+		return nil, fmt.Errorf("delete expired ingest keys: %w", err)
+	}
+	grace := now.Add(AppKeyGrace)
+	tag, err := tx.Exec(ctx, `update app_ingest_keys set expires_at = $2 where site_id = $1 and expires_at is null`, siteID, grace)
+	if err != nil {
+		return nil, fmt.Errorf("demote ingest key: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `insert into app_ingest_keys(site_id, prefix, hash, created_by, created_at) values ($1,$2,$3,$4,$5)`,
+		siteID, prefix, hash[:], createdBy, now); err != nil {
+		return nil, fmt.Errorf("insert ingest key: %w", err)
+	}
+	if tag.RowsAffected() > 0 {
+		return &grace, nil
+	}
+	return nil, nil
 }
 
 // ListAppKeys returns a site's unexpired keys, newest first.

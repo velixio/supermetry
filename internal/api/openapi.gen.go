@@ -2312,6 +2312,25 @@ type AnnotationPatch struct {
 	Text *string             `json:"text,omitempty"`
 }
 
+// AppIngestKeyIssued defines model for AppIngestKeyIssued.
+type AppIngestKeyIssued struct {
+	// Key Plaintext key; returned once and never stored.
+	Key    string `json:"key"`
+	Prefix string `json:"prefix"`
+
+	// PreviousExpiresAt When the replaced key stops working; null when none was replaced.
+	PreviousExpiresAt time.Time `json:"previous_expires_at"`
+}
+
+// AppIngestKeyList defines model for AppIngestKeyList.
+type AppIngestKeyList struct {
+	Keys []struct {
+		CreatedAt time.Time `json:"created_at"`
+		ExpiresAt time.Time `json:"expires_at"`
+		Prefix    string    `json:"prefix"`
+	} `json:"keys"`
+}
+
 // ChangeShareExpiryRequest defines model for ChangeShareExpiryRequest.
 type ChangeShareExpiryRequest struct {
 	ExpiresInDays *ShareExpiryDays `json:"expires_in_days,omitempty"`
@@ -5858,6 +5877,12 @@ type ServerInterface interface {
 	// HeartbeatDemoProject Keep watched demo traffic active
 	// (POST /api/private/sites/{site}/demo/heartbeat)
 	HeartbeatDemoProject(w http.ResponseWriter, r *http.Request, site int32)
+	// ListAppIngestKeys List an app project's current and grace-period ingest keys (prefixes only)
+	// (GET /api/private/sites/{site}/ingest-keys)
+	ListAppIngestKeys(w http.ResponseWriter, r *http.Request, site int32)
+	// RotateAppIngestKey Issue a new ingest key; the previous key keeps working for 7 days
+	// (POST /api/private/sites/{site}/ingest-keys)
+	RotateAppIngestKey(w http.ResponseWriter, r *http.Request, site int32)
 	// ListSiteIntegrations List the integration catalog of a site with each connection state
 	// (GET /api/private/sites/{site}/integrations)
 	ListSiteIntegrations(w http.ResponseWriter, r *http.Request, site int32)
@@ -9233,6 +9258,58 @@ func (siw *ServerInterfaceWrapper) HeartbeatDemoProject(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.HeartbeatDemoProject(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppIngestKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListAppIngestKeys(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppIngestKeys(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateAppIngestKey operation middleware
+func (siw *ServerInterfaceWrapper) RotateAppIngestKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateAppIngestKey(w, r, site)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12660,6 +12737,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties", wrapper.ListProperties)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/properties/{property_key}/values", wrapper.ListPropertyValues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/suggestions", wrapper.ListSuggestions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.ListAppIngestKeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.RotateAppIngestKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.CreatePixel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels/stats", wrapper.PixelStats)
