@@ -2078,7 +2078,7 @@ export interface paths {
         /**
          * Resolve, ignore or reopen an issue
          * @description `resolved_in_release` is only allowed with `resolved`. `next` stores the newest release seen so far: events
-         *     from a later release keep the issue resolved, events from that release or an earlier one mark it regressed.
+         *     from that release or an older build keep the issue resolved, and only a strictly later release marks it regressed.
          *     An explicit release R regresses on events from R or a later release. Owner, admin or editor only.
          */
         patch: operations["updateAppIssueStatus"];

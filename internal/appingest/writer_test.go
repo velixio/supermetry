@@ -143,9 +143,9 @@ update app_issues set status='resolved', resolved_in_release='1.2.0', resolved_n
 		queued("3", "older", "1.1.0", in, 1), // an older release is not a regression
 		queued("4", "unset", "1.0.0", in, 1),
 		queued("5", "ignored", "1.3.0", in, 1),
-		queued("6", "nextsame", "1.2.0", in, 1), // resolve-in-next: this release or an earlier one regresses
+		queued("6", "nextsame", "1.2.0", in, 1), // resolve-in-next: this release or an older build is expected
 		queued("7", "nextolder", "1.1.0", in, 1),
-		queued("8", "nextnewer", "1.3.0", in, 1), // a later release keeps it resolved
+		queued("8", "nextnewer", "1.3.0", in, 1), // only a strictly later release regresses
 		queued("9", "semver", "1.10.0", in, 1),   // 1.10.0 sorts after 1.2.0 (not as a string)
 	}
 	if err := w.flush(ctx, batch); err != nil {
@@ -153,7 +153,7 @@ update app_issues set status='resolved', resolved_in_release='1.2.0', resolved_n
 	}
 	want := map[string]string{
 		"same": "regressed", "newer": "regressed", "older": "resolved", "unset": "regressed", "ignored": "ignored",
-		"nextsame": "regressed", "nextolder": "regressed", "nextnewer": "resolved", "semver": "regressed",
+		"nextsame": "resolved", "nextolder": "resolved", "nextnewer": "regressed", "semver": "regressed",
 	}
 	for fp, status := range want {
 		if got := readIssue(t, pool, fp).Status; got != status {
@@ -384,14 +384,14 @@ func waitFor(t *testing.T, cond func() bool) {
 }
 
 // Resolve "next" stores the newest release seen; an event from that release or
-// an older one regresses the issue, an event from a later release does not.
+// an older one is expected and keeps it resolved, a strictly later release regresses.
 func TestResolveNextThenEventsFromOlderAndNewerReleases(t *testing.T) {
 	for _, tc := range []struct {
 		release, want string
 	}{
-		{"1.0.0", "regressed"},
-		{"1.9.0", "regressed"},
-		{"1.10.0", "resolved"},
+		{"1.0.0", "resolved"},
+		{"1.9.0", "resolved"},
+		{"1.10.0", "regressed"},
 	} {
 		t.Run(tc.release, func(t *testing.T) {
 			pool, _, w := writerFixture(t)

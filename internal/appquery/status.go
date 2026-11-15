@@ -35,8 +35,8 @@ type StatusResult struct {
 //
 // "next" stores the newest release seen so far (apprelease ordering over the
 // site's events inside retention, falling back to the issue's last release)
-// and sets resolved_next: the writer then keeps the issue resolved for a later
-// release and regresses it for that release or an earlier one. When no release
+// and sets resolved_next: the writer then keeps the issue resolved for that
+// release or an older one and regresses it only for a strictly later release. When no release
 // has been seen, nothing is stored and any event regresses the issue. Open and
 // ignored clear the fix release.
 func (q *Querier) SetStatus(ctx context.Context, tx pgx.Tx, scope Scope, issueID int64, in StatusInput) (StatusResult, error) {

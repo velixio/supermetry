@@ -293,16 +293,16 @@ returning id, status, resolved_in_release, resolved_next`
 // shouldRegress applies the regression rule to the releases of a batch's
 // events for a resolved issue. With no recorded release any event regresses.
 // A release recorded by "resolve in next release" is the newest release that
-// had the bug, so events from it or an earlier one regress while a later
-// release keeps the issue resolved. An explicit fix release R regresses on any
-// event from R or a later release.
+// had the bug: events from it or an older build are expected (old builds keep
+// running), so only a strictly later release regresses. An explicit fix
+// release R regresses on any event from R or a later release.
 func shouldRegress(releases []string, resolvedIn *string, next bool, firstSeen map[string]time.Time) bool {
 	if resolvedIn == nil {
 		return true
 	}
 	for _, r := range releases {
 		c := apprelease.CompareReleases(r, *resolvedIn, firstSeen)
-		if (next && c <= 0) || (!next && c >= 0) {
+		if (next && c > 0) || (!next && c >= 0) {
 			return true
 		}
 	}
