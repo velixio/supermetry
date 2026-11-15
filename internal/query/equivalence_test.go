@@ -922,6 +922,13 @@ func setupTiny(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	return pool, identifiedEngine(pool, dictionary, reg)
 }
 
+// pinTinyClock fixes the engine clock just after the tiny fixture days so
+// raw-retention checks do not depend on the wall clock.
+func pinTinyClock(engine *query.Engine) *query.Engine {
+	engine.SetClock(func() time.Time { return time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC) })
+	return engine
+}
+
 func setupLocationFilterFixture(t *testing.T) (*pgxpool.Pool, *query.Engine) {
 	t.Helper()
 	pool, _ := testpg.New(t)

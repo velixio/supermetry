@@ -46,6 +46,7 @@ func TestJourneyReportMatchesRawFixture(t *testing.T) {
 
 func TestRetentionReportMatchesDailyIdentityFixture(t *testing.T) {
 	_, engine := setupTiny(t)
+	pinTinyClock(engine)
 	response, err := engine.Retention(context.Background(), api.RetentionRequest{
 		SiteId: 1, DateRange: dateRange("2026-10-06", "2026-10-08"), Interval: api.RetentionDay,
 	})
@@ -69,6 +70,7 @@ func TestRetentionReportMatchesDailyIdentityFixture(t *testing.T) {
 
 func TestRetentionReportMatchesProfileFixtureAcrossDays(t *testing.T) {
 	pool, engine := setupTiny(t)
+	pinTinyClock(engine)
 	ctx := context.Background()
 	_, err := pool.Exec(ctx, `
 		insert into orgs(id,name,slug) overriding system value values (1,'Profiles','profiles-query');

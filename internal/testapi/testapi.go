@@ -129,6 +129,7 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 	dictionary := dict.New(pool)
 	engine := analyticsquery.NewEngine(pool, dictionary, registry, definitions)
 	engine.SetTrackingMode(privacy.Identified)
+	engine.SetClock(func() time.Time { return now })
 	live := session.NewMemory(4, clockFunc(func() time.Time { return now }))
 	platform := platformhttp.New(platformhttp.Deps{
 		Now: func() time.Time { return now }, TrackingMode: privacy.Identified,
