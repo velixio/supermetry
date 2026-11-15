@@ -53,7 +53,7 @@ export function AppCreateFlow({ orgId, createSite, retention, onDone }: {
           await issueKey(created)
         }}
       />
-      {site && key ? <AppKeyDialog appId={site.public_id} ingestKey={key} onClose={() => onDone(site)} /> : null}
+      {site && key ? <AppKeyDialog appId={site.public_id} ingestKey={key} siteId={site.id} timezone={site.timezone} onClose={() => onDone(site)} /> : null}
     </>
   )
 }

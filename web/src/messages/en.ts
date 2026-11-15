@@ -71,6 +71,8 @@ export const en = {
     funnels: 'Funnels',
     realtime: 'Realtime',
     issues: 'Issues',
+    compatibility: 'Compatibility',
+    releases: 'Releases',
     goals: 'Goals',
     revenue: 'Revenue',
     settings: 'Site settings',

@@ -35,12 +35,14 @@ describe('primary sidebar navigation', () => {
     expect(replaysAvailable({ capabilities: ['replay.read'] } as never, { id: 1, name: 'D', kind: 'app' } as Site)).toBe(false)
   })
 
-  it('offers Issues to app projects only', () => {
-    expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)).toContain('/issues')
+  it('offers Issues, Compatibility and Releases to app projects only', () => {
+    const pages = ['/issues', '/compatibility', '/releases']
+    expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)).toEqual(expect.arrayContaining(pages))
     for (const kind of ['web', 'pixel'] as const) {
-      expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind } as Site).map((item) => item.suffix)).not.toContain('/issues')
+      const suffixes = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind } as Site).map((item) => item.suffix)
+      for (const page of pages) expect(suffixes).not.toContain(page)
     }
-    expect(visibleNavigation('owner', true).map((item) => item.suffix)).not.toContain('/issues')
+    for (const page of pages) expect(visibleNavigation('owner', true).map((item) => item.suffix)).not.toContain(page)
   })
 
   it('keeps settings out of analytics navigation for every role and site state', () => {

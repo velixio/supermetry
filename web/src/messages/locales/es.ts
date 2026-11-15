@@ -73,6 +73,8 @@ const messages: MessageTree = {
     funnels: 'Embudos',
     realtime: 'Tiempo real',
     issues: 'Problemas',
+    compatibility: 'Compatibilidad',
+    releases: 'Versiones',
     goals: 'Objetivos',
     revenue: 'Ingresos',
     settings: 'Ajustes del sitio',
