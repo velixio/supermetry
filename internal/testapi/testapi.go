@@ -42,6 +42,7 @@ import (
 	analyticsquery "supermetry/internal/query"
 	"supermetry/internal/routehits"
 	"supermetry/internal/session"
+	coresites "supermetry/internal/sites"
 	"supermetry/internal/testpg"
 )
 
@@ -182,6 +183,19 @@ func (e *Env) Org(t testing.TB) Org {
 // Site creates an active UTC site for org.
 func (e *Env) Site(t testing.TB, org Org) Site {
 	return e.SiteInTimezone(t, org, "UTC")
+}
+
+// AppSite creates an active UTC app-kind site for org.
+func (e *Env) AppSite(t testing.TB, org Org) Site {
+	t.Helper()
+	n := sequence.Add(1)
+	created, err := e.sites.Create(context.Background(), authz.Principal{UserID: org.Owner.ID, OrgID: org.ID, Role: authz.RoleOwner}, sitesvc.CreateInput{
+		Name: fmt.Sprintf("App %d", n), Kind: coresites.KindApp, Timezone: "UTC", RetentionDays: 90,
+	})
+	if err != nil {
+		t.Fatalf("seed app site: %v", err)
+	}
+	return Site{ID: created.ID, PublicID: created.PublicID, OrgID: org.ID}
 }
 
 // SiteInTimezone creates an active site in an IANA time zone.

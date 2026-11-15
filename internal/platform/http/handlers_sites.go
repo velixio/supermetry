@@ -428,7 +428,7 @@ func (h *handler) responseSite(r *http.Request, site coresites.Site) siteRespons
 	response := siteResponse{
 		TrackingPolicy: h.trackingPolicy(site.ProfilesEnabled),
 		ID:             site.ID, OrgID: site.OrgID, PublicID: site.PublicID, Kind: site.Kind, Slug: site.Slug, Timezone: timezone,
-		RetentionDays: int(site.Retention), AllowedHosts: append([]string(nil), site.AllowedHosts...),
+		RetentionDays: int(site.Retention), AllowedHosts: append([]string{}, site.AllowedHosts...),
 		ExcludeIPs: append([]string{}, site.Exclusions.IPRules...), ExcludePaths: append([]string{}, site.Exclusions.PathRules...),
 		ExcludeCountries: append([]string{}, site.Exclusions.CountryRules...),
 		Tracker:          site.Tracker.Resolve(site.HeatmapsEnabled), TrackerURL: h.trackerURL(site.PublicID),

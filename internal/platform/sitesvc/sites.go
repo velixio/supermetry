@@ -128,7 +128,12 @@ func (s *Sites) SetClock(now func() time.Time) {
 	s.now = now
 }
 
-// CreateInput is a new project. Pixel projects need no hosts or currency.
+// hostless reports kinds that have no allowed hosts (pixel and app projects).
+func hostless(kind string) bool {
+	return kind == coresites.KindPixel || kind == coresites.KindApp
+}
+
+// CreateInput is a new project. Pixel and app projects need no hosts or currency.
 type CreateInput struct {
 	Name            string
 	Kind            string
@@ -181,11 +186,11 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, input any
 		} else if err == nil && !coresites.ValidCurrency(in.RevenueCurrency) {
 			err = fmt.Errorf("%w: revenue currency must be three uppercase letters", ErrInvalid)
 		}
-	case coresites.KindPixel:
-		name, _, location, retention, err = validateSite(in.Name, []string{"pixel.invalid"}, in.Timezone, in.RetentionDays, false, nil)
+	case coresites.KindPixel, coresites.KindApp:
+		name, _, location, retention, err = validateSite(in.Name, []string{in.Kind + ".invalid"}, in.Timezone, in.RetentionDays, false, nil)
 		hosts, in.RevenueCurrency, state = []string{}, "", string(coresites.RevenueCurrencyUnconfigured)
 	default:
-		err = fmt.Errorf("%w: kind must be web or pixel", ErrInvalid)
+		err = fmt.Errorf("%w: kind must be web, pixel or app", ErrInvalid)
 	}
 	if err == nil {
 		err = s.checkForever(in.RetentionDays)
@@ -340,8 +345,8 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 			}
 		}
 		validationHosts := current.AllowedHosts
-		if current.Kind == coresites.KindPixel {
-			validationHosts = []string{"pixel.invalid"}
+		if hostless(current.Kind) {
+			validationHosts = []string{current.Kind + ".invalid"}
 		}
 		name, hosts, location, retention, err := validateSite(
 			current.Name, validationHosts, current.Timezone, int(current.RetentionClass), s.requireDomain, storedHosts,
@@ -349,7 +354,7 @@ func (s *Sites) Update(ctx context.Context, principal authz.Principal, id int32,
 		if err != nil {
 			return err
 		}
-		if current.Kind == coresites.KindPixel {
+		if hostless(current.Kind) {
 			hosts = []string{}
 		}
 		current.Name, current.AllowedHosts = name, hosts
@@ -442,8 +447,8 @@ func (s *Sites) AdminSetRetention(ctx context.Context, actorUserID int64, siteID
 		}
 		from := int(current.RetentionClass)
 		validationHosts := current.AllowedHosts
-		if current.Kind == coresites.KindPixel {
-			validationHosts = []string{"pixel.invalid"}
+		if hostless(current.Kind) {
+			validationHosts = []string{current.Kind + ".invalid"}
 		}
 		_, _, _, retention, err := validateSite(current.Name, validationHosts, current.Timezone, days, false, nil)
 		if err != nil {
