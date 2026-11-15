@@ -27,6 +27,7 @@ type AppConfig struct {
 	TagAllowlist     []string
 	MaxReportAgeDays int
 	Environments     []string
+	HashSecret       []byte // per-app HMAC secret for install and session ids; nil until the first event creates it
 }
 
 // KeyValid reports whether hash matches a key that has not expired at now.
