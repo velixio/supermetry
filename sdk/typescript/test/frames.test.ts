@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildFrames, parseV8Stack, scrubFrames } from "../src/frames";
+import { buildFrames, parseV8Stack, scrubFrames } from "../src/frames.js";
 
 const V8 = `Error: boom
     at doThing (/home/alice/proj/src/app/thing.js:10:5)
