@@ -1996,6 +1996,151 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/overview": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Crash-free rates, issue counts and a daily series for an app project
+         * @description Dates are in the site's time zone and inclusive. Crash-free rates are computed from raw events over the
+         *     whole range; the per-day `crash_free_users` of `series` sums installs over releases and platforms and is
+         *     approximate when one install crosses releases on the same day. A rate is null when its denominator is zero.
+         */
+        get: operations["getAppOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Issues with events in the range, filtered, sorted and paged */
+        get: operations["listAppIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * One issue with its daily series, breakdowns and latest events
+         * @description Install and session identifiers (hashed or not) are never returned.
+         */
+        get: operations["getAppIssue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Resolve, ignore or reopen an issue
+         * @description `resolved_in_release` is only allowed with `resolved`. `next` stores the newest release seen so far: events
+         *     from that release or an older build keep the issue resolved, and only a strictly later release marks it regressed.
+         *     An explicit release R regresses on events from R or a later release. Owner, admin or editor only.
+         */
+        patch: operations["updateAppIssueStatus"];
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/compatibility": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Crash and install counts per platform, OS version, architecture and device class */
+        get: operations["getAppCompatibility"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/releases": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Releases with events in the range, newest first, with crash-free rates
+         * @description Newest first by semantic version when every release parses, otherwise by first-seen time.
+         */
+        get: operations["getAppReleases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/pixels": {
         parameters: {
             query?: never;
@@ -3791,6 +3936,165 @@ export interface components {
             day?: string;
             text?: string;
         };
+        /** Format: double */
+        AppRate: number | null;
+        AppOverview: {
+            /** Format: int64 */
+            events: number;
+            /** Format: int64 */
+            crashes: number;
+            /** Format: int64 */
+            new_issues: number;
+            /** Format: int64 */
+            regressed_issues: number;
+            crash_free_users: components["schemas"]["AppRate"];
+            crash_free_sessions: components["schemas"]["AppRate"];
+            series: {
+                /** Format: date */
+                day: string;
+                /** Format: int64 */
+                events: number;
+                /** Format: int64 */
+                crashes: number;
+                crash_free_users: components["schemas"]["AppRate"];
+            }[];
+        };
+        AppIssueRow: {
+            /** Format: int64 */
+            id: number;
+            title: string;
+            kind: string;
+            error_type: string;
+            /** @description open, resolved, ignored or regressed. */
+            status: string;
+            /** Format: date-time */
+            first_seen: string;
+            /** Format: date-time */
+            last_seen: string;
+            first_release: string;
+            last_release: string;
+            /** Format: int64 */
+            events: number;
+            /** Format: int64 */
+            users: number;
+            /** @description Daily events over the range */
+            sparkline: number[];
+        };
+        AppIssueList: {
+            issues: components["schemas"]["AppIssueRow"][];
+            total: number;
+            next_offset: number | null;
+        };
+        AppBreakdown: {
+            value: string;
+            /** Format: int64 */
+            events: number;
+            /** Format: int64 */
+            users: number;
+        };
+        AppEventSample: {
+            /** Format: date-time */
+            ts: string;
+            release: string;
+            platform: string;
+            os_version: string;
+            arch: string;
+            device_class: string;
+            runtime: string;
+            exit_reason: string;
+            signal: string;
+            /** Format: int32 */
+            exit_code: number | null;
+            frames: string;
+            tags: {
+                [key: string]: unknown;
+            };
+        };
+        AppIssueDetail: {
+            /** Format: int64 */
+            id: number;
+            title: string;
+            kind: string;
+            error_type: string;
+            /** @description open, resolved, ignored or regressed. */
+            status: string;
+            /** Format: date-time */
+            first_seen: string;
+            /** Format: date-time */
+            last_seen: string;
+            first_release: string;
+            last_release: string;
+            resolved_in_release: string | null;
+            resolved_next: boolean;
+            /** Format: int64 */
+            event_count: number;
+            series: {
+                /** Format: date */
+                day: string;
+                /** Format: int64 */
+                events: number;
+                /** Format: int64 */
+                installs: number;
+            }[];
+            /** @description Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`. */
+            breakdowns: {
+                [key: string]: components["schemas"]["AppBreakdown"][];
+            };
+            latest_events: components["schemas"]["AppEventSample"][];
+        };
+        AppIssueStatusInput: {
+            /** @description open, resolved or ignored. */
+            status: string;
+            /** @description A release, or "next". Only with status resolved. */
+            resolved_in_release?: string;
+        };
+        AppIssueStatus: {
+            /** Format: int64 */
+            id: number;
+            /** @description open, resolved or ignored. */
+            status: string;
+            resolved_in_release: string | null;
+            resolved_next: boolean;
+        };
+        AppCompatibility: {
+            rows: {
+                platform: string;
+                os_version: string;
+                arch: string;
+                device_class: string;
+                /** Format: int64 */
+                events: number;
+                /** Format: int64 */
+                crashes: number;
+                /** Format: int64 */
+                installs: number;
+                crash_free_users: components["schemas"]["AppRate"];
+                top_issues: {
+                    /** Format: int64 */
+                    id: number;
+                    title: string;
+                    /** Format: int64 */
+                    events: number;
+                }[];
+            }[];
+        };
+        AppReleases: {
+            releases: {
+                release: string;
+                /** Format: date-time */
+                first_seen: string;
+                /** Format: date-time */
+                last_seen: string;
+                /** Format: int64 */
+                installs: number;
+                crash_free_users: components["schemas"]["AppRate"];
+                crash_free_sessions: components["schemas"]["AppRate"];
+                /** Format: int64 */
+                new_issues: number;
+                /** Format: int64 */
+                regressed_issues: number;
+            }[];
+        };
         AppLink: {
             /**
              * Format: int32
@@ -5283,6 +5587,13 @@ export interface components {
         };
     };
     parameters: {
+        /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+        AppFrom: string;
+        /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+        AppTo: string;
+        AppRelease: string;
+        AppEnvironment: string;
+        AppPlatform: string;
         AdminLimit: number;
         GitHubStarsRepoID: number;
         GitHubStarsEventLimit: number;
@@ -9426,6 +9737,211 @@ export interface operations {
                     "application/json": components["schemas"]["AppIngestKeyIssued"];
                 };
             };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppOverview: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppOverview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppIssues: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+                /** @description open, resolved, ignored or regressed. */
+                status?: string;
+                kind?: string;
+                /** @description Case-insensitive prefix of the title or error type. */
+                q?: string;
+                /** @description last_seen (default), events or users. */
+                sort?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of issues */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppIssue: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Issue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppIssueStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueStatusInput"];
+            };
+        };
+        responses: {
+            /** @description The new state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppCompatibility: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppCompatibility"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppReleases: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Releases */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppReleases"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

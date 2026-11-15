@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/apprelease"
 	"supermetry/internal/db"
 	"supermetry/internal/health"
 )
@@ -24,6 +25,7 @@ const (
 	defaultBatchSize  = 500
 	defaultFlushEvery = time.Second
 	shutdownTimeout   = 15 * time.Second
+	defaultRetryDelay = time.Second
 	fkViolation       = "23503"
 )
 
@@ -42,6 +44,10 @@ type Writer struct {
 	batchSize  int
 	flushEvery time.Duration
 
+	// runTx runs fn in a transaction that rolls back on error. Tests replace it.
+	runTx      func(ctx context.Context, fn func(pgx.Tx) error) error
+	retryDelay time.Duration
+
 	mu         sync.Mutex
 	secrets    map[int32][]byte
 	partitions map[time.Time]struct{}
@@ -55,10 +61,41 @@ func NewWriter(pool *pgxpool.Pool, in *Intake, cfg WriterConfig) *Writer {
 	if cfg.FlushEvery <= 0 {
 		cfg.FlushEvery = defaultFlushEvery
 	}
-	return &Writer{
-		pool: pool, in: in, batchSize: cfg.BatchSize, flushEvery: cfg.FlushEvery,
+	w := &Writer{
+		pool: pool, in: in, batchSize: cfg.BatchSize, flushEvery: cfg.FlushEvery, retryDelay: defaultRetryDelay,
 		secrets: map[int32][]byte{}, partitions: map[time.Time]struct{}{},
 	}
+	w.runTx = func(ctx context.Context, fn func(pgx.Tx) error) error { return pgx.BeginFunc(ctx, w.pool, fn) }
+	return w
+}
+
+// errCommitUnknown marks a failure after the batch ran to the end inside its
+// transaction: the commit may or may not have happened, so replaying could
+// count the batch twice.
+var errCommitUnknown = errors.New("commit outcome unknown")
+
+// flushRetry writes a batch. When the transaction rolled back it waits one
+// retry delay and writes the same batch once more (the rollback leaves nothing
+// behind, so the issue upsert cannot count it twice); a failed retry drops the
+// batch and counts it. A failure whose commit outcome is unknown is dropped
+// without a retry.
+func (w *Writer) flushRetry(ctx context.Context, batch []Queued) error {
+	err := w.flush(ctx, batch)
+	if err != nil && !errors.Is(err, errCommitUnknown) {
+		slog.Warn("app event write failed, retrying once", "events", len(batch), "error", err)
+		timer := time.NewTimer(w.retryDelay)
+		select {
+		case <-timer.C:
+			err = w.flush(ctx, batch)
+		case <-ctx.Done():
+			timer.Stop()
+		}
+	}
+	if err != nil {
+		health.AppIngestWriteFailed.Add(uint64(len(batch)))
+		slog.Error("app event write failed", "events", len(batch), "error", err)
+	}
+	return err
 }
 
 // Run flushes on batch size and on an interval until ctx ends, then drains the
@@ -71,10 +108,7 @@ func (w *Writer) Run(ctx context.Context) error {
 		if len(batch) == 0 {
 			return
 		}
-		if err := w.flush(c, batch); err != nil {
-			health.AppIngestWriteFailed.Add(uint64(len(batch)))
-			slog.Error("app event write failed", "events", len(batch), "error", err)
-		}
+		_ = w.flushRetry(c, batch) // failures are counted and logged there
 		batch = batch[:0]
 	}
 	for {
@@ -117,6 +151,9 @@ type issueGroup struct {
 	count                      int64
 	releases                   map[string]struct{}
 	id                         int64
+	status                     string
+	resolvedIn                 *string
+	resolvedNext               bool
 }
 
 func (w *Writer) flush(ctx context.Context, batch []Queued) error {
@@ -177,21 +214,17 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 		g.releases[e.Release] = struct{}{}
 	}
 
-	err := pgx.BeginFunc(ctx, w.pool, func(tx pgx.Tx) error {
+	committing := false
+	err := w.runTx(ctx, func(tx pgx.Tx) error {
 		if len(order) > 0 {
 			pgBatch := &pgx.Batch{}
 			for _, g := range order {
-				releases := make([]string, 0, len(g.releases))
-				for r := range g.releases {
-					releases = append(releases, r)
-				}
-				sort.Strings(releases)
 				pgBatch.Queue(upsertIssueSQL, g.siteID, g.fingerprint, g.kind, g.errType, g.title,
-					g.firstSeen, g.lastSeen, g.firstRelease, g.lastRelease, g.count, releases)
+					g.firstSeen, g.lastSeen, g.firstRelease, g.lastRelease, g.count)
 			}
 			results := tx.SendBatch(ctx, pgBatch)
 			for _, g := range order {
-				if err := results.QueryRow().Scan(&g.id); err != nil {
+				if err := results.QueryRow().Scan(&g.id, &g.status, &g.resolvedIn, &g.resolvedNext); err != nil {
 					_ = results.Close()
 					return fmt.Errorf("upsert issue: %w", err)
 				}
@@ -215,9 +248,18 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 				mac(secret, e.InstallID), mac(secret, e.SessionID), e.Tags,
 			})
 		}
-		_, err := tx.CopyFrom(ctx, pgx.Identifier{"app_events"}, eventColumns, pgx.CopyFromRows(rows))
-		return err
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"app_events"}, eventColumns, pgx.CopyFromRows(rows)); err != nil {
+			return err
+		}
+		if err := regress(ctx, tx, order); err != nil {
+			return err
+		}
+		committing = true
+		return nil
 	})
+	if err != nil && committing {
+		err = fmt.Errorf("%w: %w", errCommitUnknown, err)
+	}
 	if err != nil {
 		w.mu.Lock()
 		clear(w.partitions) // a partition may have been dropped by retention
@@ -235,9 +277,8 @@ var eventColumns = []string{
 }
 
 // upsertIssueSQL creates or updates an issue. Timestamps only widen, so late
-// events keep first_seen and last_seen right. A resolved issue regresses when
-// it receives an event from any release other than the one that fixed it, or
-// from any release when none was recorded.
+// events keep first_seen and last_seen right. It never changes the status:
+// regress decides that with the release ordering, which SQL cannot do.
 const upsertIssueSQL = `
 insert into app_issues (site_id, fingerprint, kind, error_type, title, first_seen, last_seen, first_release, last_release, event_count)
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -246,14 +287,96 @@ on conflict (site_id, fingerprint) do update set
   last_seen     = greatest(app_issues.last_seen, excluded.last_seen),
   first_release = case when excluded.first_seen < app_issues.first_seen then excluded.first_release else app_issues.first_release end,
   last_release  = case when excluded.last_seen >= app_issues.last_seen then excluded.last_release else app_issues.last_release end,
-  event_count   = app_issues.event_count + excluded.event_count,
-  status        = case
-    when app_issues.status = 'resolved' and (
-      app_issues.resolved_in_release is null
-      or exists (select 1 from unnest($11::text[]) r where r is distinct from app_issues.resolved_in_release)
-    ) then 'regressed'
-    else app_issues.status end
-returning id`
+  event_count   = app_issues.event_count + excluded.event_count
+returning id, status, resolved_in_release, resolved_next`
+
+// shouldRegress applies the regression rule to the releases of a batch's
+// events for a resolved issue. With no recorded release any event regresses.
+// A release recorded by "resolve in next release" is the newest release that
+// had the bug: events from it or an older build are expected (old builds keep
+// running), so only a strictly later release regresses. An explicit fix
+// release R regresses on any event from R or a later release.
+func shouldRegress(releases []string, resolvedIn *string, next bool, firstSeen map[string]time.Time) bool {
+	if resolvedIn == nil {
+		return true
+	}
+	for _, r := range releases {
+		c := apprelease.CompareReleases(r, *resolvedIn, firstSeen)
+		if (next && c > 0) || (!next && c >= 0) {
+			return true
+		}
+	}
+	return false
+}
+
+// regress marks resolved issues that received events from a regressing
+// release. It runs after the events are copied, so first-seen times include
+// the batch.
+func regress(ctx context.Context, tx pgx.Tx, groups []*issueGroup) error {
+	type site struct{ releases map[string]struct{} }
+	bySite := map[int32]*site{}
+	var resolved []*issueGroup
+	for _, g := range groups {
+		if g.status != "resolved" {
+			continue
+		}
+		resolved = append(resolved, g)
+		s := bySite[g.siteID]
+		if s == nil {
+			s = &site{releases: map[string]struct{}{}}
+			bySite[g.siteID] = s
+		}
+		for r := range g.releases {
+			s.releases[r] = struct{}{}
+		}
+		if g.resolvedIn != nil {
+			s.releases[*g.resolvedIn] = struct{}{}
+		}
+	}
+	if len(resolved) == 0 {
+		return nil
+	}
+	seen := map[int32]map[string]time.Time{}
+	for id, s := range bySite {
+		names := make([]string, 0, len(s.releases))
+		for r := range s.releases {
+			names = append(names, r)
+		}
+		rows, err := tx.Query(ctx, `select release, min(ts) from app_events where site_id = $1 and release = any($2) group by release`, id, names)
+		if err != nil {
+			return fmt.Errorf("read release first seen: %w", err)
+		}
+		m := map[string]time.Time{}
+		for rows.Next() {
+			var name string
+			var ts time.Time
+			if err := rows.Scan(&name, &ts); err != nil {
+				rows.Close()
+				return err
+			}
+			m[name] = ts
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		seen[id] = m
+	}
+	for _, g := range resolved {
+		releases := make([]string, 0, len(g.releases))
+		for r := range g.releases {
+			releases = append(releases, r)
+		}
+		sort.Strings(releases)
+		if !shouldRegress(releases, g.resolvedIn, g.resolvedNext, seen[g.siteID]) {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `update app_issues set status = 'regressed' where id = $1 and status = 'resolved'`, g.id); err != nil {
+			return fmt.Errorf("mark issue regressed: %w", err)
+		}
+	}
+	return nil
+}
 
 func mac(secret []byte, value string) []byte {
 	if value == "" {

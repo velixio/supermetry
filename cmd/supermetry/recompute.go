@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"supermetry/internal/approllup"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
 	"supermetry/internal/db"
@@ -34,5 +36,10 @@ func recomputeRollupsCommand(ctx context.Context, args []string, getenv func(str
 		return err
 	}
 	fmt.Printf("recomputed rollups for %d closed day(s)\n", days)
+	appDays, err := approllup.RecomputeAll(ctx, pool, time.Now())
+	if err != nil {
+		return err
+	}
+	fmt.Printf("recomputed app rollups for %d app day(s)\n", appDays)
 	return nil
 }

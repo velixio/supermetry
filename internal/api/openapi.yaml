@@ -2816,6 +2816,120 @@ paths:
       responses:
         '201': { description: The new key, shown once, content: { application/json: { schema: { $ref: '#/components/schemas/AppIngestKeyIssued' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/overview:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppOverview
+      tags: [Apps]
+      summary: Crash-free rates, issue counts and a daily series for an app project
+      description: |
+        Dates are in the site's time zone and inclusive. Crash-free rates are computed from raw events over the
+        whole range; the per-day `crash_free_users` of `series` sums installs over releases and platforms and is
+        approximate when one install crosses releases on the same day. A rate is null when its denominator is zero.
+      responses:
+        '200': { description: Overview, content: { application/json: { schema: { $ref: '#/components/schemas/AppOverview' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: listAppIssues
+      tags: [Apps]
+      summary: Issues with events in the range, filtered, sorted and paged
+      parameters:
+        - { name: status, in: query, description: 'open, resolved, ignored or regressed.', schema: { type: string, maxLength: 16 } }
+        - { name: kind, in: query, schema: { type: string, maxLength: 32 } }
+        - { name: q, in: query, description: Case-insensitive prefix of the title or error type., schema: { type: string, maxLength: 100 } }
+        - { name: sort, in: query, description: 'last_seen (default), events or users.', schema: { type: string, maxLength: 16 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        '200': { description: One page of issues, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueList' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getAppIssue
+      tags: [Apps]
+      summary: One issue with its daily series, breakdowns and latest events
+      description: Install and session identifiers (hashed or not) are never returned.
+      parameters:
+        - $ref: '#/components/parameters/AppFrom'
+        - $ref: '#/components/parameters/AppTo'
+        - $ref: '#/components/parameters/AppRelease'
+        - $ref: '#/components/parameters/AppEnvironment'
+        - $ref: '#/components/parameters/AppPlatform'
+      responses:
+        '200': { description: Issue, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateAppIssueStatus
+      tags: [Apps]
+      summary: Resolve, ignore or reopen an issue
+      description: |
+        `resolved_in_release` is only allowed with `resolved`. `next` stores the newest release seen so far: events
+        from that release or an older build keep the issue resolved, and only a strictly later release marks it regressed.
+        An explicit release R regresses on events from R or a later release. Owner, admin or editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueStatusInput' } } } }
+      responses:
+        '200': { description: The new state, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueStatus' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/compatibility:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppCompatibility
+      tags: [Apps]
+      summary: Crash and install counts per platform, OS version, architecture and device class
+      responses:
+        '200': { description: Rows, most crashes first (at most 200), content: { application/json: { schema: { $ref: '#/components/schemas/AppCompatibility' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/releases:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppReleases
+      tags: [Apps]
+      summary: Releases with events in the range, newest first, with crash-free rates
+      description: Newest first by semantic version when every release parses, otherwise by first-seen time.
+      responses:
+        '200': { description: Releases, content: { application/json: { schema: { $ref: '#/components/schemas/AppReleases' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/pixels:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3667,6 +3781,28 @@ components:
       in: cookie
       name: supermetry_session
   parameters:
+    AppFrom:
+      name: from
+      in: query
+      description: First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+      schema: { type: string, format: date }
+    AppTo:
+      name: to
+      in: query
+      description: Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+      schema: { type: string, format: date }
+    AppRelease:
+      name: release
+      in: query
+      schema: { type: string, maxLength: 64 }
+    AppEnvironment:
+      name: environment
+      in: query
+      schema: { type: string, maxLength: 32 }
+    AppPlatform:
+      name: platform
+      in: query
+      schema: { type: string, maxLength: 32 }
     AdminLimit:
       name: limit
       in: query
@@ -5015,6 +5151,169 @@ components:
       properties:
         day: { type: string, format: date }
         text: { type: string, minLength: 1, maxLength: 200 }
+    AppRate:
+      type: number
+      format: double
+      nullable: true
+      minimum: 0
+      maximum: 1
+    AppOverview:
+      type: object
+      required: [events, crashes, new_issues, regressed_issues, crash_free_users, crash_free_sessions, series]
+      properties:
+        events: { type: integer, format: int64 }
+        crashes: { type: integer, format: int64 }
+        new_issues: { type: integer, format: int64 }
+        regressed_issues: { type: integer, format: int64 }
+        crash_free_users: { $ref: '#/components/schemas/AppRate' }
+        crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+        series:
+          type: array
+          items:
+            type: object
+            required: [day, events, crashes, crash_free_users]
+            properties:
+              day: { type: string, format: date }
+              events: { type: integer, format: int64 }
+              crashes: { type: integer, format: int64 }
+              crash_free_users: { $ref: '#/components/schemas/AppRate' }
+    AppIssueRow:
+      type: object
+      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, events, users, sparkline]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        kind: { type: string }
+        error_type: { type: string }
+        status: { type: string, description: 'open, resolved, ignored or regressed.' }
+        first_seen: { type: string, format: date-time }
+        last_seen: { type: string, format: date-time }
+        first_release: { type: string }
+        last_release: { type: string }
+        events: { type: integer, format: int64 }
+        users: { type: integer, format: int64 }
+        sparkline: { type: array, items: { type: integer, format: int64 }, description: Daily events over the range, one entry per day. }
+    AppIssueList:
+      type: object
+      required: [issues, total, next_offset]
+      properties:
+        issues: { type: array, items: { $ref: '#/components/schemas/AppIssueRow' } }
+        total: { type: integer }
+        next_offset: { type: integer, nullable: true }
+    AppBreakdown:
+      type: object
+      required: [value, events, users]
+      properties:
+        value: { type: string }
+        events: { type: integer, format: int64 }
+        users: { type: integer, format: int64 }
+    AppEventSample:
+      type: object
+      required: [ts, release, platform, os_version, arch, device_class, runtime, exit_reason, signal, exit_code, frames, tags]
+      properties:
+        ts: { type: string, format: date-time }
+        release: { type: string }
+        platform: { type: string }
+        os_version: { type: string }
+        arch: { type: string }
+        device_class: { type: string }
+        runtime: { type: string }
+        exit_reason: { type: string }
+        signal: { type: string }
+        exit_code: { type: integer, format: int32, nullable: true }
+        frames: { type: string }
+        tags: { type: object, additionalProperties: true }
+    AppIssueDetail:
+      type: object
+      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, series, breakdowns, latest_events]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        kind: { type: string }
+        error_type: { type: string }
+        status: { type: string, description: 'open, resolved, ignored or regressed.' }
+        first_seen: { type: string, format: date-time }
+        last_seen: { type: string, format: date-time }
+        first_release: { type: string }
+        last_release: { type: string }
+        resolved_in_release: { type: string, nullable: true }
+        resolved_next: { type: boolean }
+        event_count: { type: integer, format: int64 }
+        series:
+          type: array
+          items:
+            type: object
+            required: [day, events, installs]
+            properties:
+              day: { type: string, format: date }
+              events: { type: integer, format: int64 }
+              installs: { type: integer, format: int64 }
+        breakdowns:
+          type: object
+          description: Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`.
+          additionalProperties: { type: array, items: { $ref: '#/components/schemas/AppBreakdown' } }
+        latest_events: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/AppEventSample' } }
+    AppIssueStatusInput:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: { type: string, description: 'open, resolved or ignored.' }
+        resolved_in_release: { type: string, maxLength: 64, description: 'A release, or "next". Only with status resolved.' }
+    AppIssueStatus:
+      type: object
+      required: [id, status, resolved_in_release, resolved_next]
+      properties:
+        id: { type: integer, format: int64 }
+        status: { type: string, description: 'open, resolved or ignored.' }
+        resolved_in_release: { type: string, nullable: true }
+        resolved_next: { type: boolean }
+    AppCompatibility:
+      type: object
+      required: [rows]
+      properties:
+        rows:
+          type: array
+          items:
+            type: object
+            required: [platform, os_version, arch, device_class, events, crashes, installs, crash_free_users, top_issues]
+            properties:
+              platform: { type: string }
+              os_version: { type: string }
+              arch: { type: string }
+              device_class: { type: string }
+              events: { type: integer, format: int64 }
+              crashes: { type: integer, format: int64 }
+              installs: { type: integer, format: int64 }
+              crash_free_users: { $ref: '#/components/schemas/AppRate' }
+              top_issues:
+                type: array
+                maxItems: 3
+                items:
+                  type: object
+                  required: [id, title, events]
+                  properties:
+                    id: { type: integer, format: int64 }
+                    title: { type: string }
+                    events: { type: integer, format: int64 }
+    AppReleases:
+      type: object
+      required: [releases]
+      properties:
+        releases:
+          type: array
+          items:
+            type: object
+            required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, new_issues, regressed_issues]
+            properties:
+              release: { type: string }
+              first_seen: { type: string, format: date-time }
+              last_seen: { type: string, format: date-time }
+              installs: { type: integer, format: int64 }
+              crash_free_users: { $ref: '#/components/schemas/AppRate' }
+              crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+              new_issues: { type: integer, format: int64 }
+              regressed_issues: { type: integer, format: int64 }
     AppLink:
       type: object
       required: [app_site_id]
