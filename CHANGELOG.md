@@ -4,6 +4,12 @@ All notable changes to Supermetry are listed here, newest release first.
 
 Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL, no ClickHouse, no Kafka, no Node in production.
 
+## v0.1.24 (2026-11-16)
+
+### Fixed
+
+- The TypeScript and Python client kit READMEs show the real ingest key prefix, `smk_`, instead of `sk_app_`.
+
 ## v0.1.23 (2026-11-16)
 
 ### Added
