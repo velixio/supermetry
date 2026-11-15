@@ -9,10 +9,22 @@ const membership: Membership = {
   role: 'owner',
   sites: [{ id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public' }],
 }
+const appMembership: Membership = { ...membership, sites: [{ id: 8, name: 'Desk', slug: 'desk', public_id: 'desk-public', kind: 'app' }, { id: 9, name: 'App', slug: 'app', public_id: 'app-public', kind: 'web' }] }
 const empty: Membership = { ...membership, sites: [] }
 const labels = (path: string, m = membership) => buildCrumbs(path, m).map((c) => c.label)
 
 describe('buildCrumbs', () => {
+  it('app pages use capitalised labels and call the landing page Overview', () => {
+    expect(labels('/app/acme/desk', appMembership)).toEqual(['Acme', 'Desk', 'Overview'])
+    expect(labels('/app/acme/desk/issues', appMembership)).toEqual(['Acme', 'Desk', 'Issues'])
+    expect(labels('/app/acme/desk/issues/4', appMembership)).toEqual(['Acme', 'Desk', 'Issues', 'Detail'])
+    expect(labels('/app/acme/desk/compatibility', appMembership)).toEqual(['Acme', 'Desk', 'Compatibility'])
+    expect(labels('/app/acme/desk/releases', appMembership)).toEqual(['Acme', 'Desk', 'Releases'])
+    expect(labels('/app/acme/desk/settings/app', appMembership)).toEqual(['Acme', 'Desk', 'Settings', 'App'])
+  })
+  it('a site that happens to be called app is still a site', () => {
+    expect(labels('/app/acme/app', appMembership)).toEqual(['Acme', 'App', 'Dashboard'])
+  })
   it('dashboard: Org / Site / Dashboard', () => {
     expect(labels('/app/acme/docs')).toEqual(['Acme', 'Docs', 'Dashboard'])
   })

@@ -82,6 +82,8 @@ export const ui = {
   crumbs: {
     label: 'Breadcrumb',
     detail: 'Detail',
+    appOverview: 'Overview',
+    siteSegments: { issues: 'Issues', compatibility: 'Compatibility', releases: 'Releases', app: 'App' } as Record<string, string>,
     account: 'Account',
     admin: 'Admin',
     segments: {
