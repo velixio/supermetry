@@ -117,7 +117,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 	if err != nil {
 		return nil, "", err
 	}
-	query := `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
+	query := `select id,org_id,public_id,kind,slug,name,allowed_hosts,timezone,retention_class,
 		coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 		coalesce(settings->'exclude_countries','[]'::jsonb),coalesce(settings->'tracker','{}'::jsonb),
 		coalesce(settings->'profiles_enabled'='true'::jsonb,false),
@@ -131,7 +131,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		order by created_at,id limit $3`
 	args := []any{principal.OrgID, principal.SiteIDs, limit + 1}
 	if hasCursor {
-		query = `select id,org_id,public_id,name,allowed_hosts,timezone,retention_class,
+		query = `select id,org_id,public_id,kind,slug,name,allowed_hosts,timezone,retention_class,
 			coalesce(settings->'exclude_ips','[]'::jsonb),coalesce(settings->'exclude_paths','[]'::jsonb),
 			coalesce(settings->'exclude_countries','[]'::jsonb),coalesce(settings->'tracker','{}'::jsonb),
 			coalesce(settings->'profiles_enabled'='true'::jsonb,false),
@@ -162,7 +162,7 @@ func (h *handler) listStoredSites(r *http.Request, principal authz.Principal, li
 		var trackerRaw []byte
 		var isDemo, demoReady, demoFailed bool
 		var demoStartedAt *time.Time
-		if err := rows.Scan(&item.response.ID, &item.response.OrgID, &item.response.PublicID, &item.response.Name,
+		if err := rows.Scan(&item.response.ID, &item.response.OrgID, &item.response.PublicID, &item.response.Kind, &item.response.Slug, &item.response.Name,
 			&item.response.AllowedHosts, &timezone, &retention, &item.response.ExcludeIPs,
 			&item.response.ExcludePaths, &item.response.ExcludeCountries, &trackerRaw,
 			&item.response.ProfilesEnabled, &item.response.HeatmapsEnabled,
