@@ -48,7 +48,7 @@ func TestNormalize(t *testing.T) {
 }
 
 func TestNormalizeSkipsBlankEntries(t *testing.T) {
-	got, err := (AppSettings{TagAllowlist: []string{"a", " ", ""}, Environments: []string{"", "beta"}}).Normalize()
+	got, err := (sites.AppSettings{TagAllowlist: []string{"a", " ", ""}, Environments: []string{"", "beta"}}).Normalize()
 	if err != nil {
 		t.Fatal(err)
 	}

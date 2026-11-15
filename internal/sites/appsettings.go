@@ -62,6 +62,9 @@ func normalizeList(in []string, field string, limit int, pattern *regexp.Regexp)
 	out := make([]string, 0, len(in))
 	for _, item := range in {
 		item = strings.ToLower(strings.TrimSpace(item))
+		if item == "" {
+			continue
+		}
 		if _, dup := seen[item]; dup {
 			continue
 		}
