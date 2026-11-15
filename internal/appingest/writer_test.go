@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/appquery"
 	"supermetry/internal/db"
 	"supermetry/internal/health"
 	"supermetry/internal/testpg"
@@ -380,4 +381,46 @@ func waitFor(t *testing.T, cond func() bool) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatal("condition not met in time")
+}
+
+// Resolve "next" stores the newest release seen; an event from that release or
+// an older one regresses the issue, an event from a later release does not.
+func TestResolveNextThenEventsFromOlderAndNewerReleases(t *testing.T) {
+	for _, tc := range []struct {
+		release, want string
+	}{
+		{"1.0.0", "regressed"},
+		{"1.9.0", "regressed"},
+		{"1.10.0", "resolved"},
+	} {
+		t.Run(tc.release, func(t *testing.T) {
+			pool, _, w := writerFixture(t)
+			ctx := context.Background()
+			if err := w.flush(ctx, []Queued{
+				queued("a", "fp", "1.0.0", testNow.Add(-3*time.Hour), 1),
+				queued("b", "fp", "1.9.0", testNow.Add(-2*time.Hour), 1),
+			}); err != nil {
+				t.Fatal(err)
+			}
+			id := readIssue(t, pool, "fp").ID
+			next := "next"
+			q := appquery.New(pool, func() time.Time { return testNow })
+			err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+				_, err := q.SetStatus(ctx, tx, appquery.Scope{SiteID: 7, RetentionDays: 30}, id, appquery.StatusInput{Status: "resolved", ResolvedInRelease: &next})
+				return err
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if issue := readIssue(t, pool, "fp"); issue.Status != "resolved" || issue.ResolvedIn == nil || *issue.ResolvedIn != "1.9.0" {
+				t.Fatalf("after resolve next: %+v", issue)
+			}
+			if err := w.flush(ctx, []Queued{queued("c", "fp", tc.release, testNow.Add(-time.Minute), 1)}); err != nil {
+				t.Fatal(err)
+			}
+			if got := readIssue(t, pool, "fp").Status; got != tc.want {
+				t.Fatalf("event from %s: status %q, want %q", tc.release, got, tc.want)
+			}
+		})
+	}
 }

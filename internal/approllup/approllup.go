@@ -23,10 +23,10 @@ const Every = 10 * time.Minute
 // lockClass namespaces the per-site advisory lock that serialises recomputes.
 const lockClass = 0x41524c // "ARL"
 
-// crash is the crash definition for a column prefix: a crash event is kind
-// crash or level fatal. Session pings are liveness markers and never count as
-// events or crashes.
-func crash(prefix string) string {
+// CrashPredicate is the SQL crash definition for a column prefix (such as "e."
+// or ""): a crash event is kind crash or level fatal. Session pings are
+// liveness markers and never count as events or crashes.
+func CrashPredicate(prefix string) string {
 	return "(" + prefix + "kind <> 'session' and (" + prefix + "kind = 'crash' or " + prefix + "level = 'fatal'))"
 }
 
@@ -78,7 +78,7 @@ insert into app_issue_daily (site_id, issue_id, day, events, installs, crashes)
 select site_id, issue_id, $2::date,
        coalesce(sum(occurrences), 0),
        count(distinct install_hash),
-       coalesce(sum(occurrences) filter (where ` + crash("") + `), 0)
+       coalesce(sum(occurrences) filter (where ` + CrashPredicate("") + `), 0)
 from app_events
 where site_id = $1 and ts >= $3 and ts < $4 and issue_id is not null and kind <> 'session'
 group by site_id, issue_id`, []any{siteID, date, start, end}},
@@ -91,11 +91,11 @@ with pings as (
 insert into app_release_daily (site_id, day, release, platform, events, crashes, installs, crashed_installs, sessions, crashed_sessions)
 select e.site_id, $2::date, e.release, e.platform,
        coalesce(sum(e.occurrences) filter (where e.kind <> 'session'), 0),
-       coalesce(sum(e.occurrences) filter (where ` + crash("e.") + `), 0),
+       coalesce(sum(e.occurrences) filter (where ` + CrashPredicate("e.") + `), 0),
        count(distinct e.install_hash),
-       count(distinct e.install_hash) filter (where ` + crash("e.") + `),
+       count(distinct e.install_hash) filter (where ` + CrashPredicate("e.") + `),
        count(distinct e.session_hash) filter (where e.kind = 'session'),
-       count(distinct e.session_hash) filter (where ` + crash("e.") + ` and p.session_hash is not null)
+       count(distinct e.session_hash) filter (where ` + CrashPredicate("e.") + ` and p.session_hash is not null)
 from app_events e
 left join pings p on p.session_hash = e.session_hash
 where e.site_id = $1 and e.ts >= $3 and e.ts < $4
