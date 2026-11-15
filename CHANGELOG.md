@@ -6,6 +6,10 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## v0.1.24 (2026-11-16)
 
+### Security
+
+- Built with Go 1.27.4 and `klauspost/compress` v1.20.2, which fix GO-2026-6865 (`net/http`) and GO-2026-6859.
+
 ### Fixed
 
 - The TypeScript and Python client kit READMEs show the real ingest key prefix, `smk_`, instead of `sk_app_`.
