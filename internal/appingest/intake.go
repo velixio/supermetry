@@ -298,6 +298,9 @@ func (b *budgetMap) take(key string, now time.Time) bool {
 					delete(b.buckets, k)
 				}
 			}
+			if len(b.buckets) >= maxTrackedBudgetKeys {
+				return true // fail open rather than grow without bound
+			}
 		}
 		cell = &bucket{tokens: b.capacity, last: now}
 		b.buckets[key] = cell

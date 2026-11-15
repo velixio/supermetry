@@ -295,6 +295,165 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 	}
 }
 
+// Defines values for AppEventArch.
+const (
+	AppEventArchArm   AppEventArch = "arm"
+	AppEventArchArm64 AppEventArch = "arm64"
+	AppEventArchOther AppEventArch = "other"
+	AppEventArchX64   AppEventArch = "x64"
+	AppEventArchX86   AppEventArch = "x86"
+)
+
+// Valid indicates whether the value is a known member of the AppEventArch enum.
+func (e AppEventArch) Valid() bool {
+	switch e {
+	case AppEventArchArm:
+		return true
+	case AppEventArchArm64:
+		return true
+	case AppEventArchOther:
+		return true
+	case AppEventArchX64:
+		return true
+	case AppEventArchX86:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppEventKind.
+const (
+	AppEventKindCrash           AppEventKind = "crash"
+	AppEventKindError           AppEventKind = "error"
+	AppEventKindHang            AppEventKind = "hang"
+	AppEventKindIncompatibility AppEventKind = "incompatibility"
+	AppEventKindInstallFailed   AppEventKind = "install_failed"
+	AppEventKindInstallStalled  AppEventKind = "install_stalled"
+	AppEventKindOperationFailed AppEventKind = "operation_failed"
+	AppEventKindSession         AppEventKind = "session"
+)
+
+// Valid indicates whether the value is a known member of the AppEventKind enum.
+func (e AppEventKind) Valid() bool {
+	switch e {
+	case AppEventKindCrash:
+		return true
+	case AppEventKindError:
+		return true
+	case AppEventKindHang:
+		return true
+	case AppEventKindIncompatibility:
+		return true
+	case AppEventKindInstallFailed:
+		return true
+	case AppEventKindInstallStalled:
+		return true
+	case AppEventKindOperationFailed:
+		return true
+	case AppEventKindSession:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppEventLevel.
+const (
+	AppEventLevelError   AppEventLevel = "error"
+	AppEventLevelFatal   AppEventLevel = "fatal"
+	AppEventLevelWarning AppEventLevel = "warning"
+)
+
+// Valid indicates whether the value is a known member of the AppEventLevel enum.
+func (e AppEventLevel) Valid() bool {
+	switch e {
+	case AppEventLevelError:
+		return true
+	case AppEventLevelFatal:
+		return true
+	case AppEventLevelWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppEventPlatform.
+const (
+	AppEventPlatformAndroid AppEventPlatform = "android"
+	AppEventPlatformIos     AppEventPlatform = "ios"
+	AppEventPlatformLinux   AppEventPlatform = "linux"
+	AppEventPlatformMacos   AppEventPlatform = "macos"
+	AppEventPlatformOther   AppEventPlatform = "other"
+	AppEventPlatformWeb     AppEventPlatform = "web"
+	AppEventPlatformWindows AppEventPlatform = "windows"
+)
+
+// Valid indicates whether the value is a known member of the AppEventPlatform enum.
+func (e AppEventPlatform) Valid() bool {
+	switch e {
+	case AppEventPlatformAndroid:
+		return true
+	case AppEventPlatformIos:
+		return true
+	case AppEventPlatformLinux:
+		return true
+	case AppEventPlatformMacos:
+		return true
+	case AppEventPlatformOther:
+		return true
+	case AppEventPlatformWeb:
+		return true
+	case AppEventPlatformWindows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppEventsResponseDroppedReason.
+const (
+	AppEventsResponseDroppedReasonDuplicate     AppEventsResponseDroppedReason = "duplicate"
+	AppEventsResponseDroppedReasonInvalid       AppEventsResponseDroppedReason = "invalid"
+	AppEventsResponseDroppedReasonRateLimited   AppEventsResponseDroppedReason = "rate_limited"
+	AppEventsResponseDroppedReasonTagNotAllowed AppEventsResponseDroppedReason = "tag_not_allowed"
+	AppEventsResponseDroppedReasonTooOld        AppEventsResponseDroppedReason = "too_old"
+)
+
+// Valid indicates whether the value is a known member of the AppEventsResponseDroppedReason enum.
+func (e AppEventsResponseDroppedReason) Valid() bool {
+	switch e {
+	case AppEventsResponseDroppedReasonDuplicate:
+		return true
+	case AppEventsResponseDroppedReasonInvalid:
+		return true
+	case AppEventsResponseDroppedReasonRateLimited:
+		return true
+	case AppEventsResponseDroppedReasonTagNotAllowed:
+		return true
+	case AppEventsResponseDroppedReasonTooOld:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppEventsResponseWarningsReason.
+const (
+	AppEventsResponseWarningsReasonTagNotAllowed AppEventsResponseWarningsReason = "tag_not_allowed"
+)
+
+// Valid indicates whether the value is a known member of the AppEventsResponseWarningsReason enum.
+func (e AppEventsResponseWarningsReason) Valid() bool {
+	switch e {
+	case AppEventsResponseWarningsReasonTagNotAllowed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateSiteRequestKind.
 const (
 	CreateSiteRequestKindApp   CreateSiteRequestKind = "app"
@@ -2311,6 +2470,89 @@ type AnnotationPatch struct {
 	Day  *openapi_types.Date `json:"day,omitempty"`
 	Text *string             `json:"text,omitempty"`
 }
+
+// AppEvent One app report. Unknown fields are ignored. A wrong type, an over-long value or an unknown enum value drops the event as `invalid`.
+type AppEvent struct {
+	Arch        *AppEventArch `json:"arch,omitempty"`
+	Build       *string       `json:"build,omitempty"`
+	DeviceClass *string       `json:"device_class,omitempty"`
+
+	// Environment Stored as "(other)" when the app lists environments and this is not one.
+	Environment *string `json:"environment,omitempty"`
+	ErrorType   *string `json:"error_type,omitempty"`
+	ExitCode    *int32  `json:"exit_code,omitempty"`
+	ExitReason  *string `json:"exit_reason,omitempty"`
+
+	// Fingerprint Optional grouping key; computed from kind
+	Fingerprint *string `json:"fingerprint,omitempty"`
+
+	// Frames Newline-separated "path:line function". Home folders and absolute paths are scrubbed; the result is cut to 4 KB.
+	Frames  *string `json:"frames,omitempty"`
+	Handled *bool   `json:"handled,omitempty"`
+
+	// Id Client event id; the deduplication key.
+	Id string `json:"id"`
+
+	// InstallId Pseudonymous install id. Stored only as an HMAC with a per-app secret.
+	InstallId   *string           `json:"install_id,omitempty"`
+	Kind        AppEventKind      `json:"kind"`
+	Level       *AppEventLevel    `json:"level,omitempty"`
+	Occurrences *int              `json:"occurrences,omitempty"`
+	OsVersion   *string           `json:"os_version,omitempty"`
+	Platform    *AppEventPlatform `json:"platform,omitempty"`
+	Release     *string           `json:"release,omitempty"`
+	Runtime     *string           `json:"runtime,omitempty"`
+
+	// SessionId Pseudonymous app session id. Stored only as an HMAC.
+	SessionId *string `json:"session_id,omitempty"`
+	Signal    *string `json:"signal,omitempty"`
+
+	// Tags Up to 20 string, number or boolean values; keys at most 64 characters, values at most 200 bytes.
+	Tags *map[string]interface{} `json:"tags,omitempty"`
+
+	// Ts Event time in Unix milliseconds. Older than the app's report age (or retention) is dropped as too_old; more than 5 minutes ahead is clamped to receive time.
+	Ts *int64 `json:"ts,omitempty"`
+}
+
+// AppEventArch defines model for AppEvent.Arch.
+type AppEventArch string
+
+// AppEventKind defines model for AppEvent.Kind.
+type AppEventKind string
+
+// AppEventLevel defines model for AppEvent.Level.
+type AppEventLevel string
+
+// AppEventPlatform defines model for AppEvent.Platform.
+type AppEventPlatform string
+
+// AppEventsRequest defines model for AppEventsRequest.
+type AppEventsRequest struct {
+	Events []AppEvent `json:"events"`
+
+	// Site Public id of the app project.
+	Site string `json:"site"`
+}
+
+// AppEventsResponse defines model for AppEventsResponse.
+type AppEventsResponse struct {
+	Accepted int `json:"accepted"`
+	Dropped  []struct {
+		Index  int                            `json:"index"`
+		Reason AppEventsResponseDroppedReason `json:"reason"`
+	} `json:"dropped"`
+	Warnings []struct {
+		Index  int                             `json:"index"`
+		Reason AppEventsResponseWarningsReason `json:"reason"`
+		Tag    string                          `json:"tag"`
+	} `json:"warnings"`
+}
+
+// AppEventsResponseDroppedReason defines model for AppEventsResponse.Dropped.Reason.
+type AppEventsResponseDroppedReason string
+
+// AppEventsResponseWarningsReason defines model for AppEventsResponse.Warnings.Reason.
+type AppEventsResponseWarningsReason string
 
 // AppIngestKeyIssued defines model for AppIngestKeyIssued.
 type AppIngestKeyIssued struct {
@@ -4736,6 +4978,11 @@ type GetSearchConsoleTopParams struct {
 // GetSearchConsoleTopParamsDimension defines parameters for GetSearchConsoleTop.
 type GetSearchConsoleTopParamsDimension string
 
+// SubmitAppEventsParams defines parameters for SubmitAppEvents.
+type SubmitAppEventsParams struct {
+	XSupermetryKey string `json:"X-Supermetry-Key"`
+}
+
 // PreflightEventParams defines parameters for PreflightEvent.
 type PreflightEventParams struct {
 	Origin                      *string                                         `json:"Origin,omitempty"`
@@ -5077,6 +5324,12 @@ type UpdateAnnotationJSONRequestBody = AnnotationPatch
 
 // CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
 type CreateApiKeyJSONRequestBody = CreateAPIKeyRequest
+
+// SubmitAppEventsJSONRequestBody defines body for SubmitAppEvents for application/json ContentType.
+type SubmitAppEventsJSONRequestBody = AppEventsRequest
+
+// SubmitAppEventsTextRequestBody defines body for SubmitAppEvents for text/plain ContentType.
+type SubmitAppEventsTextRequestBody = AppEventsRequest
 
 // SubmitEventJSONRequestBody defines body for SubmitEvent for application/json ContentType.
 type SubmitEventJSONRequestBody = EventPayload
@@ -5976,6 +6229,12 @@ type ServerInterface interface {
 	// RevokeApiKey Revoke an API key
 	// (DELETE /api/public/v1/api-keys/{key_id})
 	RevokeApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
+	// PreflightAppEvents Negotiate cross-origin app report submission
+	// (OPTIONS /api/public/v1/app-events)
+	PreflightAppEvents(w http.ResponseWriter, r *http.Request)
+	// SubmitAppEvents Submit app health reports
+	// (POST /api/public/v1/app-events)
+	SubmitAppEvents(w http.ResponseWriter, r *http.Request, params SubmitAppEventsParams)
 	// GetProfileErasure Get profile erasure status
 	// (GET /api/public/v1/erasures/{erasure_id})
 	GetProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
@@ -10425,6 +10684,65 @@ func (siw *ServerInterfaceWrapper) RevokeApiKey(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// PreflightAppEvents operation middleware
+func (siw *ServerInterfaceWrapper) PreflightAppEvents(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreflightAppEvents(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubmitAppEvents operation middleware
+func (siw *ServerInterfaceWrapper) SubmitAppEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SubmitAppEventsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Supermetry-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Supermetry-Key")]; found {
+		var XSupermetryKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Supermetry-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Supermetry-Key", valueList[0], &XSupermetryKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Supermetry-Key", Err: err})
+			return
+		}
+
+		params.XSupermetryKey = XSupermetryKey
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Supermetry-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Supermetry-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubmitAppEvents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetProfileErasure operation middleware
 func (siw *ServerInterfaceWrapper) GetProfileErasure(w http.ResponseWriter, r *http.Request) {
 
@@ -12762,6 +13080,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/instance/replay-storage", wrapper.UpdateReplayStorage)
 	m.HandleFunc(http.MethodOptions+" "+options.BaseURL+"/api/public/v1/events", wrapper.PreflightEvent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/events", wrapper.SubmitEvent)
+	m.HandleFunc(http.MethodOptions+" "+options.BaseURL+"/api/public/v1/app-events", wrapper.PreflightAppEvents)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/app-events", wrapper.SubmitAppEvents)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/mcp", wrapper.Mcp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/heatmaps/query", wrapper.HeatmapQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/vitals/query", wrapper.VitalsQuery)

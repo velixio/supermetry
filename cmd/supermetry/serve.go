@@ -27,6 +27,7 @@ import (
 
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
+	"supermetry/internal/appingest"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
@@ -458,6 +459,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	ipRate, siteRate, globalRate := clampIngestRates(slog.Default(), cfg.IngestRateIP, cfg.IngestRateSite, cfg.IngestRateGlobal)
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
+	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
+	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
 		PathPolicy:   cfg.TrackingPaths,
@@ -496,7 +499,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now), Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		GitHubStarCount: &ghstars.PublicCount{
 			Service: starService, Limiter: ingest.NewTokenBuckets(10, 120),
@@ -533,6 +536,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	writerCtx, cancelWriter := context.WithCancel(context.Background())
 	writerDone := make(chan error, 1)
 	go func() { writerDone <- w.Run(writerCtx) }()
+	appWriterCtx, cancelAppWriter := context.WithCancel(context.Background())
+	appWriterDone := make(chan error, 1)
+	go func() { appWriterDone <- appWriter.Run(appWriterCtx) }()
 	dropStatsCtx, cancelDropStats := context.WithCancel(context.Background())
 	dropStatsDone := make(chan error, 1)
 	go func() { dropStatsDone <- dropRecorder.Run(dropStatsCtx) }()
@@ -623,6 +629,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	case err := <-writerDone:
 		cause = err
 		writerDone = nil
+	case err := <-appWriterDone:
+		cause = err
+		appWriterDone = nil
 	case err := <-dropStatsDone:
 		cause = err
 		dropStatsDone = nil
@@ -679,6 +688,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelWriter()
 	if writerDone != nil {
 		cause = errors.Join(cause, <-writerDone)
+	}
+	cancelAppWriter()
+	if appWriterDone != nil {
+		cause = errors.Join(cause, <-appWriterDone)
 	}
 	cancelDropStats()
 	if dropStatsDone != nil {

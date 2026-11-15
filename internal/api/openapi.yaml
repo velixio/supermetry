@@ -1414,6 +1414,76 @@ paths:
                 url: 'https://www.supermetry.com/pricing',
               }),
             });
+  /api/public/v1/app-events:
+    options:
+      operationId: preflightAppEvents
+      security: []
+      summary: Negotiate cross-origin app report submission
+      description: Allows any origin to POST with the Content-Type and X-Supermetry-Key headers; the ingest key is the trust signal.
+      responses:
+        '204':
+          description: Cross-origin submission is permitted.
+          headers:
+            Access-Control-Allow-Origin:
+              description: Origins permitted to submit reports.
+              schema: { type: string, example: '*' }
+            Access-Control-Allow-Methods:
+              description: Methods accepted by the endpoint.
+              schema: { type: string, example: 'POST, OPTIONS' }
+            Access-Control-Allow-Headers:
+              description: Request headers accepted by the endpoint.
+              schema: { type: string, example: 'Content-Type, X-Supermetry-Key' }
+    post:
+      operationId: submitAppEvents
+      security: []
+      summary: Submit app health reports
+      description: |
+        Intake for crashes, errors, hangs and install failures from an app. The body is at most
+        16 KB and carries 1 to 20 events. Authenticate with an app ingest key in `X-Supermetry-Key`
+        (`smk_...`); the key is write-only and safe to embed in a shipped app. A request is limited
+        to 60 per minute per client address, and a key to 600 events per minute.
+
+        Request-level problems fail the whole request: 400 for a bad method, body size or JSON, 401
+        for an unknown app or a wrong, expired or malformed key (the same body for every cause),
+        429 for the per-address limit. Otherwise the reply is 202 and lists every dropped event with
+        its reason (`too_old`, `invalid`, `rate_limited`, `duplicate`). Tags outside the app's allowlist
+        are removed, the event is kept, and a warning names each tag. Drops also appear under dropped
+        traffic in the site health page.
+      parameters:
+        - name: X-Supermetry-Key
+          in: header
+          required: true
+          schema: { type: string, example: smk_abcdefghijklmnopqrstuvwxyz234567abcdefg }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppEventsRequest'
+          text/plain:
+            schema:
+              $ref: '#/components/schemas/AppEventsRequest'
+      responses:
+        '202':
+          description: The request was accepted; individual events may have been dropped.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppEventsResponse'
+        '400':
+          description: The method, body size or JSON is invalid, or the batch is not 1 to 20 events.
+        '401':
+          description: The app is unknown, is not an app project, or the key is missing, malformed, wrong or expired.
+        '429':
+          description: More than 60 requests per minute from one client address.
+      x-codeSamples:
+        - lang: Shell
+          label: curl
+          source: |-
+            curl --request POST https://analytics.supermetry.com/api/public/v1/app-events \
+              --header 'Content-Type: application/json' \
+              --header 'X-Supermetry-Key: smk_...' \
+              --data '{"site":"my-app","events":[{"id":"evt-1","kind":"crash","release":"1.2.3","platform":"linux","arch":"x64","error_type":"RuntimeError","frames":"app/main.py:10 run"}]}'
   /api/public/v1/mcp:
     post:
       operationId: mcp
@@ -4923,6 +4993,73 @@ components:
       properties:
         day: { type: string, format: date }
         text: { type: string, minLength: 1, maxLength: 200 }
+    AppEventsRequest:
+      type: object
+      required: [site, events]
+      properties:
+        site:
+          type: string
+          description: Public id of the app project.
+        events:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/AppEvent'
+    AppEvent:
+      type: object
+      required: [id, kind]
+      description: One app report. Unknown fields are ignored. A wrong type, an over-long value or an unknown enum value drops the event as `invalid`.
+      properties:
+        id: { type: string, minLength: 1, maxLength: 64, description: Client event id; the deduplication key. }
+        ts: { type: integer, format: int64, description: Event time in Unix milliseconds. Older than the app's report age (or retention) is dropped as too_old; more than 5 minutes ahead is clamped to receive time. }
+        kind: { type: string, enum: [crash, error, hang, install_failed, install_stalled, incompatibility, operation_failed, session] }
+        level: { type: string, enum: [fatal, error, warning] }
+        handled: { type: boolean }
+        release: { type: string, maxLength: 64 }
+        build: { type: string, maxLength: 64 }
+        environment: { type: string, maxLength: 32, description: Stored as "(other)" when the app lists environments and this is not one. }
+        platform: { type: string, enum: [windows, macos, linux, ios, android, web, other] }
+        os_version: { type: string, maxLength: 32 }
+        arch: { type: string, enum: [x64, arm64, x86, arm, other] }
+        device_class: { type: string, maxLength: 32 }
+        runtime: { type: string, maxLength: 32 }
+        error_type: { type: string, maxLength: 64 }
+        exit_reason: { type: string, maxLength: 32 }
+        signal: { type: string, maxLength: 32 }
+        exit_code: { type: integer, format: int32 }
+        frames: { type: string, description: 'Newline-separated "path:line function". Home folders and absolute paths are scrubbed; the result is cut to 4 KB.' }
+        fingerprint: { type: string, maxLength: 64, pattern: '^[0-9a-fA-F]+$', description: Optional grouping key; computed from kind, error type and top frames when absent or not hex. }
+        occurrences: { type: integer, minimum: 1, maximum: 1000000 }
+        install_id: { type: string, maxLength: 128, description: Pseudonymous install id. Stored only as an HMAC with a per-app secret. }
+        session_id: { type: string, maxLength: 64, description: Pseudonymous app session id. Stored only as an HMAC. }
+        tags:
+          type: object
+          maxProperties: 20
+          description: Up to 20 string, number or boolean values; keys at most 64 characters, values at most 200 bytes.
+          additionalProperties: true
+    AppEventsResponse:
+      type: object
+      required: [accepted, dropped, warnings]
+      properties:
+        accepted: { type: integer }
+        dropped:
+          type: array
+          items:
+            type: object
+            required: [index, reason]
+            properties:
+              index: { type: integer }
+              reason: { type: string, enum: [too_old, invalid, tag_not_allowed, rate_limited, duplicate] }
+        warnings:
+          type: array
+          items:
+            type: object
+            required: [index, reason, tag]
+            properties:
+              index: { type: integer }
+              reason: { type: string, enum: [tag_not_allowed] }
+              tag: { type: string }
     EventPayload:
       type: object
       required: [site, name]

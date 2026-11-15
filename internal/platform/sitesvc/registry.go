@@ -101,6 +101,10 @@ func (r *Registry) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	hashSecrets, err := r.store.AppHashSecrets(ctx)
+	if err != nil {
+		return err
+	}
 	keysBySite := make(map[int32][]coresites.AppKey)
 	for _, key := range appKeys {
 		entry := coresites.AppKey{Hash: key.Hash}
@@ -127,6 +131,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 			site.App = &coresites.AppConfig{
 				Keys: keysBySite[site.ID], TagAllowlist: parsed.TagAllowlist,
 				MaxReportAgeDays: parsed.MaxReportAgeDays, Environments: parsed.Environments,
+				HashSecret: hashSecrets[site.ID],
 			}
 		}
 		next.byPublic[site.PublicID] = site

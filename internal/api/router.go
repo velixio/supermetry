@@ -71,6 +71,7 @@ type Deps struct {
 	Cohorts        cohortService
 	Heatmaps       heatmapService
 	Ingest         http.Handler
+	AppIngest      http.Handler // app health reports; nil disables the endpoint
 	// Links serves the public short-link redirect and tracking pixel. Optional.
 	Links  *links.Handler
 	Pixels http.Handler
@@ -182,6 +183,10 @@ func NewRouter(deps Deps) http.Handler {
 		mux.Handle("POST "+deps.Config.EventPath, ingest)
 		mux.Handle("OPTIONS "+deps.Config.EventPath, ingest)
 		neutral.ingest = ingest
+	}
+	if deps.AppIngest != nil {
+		mux.Handle("POST /api/public/v1/app-events", deps.AppIngest)
+		mux.Handle("OPTIONS /api/public/v1/app-events", deps.AppIngest)
 	}
 	mux.Handle(neutralPrefix+"{site}", neutralHandler(neutral))
 	mux.Handle(neutralPrefix+"{site}/{rest...}", neutralHandler(neutral))

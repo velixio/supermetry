@@ -137,3 +137,22 @@ func (s *Store) SetAppSettings(ctx context.Context, tx pgx.Tx, siteID int32, raw
 	}
 	return nil
 }
+
+// AppHashSecrets returns the HMAC secret of every app that has one, for the registry.
+func (s *Store) AppHashSecrets(ctx context.Context) (map[int32][]byte, error) {
+	rows, err := s.Pool.Query(ctx, `select site_id, secret from app_hash_secrets`)
+	if err != nil {
+		return nil, fmt.Errorf("load app hash secrets: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[int32][]byte)
+	for rows.Next() {
+		var id int32
+		var secret []byte
+		if err := rows.Scan(&id, &secret); err != nil {
+			return nil, fmt.Errorf("scan app hash secret: %w", err)
+		}
+		out[id] = secret
+	}
+	return out, rows.Err()
+}
