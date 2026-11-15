@@ -39,11 +39,13 @@ import { Route as AppAdminUpdateRouteImport } from './routes/app.admin.update'
 import { Route as AppAdminUsersRouteImport } from './routes/app.admin.users'
 import { Route as AppOrgSiteIndexRouteImport } from './routes/app.$org.$site.index'
 import { Route as AppOrgSiteCohortsRouteImport } from './routes/app.$org.$site.cohorts'
+import { Route as AppOrgSiteCompatibilityRouteImport } from './routes/app.$org.$site.compatibility'
 import { Route as AppOrgSiteEventsRouteImport } from './routes/app.$org.$site.events'
 import { Route as AppOrgSiteGoalsRouteImport } from './routes/app.$org.$site.goals'
 import { Route as AppOrgSiteHeatmapsRouteImport } from './routes/app.$org.$site.heatmaps'
 import { Route as AppOrgSiteJourneysRouteImport } from './routes/app.$org.$site.journeys'
 import { Route as AppOrgSiteRealtimeRouteImport } from './routes/app.$org.$site.realtime'
+import { Route as AppOrgSiteReleasesRouteImport } from './routes/app.$org.$site.releases'
 import { Route as AppOrgSiteRetentionRouteImport } from './routes/app.$org.$site.retention'
 import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.revenue'
 import { Route as AppOrgSiteSessionsRouteImport } from './routes/app.$org.$site.sessions'
@@ -238,6 +240,11 @@ const AppOrgSiteCohortsRoute = AppOrgSiteCohortsRouteImport.update({
   path: '/$site/cohorts',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteCompatibilityRoute = AppOrgSiteCompatibilityRouteImport.update({
+  id: '/$site/compatibility',
+  path: '/$site/compatibility',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgSiteEventsRoute = AppOrgSiteEventsRouteImport.update({
   id: '/$site/events',
   path: '/$site/events',
@@ -261,6 +268,11 @@ const AppOrgSiteJourneysRoute = AppOrgSiteJourneysRouteImport.update({
 const AppOrgSiteRealtimeRoute = AppOrgSiteRealtimeRouteImport.update({
   id: '/$site/realtime',
   path: '/$site/realtime',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteReleasesRoute = AppOrgSiteReleasesRouteImport.update({
+  id: '/$site/releases',
+  path: '/$site/releases',
   getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgSiteRetentionRoute = AppOrgSiteRetentionRouteImport.update({
@@ -524,11 +536,13 @@ export interface FileRoutesByFullPath {
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
+  '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
+  '/app/$org/$site/releases': typeof AppOrgSiteReleasesRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
@@ -601,11 +615,13 @@ export interface FileRoutesByTo {
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
+  '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
+  '/app/$org/$site/releases': typeof AppOrgSiteReleasesRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
@@ -682,11 +698,13 @@ export interface FileRoutesById {
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
+  '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
   '/app/$org/$site/goals': typeof AppOrgSiteGoalsRoute
   '/app/$org/$site/heatmaps': typeof AppOrgSiteHeatmapsRoute
   '/app/$org/$site/journeys': typeof AppOrgSiteJourneysRoute
   '/app/$org/$site/realtime': typeof AppOrgSiteRealtimeRoute
+  '/app/$org/$site/releases': typeof AppOrgSiteReleasesRoute
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
@@ -764,11 +782,13 @@ export interface FileRouteTypes {
     | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/$site/cohorts'
+    | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
     | '/app/$org/$site/journeys'
     | '/app/$org/$site/realtime'
+    | '/app/$org/$site/releases'
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
@@ -841,11 +861,13 @@ export interface FileRouteTypes {
     | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/$site/cohorts'
+    | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
     | '/app/$org/$site/journeys'
     | '/app/$org/$site/realtime'
+    | '/app/$org/$site/releases'
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
@@ -921,11 +943,13 @@ export interface FileRouteTypes {
     | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/$site/cohorts'
+    | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
     | '/app/$org/$site/goals'
     | '/app/$org/$site/heatmaps'
     | '/app/$org/$site/journeys'
     | '/app/$org/$site/realtime'
+    | '/app/$org/$site/releases'
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
@@ -1197,6 +1221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteCohortsRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/compatibility': {
+      id: '/app/$org/$site/compatibility'
+      path: '/$site/compatibility'
+      fullPath: '/app/$org/$site/compatibility'
+      preLoaderRoute: typeof AppOrgSiteCompatibilityRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/events': {
       id: '/app/$org/$site/events'
       path: '/$site/events'
@@ -1230,6 +1261,13 @@ declare module '@tanstack/react-router' {
       path: '/$site/realtime'
       fullPath: '/app/$org/$site/realtime'
       preLoaderRoute: typeof AppOrgSiteRealtimeRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/releases': {
+      id: '/app/$org/$site/releases'
+      path: '/$site/releases'
+      fullPath: '/app/$org/$site/releases'
+      preLoaderRoute: typeof AppOrgSiteReleasesRouteImport
       parentRoute: typeof AppOrgRoute
     }
     '/app/$org/$site/retention': {
@@ -1616,11 +1654,13 @@ interface AppOrgRouteChildren {
   AppOrgHealthRoute: typeof AppOrgHealthRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRouteWithChildren
   AppOrgSiteCohortsRoute: typeof AppOrgSiteCohortsRoute
+  AppOrgSiteCompatibilityRoute: typeof AppOrgSiteCompatibilityRoute
   AppOrgSiteEventsRoute: typeof AppOrgSiteEventsRoute
   AppOrgSiteGoalsRoute: typeof AppOrgSiteGoalsRoute
   AppOrgSiteHeatmapsRoute: typeof AppOrgSiteHeatmapsRoute
   AppOrgSiteJourneysRoute: typeof AppOrgSiteJourneysRoute
   AppOrgSiteRealtimeRoute: typeof AppOrgSiteRealtimeRoute
+  AppOrgSiteReleasesRoute: typeof AppOrgSiteReleasesRoute
   AppOrgSiteRetentionRoute: typeof AppOrgSiteRetentionRoute
   AppOrgSiteRevenueRoute: typeof AppOrgSiteRevenueRoute
   AppOrgSiteSessionsRoute: typeof AppOrgSiteSessionsRoute
@@ -1648,11 +1688,13 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgHealthRoute: AppOrgHealthRoute,
   AppOrgSettingsRoute: AppOrgSettingsRouteWithChildren,
   AppOrgSiteCohortsRoute: AppOrgSiteCohortsRoute,
+  AppOrgSiteCompatibilityRoute: AppOrgSiteCompatibilityRoute,
   AppOrgSiteEventsRoute: AppOrgSiteEventsRoute,
   AppOrgSiteGoalsRoute: AppOrgSiteGoalsRoute,
   AppOrgSiteHeatmapsRoute: AppOrgSiteHeatmapsRoute,
   AppOrgSiteJourneysRoute: AppOrgSiteJourneysRoute,
   AppOrgSiteRealtimeRoute: AppOrgSiteRealtimeRoute,
+  AppOrgSiteReleasesRoute: AppOrgSiteReleasesRoute,
   AppOrgSiteRetentionRoute: AppOrgSiteRetentionRoute,
   AppOrgSiteRevenueRoute: AppOrgSiteRevenueRoute,
   AppOrgSiteSessionsRoute: AppOrgSiteSessionsRoute,
