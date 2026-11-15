@@ -11,17 +11,19 @@ export function AppKeyDialog({ appId, ingestKey, siteId, timezone = 'UTC', onClo
   const snippet = `SUPERMETRY_APP_ID=${appId}\nSUPERMETRY_INGEST_KEY=${ingestKey}\n# header on every report: X-Supermetry-Key: ${ingestKey}`
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent showCloseButton={false} className="max-h-[90vh] overflow-y-auto">
+      <DialogContent showCloseButton={false} className="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Your app's ingest key</DialogTitle>
           <DialogDescription>Shown once. Store it in your app's build configuration.</DialogDescription>
         </DialogHeader>
+        <div data-slot="app-key-body" className="flex min-w-0 flex-col gap-4 overflow-y-auto">
         <Field>
           <FieldLabel htmlFor="app-ingest-key">Ingest key</FieldLabel>
           <Input id="app-ingest-key" readOnly value={ingestKey} />
         </Field>
-        <pre className="overflow-x-auto rounded-lg bg-muted p-3 text-xs"><code>{snippet}</code></pre>
+        <pre className="whitespace-pre-wrap break-all rounded-lg bg-muted p-3 text-xs"><code>{snippet}</code></pre>
         {siteId ? <TestReportCheck appId={appId} siteId={siteId} timezone={timezone} /> : null}
+        </div>
         <DialogFooter>
           <Button type="button" onClick={() => void copyText(ingestKey)}>Copy key</Button>
           <Button type="button" variant="outline" onClick={() => void copyText(snippet)}>Copy snippet</Button>
