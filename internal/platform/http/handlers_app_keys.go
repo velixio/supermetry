@@ -1,6 +1,7 @@
 package platformhttp
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -53,8 +54,8 @@ func (h *handler) rotateAppIngestKey(w http.ResponseWriter, r *http.Request) {
 	}
 	if inv, ok := h.deps.Sites.(interface{ Invalidate() error }); ok {
 		if err := inv.Invalidate(); err != nil {
-			serviceError(w, err)
-			return
+			// The key is committed and shown once; the periodic refresh loads it.
+			slog.Error("site registry refresh failed after ingest key rotation", "site_id", site.ID, "error", err)
 		}
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"key": plain, "prefix": prefix, "previous_expires_at": previous})

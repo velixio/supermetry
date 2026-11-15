@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -78,5 +79,41 @@ func TestRotateAppKeyGrace(t *testing.T) {
 	active, err := s.ActiveAppKeys(ctx)
 	if err != nil || len(active) != 1 || active[0].SiteID != siteID || active[0].Hash != h(4) {
 		t.Fatalf("active=%+v err=%v", active, err)
+	}
+}
+
+func TestRotateAppKeyConcurrentKeepsOneCurrent(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	var orgID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values ('K','keys-race') returning id`).Scan(&orgID); err != nil {
+		t.Fatal(err)
+	}
+	var siteID int32
+	if err := pool.QueryRow(ctx, `insert into sites(org_id,public_id,name,kind,timezone,allowed_hosts,retention_class) values ($1,'keysrace0001','K','app','UTC','{}',90) returning id`, orgID).Scan(&siteID); err != nil {
+		t.Fatal(err)
+	}
+	s := &store.Store{Pool: pool}
+	now := time.Now()
+	if _, err := s.RotateAppKey(ctx, siteID, nil, "seedseed", [32]byte{9}, now); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := s.RotateAppKey(ctx, siteID, nil, "racerace", [32]byte{byte(i + 1)}, now); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	var current int
+	if err := pool.QueryRow(ctx, `select count(*) from app_ingest_keys where site_id=$1 and expires_at is null`, siteID).Scan(&current); err != nil || current != 1 {
+		t.Fatalf("current keys=%d err=%v", current, err)
 	}
 }

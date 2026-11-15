@@ -38,6 +38,11 @@ func (s *Store) RotateAppKey(ctx context.Context, siteID int32, createdBy *int64
 // RotateAppKeyTx is RotateAppKey inside the caller's transaction, so the caller
 // can write an audit row atomically.
 func (s *Store) RotateAppKeyTx(ctx context.Context, tx pgx.Tx, siteID int32, createdBy *int64, prefix string, hash [32]byte, now time.Time) (*time.Time, error) {
+	// Serialise rotations of one site so only one key stays current.
+	var locked int
+	if err := tx.QueryRow(ctx, `select 1 from sites where id = $1 for update`, siteID).Scan(&locked); err != nil {
+		return nil, fmt.Errorf("lock site for key rotation: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `delete from app_ingest_keys where site_id = $1 and expires_at <= $2`, siteID, now); err != nil {
 		return nil, fmt.Errorf("delete expired ingest keys: %w", err)
 	}
