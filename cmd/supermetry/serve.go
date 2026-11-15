@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
 	"supermetry/internal/appingest"
+	"supermetry/internal/approllup"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
@@ -1114,6 +1115,7 @@ func scheduledJobs(
 		{Name: "close-days", Every: time.Minute, Run: func(ctx context.Context) error {
 			return closeDueDays(ctx, pool, registry, closed, clk.Now(), closeInvalidators...)
 		}},
+		approllup.Job(pool, registry, clk.Now),
 		{Name: "salts", Every: 10 * time.Minute, Run: func(ctx context.Context) error {
 			if err := saltStore.Refresh(ctx); err != nil {
 				return err
