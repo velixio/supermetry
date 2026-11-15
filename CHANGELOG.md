@@ -6,6 +6,11 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Added
+
+- An app events endpoint, `POST /api/public/v1/app-events`, for crashes, errors, hangs and install failures. It takes up to 20 events per request with an app ingest key, scrubs home folders and absolute paths from stack frames, groups events into issues by fingerprint, tracks regressions of resolved issues, and stores install and session ids only as HMACs. The reply lists every dropped event with a reason, and drops show on the Data health page.
+- A web site can send its `diagnostic_report` events to an app project (Settings, General). They are stored as app events with the app's report age limit instead of the 24-hour rule.
+
 ### Fixed
 
 - The tracker sends events with `mode: "no-cors"`. Like the old beacons, it now follows a redirect that has no CORS headers (for example from a first-party proxy) instead of dropping the event.

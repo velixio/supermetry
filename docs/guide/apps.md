@@ -6,10 +6,116 @@ tracker uses. This guide lists the rules that decide whether a report is stored.
 Breaking most of them gives no error back: the request still gets `202 Accepted`,
 and the report is only counted on the **Data health** page.
 
-A dedicated app intake (an app site kind, an ingest key, crash grouping and
-crash-free rates) is planned. Until it ships, use the rules below.
+New integrations should use the dedicated app endpoint below: an app project
+with an ingest key, per-event drop reasons in the reply, and crash grouping into
+issues. The older web events endpoint, described further down, keeps working. A
+web site can also be linked to an app project, so a client that already sends
+`diagnostic_report` events needs no change.
 
-## Endpoint
+## The app events endpoint
+
+Create an app project (Sites, New, App) and copy its ingest key. The key looks
+like `smk_` followed by 39 lowercase letters and digits. It is write-only and safe
+to ship inside an app. Rotating it keeps the old key valid for 7 days.
+
+```
+POST /api/public/v1/app-events
+Content-Type: application/json
+X-Supermetry-Key: smk_...
+```
+
+```json
+{
+  "site": "<app project ID>",
+  "events": [
+    {
+      "id": "evt-3f2a9c0e",
+      "ts": 1763200000000,
+      "kind": "crash",
+      "release": "1.2.3",
+      "platform": "macos",
+      "arch": "arm64",
+      "error_type": "TypeError",
+      "frames": "src/main.ts:42 start\nsrc/app.ts:7 run",
+      "install_id": "install_0123456789abcdef",
+      "tags": { "stage": "startup" }
+    }
+  ]
+}
+```
+
+A request carries 1 to 20 events and at most 16 KB. Browsers may call it from
+any origin; the key is the trust signal, so there is no bot filter and no
+allowed-hosts check, and a custom User-Agent is not required.
+
+### Event fields
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string, 1 to 64 | Required. Dedup key; a repeat within 15 minutes is dropped as `duplicate`. |
+| `kind` | enum | Required: `crash`, `error`, `hang`, `install_failed`, `install_stalled`, `incompatibility`, `operation_failed`, `session`. |
+| `ts` | integer, ms | Time the event happened. Optional (defaults to receive time). More than 5 minutes ahead is clamped to receive time. |
+| `level` | enum | `fatal`, `error`, `warning`. Defaults to `fatal` for a crash and `error` otherwise. |
+| `handled` | boolean | |
+| `release`, `build` | string, up to 64 | App version and commit or build number. |
+| `environment` | string, up to 32 | Stored as `(other)` when the project lists environments and this isn't one. |
+| `platform` | enum | `windows`, `macos`, `linux`, `ios`, `android`, `web`, `other`. |
+| `arch` | enum | `x64`, `arm64`, `x86`, `arm`, `other`. |
+| `os_version`, `device_class`, `runtime` | string, up to 32 | Keep `os_version` to major.minor. |
+| `error_type` | string, up to 64 | The exception class, never its message. |
+| `exit_reason`, `signal` | string, up to 32 | Letters, digits and `_ . : -` only. |
+| `exit_code` | integer | |
+| `frames` | string | Newline-separated `path:line function`. Scrubbed on arrival (see below), cut to 4 KB. |
+| `fingerprint` | hex, up to 64 | Optional grouping key. Computed from the kind, error type and top 5 frames when absent. |
+| `occurrences` | integer, 1 to 1,000,000 | For clients that coalesce repeats. |
+| `install_id`, `session_id` | string, up to 128 and 64 | Pseudonymous ids for crash-free users and sessions. Stored only as an HMAC with a per-app secret. |
+| `tags` | object | Up to 20 keys; string, number or boolean values; keys up to 64 characters, values up to 200 bytes. |
+
+A wrong type, an over-long value or an unknown enum value drops that event as
+`invalid`. Unknown fields are ignored.
+
+### The reply
+
+Problems with the request as a whole fail it: `400` for a bad method, a body over
+16 KB or bad JSON, `401` for an unknown app, a project that is not an app, or a
+missing, malformed, wrong or expired key (every cause gives the same response),
+and `429` when one client address sends more than 60 requests a minute.
+
+Otherwise the reply is `202`, and says what happened to each event:
+
+```json
+{
+  "accepted": 1,
+  "dropped": [{ "index": 1, "reason": "too_old" }],
+  "warnings": [{ "index": 0, "reason": "tag_not_allowed", "tag": "token" }]
+}
+```
+
+Drop reasons: `too_old` (older than the project's max report age or retention,
+whichever is shorter), `invalid`, `rate_limited` (more than 600 events a minute
+for the key, or the intake queue is full), and `duplicate`. If the project has a
+tag allowlist, other tags are removed, the event is kept, and a warning names
+each tag. At most 1,000 distinct values per tag key are kept per day; later ones
+are stored as `(other)`. Every drop also appears on the **Data health** page.
+
+### What is scrubbed
+
+Stack frames are scrubbed before anything is stored: home folders
+(`/Users/<name>/`, `/home/<name>/`, `C:\Users\<name>\`) become `~/`, any other
+absolute path keeps only its last three segments, and `file://` prefixes are
+removed. Raw `install_id` and `session_id` values are never stored.
+
+### Sending diagnostic reports through a web site
+
+A web site can be linked to an app project in **Settings, General, Send
+diagnostic reports to app** (owner or admin). After that, a `diagnostic_report`
+event sent to the web events endpoint is stored in the app project, with the
+app's max report age (default 7 days) instead of 24 hours, and not as a custom
+event. The site's allowed hosts, strict origin, bot and duplicate checks still
+apply, and profiles must be on. An unlinked site stores it as a custom event, as
+before.
+
+## Endpoint of the web events API
 
 ```
 POST /api/public/v1/events
