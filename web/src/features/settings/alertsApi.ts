@@ -2,10 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { privateRequest, type ListResponse } from './privateApi'
 
-export type AlertKind = 'traffic_spike' | 'traffic_drop' | 'goal_reached'
+export type WebAlertKind = 'traffic_spike' | 'traffic_drop' | 'goal_reached'
+export type AppAlertKind = 'app_new_issue' | 'app_issue_regressed' | 'app_crash_free_below' | 'app_issue_spike'
+export type AlertKind = WebAlertKind | AppAlertKind
+export type AlertConfig = { kinds?: string[]; metric?: 'users' | 'sessions' }
 export type AlertInput = {
   kind: AlertKind
-  threshold: number
+  threshold?: number
+  config?: AlertConfig
   goal_id?: number
   channel_ids: number[]
   enabled: boolean
