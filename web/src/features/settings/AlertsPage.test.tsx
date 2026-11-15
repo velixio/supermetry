@@ -14,16 +14,19 @@ const { del, get, patch, post, useGoals } = vi.hoisted(() => ({
 
 vi.mock('@/lib/api', () => ({ api: { DELETE: del, GET: get, PATCH: patch, POST: post } }))
 vi.mock('@/features/goals/api', () => ({ useGoals }))
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, to, params }: { children: React.ReactNode; to: string; params: Record<string, string> }) => <a href={Object.entries(params).reduce((href, [key, value]) => href.replace('$' + key, value), to)}>{children}</a>,
+}))
 
 import { AlertsPage } from './AlertsPage'
 
-function renderPage(siteKind?: string) {
+function renderPage(siteKind?: string, orgSlug?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   render(
     <QueryClientProvider client={client}>
-      <AlertsPage orgId={3} siteId={7} siteKind={siteKind} />
+      <AlertsPage orgId={3} orgSlug={orgSlug} siteId={7} siteKind={siteKind} />
     </QueryClientProvider>,
   )
 }
@@ -147,5 +150,13 @@ describe('AlertsPage', () => {
         body: { kind: 'app_new_issue', config: { kinds: ['crash'] }, channel_ids: [8], enabled: true },
       }),
     ))
+  })
+
+  it.each(['app', undefined])('links to creating a channel when the %s alert dialog has none', async (kind) => {
+    get.mockImplementation(async (path: string) => ({ data: path.endsWith('/alerts') || path.endsWith('/channels') ? { data: [] } : [], response: { ok: true, status: 200 } }))
+    renderPage(kind, 'acme')
+    await screen.findByText('No alerts yet.')
+    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
+    expect(await screen.findByRole('link', { name: 'Create a channel' })).toHaveAttribute('href', '/app/acme/settings/notifications')
   })
 })

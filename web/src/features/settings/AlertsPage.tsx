@@ -1,5 +1,6 @@
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
+import { Link } from '@tanstack/react-router'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -42,7 +43,7 @@ const kindDescriptions: Partial<Record<AlertKind, string>> = {
 }
 const issueKinds = ['crash', 'error', 'hang', 'install_failed', 'install_stalled', 'incompatibility', 'operation_failed']
 
-export function AlertsPage({ orgId, siteId, siteKind }: { orgId: number; siteId: number; siteKind?: string }) {
+export function AlertsPage({ orgId, orgSlug, siteId, siteKind }: { orgId: number; orgSlug?: string; siteId: number; siteKind?: string }) {
   const isApp = siteKind === 'app'
   const alerts = useAlerts(siteId, orgId)
   const channels = useChannels(orgId)
@@ -81,6 +82,7 @@ export function AlertsPage({ orgId, siteId, siteKind }: { orgId: number; siteId:
       <AlertDialog
         alert={editing}
         isApp={isApp}
+        orgSlug={orgSlug}
         channels={channels.data?.data ?? []}
         goals={goals.data ?? []}
         error={save.error}
@@ -95,9 +97,10 @@ export function AlertsPage({ orgId, siteId, siteKind }: { orgId: number; siteId:
   )
 }
 
-function AlertDialog({ alert, isApp, channels, goals, error, pending, onClose, onSave }: {
+function AlertDialog({ alert, isApp, orgSlug, channels, goals, error, pending, onClose, onSave }: {
   alert: AlertRule | null | undefined
   isApp: boolean
+  orgSlug?: string
   channels: { id: number; name: string; enabled: boolean }[]
   goals: { id: number; name: string }[]
   error: Error | null
@@ -183,6 +186,11 @@ function AlertDialog({ alert, isApp, channels, goals, error, pending, onClose, o
             ) : null}
             <FieldSet>
               <FieldLegend>Notification channels</FieldLegend>
+              {channels.length === 0 ? (
+                <FieldDescription>
+                  No notification channels yet.{orgSlug ? <> <Link className="underline" to="/app/$org/settings/notifications" params={{ org: orgSlug }}>Create a channel</Link> first.</> : ' Create one in the organization notification settings first.'}
+                </FieldDescription>
+              ) : null}
               {channels.map((channel) => (
                 <Field orientation="horizontal" key={channel.id}>
                   <input

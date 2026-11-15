@@ -100,8 +100,8 @@ const settingsTabs = [
   ['app', 'App', '/app/$org/$site/settings/app'],
 ] as const
 
-/** Tabs that apply to an app: its own page, general settings and the general settings (name, time zone, retention, danger zone). */
-const appSettingsTabs: readonly string[] = ['general', 'app']
+/** Tabs that apply to an app: general settings (name, time zone, retention, danger zone), alerts and its own page. */
+const appSettingsTabs: readonly string[] = ['general', 'alerts', 'app']
 
 export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false, kind }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean; kind?: string }) {
   return (

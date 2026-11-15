@@ -8,5 +8,5 @@ export const Route = createFileRoute('/app/$org/$site/settings/alerts')({ compon
 function AlertsRoute() {
   const { org, site: slug } = Route.useParams()
   const { membership, site } = useSite(org, slug)
-  return membership && site ? <AlertsPage orgId={membership.org.id} siteId={site.id} siteKind={site.kind} /> : null
+  return membership && site ? <AlertsPage orgId={membership.org.id} orgSlug={org} siteId={site.id} siteKind={site.kind} /> : null
 }
