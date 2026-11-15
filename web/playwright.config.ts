@@ -27,8 +27,8 @@ process.env.SUPERMETRY_E2E_SERVER_PID_FILE = serverPIDFile;
 
 const serverCommand = String.raw`
 set -eu
-psql "$SUPERMETRY_TEST_DSN" -v ON_ERROR_STOP=1 \
-  -c "drop schema if exists \"$SUPERMETRY_E2E_SCHEMA\" cascade" \
+psql "$SUPERMETRY_TEST_DSN" -q -v ON_ERROR_STOP=1 -v schema="$SUPERMETRY_E2E_SCHEMA" \
+  -f e2e/drop-schema.sql \
   -c "create schema \"$SUPERMETRY_E2E_SCHEMA\""
 bun -e 'const fs=require("node:fs");const rows=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));fs.writeFileSync(process.argv[2],JSON.stringify(rows.map(({id,host,timezone})=>({id,org_id:1,public_id:host,timezone,retention_days:0,allowed_hosts:[host],revenue_currency:"USD",revenue_currency_state:"configured"}))))' \
   ../test/golden/testdata/tiny.sites.json "$SUPERMETRY_E2E_SITES_FILE"

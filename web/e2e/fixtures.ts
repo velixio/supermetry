@@ -138,18 +138,28 @@ export default async function globalSetup(config: FullConfig) {
   const createdShare = await api.post(`/api/private/sites/${siteId}/shares`, {
     headers: apiHeaders,
     data: {
-      password: '',
+      password: "",
       config: {
-        sections: ['kpis', 'chart', 'pages', 'sources', 'locations', 'devices', 'where', 'weekly_rhythm', 'goals'],
+        sections: [
+          "kpis",
+          "chart",
+          "pages",
+          "sources",
+          "locations",
+          "devices",
+          "where",
+          "weekly_rhythm",
+          "goals",
+        ],
         filters: [],
-        date: { mode: 'rolling', days: 30, max_days: 30 },
-        theme: 'system',
+        date: { mode: "rolling", days: 30, max_days: 30 },
+        theme: "system",
         embed: { enabled: false, allowed_origins: [], confirm_wildcard: false },
       },
     },
-  })
-  const share = await responseJSON<Record<string, unknown>>(createdShare)
-  const shareSlug = value<string>(share, 'slug', 'Slug')
+  });
+  const share = await responseJSON<Record<string, unknown>>(createdShare);
+  const shareSlug = value<string>(share, "slug", "Slug");
 
   const owner: SerializedOwner = {
     schema: required("SUPERMETRY_E2E_SCHEMA"),
@@ -197,10 +207,13 @@ export default async function globalSetup(config: FullConfig) {
     }
     execFileSync("psql", [
       testDSN,
+      "-q",
       "-v",
       "ON_ERROR_STOP=1",
-      "-c",
-      `drop schema if exists "${schema}" cascade`,
+      "-v",
+      `schema=${schema}`,
+      "-f",
+      new URL("./drop-schema.sql", import.meta.url).pathname,
     ]);
     rmSync(required("SUPERMETRY_E2E_RESET_FILE"), { force: true });
     rmSync(required("SUPERMETRY_E2E_SITES_FILE"), { force: true });
