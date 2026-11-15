@@ -230,6 +230,7 @@ An EU-hosted Cloud is open: [start free](https://app.supermetry.com/signup?utm_s
 
 - [Configuration](docs/guide/configuration.md)
 - [Ad blockers](docs/guide/ad-blockers.md): proxy through your own domain, or send events from your server
+- [Desktop and mobile apps](docs/guide/apps.md): rules for sending events and failure reports from apps
 - [Tracking and privacy](docs/tracking-privacy.md)
 - [API](docs/api.md) and [API authentication](docs/api-auth.md)
 - [Authorization](docs/authorization.md)
