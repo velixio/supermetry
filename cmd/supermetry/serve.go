@@ -469,6 +469,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		TrustedProxies: cfg.TrustedProxies, Clock: settings.clock,
 		Dedup:             ingest.NewDeduplicator(cfg.DedupEntries),
 		DropStats:         dropRecorder,
+		AppIntake:         appIntake,
 		ProfileTombstones: profileTombstones,
 		Diag:              cfg.IngestDiag,
 	}
