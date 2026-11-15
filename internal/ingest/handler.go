@@ -181,6 +181,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		eventTime = time.UnixMilli(*payload.TimestampMS)
 		if eventTime.Before(receivedAt.Add(-24 * time.Hour)) {
 			health.IngestLateDropped.Add(1)
+			h.recordDrop(site, dropstats.TooOld, "", receivedAt)
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
@@ -298,6 +299,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		if localDay.Before(salts.LocalDay(receivedAt, site.TZ)) {
 			health.IngestLateDropped.Add(1)
+			h.recordDrop(site, dropstats.TooOld, "", receivedAt)
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
