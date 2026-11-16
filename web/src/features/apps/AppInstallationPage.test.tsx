@@ -15,7 +15,16 @@ vi.mock('@/features/settings/privateApi', () => ({
     ],
   })),
 }))
-vi.mock('./TestReportCheck', () => ({ TestReportCheck: ({ appId }: { appId: string }) => <p>check for {appId}</p> }))
+const mounts = vi.hoisted(() => ({ count: 0 }))
+vi.mock('./TestReportCheck', async () => {
+  const { useEffect } = await import('react')
+  return {
+    TestReportCheck: ({ appId }: { appId: string }) => {
+      useEffect(() => { mounts.count += 1 }, [])
+      return <p>check for {appId}</p>
+    },
+  }
+})
 
 import { AppInstallationPage, appInstallSnippets } from './AppInstallationPage'
 
@@ -31,6 +40,11 @@ describe('appInstallSnippets', () => {
       expect(code).toContain('<your key>')
       expect(code).not.toMatch(/smk_[a-z2-7]{39}/)
     }
+  })
+
+  it('keeps Node-only process APIs out of the browser path', () => {
+    expect(snippets.typescript).toContain('// Node and the Electron main process:')
+    expect(snippets.typescript).toContain('// window.addEventListener("error"')
   })
 
   it('uses each kit’s own option names', () => {
@@ -63,5 +77,22 @@ describe('AppInstallationPage', () => {
     expect(screen.getAllByText(/^valid until/)).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Rotate the key in App settings' })).toHaveAttribute('href', '/app/acme/desktop/settings/app')
     expect(screen.getByText('check for 6quqxuelthfz')).toBeInTheDocument()
+    // The kits are not published yet: the TypeScript tab builds and packs the kit before installing it.
+    expect(screen.getByLabelText('TypeScript install')).toHaveTextContent('npm run build && npm pack')
+  })
+
+  it('restarts the first-report check when the app changes', () => {
+    const client = new QueryClient()
+    const page = (siteId: number, publicId: string) => (
+      <QueryClientProvider client={client}>
+        <AppInstallationPage org="acme" site="desktop" orgId={1} siteId={siteId} publicId={publicId} timezone="UTC" />
+      </QueryClientProvider>
+    )
+    mounts.count = 0
+    const { rerender } = render(page(19, 'appone000001'))
+    rerender(page(19, 'appone000001'))
+    expect(mounts.count).toBe(1)
+    rerender(page(20, 'apptwo000002'))
+    expect(mounts.count).toBe(2)
   })
 })

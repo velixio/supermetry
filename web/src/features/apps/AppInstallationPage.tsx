@@ -27,11 +27,15 @@ init({
 });
 startSession();                    // once per run: powers crash-free sessions
 
+// Node and the Electron main process:
 process.on("uncaughtException", async (err) => {
   captureException(err, { handled: false, level: "fatal" });
   await flush(2000);
   process.exit(1);
-});`
+});
+
+// Browsers and the Electron renderer use this instead:
+// window.addEventListener("error", (e) => captureException(e.error, { handled: false }));`
   const python = `import supermetry_apps as sm
 
 sm.init(
@@ -63,10 +67,20 @@ X-Supermetry-Key: ${keyPlaceholder}
   return { typescript, python, http }
 }
 
+/** How to get each kit into a project; neither is on npm or PyPI yet. */
+const kitInstall = {
+  typescript: `git clone --depth 1 https://github.com/velixio/supermetry
+cd supermetry/sdk/typescript
+npm install && npm run build && npm pack
+# then, in your app:
+npm install /path/to/supermetry/sdk/typescript/supermetry-app-health-*.tgz`,
+  python: 'pip install "git+https://github.com/velixio/supermetry#subdirectory=sdk/python"',
+} as const
+
 const kits = [
-  { value: 'typescript', label: 'TypeScript', note: 'Node 18+, Electron, Bun, Deno and browsers.', folder: 'typescript' },
-  { value: 'python', label: 'Python', note: 'Python 3.9 and newer.', folder: 'python' },
-  { value: 'http', label: 'HTTP', note: 'Any other language: up to 20 events and 16 KB per request.', folder: '' },
+  { value: 'typescript', label: 'TypeScript', note: 'Node 18+, Electron, Bun, Deno and browsers.', folder: 'typescript', install: kitInstall.typescript },
+  { value: 'python', label: 'Python', note: 'Python 3.9 and newer.', folder: 'python', install: kitInstall.python },
+  { value: 'http', label: 'HTTP', note: 'Any other language: up to 20 events and 16 KB per request.', folder: '', install: '' },
 ] as const
 
 export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezone }: { org: string; site: string; orgId: number; siteId: number; publicId: string; timezone: string }) {
@@ -118,9 +132,9 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
       <section aria-labelledby="app-kit-title" className="flex min-w-0 flex-col gap-3">
         <h2 id="app-kit-title" className="text-lg font-semibold">Add the client kit</h2>
         <p className="text-sm text-muted-foreground">
-          The kits have no runtime dependencies and are MIT licensed: copy the folder from{' '}
-          <a className="font-medium text-foreground underline" href={sdkURL} target="_blank" rel="noreferrer">sdk/ in the Supermetry repository</a>{' '}
-          into your project. They never send exception messages. Details are in the{' '}
+          The kits have no runtime dependencies and are MIT licensed. They are not on npm or PyPI yet: install them from{' '}
+          <a className="font-medium text-foreground underline" href={sdkURL} target="_blank" rel="noreferrer">sdk/ in the Supermetry repository</a>
+          . They never send exception messages. Details are in the{' '}
           <a className="font-medium text-foreground underline" href={guideURL} target="_blank" rel="noreferrer">apps guide</a>.
         </p>
         <Tabs defaultValue="typescript" className="min-w-0">
@@ -133,6 +147,14 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
                 {kit.note}
                 {kit.folder ? <> Kit: <a className="underline" href={`${sdkURL}/${kit.folder}`} target="_blank" rel="noreferrer"><code>sdk/{kit.folder}</code></a>.</> : null}
               </p>
+              {kit.install ? (
+                <>
+                  <h3 className="text-sm font-medium">Install</h3>
+                  <pre className="overflow-auto rounded-lg bg-muted p-3 text-xs" tabIndex={0} aria-label={`${kit.label} install`}><code>{kit.install}</code></pre>
+                  <CopyButton value={kit.install} label={`Copy ${kit.label} install`} />
+                  <h3 className="text-sm font-medium">Set up</h3>
+                </>
+              ) : null}
               <pre className="max-h-96 overflow-auto rounded-lg bg-muted p-3 text-xs" tabIndex={0} aria-label={`${kit.label} setup`}><code>{snippets[kit.value]}</code></pre>
               <CopyButton value={snippets[kit.value]} label={`Copy ${kit.label} code`} />
             </TabsContent>
@@ -142,7 +164,8 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
 
       <section aria-labelledby="app-check-title" className="flex min-w-0 flex-col gap-3">
         <h2 id="app-check-title" className="text-lg font-semibold">Check it works</h2>
-        <TestReportCheck appId={publicId} siteId={siteId} timezone={timezone} />
+        {/* Keyed by app: switching apps restarts the check instead of keeping the last app's result. */}
+        <TestReportCheck key={siteId} appId={publicId} siteId={siteId} timezone={timezone} />
       </section>
     </div>
   )
