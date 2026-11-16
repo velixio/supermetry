@@ -16,7 +16,12 @@ web site can also be linked to an app project, so a client that already sends
 
 Create an app project (Sites, New, App) and copy its ingest key. The key looks
 like `smk_` followed by 39 lowercase letters and digits. It is write-only and safe
-to ship inside an app. Rotating it keeps the old key valid for 7 days.
+to ship inside an app. It is shown only once; if you lose it, rotate it in
+**Settings, App**. Rotating it keeps the old key valid for 7 days.
+
+Every request needs both the app ID (the `site` field) and the key, and the key
+must belong to that app. **Settings, Installation** shows the app ID and host
+with setup code for each client kit, and waits for the first report.
 
 ```
 POST /api/public/v1/app-events

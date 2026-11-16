@@ -75,7 +75,7 @@ export function useCopyStatus(resetAfterMs = 3_000) {
   return { copied, copy }
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
+export function CopyButton({ value, label }: { value: string; label: string }) {
   const { copied, copy } = useCopyStatus()
   return (
     <div className="flex items-center gap-3">

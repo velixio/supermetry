@@ -101,7 +101,7 @@ const settingsTabs = [
 ] as const
 
 /** Tabs that apply to an app: general settings (name, time zone, retention, danger zone), alerts and its own page. */
-const appSettingsTabs: readonly string[] = ['general', 'alerts', 'app']
+const appSettingsTabs: readonly string[] = ['general', 'installation', 'alerts', 'app']
 
 export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false, kind }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean; kind?: string }) {
   return (
