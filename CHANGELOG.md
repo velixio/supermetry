@@ -4,6 +4,13 @@ All notable changes to Supermetry are listed here, newest release first.
 
 Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL, no ClickHouse, no Kafka, no Node in production.
 
+## v0.1.25 (2026-11-16)
+
+### Added
+
+- An **Installation** page for app projects (Settings, Installation). It shows the app ID and host with copy buttons, the current ingest key prefixes (with the end date of a rotated key), setup code for the TypeScript and Python kits and for plain HTTP with the app's values filled in, and the check that waits for the first report. Before, the app ID and setup steps appeared only once, in the dialog shown when the app was created or its key rotated.
+- The "Set up this app" link on an app's empty dashboard opens the new Installation page.
+
 ## v0.1.24 (2026-11-16)
 
 ### Security
