@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
+import { safeGitHubUrl } from './format'
 import { useAppAssignees, useUpdateIssue, type AppIssueDetailData } from './api'
 
 const selectClass = 'h-9 rounded-lg border border-input bg-background px-2 text-sm disabled:opacity-50'
@@ -56,7 +57,7 @@ export function IssueWorkflow({ siteId, issue, canEdit }: { siteId: number; issu
             {issue.snooze_events ? ` · for ${issue.snooze_events} more events` : ''}{issue.snooze_users ? ` · for ${issue.snooze_users} more users` : ''}
           </span>
         ) : null}
-        {issue.github_url ? <a className="font-medium underline" href={issue.github_url} target="_blank" rel="noreferrer noopener">GitHub issue</a> : null}
+        {safeGitHubUrl(issue.github_url) ? <a className="font-medium underline" href={safeGitHubUrl(issue.github_url)!} target="_blank" rel="noreferrer noopener">GitHub issue</a> : null}
         {update.isError ? <p role="alert" className="w-full text-sm text-destructive">{update.error.message}</p> : null}
       </CardContent>
     </Card>

@@ -157,4 +157,17 @@ describe('IssueDetail', () => {
     expect(screen.queryByLabelText('Add a comment')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive until escalating' })).not.toBeInTheDocument()
   })
+
+  it('renders the GitHub link only for https github.com URLs', async () => {
+    privateRequest.mockImplementation((method: string, path: string) => {
+      if (method !== 'GET') return Promise.resolve({})
+      if (path.includes('/assignees')) return Promise.resolve({ members: [] })
+      if (path.includes('/comments')) return Promise.resolve({ comments: [] })
+      if (path.includes('/activity')) return Promise.resolve({ activity: [] })
+      return Promise.resolve({ ...detail(), github_url: 'javascript:alert(1)' })
+    })
+    renderWithQuery(<IssueDetail {...props} canEdit />)
+    await screen.findByRole('heading', { name: 'Segfault in renderer' })
+    expect(screen.queryByRole('link', { name: 'GitHub issue' })).not.toBeInTheDocument()
+  })
 })
