@@ -483,7 +483,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
 	var sentryIngest api.SentryIngest
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
-		// Event items are counted and dropped until the normaliser is wired in.
+		// Bodies have no writer yet, so the body queue is nil and scrubbed bodies are discarded.
 		sentryIngest = sentryingest.NewHandler(dsnRegistry, appIntake, nil, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithSpikeLimit(cfg.AppSpikePerMin)
 	}

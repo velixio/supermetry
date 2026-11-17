@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	testKey   = "0123456789abcdef0123456789abcdef"
-	otherKey  = "fedcba9876543210fedcba9876543210"
-	testSite  = int32(42)
-	testPath  = "/api/42/envelope/"
-	testQuery = "?sentry_version=7&sentry_key=" + testKey
+	fdKey      = "0123456789abcdef0123456789abcdef"
+	fdOtherKey = "fedcba9876543210fedcba9876543210"
+	fdSite     = int32(42)
+	fdPath     = "/api/42/envelope/"
+	fdQuery    = "?sentry_version=7&sentry_key=" + fdKey
 )
 
-var testNow = time.Date(2026, 11, 17, 14, 0, 0, 0, time.UTC)
+var fdNow = time.Date(2026, 11, 17, 14, 0, 0, 0, time.UTC)
 
 type fakeRegistry struct {
 	sites map[int32]sites.Site
@@ -58,7 +58,7 @@ func newRegistry(ss ...sites.Site) fakeRegistry {
 }
 
 func authRequest(query string, headers map[string]string) *http.Request {
-	r := httptest.NewRequest(http.MethodPost, testPath+query, nil)
+	r := httptest.NewRequest(http.MethodPost, fdPath+query, nil)
 	for k, v := range headers {
 		r.Header.Set(k, v)
 	}
@@ -66,32 +66,32 @@ func authRequest(query string, headers map[string]string) *http.Request {
 }
 
 func TestAuthenticateCarriers(t *testing.T) {
-	reg := newRegistry(appSite(testSite, sites.DSNKey{PublicKey: testKey}))
-	dsn := "https://" + testKey + "@example.test/42"
+	reg := newRegistry(appSite(fdSite, sites.DSNKey{PublicKey: fdKey}))
+	dsn := "https://" + fdKey + "@example.test/42"
 	for name, c := range map[string]struct {
 		query   string
 		headers map[string]string
 		hdr     EnvelopeHeader
 	}{
-		"X-Sentry-Auth":     {"", map[string]string{"X-Sentry-Auth": "Sentry sentry_version=7, sentry_client=x/1, sentry_key=" + testKey + ", sentry_secret=zzz"}, EnvelopeHeader{}},
-		"Authorization":     {"", map[string]string{"Authorization": "Sentry sentry_key=" + testKey}, EnvelopeHeader{}},
-		"query":             {testQuery, nil, EnvelopeHeader{}},
+		"X-Sentry-Auth":     {"", map[string]string{"X-Sentry-Auth": "Sentry sentry_version=7, sentry_client=x/1, sentry_key=" + fdKey + ", sentry_secret=zzz"}, EnvelopeHeader{}},
+		"Authorization":     {"", map[string]string{"Authorization": "Sentry sentry_key=" + fdKey}, EnvelopeHeader{}},
+		"query":             {fdQuery, nil, EnvelopeHeader{}},
 		"envelope dsn":      {"", nil, EnvelopeHeader{DSN: dsn}},
-		"all agree":         {testQuery, map[string]string{"X-Sentry-Auth": "Sentry sentry_key=" + testKey}, EnvelopeHeader{DSN: dsn}},
-		"version 7 header":  {"", map[string]string{"X-Sentry-Auth": "Sentry sentry_version=7,sentry_key=" + testKey}, EnvelopeHeader{}},
-		"sentry_secret too": {"?sentry_key=" + testKey + "&sentry_secret=s&sentry_timestamp=1", nil, EnvelopeHeader{}},
+		"all agree":         {fdQuery, map[string]string{"X-Sentry-Auth": "Sentry sentry_key=" + fdKey}, EnvelopeHeader{DSN: dsn}},
+		"version 7 header":  {"", map[string]string{"X-Sentry-Auth": "Sentry sentry_version=7,sentry_key=" + fdKey}, EnvelopeHeader{}},
+		"sentry_secret too": {"?sentry_key=" + fdKey + "&sentry_secret=s&sentry_timestamp=1", nil, EnvelopeHeader{}},
 	} {
-		site, key, err := Authenticate(authRequest(c.query, c.headers), c.hdr, testSite, reg, testNow)
-		if err != nil || site.ID != testSite || key.PublicKey != testKey {
+		site, key, err := Authenticate(authRequest(c.query, c.headers), c.hdr, fdSite, reg, fdNow)
+		if err != nil || site.ID != fdSite || key.PublicKey != fdKey {
 			t.Errorf("%s: site=%d err=%v", name, site.ID, err)
 		}
 	}
 }
 
 func TestAuthenticateRejects(t *testing.T) {
-	expired := testNow.Add(-time.Hour)
+	expired := fdNow.Add(-time.Hour)
 	reg := newRegistry(
-		appSite(testSite, sites.DSNKey{PublicKey: testKey}, sites.DSNKey{PublicKey: otherKey, ExpiresAt: &expired}),
+		appSite(fdSite, sites.DSNKey{PublicKey: fdKey}, sites.DSNKey{PublicKey: fdOtherKey, ExpiresAt: &expired}),
 		appSite(7, sites.DSNKey{PublicKey: "11111111111111111111111111111111"}),
 	)
 	for name, c := range map[string]struct {
@@ -101,25 +101,25 @@ func TestAuthenticateRejects(t *testing.T) {
 		pathID  int32
 		want    error
 	}{
-		"none":              {"", nil, EnvelopeHeader{}, testSite, ErrAuthMissing},
-		"two keys":          {testQuery, map[string]string{"X-Sentry-Auth": "Sentry sentry_key=" + otherKey}, EnvelopeHeader{}, testSite, ErrAuthMultiple},
-		"query vs dsn":      {testQuery, nil, EnvelopeHeader{DSN: "https://" + otherKey + "@h/42"}, testSite, ErrAuthMultiple},
-		"path id mismatch":  {testQuery, nil, EnvelopeHeader{}, 7, ErrAuthMismatch},
-		"unknown key":       {"?sentry_key=22222222222222222222222222222222", nil, EnvelopeHeader{}, testSite, ErrAuthMismatch},
-		"malformed key":     {"?sentry_key=ABC", nil, EnvelopeHeader{}, testSite, ErrAuthMismatch},
-		"expired key":       {"?sentry_key=" + otherKey, nil, EnvelopeHeader{}, testSite, ErrAuthMismatch},
-		"version 8":         {"?sentry_version=8&sentry_key=" + testKey, nil, EnvelopeHeader{}, testSite, ErrVersion},
-		"version 8 in auth": {"", map[string]string{"X-Sentry-Auth": "Sentry sentry_version=8, sentry_key=" + testKey}, EnvelopeHeader{}, testSite, ErrVersion},
-		"non sentry scheme": {"", map[string]string{"Authorization": "Bearer " + testKey}, EnvelopeHeader{}, testSite, ErrAuthMissing},
+		"none":              {"", nil, EnvelopeHeader{}, fdSite, ErrAuthMissing},
+		"two keys":          {fdQuery, map[string]string{"X-Sentry-Auth": "Sentry sentry_key=" + fdOtherKey}, EnvelopeHeader{}, fdSite, ErrAuthMultiple},
+		"query vs dsn":      {fdQuery, nil, EnvelopeHeader{DSN: "https://" + fdOtherKey + "@h/42"}, fdSite, ErrAuthMultiple},
+		"path id mismatch":  {fdQuery, nil, EnvelopeHeader{}, 7, ErrAuthMismatch},
+		"unknown key":       {"?sentry_key=22222222222222222222222222222222", nil, EnvelopeHeader{}, fdSite, ErrAuthMismatch},
+		"malformed key":     {"?sentry_key=ABC", nil, EnvelopeHeader{}, fdSite, ErrAuthMismatch},
+		"expired key":       {"?sentry_key=" + fdOtherKey, nil, EnvelopeHeader{}, fdSite, ErrAuthMismatch},
+		"version 8":         {"?sentry_version=8&sentry_key=" + fdKey, nil, EnvelopeHeader{}, fdSite, ErrVersion},
+		"version 8 in auth": {"", map[string]string{"X-Sentry-Auth": "Sentry sentry_version=8, sentry_key=" + fdKey}, EnvelopeHeader{}, fdSite, ErrVersion},
+		"non sentry scheme": {"", map[string]string{"Authorization": "Bearer " + fdKey}, EnvelopeHeader{}, fdSite, ErrAuthMissing},
 	} {
-		_, _, err := Authenticate(authRequest(c.query, c.headers), c.hdr, c.pathID, reg, testNow)
+		_, _, err := Authenticate(authRequest(c.query, c.headers), c.hdr, c.pathID, reg, fdNow)
 		if !errors.Is(err, c.want) {
 			t.Errorf("%s: err = %v, want %v", name, err, c.want)
 		}
 	}
 	// A non-app site is never reachable, whatever its key.
 	web := sites.Site{ID: 9, Kind: sites.KindWeb, TZ: time.UTC, App: &sites.AppConfig{DSNKeys: []sites.DSNKey{{PublicKey: "33333333333333333333333333333333"}}}}
-	if _, _, err := Authenticate(authRequest("?sentry_key=33333333333333333333333333333333", nil), EnvelopeHeader{}, 9, newRegistry(web), testNow); !errors.Is(err, ErrAuthMismatch) {
+	if _, _, err := Authenticate(authRequest("?sentry_key=33333333333333333333333333333333", nil), EnvelopeHeader{}, 9, newRegistry(web), fdNow); !errors.Is(err, ErrAuthMismatch) {
 		t.Errorf("web site: %v", err)
 	}
 }

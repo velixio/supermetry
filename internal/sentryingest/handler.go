@@ -16,31 +16,15 @@ import (
 	"supermetry/internal/sites"
 )
 
-// EventNormaliser turns the JSON of one Sentry event item into the narrow
-// appingest.Event. The handler never looks inside an event; PII scrubbing and
-// grouping live behind this interface.
-type EventNormaliser interface {
-	Normalise(raw []byte, hdr EnvelopeHeader, site sites.Site, req RequestMeta, now time.Time) (appingest.Event, error)
-}
+// NormaliseFunc turns the JSON of one Sentry event item into the narrow
+// appingest.Event and the scrubbed body. Normalise is the production one.
+type NormaliseFunc func(raw []byte, ctx EventContext, site sites.Site, now time.Time) (appingest.Event, appingest.Body, error)
 
-// BodyQueue takes the scrubbed event bodies for storage. The handler passes a
-// RawBody value; Enqueue reports false when the queue is full (the event is
-// already accepted, so the handler only counts the loss).
+// BodyQueue takes the scrubbed event bodies for storage. Enqueue reports false
+// when the queue is full (the event is already accepted, so the handler only
+// counts the loss). Phase 1a has no consumer yet: a nil queue discards bodies.
 type BodyQueue interface {
-	Enqueue(any) bool
-}
-
-// RawBody is what the handler enqueues for an accepted event item. Payload is
-// a private copy of the raw item and still holds unscrubbed data: the queue
-// consumer scrubs it before anything is stored.
-type RawBody struct {
-	SiteID     int32
-	EventID    string
-	ReceivedAt time.Time
-	Header     EnvelopeHeader
-	Request    RequestMeta
-	Event      appingest.Event
-	Payload    []byte
+	Enqueue(appingest.Body) bool
 }
 
 // GeoLookup resolves a country code for an address; the address is not kept.
@@ -50,15 +34,15 @@ type GeoLookup interface {
 
 // Handler serves POST /api/{id}/envelope/, /store/ and /security/.
 type Handler struct {
-	sites      sites.DSNRegistry
-	intake     *appingest.Intake
-	bodies     BodyQueue
-	geo        GeoLookup
-	trusted    []netip.Prefix
-	now        func() time.Time
-	normaliser EventNormaliser
-	spike      *spikeGuard
-	stats      *Stats
+	sites     sites.DSNRegistry
+	intake    *appingest.Intake
+	bodies    BodyQueue
+	geo       GeoLookup
+	trusted   []netip.Prefix
+	now       func() time.Time
+	normalise NormaliseFunc
+	spike     *spikeGuard
+	stats     *Stats
 }
 
 // NewHandler builds the front door. bodies, geo and now may be nil.
@@ -67,12 +51,12 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 		now = time.Now
 	}
 	return &Handler{sites: reg, intake: intake, bodies: bodies, geo: geo, trusted: trusted, now: now,
-		spike: newSpikeGuard(DefaultSpikePerMinute), stats: &Stats{}}
+		spike: newSpikeGuard(DefaultSpikePerMinute), stats: &Stats{}, normalise: Normalise}
 }
 
-// WithNormaliser sets the event normaliser; without one, event items are
-// counted and dropped.
-func (h *Handler) WithNormaliser(n EventNormaliser) *Handler { h.normaliser = n; return h }
+// WithNormaliser replaces the event normaliser (Normalise by default); a nil
+// function makes event items counted and dropped.
+func (h *Handler) WithNormaliser(n NormaliseFunc) *Handler { h.normalise = n; return h }
 
 // WithSpikeLimit sets the per-site events-per-minute cap.
 func (h *Handler) WithSpikeLimit(perMinute int) *Handler {
@@ -264,8 +248,7 @@ type outcome struct {
 func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp []appingest.Event, req RequestMeta, now time.Time) outcome {
 	var out outcome
 	budgetKey := "dsn:" + key.PublicKey
-	accept := func(ev appingest.Event, it Item) {
-		res := h.intake.Accept(site, budgetKey, now, ev)
+	count := func(res appingest.Outcome) bool {
 		switch {
 		case res.QueueFull:
 			out.queueFull++
@@ -273,18 +256,29 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			out.rateLimited++
 		case res.Reason == "":
 			out.accepted++
-			if h.bodies != nil && it.Type == "event" {
-				payload := append([]byte(nil), it.Payload...)
-				if !h.bodies.Enqueue(RawBody{SiteID: site.ID, EventID: ev.ID, ReceivedAt: now, Header: env.Header, Request: req, Event: ev, Payload: payload}) {
-					h.stats.Add("body_queue_full", 1)
-				}
-			}
+			return true
 		}
+		return false
 	}
 	for _, ev := range csp {
-		accept(ev, Item{Type: "csp"})
+		count(h.intake.Accept(site, budgetKey, now, ev))
 		if out.eventID == "" {
 			out.eventID = ev.ID
+		}
+	}
+	ctx := EventContext{
+		EventID: env.Header.EventID, SentAt: env.Header.SentAt, SDKName: env.Header.SDK.Name, SDKVersion: env.Header.SDK.Version,
+		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country,
+	}
+	for _, it := range env.Items {
+		if it.Type == "attachment" && it.AttachmentType == "event.minidump" {
+			ctx.HasMinidump = true
+		}
+	}
+	var attachments []appingest.AttachmentMeta
+	for _, it := range env.Items {
+		if it.Type == "attachment" && len(it.Payload) <= MaxAttachment {
+			attachments = append(attachments, appingest.AttachmentMeta{Name: it.Filename, Type: it.AttachmentType, Size: len(it.Payload)})
 		}
 	}
 	for _, it := range env.Items {
@@ -298,20 +292,51 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				h.intake.Drop(site, now, dropstats.AppInvalid)
 				continue
 			}
-			if h.normaliser == nil {
+			if h.normalise == nil {
 				h.stats.Add("event_unsupported", 1)
 				continue
 			}
-			ev, err := h.normaliser.Normalise(it.Payload, env.Header, site, req, now)
+			ev, body, err := h.normalise(it.Payload, ctx, site, now)
 			if err != nil {
-				h.stats.Add("event_invalid", 1)
-				h.intake.Drop(site, now, dropstats.AppInvalid)
+				if errors.Is(err, ErrTooOld) {
+					h.intake.Drop(site, now, dropstats.TooOld)
+					h.stats.Add("event_too_old", 1)
+				} else {
+					h.intake.Drop(site, now, dropstats.AppInvalid)
+					h.stats.Add("event_invalid", 1)
+				}
 				continue
 			}
 			if out.eventID == "" {
 				out.eventID = ev.ID
 			}
-			accept(ev, it)
+			applyRow(&ev, body.Row)
+			if count(h.intake.Accept(site, budgetKey, now, ev)) && h.bodies != nil {
+				body.Attachments = attachments
+				if !h.bodies.Enqueue(body) {
+					h.stats.Add("body_queue_full", 1)
+				}
+			}
+		case "session", "sessions":
+			events, err := ParseSession(it.Payload, ctx, site, now)
+			if err != nil {
+				h.stats.Add("session_invalid", 1)
+				h.intake.Drop(site, now, dropstats.AppInvalid)
+				continue
+			}
+			for _, ev := range events {
+				count(h.intake.Accept(site, budgetKey, now, ev))
+			}
+		case "client_report":
+			// Stored by a later change; counted here.
+			if counts, err := ParseClientReport(it.Payload); err == nil {
+				var total int64
+				for _, c := range counts {
+					total += c.Quantity
+				}
+				h.stats.Add("client_report_discarded", uint64(max(total, 0)))
+			}
+			h.stats.Add("item:client_report", 1)
 		case "attachment":
 			switch {
 			case len(it.Payload) > MaxAttachment:
@@ -328,6 +353,13 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 		}
 	}
 	return out
+}
+
+// applyRow copies the normaliser's extra columns onto the event.
+func applyRow(ev *appingest.Event, r appingest.RowExtras) {
+	ev.Title, ev.MessageHash, ev.UserHash = r.Title, r.MessageHash, r.UserHash
+	ev.Culprit, ev.Transaction, ev.Dist = r.Culprit, r.Transaction, r.Dist
+	ev.SDKName, ev.SDKVersion, ev.GroupingVersion = r.SDKName, r.SDKVersion, r.GroupingVersion
 }
 
 // safeCategory keeps a hostile item type from minting unbounded categories.
