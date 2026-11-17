@@ -24,7 +24,14 @@ type AppSettings = {
   filter_localhost: boolean | null
   filter_localhost_default: boolean
 }
-type EraseResult = { bodies_deleted: number; events_anonymized: number }
+type Erasure = {
+  id: number
+  status: 'pending' | 'running' | 'done' | 'failed'
+  bodies_deleted: number
+  events_anonymized: number
+  last_error: string | null
+}
+const ERASURE_POLL_MS = 2000
 type IngestKey = { prefix: string; created_at: string; expires_at: string | null }
 
 const toList = (text: string) => [...new Set(text.split(/[,\n]/).map((item) => item.trim()).filter(Boolean))]
@@ -47,6 +54,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
   const [localhostTouched, setLocalhostTouched] = useState(false)
   const [eraseId, setEraseId] = useState('')
   const [erasing, setErasing] = useState(false)
+  const [erasureId, setErasureId] = useState<number | null>(null)
   const canErase = role === 'owner' || role === 'admin'
 
   function show(value: AppSettings) {
@@ -80,9 +88,25 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
   })
 
   const erase = useMutation({
-    mutationFn: () => privateRequest<EraseResult>('POST', `${base}/app/users/erase`, { orgId, body: { user_id: eraseId.trim() } }),
+    mutationFn: () => privateRequest<Erasure>('POST', `${base}/app/users/erase`, { orgId, body: { user_id: eraseId.trim() } }),
+    onSuccess: (value) => {
+      client.setQueryData(['app-erasure', siteId, value.id], value)
+      setErasureId(value.id)
+    },
     onSettled: () => setErasing(false),
   })
+  // The server erases in the background; poll until the request settles.
+  const erasure = useQuery({
+    queryKey: ['app-erasure', siteId, erasureId],
+    enabled: erasureId !== null,
+    queryFn: () => privateRequest<Erasure>('GET', `${base}/app/users/erasures/${erasureId}`, { orgId }),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'done' || status === 'failed' ? false : ERASURE_POLL_MS
+    },
+  })
+  const progress = erasureId !== null ? erasure.data : undefined
+  const working = erase.isPending || progress?.status === 'pending' || progress?.status === 'running'
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -158,19 +182,29 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
           <Field>
             <FieldLabel htmlFor="erase-user-id">User id</FieldLabel>
             <Input id="erase-user-id" value={eraseId} maxLength={512} autoComplete="off"
-              onChange={(event) => { setEraseId(event.target.value); erase.reset() }} />
+              onChange={(event) => { setEraseId(event.target.value); erase.reset(); setErasureId(null) }} />
             <FieldDescription>The user id your SDK reports with <code>setUser</code>.</FieldDescription>
           </Field>
           <div>
-            <Button type="button" variant="destructive" disabled={!eraseId.trim() || erase.isPending} onClick={() => setErasing(true)}>
+            <Button type="button" variant="destructive" disabled={!eraseId.trim() || working} onClick={() => setErasing(true)}>
               Erase data
             </Button>
           </div>
           {erase.error ? <p role="alert" className="text-sm text-destructive">{erase.error.message}</p> : null}
-          {erase.data ? (
+          {erasure.error ? <p role="alert" className="text-sm text-destructive">{erasure.error.message}</p> : null}
+          {progress?.status === 'failed' ? (
+            <p role="alert" className="text-sm text-destructive">Erasure failed{progress.last_error ? `: ${progress.last_error}` : ''}. Run it again to retry.</p>
+          ) : null}
+          {progress && (progress.status === 'pending' || progress.status === 'running') ? (
             <p role="status" className="text-sm">
-              Erased {erase.data.bodies_deleted} stored event {erase.data.bodies_deleted === 1 ? 'body' : 'bodies'} and
-              anonymized {erase.data.events_anonymized} {erase.data.events_anonymized === 1 ? 'event' : 'events'}.
+              Erasing in the background. {progress.bodies_deleted} stored event {progress.bodies_deleted === 1 ? 'body' : 'bodies'} deleted
+              and {progress.events_anonymized} {progress.events_anonymized === 1 ? 'event' : 'events'} anonymized so far.
+            </p>
+          ) : null}
+          {progress?.status === 'done' ? (
+            <p role="status" className="text-sm">
+              Erased {progress.bodies_deleted} stored event {progress.bodies_deleted === 1 ? 'body' : 'bodies'} and
+              anonymized {progress.events_anonymized} {progress.events_anonymized === 1 ? 'event' : 'events'}.
             </p>
           ) : null}
           <AlertDialog open={erasing} onOpenChange={setErasing}>

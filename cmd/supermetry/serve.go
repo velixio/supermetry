@@ -256,6 +256,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	engine.SetTrackingMode(cfg.Tracking.Mode)
 	engine.SetPathPolicy(cfg.TrackingPaths)
 	profileErasures := profileerasure.New(pool)
+	appErasures := profileerasure.NewAppStore(pool)
+	appErasureWorker := profileerasure.NewAppWorker(pool, appErasures)
 	profileErasureWorker := profileerasure.NewWorker(pool, profileErasures, replayStore, settings.clock, engine.InvalidateSite)
 	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill, engine.InvalidateSite)
 	heatmaps := heatmap.New(pool, registry)
@@ -464,6 +466,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		ImportQueue:        importManager,
 		ProfileTombstones:  profileTombstones,
 		ProfileErasures:    profileErasures,
+		AppErasures:        appErasures,
 		ReplayStore:        replayStore,
 		Exporter:           exporter,
 		ReplayEnv:          cfg.Replay,
@@ -643,7 +646,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	starService.AlertSender = alertDispatcher
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
-	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
