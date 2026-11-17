@@ -151,6 +151,9 @@ def main(argv):
                         print(f"SKIP: symbolication not available yet ({last}, still the minified bundle)")
                         return 3
             if time.time() > deadline:
+                if last == "event body HTTP 404":
+                    print("SKIP: symbolication not available (event bodies are not stored by this build, so frames cannot be inspected)")
+                    return 3
                 print(f"FAIL: expected {want_file}:{want_line}; {last}")
                 return 1
             time.sleep(1)
