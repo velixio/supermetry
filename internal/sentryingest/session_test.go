@@ -1,0 +1,196 @@
+package sentryingest
+
+import (
+	"errors"
+	"strings"
+	"testing"
+	"time"
+)
+
+func sessionFixtures(t *testing.T) map[string]fixtureItem {
+	out := map[string]fixtureItem{}
+	for _, f := range loadFixtures(t) {
+		for _, it := range f.Items {
+			if it.Type == "session" || it.Type == "sessions" || it.Type == "client_report" {
+				out[f.Name] = it
+			}
+		}
+	}
+	return out
+}
+
+func TestParseSessionAggregates(t *testing.T) {
+	rows, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00.000Z","exited":3,"errored":1}],"attrs":{"release":"r@1","environment":"prod"}}`), EventContext{}, testSite(), testNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("rows %+v", rows)
+	}
+	if rows[0].Occurrences != 3 || rows[0].ExitReason != "" || rows[1].Occurrences != 1 || rows[1].ExitReason != "" {
+		t.Fatalf("%+v", rows)
+	}
+	for _, r := range rows {
+		if r.Kind != "session" || r.Release != "r@1" || r.Environment != "prod" || len(r.ID) != 32 || r.SessionID != "" || r.TS.Hour() != 13 {
+			t.Fatalf("%+v", r)
+		}
+	}
+	if rows[0].ID == rows[1].ID {
+		t.Fatal("rows of one aggregate need distinct ids")
+	}
+}
+
+func TestParseSessionAggregateCrashedSetsExitReason(t *testing.T) {
+	rows, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":3,"errored":1,"crashed":2,"abnormal":1}]}`), EventContext{}, testSite(), testNow)
+	if err != nil || len(rows) != 4 {
+		t.Fatalf("%v %+v", err, rows)
+	}
+	got := map[string]int{}
+	for _, r := range rows {
+		got[r.ExitReason] += r.Occurrences
+	}
+	if got["crashed"] != 2 || got["abnormal"] != 1 || got[""] != 4 {
+		t.Fatalf("%v", got)
+	}
+}
+
+func TestParseSessionAggregatesZeroAndShapes(t *testing.T) {
+	rows, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":0},null,{"started":"2026-11-17T13:11:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	if err != nil || len(rows) != 1 || rows[0].Occurrences != 2 {
+		t.Fatalf("%v %+v", err, rows)
+	}
+	rows, err = ParseSession([]byte(`{"aggregates":[]}`), EventContext{}, testSite(), testNow)
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("%v %+v", err, rows)
+	}
+	a, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	b, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	c, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:11:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	if a[0].ID != b[0].ID || a[0].ID == c[0].ID {
+		t.Fatal("ids must be stable for a retry and differ for different payloads")
+	}
+}
+
+func TestParseSessionInit(t *testing.T) {
+	rows, err := ParseSession([]byte(`{"sid":"f4f879bbd40149b586a1c19480b043e2","did":"user-1","init":true,"started":"2026-11-17T13:11:41.685Z","timestamp":"2026-11-17T13:11:41.685Z","status":"ok","errors":0,"attrs":{"release":"fixture@1.0.0","environment":"fixture","ip_address":"{{auto}}","user_agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/150.0 Safari/537.36"}}`),
+		EventContext{SDKName: "sentry.javascript.browser"}, testSite(), testNow)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("%v %+v", err, rows)
+	}
+	r := rows[0]
+	if r.SessionID != "f4f879bbd40149b586a1c19480b043e2" || r.InstallID != "user-1" || r.Platform != "web" || r.ExitReason != "" || r.Occurrences != 1 {
+		t.Fatalf("%+v", r)
+	}
+	// the same session crashing at init
+	rows, _ = ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-17T13:11:41Z","status":"crashed"}`), EventContext{}, testSite(), testNow)
+	if len(rows) != 1 || rows[0].ExitReason != "crashed" {
+		t.Fatalf("%+v", rows)
+	}
+}
+
+func TestParseSessionUpdateWithoutInitYieldsNothing(t *testing.T) {
+	rows, err := ParseSession([]byte(`{"sid":"s1","init":false,"started":"2026-11-17T13:11:41Z","status":"exited"}`), EventContext{}, testSite(), testNow)
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("%v %+v", err, rows)
+	}
+	if _, err := ParseSession([]byte(`{"init":true}`), EventContext{}, testSite(), testNow); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("init without sid: %v", err)
+	}
+	if _, err := ParseSession([]byte(`nope`), EventContext{}, testSite(), testNow); !errors.Is(err, ErrInvalid) {
+		t.Fatal(err)
+	}
+}
+
+func TestParseSessionFutureStartClamped(t *testing.T) {
+	rows, _ := ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-18T13:11:41Z"}`), EventContext{}, testSite(), testNow)
+	if !rows[0].TS.Equal(testNow) {
+		t.Fatalf("%s", rows[0].TS)
+	}
+}
+
+func TestParseSessionFixtures(t *testing.T) {
+	fx := sessionFixtures(t)
+	want := map[string][2]int{ // rows, total occurrences
+		"node/session-aggregates": {1, 3},
+		"python/wsgi-sessions":    {1, 3},
+		"browser/session":         {1, 1},
+		"android/session-update":  {0, 0},
+		"cocoa/session-update":    {0, 0},
+	}
+	for name, w := range want {
+		it, ok := fx[name]
+		if !ok {
+			t.Fatalf("missing fixture %s", name)
+		}
+		rows, err := ParseSession(it.Payload, EventContext{SentAt: time.Time{}}, testSite(), testNow)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		total := 0
+		for _, r := range rows {
+			total += r.Occurrences
+			if strings.Contains(r.InstallID+r.Release, "{{") {
+				t.Errorf("%s: placeholder leaked", name)
+			}
+		}
+		if len(rows) != w[0] || total != w[1] {
+			t.Errorf("%s: %d rows / %d occurrences, want %v", name, len(rows), total, w)
+		}
+	}
+}
+
+func TestParseClientReport(t *testing.T) {
+	got, err := ParseClientReport([]byte(`{"timestamp":1794921108.676,"discarded_events":[{"reason":"before_send","category":"error","quantity":2},{"reason":"before_send","category":"error","quantity":1},{"reason":"queue_overflow","category":"transaction","quantity":5},{"reason":"x","category":"error","quantity":0},{"reason":"","category":"error","quantity":3},null]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0] != (ClientReportCount{"before_send", "error", 3}) || got[1] != (ClientReportCount{"queue_overflow", "transaction", 5}) {
+		t.Fatalf("%+v", got)
+	}
+	got, err = ParseClientReport([]byte(`{"discarded_events":[{"reason":"a b\n","category":"error","quantity":1}]}`))
+	if err != nil || got[0].Reason != "a_b" {
+		t.Fatalf("%v %+v", err, got)
+	}
+	got, err = ParseClientReport([]byte(`{}`))
+	if err != nil || len(got) != 0 {
+		t.Fatalf("%v %+v", err, got)
+	}
+	if _, err := ParseClientReport([]byte(`[`)); !errors.Is(err, ErrInvalid) {
+		t.Fatal(err)
+	}
+}
+
+func TestParseClientReportFixtures(t *testing.T) {
+	n := 0
+	for name, it := range sessionFixtures(t) {
+		if !strings.HasSuffix(name, "client-report") {
+			continue
+		}
+		n++
+		got, err := ParseClientReport(it.Payload)
+		if err != nil || len(got) != 1 || got[0] != (ClientReportCount{"before_send", "error", 1}) {
+			t.Errorf("%s: %v %+v", name, err, got)
+		}
+	}
+	if n != 3 {
+		t.Fatalf("%d client report fixtures", n)
+	}
+}
+
+func FuzzParseSession(f *testing.F) {
+	for _, it := range []string{`{"aggregates":[{"started":"x","exited":-1,"crashed":9999999999}]}`, `{"sid":1,"init":true}`, `{"aggregates":{"a":1}}`} {
+		f.Add([]byte(it))
+	}
+	f.Fuzz(func(t *testing.T, raw []byte) {
+		rows, err := ParseSession(raw, EventContext{}, testSite(), testNow)
+		if err != nil {
+			return
+		}
+		for _, r := range rows {
+			if r.Occurrences < 1 || r.Occurrences > 1_000_000 || r.ID == "" {
+				t.Fatalf("%+v", r)
+			}
+		}
+		_, _ = ParseClientReport(raw)
+	})
+}
