@@ -267,6 +267,20 @@ The **Data health** page lists every dropped event by reason: bot user agent, ho
 not allowed, too old, clock skew, rate limited, and so on. If reports go
 missing, look there first.
 
+## Exporting your data
+
+An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.
+
+| File | Contents |
+|---|---|
+| `app_issues.csv` | Issues active in the range: id, title, culprit, level, status, kind, error type, first and last seen, occurrences, first and last release, resolved-in release |
+| `app_events.csv` | Stored events in the range: event id, timestamp, issue id, kind, level, release, dist, environment, platform, SDK name and version, OS version, architecture, device class, runtime, symbolication status, occurrences |
+| `app_releases.csv`, `app_deploys.csv` | Releases and deploys created in the range that apply to the project |
+| `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
+| `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
+
+The export never includes user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
+
 ## Ask your AI assistant
 
 An AI assistant connected to the [MCP server](../api.md#mcp-for-ai-assistants) can read

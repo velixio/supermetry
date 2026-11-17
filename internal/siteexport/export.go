@@ -91,7 +91,10 @@ func (e *Exporter) Write(ctx context.Context, output io.Writer, siteID int32, fr
 			return err
 		}
 	}
-	return e.writeCustom(ctx, archive, siteID, from, to)
+	if err := e.writeCustom(ctx, archive, siteID, from, to); err != nil {
+		return err
+	}
+	return e.writeApp(ctx, archive, siteID, from, to)
 }
 
 func (e *Exporter) writeDaily(ctx context.Context, archive *zip.Writer, siteID int32, from, to time.Time) error {

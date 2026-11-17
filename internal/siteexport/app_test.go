@@ -1,0 +1,181 @@
+package siteexport_test
+
+import (
+	"archive/zip"
+	"bytes"
+	"context"
+	"slices"
+	"strings"
+	"testing"
+
+	"supermetry/internal/db"
+	"supermetry/internal/privacy"
+	"supermetry/internal/siteexport"
+	"supermetry/internal/testpg"
+)
+
+const appFixture = `
+insert into orgs(id,name,slug) overriding system value values (1,'Org','org'),(2,'Other','other');
+insert into sites(id,org_id,public_id,name,timezone,retention_class,kind) overriding system value
+ values (7,1,'appexport001','App','UTC',30,'app'),(8,1,'webexport001','Web','UTC',30,'web'),(9,2,'appexport002','Theirs','UTC',30,'app');
+insert into app_issues(id,site_id,fingerprint,kind,error_type,title,first_seen,last_seen,first_release,last_release,status,event_count,level,culprit)
+ overriding system value values
+ (1,7,'fp1','crash','TypeError','Boom: =cmd','2026-10-01T10:00:00Z','2026-10-02T11:00:00Z','1.0.0','1.1.0','open',3,'error','app.js'),
+ (2,7,'fp-old','error','','Old','2026-01-01T00:00:00Z','2026-01-02T00:00:00Z','0.1','0.1','resolved',1,'warning',''),
+ (3,9,'fp3','crash','','Other org issue','2026-10-01T10:00:00Z','2026-10-01T10:00:00Z','','','open',1,'error','');
+insert into app_events(site_id,ts,received_at,event_id,issue_id,kind,level,release,environment,platform,os_version,arch,device_class,runtime,occurrences,
+  install_hash,session_hash,user_hash,sdk_name,sdk_version,dist,symbolication)
+ values
+ (7,'2026-10-02T11:00:00Z','2026-10-02T11:00:01Z','evt-b',1,'crash','error','1.1.0','prod','javascript','14.1','arm64','mobile','chrome',2,
+   '\xdeadbeef','\xfeedface','\xcafebabe','sentry.javascript.browser','8.0.0','d1','ok'),
+ (7,'2026-10-01T10:00:00Z','2026-10-01T10:00:01Z','evt-a',1,'error','error','1.0.0','prod','javascript','','','','',1,null,null,'\xcafebabe','','','','missing'),
+ (7,'2026-09-15T10:00:00Z','2026-09-15T10:00:01Z','evt-out',1,'error','error','1.0.0','prod','','','','','',1,null,null,null,'','','',''),
+ (9,'2026-10-02T09:00:00Z','2026-10-02T09:00:01Z','evt-other',3,'crash','error','','','','','','','',1,null,null,null,'','','','');
+insert into app_event_bodies(site_id,ts,event_id,body,size) values (7,'2026-10-02T11:00:00Z','evt-b','{"user":{"email":"leak@example.test","ip_address":"203.0.113.9"}}',10);
+insert into app_client_reports(site_id,day,reason,category,quantity) values
+ (7,'2026-10-02','ratelimit_backoff','error',5),(7,'2026-09-15','queue_overflow','error',1),(9,'2026-10-02','network_error','error',9);
+insert into app_releases(id,org_id,version,site_ids,url,date_created,date_released) overriding system value values
+ (1,1,'1.1.0','{}','https://example.test/r','2026-10-02T08:00:00Z','2026-10-02T09:00:00Z'),
+ (2,1,'only-web','{8}','','2026-10-02T08:00:00Z',null),
+ (3,2,'other-org','{}','','2026-10-02T08:00:00Z',null);
+insert into app_deploys(id,release_id,environment,name,url,date_started,date_finished,date_created) overriding system value values
+ (1,1,'prod','ship','','2026-10-02T08:30:00Z','2026-10-02T08:40:00Z','2026-10-02T08:31:00Z'),
+ (2,2,'prod','','','2026-10-02T08:30:00Z',null,'2026-10-02T08:31:00Z');
+insert into app_artifact_bundles(id,org_id,site_ids,release,dist,checksum,state,size,created_at) overriding system value values
+ (1,1,'{}','1.1.0','d1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','ok',2048,'2026-10-02T07:00:00Z'),
+ (2,2,'{}','x','','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','ok',1,'2026-10-02T07:00:00Z');
+insert into app_artifact_files(bundle_id,org_id,site_id,debug_id,release,dist,url,type,blob_key,size) values
+ (1,1,null,'11111111-1111-1111-1111-111111111111','1.1.0','d1','~/secret/path.js.map','source_map','bundles/1/secret-key',1024),
+ (1,1,null,'22222222-2222-2222-2222-222222222222','1.1.0','d1','~/b.js','minified_source','bundles/1/secret-key2',1024);
+`
+
+func newAppExport(t *testing.T) (*siteexport.Exporter, context.Context) {
+	t.Helper()
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		create table app_events_export_test partition of app_events for values from ('2026-09-01') to ('2026-11-01');
+		create table app_event_bodies_export_test partition of app_event_bodies for values from ('2026-09-01') to ('2026-11-01')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, appFixture); err != nil {
+		t.Fatal(err)
+	}
+	e := siteexport.New(pool)
+	e.SetTrackingMode(privacy.Identified)
+	return e, ctx
+}
+
+func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site int32) (map[string][][]string, []string, string) {
+	t.Helper()
+	var out bytes.Buffer
+	if err := e.Write(ctx, &out, site, day("2026-10-01"), day("2026-10-03")); err != nil {
+		t.Fatal(err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(out.Bytes()), int64(out.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := map[string][][]string{}
+	var names []string
+	var raw strings.Builder
+	for _, f := range zr.File {
+		names = append(names, f.Name)
+		files[f.Name] = readCSV(t, f)
+		for _, row := range files[f.Name] {
+			raw.WriteString(strings.Join(row, ",") + "\n")
+		}
+	}
+	return files, names, raw.String()
+}
+
+func TestAppSiteExportsExactCSVs(t *testing.T) {
+	e, ctx := newAppExport(t)
+	files, names, _ := exportFiles(t, e, ctx, 7)
+	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv"} {
+		if !slices.Contains(names, want) {
+			t.Fatalf("missing %s in %v", want, names)
+		}
+	}
+	check := func(name string, want [][]string) {
+		t.Helper()
+		if !slices.EqualFunc(files[name], want, slices.Equal[[]string]) {
+			t.Fatalf("%s = %q\nwant %q", name, files[name], want)
+		}
+	}
+	check("app_issues.csv", [][]string{
+		{"issue_id", "title", "culprit", "level", "status", "kind", "error_type", "first_seen", "last_seen", "occurrences", "first_release", "last_release", "resolved_in_release"},
+		{"1", "Boom: =cmd", "app.js", "error", "open", "crash", "TypeError", "2026-10-01T10:00:00.000Z", "2026-10-02T11:00:00.000Z", "3", "1.0.0", "1.1.0", ""},
+	})
+	check("app_events.csv", [][]string{
+		{"event_id", "timestamp", "issue_id", "kind", "level", "release", "dist", "environment", "platform", "sdk_name", "sdk_version", "os_version", "arch", "device_class", "runtime", "symbolication", "occurrences"},
+		{"evt-a", "2026-10-01T10:00:00.000Z", "1", "error", "error", "1.0.0", "", "prod", "javascript", "", "", "", "", "", "", "missing", "1"},
+		{"evt-b", "2026-10-02T11:00:00.000Z", "1", "crash", "error", "1.1.0", "d1", "prod", "javascript", "sentry.javascript.browser", "8.0.0", "14.1", "arm64", "mobile", "chrome", "ok", "2"},
+	})
+	check("app_releases.csv", [][]string{
+		{"release_id", "version", "url", "created", "released"},
+		{"1", "1.1.0", "https://example.test/r", "2026-10-02T08:00:00.000Z", "2026-10-02T09:00:00.000Z"},
+	})
+	check("app_deploys.csv", [][]string{
+		{"deploy_id", "release", "environment", "name", "url", "started", "finished", "created"},
+		{"1", "1.1.0", "prod", "ship", "", "2026-10-02T08:30:00.000Z", "2026-10-02T08:40:00.000Z", "2026-10-02T08:31:00.000Z"},
+	})
+	check("app_client_reports.csv", [][]string{
+		{"day", "reason", "category", "quantity"},
+		{"2026-10-02", "ratelimit_backoff", "error", "5"},
+	})
+	check("app_artifacts.csv", [][]string{
+		{"bundle_id", "release", "dist", "state", "debug_ids", "file_count", "size_bytes", "created"},
+		{"1", "1.1.0", "d1", "ok", "11111111-1111-1111-1111-111111111111 22222222-2222-2222-2222-222222222222", "2", "2048", "2026-10-02T07:00:00.000Z"},
+	})
+}
+
+func TestAppExportLeaksNoPersonalData(t *testing.T) {
+	e, ctx := newAppExport(t)
+	files, _, raw := exportFiles(t, e, ctx, 7)
+	for name, rows := range files {
+		if !strings.HasPrefix(name, "app_") {
+			continue
+		}
+		for _, col := range rows[0] {
+			lc := strings.ToLower(col)
+			for _, bad := range []string{"user", "email", "ip", "hash", "body", "blob", "url_path"} {
+				if lc == bad || strings.Contains(lc, bad) && lc != "url" {
+					t.Fatalf("%s has sensitive column %q", name, col)
+				}
+			}
+		}
+	}
+	for _, bad := range []string{"cafebabe", "deadbeef", "feedface", "leak@", "203.0.113.9", "secret", "bundles/1", "ip_address"} {
+		if strings.Contains(strings.ToLower(raw), bad) {
+			t.Fatalf("export contains %q", bad)
+		}
+	}
+}
+
+func TestWebSiteExportHasNoAppFiles(t *testing.T) {
+	e, ctx := newAppExport(t)
+	_, names, _ := exportFiles(t, e, ctx, 8)
+	for _, n := range names {
+		if strings.HasPrefix(n, "app_") {
+			t.Fatalf("web site export contains %s", n)
+		}
+	}
+	if len(names) != 17 {
+		t.Fatalf("web export has %d files, want 17: %v", len(names), names)
+	}
+}
+
+func TestAppExportIsScopedToItsSite(t *testing.T) {
+	e, ctx := newAppExport(t)
+	files, _, raw := exportFiles(t, e, ctx, 9)
+	if strings.Contains(raw, "evt-a") || strings.Contains(raw, "1.1.0") || strings.Contains(raw, "Boom") {
+		t.Fatalf("other organisation's export contains org 1 data: %s", raw)
+	}
+	if got := len(files["app_events.csv"]); got != 2 {
+		t.Fatalf("site 9 events rows = %d", got)
+	}
+}

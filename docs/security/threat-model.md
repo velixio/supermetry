@@ -297,7 +297,7 @@ Impersonation controls: the session lasts 1 hour with a hard expiry; the UI show
 | Item | Control | Reference |
 |---|---|---|
 | Import (Plausible ZIP, Umami CSV) | Owner/admin only, identified mode only; 512 MiB upload; ZIP limits of 1,000 entries, 2 GiB per entry, 8 GiB total | `internal/platform/http/handlers_imports.go:24,120-176`, `internal/imports/types.go:11-15` (helper-reported) |
-| Export | Owner/admin or the `data.export` capability; aggregates only (pages, sources, geo, devices, UTM, events); audited as `site.exported` | `internal/platform/http/handlers_imports.go:243-278`, `internal/siteexport/export.go` (helper-reported) |
+| Export | Owner/admin or the `data.export` capability; aggregates only (pages, sources, geo, devices, UTM, events); app projects add issue, event, release, deploy and artifact-metadata CSVs with no user ids, hashes, IPs or event bodies; audited as `site.exported` | `internal/platform/http/handlers_imports.go:243-278`, `internal/siteexport/export.go` (helper-reported) |
 | CSV injection | Cells starting with `= + - @ \t \r` are prefixed with `'` | `internal/csvsafe/csvsafe.go:7-15` |
 | Backup | `pg_dump` in a tar.gz, mode 0600. Excludes the secret key, GeoIP files and replay blobs | `cmd/supermetry/backup.go:156-160` |
 | Restore | Requires `--yes`; checks entries and schema version; single transaction | `cmd/supermetry/backup.go:247-316` (helper-reported) |
