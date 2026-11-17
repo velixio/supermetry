@@ -73,6 +73,7 @@ type Deps struct {
 	Heatmaps       heatmapService
 	Ingest         http.Handler
 	AppIngest      http.Handler // app health reports; nil disables the endpoint
+	SentryIngest   SentryIngest // Sentry-compatible /api/{id}/envelope|store|security; nil disables it
 	// Links serves the public short-link redirect and tracking pixel. Optional.
 	Links  *links.Handler
 	Pixels http.Handler
@@ -111,6 +112,14 @@ type Deps struct {
 
 // NewRouter mounts the public integration API, private dashboard API and
 // operational endpoints on a standard-library ServeMux.
+// SentryIngest serves the Sentry-compatible intake. Its paths (/api/{id}/...)
+// cannot be registered on the mux next to the fixed /api/private/ subtree, so
+// the router offers it each request first.
+type SentryIngest interface {
+	http.Handler
+	Matches(*http.Request) bool
+}
+
 func NewRouter(deps Deps) http.Handler {
 	if deps.PublicAuth == nil {
 		deps.PublicAuth = StaticKey(deps.Config.AdminAPIKey)
@@ -283,7 +292,17 @@ func NewRouter(deps Deps) http.Handler {
 	})
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
-	return requestID(recoverProblems(routehits.WrapFile(mux, routehits.File(deps.Config.RouteHitsFile))))
+	var root http.Handler = mux
+	if sentry := deps.SentryIngest; sentry != nil {
+		root = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if sentry.Matches(r) {
+				sentry.ServeHTTP(w, r)
+				return
+			}
+			mux.ServeHTTP(w, r)
+		})
+	}
+	return requestID(recoverProblems(routehits.WrapFile(root, routehits.File(deps.Config.RouteHitsFile))))
 }
 
 func trackerCORS(next http.Handler) http.Handler {

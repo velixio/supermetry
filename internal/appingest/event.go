@@ -77,6 +77,7 @@ type Event struct {
 	Dist            string
 	Symbolication   string // "", "ok", "missing" or "partial"
 	GroupingVersion int16  // 0 means 1
+	Title           string // issue title when the normaliser derived one; else built from kind, type and frames
 }
 
 var errInvalid = errors.New("invalid app event")
