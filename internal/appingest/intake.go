@@ -72,8 +72,9 @@ type Queued struct {
 // Outcome is the result of one event. Reason is empty when accepted; Stripped
 // lists tags removed because they are not on the app's allowlist.
 type Outcome struct {
-	Reason   string
-	Stripped []string
+	Reason    string
+	Stripped  []string
+	QueueFull bool // the event was dropped because the queue was full (Reason is rate_limited)
 }
 
 // Intake applies the per-event checks and hands accepted events to a bounded
@@ -155,7 +156,9 @@ func (in *Intake) Accept(site sites.Site, budgetKey string, now time.Time, ev Ev
 	if in.closed.Load() || !in.enqueue(queued) {
 		release()
 		health.AppIngestQueueFull.Add(1)
-		return drop(dropstats.AppRateLimited)
+		out := drop(dropstats.AppRateLimited)
+		out.QueueFull = true
+		return out
 	}
 	return Outcome{Stripped: stripped}
 }

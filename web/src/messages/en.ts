@@ -288,6 +288,7 @@ export const en = {
     applicationSidebar: 'Application sidebar',
     sidebarSections: {
       analyze: 'Analyze',
+      appMonitoring: 'App Monitoring',
       behaviour: 'Behaviour',
       conversion: 'Conversion',
       manage: 'Manage',

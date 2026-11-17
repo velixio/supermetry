@@ -2944,6 +2944,22 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/events/{event_id}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: event_id, in: path, required: true, schema: { type: string, maxLength: 64 } }
+    get:
+      operationId: getAppEvent
+      tags: [Apps]
+      summary: The scrubbed body of one stored event
+      description: |
+        The body is the privacy-filtered Sentry-shaped event written at ingest (exception chain, frames,
+        breadcrumbs, contexts, tags, request path, attachment metadata). Bodies are kept for 30 days; an older or
+        unknown event is a 404. Fields can be missing: clients must tolerate that.
+      responses:
+        '200': { description: Event body, content: { application/json: { schema: { $ref: '#/components/schemas/AppEventBody' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/issues/{issue}:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -5484,6 +5500,7 @@ components:
       type: object
       required: [ts, release, platform, os_version, arch, device_class, runtime, exit_reason, signal, exit_code, frames, tags]
       properties:
+        event_id: { type: string, description: 'Present for the dashboard; absent in MCP tool output.' }
         ts: { type: string, format: date-time }
         release: { type: string }
         platform: { type: string }
@@ -5496,6 +5513,13 @@ components:
         exit_code: { type: integer, format: int32, nullable: true }
         frames: { type: string }
         tags: { type: object, additionalProperties: true }
+    AppEventBody:
+      type: object
+      required: [event_id, ts, body]
+      properties:
+        event_id: { type: string }
+        ts: { type: string, format: date-time }
+        body: { type: object, additionalProperties: true, description: 'message, exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional.' }
     AppIssueDetail:
       type: object
       required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, series, breakdowns, latest_events]

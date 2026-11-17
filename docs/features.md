@@ -46,6 +46,7 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | Short links and tracking pixels | ? | ✓ | ? | ✅ (`/l/{slug}`, `/px/{id}.gif`, default UTM tags, expiry, click limits, QR code, per-link stats) |
 | Pixel analytics projects and open GitHub counters | ? | ? | ? | ✅ (aggregate-only GIF pixels, branded SVG badges, snippets and a dedicated dashboard; open counters are opt-in) |
 | App health for desktop, mobile and backend apps | ? | ? | ? | ✅ (app projects with a write-only ingest key, crash and error reports grouped into issues, crash-free users and sessions, regressions by release, compatibility matrix, releases page, issue alerts, TypeScript and Python client kits, read-only MCP tools) |
+| App Monitoring: Sentry SDK compatibility | ? | ? | ? | ✅ (point an unmodified Sentry SDK at the project DSN: JavaScript, Node, Electron, Python, Go, Android and Cocoa; DSN keys with allowed origins and revoke; per-SDK setup screen; event detail with exception chain, in-app frames, breadcrumbs, contexts and tags; performance, replays, profiles, cron and source maps are later phases) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
@@ -76,7 +77,7 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | Teams / orgs with roles | ✓ | ✓ | ✓ | ✅ |
 | Per-site access | ✓ | ✓ | ? | ✅ |
 | Two-factor auth (TOTP) | ✓ | ✓ | ? | ✅ |
-| Instance admin console and a two-factor policy | ✓ (enterprise) | ? | ? | ✅ (users, organizations, sites, estimated site/organization storage, settings and security; policy for nobody, instance admins, owners and admins, or everyone with a grace period and audited exemptions) |
+| Instance admin console and a two-factor policy | ✓ (enterprise) | ? | ? | ✅ (users, organizations, sites, estimated site/organization storage, settings, security, and Email (SMTP) with a test email; policy for nobody, instance admins, owners and admins, or everyone with a grace period and audited exemptions) |
 | Interface languages | ? | ? | ? | ✅ (English, plus machine-assisted Spanish and German; pseudo-locale for layout tests; some text is not translated yet) |
 | Account self-service: edit name, change email or password, delete account | ✓ | ✓ | ✓ | ✅ |
 | Invite-only signup by default | ✓ (`DISABLE_REGISTRATION`) | – | – | ✅ (`SUPERMETRY_SIGNUP=open` to allow) |

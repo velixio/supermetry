@@ -3,6 +3,7 @@ module supermetry
 go 1.27.4
 
 require (
+	github.com/andybalholm/brotli v1.2.1
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/klauspost/compress v1.20.2
 	github.com/maxmind/mmdbwriter v1.2.0

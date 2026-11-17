@@ -78,6 +78,7 @@ import (
 	"supermetry/internal/salts"
 	"supermetry/internal/scheduler"
 	"supermetry/internal/sentryapi"
+	"supermetry/internal/sentryingest"
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
@@ -490,6 +491,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
+	var sentryIngest api.SentryIngest
+	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
+		// Bodies have no writer yet, so the body queue is nil and scrubbed bodies are discarded.
+		sentryIngest = sentryingest.NewHandler(dsnRegistry, appIntake, nil, enricher, cfg.TrustedProxies, settings.clock.Now).
+			WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight)
+	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
 		PathPolicy:   cfg.TrackingPaths,
@@ -529,7 +536,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now), Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now), SentryIngest: sentryIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
 		StripeAttribution: &stripe.AttributionHandler{
