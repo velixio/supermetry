@@ -118,6 +118,37 @@ from app_events e
 left join pings p on p.session_hash = e.session_hash
 where e.site_id = $1 and e.ts >= $3 and e.ts < $4
 group by e.site_id, e.release, e.platform`, []any{siteID, date, start, end}},
+			{"clear session daily", `delete from app_session_daily where site_id = $1 and day = $2`, []any{siteID, date}},
+			{"insert session daily", `
+with s as (
+  select release, environment, platform,
+         count(*) as sessions,
+         count(*) filter (where status = 'errored') as errored,
+         count(*) filter (where status = 'crashed') as crashed,
+         count(*) filter (where status = 'abnormal') as abnormal,
+         count(distinct install_hash) as users,
+         count(distinct install_hash) filter (where status = 'crashed') as crashed_users,
+         count(distinct install_hash) filter (where status = 'errored') as errored_users
+  from app_sessions
+  where site_id = $1 and started >= $3 and started < $4
+  group by release, environment, platform
+), a as (
+  select release, environment, platform,
+         sum(occurrences) as sessions,
+         coalesce(sum(occurrences) filter (where exit_reason = 'crashed'), 0) as crashed,
+         coalesce(sum(occurrences) filter (where exit_reason = 'abnormal'), 0) as abnormal
+  from app_events
+  where site_id = $1 and ts >= $3 and ts < $4 and kind = 'session' and session_hash is null
+  group by release, environment, platform
+)
+insert into app_session_daily (site_id, day, release, environment, platform, sessions, errored, crashed, abnormal, users, crashed_users, errored_users)
+select $1, $2::date, coalesce(s.release, a.release), coalesce(s.environment, a.environment), coalesce(s.platform, a.platform),
+       coalesce(s.sessions, 0) + coalesce(a.sessions, 0),
+       coalesce(s.errored, 0),
+       coalesce(s.crashed, 0) + coalesce(a.crashed, 0),
+       coalesce(s.abnormal, 0) + coalesce(a.abnormal, 0),
+       coalesce(s.users, 0), coalesce(s.crashed_users, 0), coalesce(s.errored_users, 0)
+from s full join a on a.release = s.release and a.environment = s.environment and a.platform = s.platform`, []any{siteID, date, start, end}},
 			{"clear issue hourly", `delete from app_issue_hourly where site_id = $1 and hour >= $2 and hour < $3`, []any{siteID, hourFrom, hourTo}},
 			{"insert issue hourly", `
 insert into app_issue_hourly (site_id, issue_id, hour, events)
