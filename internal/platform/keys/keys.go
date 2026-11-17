@@ -335,6 +335,10 @@ func (k *Keys) flushLastUsed(ctx context.Context, interval time.Duration) {
 // characters, so an upload key's prefix and secret together fill them.
 const uploadSecretLength = 43 - keyPrefixLength
 
+// canonicalBase64Tail are the final characters of a 43 character base64 string
+// that decode without leftover bits.
+const canonicalBase64Tail = "AEIMQUY4"
+
 // isUploadKey reports whether scopes are exactly the source map upload scope.
 func isUploadKey(scopes []string) bool {
 	return len(scopes) == 1 && scopes[0] == "releases:write"
@@ -355,7 +359,9 @@ func newKeyParts(upload bool) (string, string, error) {
 	prefix := strings.ToLower(base32NoPadding.EncodeToString(prefixBytes))
 	secret := base32NoPadding.EncodeToString(secretBytes)
 	if upload {
-		secret = secret[:uploadSecretLength]
+		// The Rust sentry-cli decodes the 43 character secret as base64, which
+		// rejects a final character whose low bits are set. Keep it canonical.
+		secret = secret[:uploadSecretLength-1] + string(canonicalBase64Tail[int(secret[uploadSecretLength-1])%len(canonicalBase64Tail)])
 	}
 	return prefix, secret, nil
 }
