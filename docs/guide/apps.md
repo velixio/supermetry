@@ -282,6 +282,16 @@ Open an issue to triage it. Owners, admins and editors can change an issue; view
 
 Through the private API, `PATCH /api/private/sites/{site}/app/issues/{issue}` takes any of `status`, `resolved_in_release`, `assignee` (a user id, `0` to unassign), `priority`, `snooze` (`until`, `events`, `users`), `archive` and `github_url`. Comments live under `.../issues/{issue}/comments` and the timeline at `.../issues/{issue}/activity`. A change that alters nothing writes no activity row.
 
+## Ownership and grouping rules
+
+Project settings have two ordered rule lists. Owners, admins and editors can change them; viewers can read them. Each list holds up to 200 rules, and a value is a glob of at most 200 characters: `*` matches any run of characters (including `/`), `?` matches one character, and a backslash makes the next character literal. Matching is case-sensitive. The first matching rule wins, so order matters.
+
+**Ownership rules** route a new issue to a member. A rule matches the file path or module of an in-app frame, or a tag (`path`, `module`, `tag:<key>`), and names the owner. The rule runs once, when an issue is first created: the issue is assigned and the timeline shows an `assigned` row by "System". It never changes the assignee of an existing issue, so unassigning stays unassigned, and an owner who has since left the project is skipped. Matching sees the original file names of symbolicated frames.
+
+**Grouping rules** decide which events share an issue. A rule matches the error type, the message, a frame path or module, or a tag (`error_type`, `message`, `path`, `module`, `tag:<key>`) and gives a fingerprint of 1 to 64 characters. Matching events are grouped by that fingerprint instead of the computed one (an SDK fingerprint included), so different stacks can land in one issue. Put `{{ default }}` in the fingerprint to keep the default grouping and add to it, for example `{{ default }}-acme` splits the default groups by customer. Rules apply to new events only: issues that already exist are not regrouped.
+
+Through the private API, `GET` and `PUT /api/private/sites/{site}/app/rules` read and replace both lists as `{"ownership": [{"matcher", "value", "owner_user_id"}], "grouping": [{"matcher", "value", "fingerprint"}]}`. A bad rule is a 400 that names its position, such as `ownership[1]`. Changes reach ingestion with the next site refresh, which the save triggers; no database lookup happens per event.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.
