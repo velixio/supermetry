@@ -4,7 +4,7 @@ export const APP_PERIODS: readonly [Period, string][] = [
   ['today', 'Today'], ['7d', 'Last 7 days'], ['28d', 'Last 28 days'], ['30d', 'Last 30 days'], ['91d', 'Last 91 days'], ['6mo', 'Last 6 months'], ['12mo', 'Last 12 months'],
 ]
 export const APP_PLATFORMS = ['windows', 'macos', 'linux', 'ios', 'android', 'web', 'other'] as const
-export const ISSUE_STATUSES = ['open', 'regressed', 'resolved', 'ignored', 'all'] as const
+export const ISSUE_STATUSES = ['open', 'regressed', 'resolved', 'ignored', 'archived', 'all'] as const
 export const ISSUE_SORTS = ['last_seen', 'events', 'users'] as const
 export const ISSUE_KINDS = ['crash', 'error', 'hang', 'install_failed', 'install_stalled', 'incompatibility', 'operation_failed'] as const
 
