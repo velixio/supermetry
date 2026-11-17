@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"supermetry/internal/sites"
 )
@@ -209,4 +210,25 @@ func loadBotData() (crawlerMatcher, map[string]struct{}, error) {
 	}
 
 	return crawlerMatcher{pattern: pattern, rules: rules}, spam, nil
+}
+
+var (
+	crawlerOnce    sync.Once
+	crawlerPackage crawlerMatcher
+)
+
+// IsCrawlerUA reports whether a user agent matches the crawler list. Unlike
+// Bot it needs no Enricher and treats an empty user agent as not a crawler,
+// because SDKs outside browsers may send none.
+func IsCrawlerUA(ua string) bool {
+	if ua == "" {
+		return false
+	}
+	crawlerOnce.Do(func() {
+		c, _, err := loadBotData()
+		if err == nil {
+			crawlerPackage = c
+		}
+	})
+	return crawlerPackage.pattern != nil && crawlerPackage.pattern.MatchString(ua)
 }

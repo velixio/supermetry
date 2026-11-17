@@ -156,6 +156,10 @@ var wantEvents = map[string]int{
 // per status of an aggregate); updates of a running session add nothing.
 var wantSessionRows = map[string]int{"browser/session": 1, "node/session-aggregates": 1, "python/wsgi-sessions": 1}
 
+// filteredFixtures were recorded against a local server (127.0.0.1), so the
+// inbound localhost filter drops their events.
+var filteredFixtures = map[string]bool{"browser/breadcrumbs": true, "browser/onerror": true, "browser/unhandledrejection": true}
+
 func TestFixturesAccepted(t *testing.T) {
 	files := fixtureFiles(t)
 	seen := map[string]bool{}
@@ -197,7 +201,14 @@ func TestFixturesAccepted(t *testing.T) {
 			if got := w.Header().Get("X-Sentry-Rate-Limits"); got != rejectUnsupported {
 				t.Errorf("rate limits header = %q", got)
 			}
-			if got, want := e.queued(), wantEvents[name]+wantSessionRows[name]; got != want {
+			want := wantEvents[name] + wantSessionRows[name]
+			if filteredFixtures[name] {
+				want = 0
+				if got := e.h.Stats().Snapshot()["filtered"]; got != 1 {
+					t.Errorf("filtered = %d, want 1", got)
+				}
+			}
+			if got := e.queued(); got != want {
 				t.Errorf("stored events = %d, want %d", got, want)
 			}
 			var reply map[string]string

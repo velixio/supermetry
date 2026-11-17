@@ -344,6 +344,10 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				h.stats.Add("event_unsupported", 1)
 				continue
 			}
+			if reason := filterEvent(it.Payload, req.UserAgent); reason != "" {
+				h.stats.Add("filtered", 1)
+				continue
+			}
 			ev, body, err := h.normalise(it.Payload, ctx, site, now)
 			if err != nil {
 				if errors.Is(err, ErrTooOld) {
