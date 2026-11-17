@@ -1,20 +1,28 @@
 import '@testing-library/jest-dom/vitest'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, params }: { children: React.ReactNode; to: string; params: Record<string, string> }) => <a href={to.replace('$org', params.org).replace('$site', params.site)}>{children}</a>,
 }))
-vi.mock('@/features/settings/privateApi', () => ({
-  privateRequest: vi.fn(async () => ({
-    keys: [
-      { prefix: 'abcd1234', created_at: '2026-11-15T00:00:00Z', expires_at: null },
-      { prefix: 'old00000', created_at: '2026-11-01T00:00:00Z', expires_at: '2026-11-22T00:00:00Z' },
-    ],
-  })),
-}))
+const dsnKey = { public_key: 'a'.repeat(32), prefix: 'aaaaaaaa', dsn: 'https://' + 'a'.repeat(32) + '@app.example.com/19', label: 'Production', allowed_origins: ['https://app.example.com'], created_at: '2026-11-15T00:00:00Z', expires_at: null }
+const request = vi.hoisted(() => vi.fn())
+vi.mock('@/features/settings/privateApi', () => ({ privateRequest: request }))
+beforeEach(() => {
+  request.mockReset()
+  request.mockImplementation(async (method: string, path: string) => {
+    if (path.endsWith('/app/dsn-keys')) return method === 'GET' ? { keys: [dsnKey] } : dsnKey
+    if (method === 'DELETE') return undefined
+    return {
+      keys: [
+        { prefix: 'abcd1234', created_at: '2026-11-15T00:00:00Z', expires_at: null },
+        { prefix: 'old00000', created_at: '2026-11-01T00:00:00Z', expires_at: '2026-11-22T00:00:00Z' },
+      ],
+    }
+  })
+})
 const mounts = vi.hoisted(() => ({ count: 0 }))
 vi.mock('./TestReportCheck', async () => {
   const { useEffect } = await import('react')
@@ -27,6 +35,7 @@ vi.mock('./TestReportCheck', async () => {
 })
 
 import { AppInstallationPage, appInstallSnippets } from './AppInstallationPage'
+import { sdkSnippets } from './sdkSnippets'
 
 afterEach(cleanup)
 
@@ -68,6 +77,12 @@ describe('AppInstallationPage', () => {
         <AppInstallationPage org="acme" site="desktop" orgId={1} siteId={19} publicId="6quqxuelthfz" timezone="UTC" />
       </QueryClientProvider>,
     )
+    // The Sentry setup comes first: DSN with copy, snippets that set only dsn and release.
+    expect(await screen.findByLabelText('DSN')).toHaveTextContent(dsnKey.dsn)
+    expect(screen.getByRole('button', { name: 'Copy DSN' })).toBeInTheDocument()
+    expect(screen.getByText(/Sentry SDKs send no sessions without it\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('JavaScript (browser) setup')).toHaveTextContent(`dsn: "${dsnKey.dsn}"`)
+    expect(screen.getByLabelText('JavaScript (browser) setup')).toHaveTextContent('release:')
     expect(screen.getByLabelText('App ID')).toHaveTextContent('6quqxuelthfz')
     expect(screen.getByLabelText('Host')).toHaveTextContent(window.location.origin)
     expect(await screen.findByText('smk_abcd1234…')).toBeInTheDocument()
@@ -77,6 +92,10 @@ describe('AppInstallationPage', () => {
     expect(screen.getAllByText(/^valid until/)).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Rotate the key in App settings' })).toHaveAttribute('href', '/app/acme/desktop/settings/app')
     expect(screen.getByText('check for 6quqxuelthfz')).toBeInTheDocument()
+    // The old kits live in a collapsed section.
+    const legacy = screen.getByText('Legacy kits').closest('details')!
+    expect(legacy).not.toHaveAttribute('open')
+    expect(legacy).toContainElement(screen.getByLabelText('App ID'))
     // The kits are not published yet: the TypeScript tab builds and packs the kit before installing it.
     expect(screen.getByLabelText('TypeScript install')).toHaveTextContent('npm run build && npm pack')
   })
@@ -94,5 +113,26 @@ describe('AppInstallationPage', () => {
     expect(mounts.count).toBe(1)
     rerender(page(20, 'apptwo000002'))
     expect(mounts.count).toBe(2)
+  })
+
+  it('creates a key with allowed origins and revokes after confirming', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AppInstallationPage org="acme" site="desktop" orgId={1} siteId={19} publicId="6quqxuelthfz" timezone="UTC" />
+      </QueryClientProvider>,
+    )
+    await screen.findByLabelText('DSN')
+    fireEvent.change(screen.getByLabelText('Label (optional)'), { target: { value: 'Staging' } })
+    fireEvent.change(screen.getByLabelText('Allowed origins (optional)'), { target: { value: 'https://a.example.com\nhttps://b.example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create key' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('POST', '/api/private/sites/19/app/dsn-keys', { orgId: 1, body: { label: 'Staging', allowed_origins: ['https://a.example.com', 'https://b.example.com'] } }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke key aaaaaaaa' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Revoke key' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('DELETE', '/api/private/sites/19/app/dsn-keys/aaaaaaaa', { orgId: 1 }))
+  })
+
+  it('lists a snippet for every supported SDK', () => {
+    expect(sdkSnippets('https://k@h/1').map((sdk) => sdk.value)).toEqual(['browser', 'node', 'electron', 'python', 'go', 'android', 'cocoa'])
+    for (const sdk of sdkSnippets('https://k@h/1')) expect(sdk.code).toContain('https://k@h/1')
   })
 })

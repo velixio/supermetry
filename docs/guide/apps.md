@@ -1,4 +1,46 @@
-# Sending reports from desktop and mobile apps
+# App Monitoring
+
+App Monitoring shows when apps break, why, and who is affected: grouped issues,
+crash-free users and sessions, releases and compatibility. Desktop, mobile and
+backend apps can report to it with an unmodified **Sentry SDK** (change only the
+DSN), with the Supermetry client kits, or over plain HTTP.
+
+## Sentry SDKs: change the DSN
+
+Create an app project (Sites, New, App). **Settings, Installation** shows your
+DSN, which looks like `https://<public key>@<your host>/<project id>`, with a
+copy button and a snippet per SDK: JavaScript (browser), Node, Electron, Python,
+Go, Android and Cocoa. Every snippet sets only two options, `dsn` and `release`.
+Keep the SDK's default settings; its automatic capture of errors, breadcrumbs
+and sessions works as is.
+
+```js
+Sentry.init({
+  dsn: "https://<public key>@<your host>/<project id>",
+  release: "my-app@1.0.0",
+});
+```
+
+**Set `release`: Sentry SDKs send no sessions without it.** Without a release
+you get issues but no crash-free sessions or users.
+
+The DSN public key is meant to ship inside client bundles, so it is shown in
+full. Under **DSN keys** you can create more keys (for example one per
+environment), give each a label, restrict a key to allowed origins (browser
+requests from other origins are refused), and revoke a key at once. A key
+belongs to one app project.
+
+An issue lists its latest events. **Full event detail** shows the exception
+chain with in-app frames highlighted, breadcrumbs, contexts (OS, device, app,
+runtime, browser), tags and attachment names. Event detail is kept for 30 days;
+the issue and its counts are kept longer. Messages, emails, tokens, IP addresses,
+cookies and query strings are scrubbed before storage. See
+[Migrate from Sentry](migrate-from-sentry.md) for what is and is not supported.
+
+The sections below describe Supermetry's own app endpoint and client kits, still
+supported and listed under **Legacy kits** on the Installation page.
+
+## Sending reports from desktop and mobile apps
 
 Desktop apps (Electron, Tauri, native), mobile apps and backend services can send
 events, including failure reports, to the public events endpoint that the web

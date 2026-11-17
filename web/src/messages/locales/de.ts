@@ -290,6 +290,7 @@ const messages: MessageTree = {
     applicationSidebar: 'Anwendungsseitenleiste',
     sidebarSections: {
       analyze: 'Analysieren',
+      appMonitoring: 'App Monitoring',
       behaviour: 'Verhalten',
       conversion: 'Konversion',
       manage: 'Verwalten',

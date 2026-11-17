@@ -170,6 +170,24 @@ func (h *handler) getAppIssue(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+func (h *handler) getAppEvent(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	id := r.PathValue("event_id")
+	if len(id) == 0 || len(id) > 64 {
+		writeProblem(w, http.StatusNotFound, "Not found", "event not found")
+		return
+	}
+	out, err := h.appQuerier().Event(r.Context(), appScope(site), id)
+	if err != nil {
+		appQueryError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func (h *handler) getAppCompatibility(w http.ResponseWriter, r *http.Request) {
 	site, ok := h.appReadSite(w, r)
 	if !ok {
