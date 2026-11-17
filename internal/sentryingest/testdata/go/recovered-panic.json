@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "User-Agent": "sentry.go/0.50.0",
+    "X-Sentry-Auth": "Sentry sentry_version=7, sentry_client=sentry.go/0.50.0, sentry_key=0123456789abcdef0123456789abcdef"
+  },
+  "sdk": "go",
+  "sdk_version": "sentry.go@0.50.0",
+  "notes": "sentry-go v0.50.0 sentry.Recover of a nil-map write panic (built with -trimpath)"
+}
