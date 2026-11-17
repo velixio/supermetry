@@ -6001,9 +6001,6 @@ type EditAppIssueCommentJSONRequestBody = AppIssueCommentInput
 // ReplaceAppRulesJSONRequestBody defines body for ReplaceAppRules for application/json ContentType.
 type ReplaceAppRulesJSONRequestBody = AppRules
 
-// EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
-type EraseAppUserJSONRequestBody = AppUserErase
-
 // CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
 type CreateCohortJSONRequestBody = CohortInput
 
