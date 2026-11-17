@@ -517,6 +517,30 @@ func (e AppEventsResponseWarningsReason) Valid() bool {
 	}
 }
 
+// Defines values for AppUserErasureStatus.
+const (
+	AppUserErasureStatusDone    AppUserErasureStatus = "done"
+	AppUserErasureStatusFailed  AppUserErasureStatus = "failed"
+	AppUserErasureStatusPending AppUserErasureStatus = "pending"
+	AppUserErasureStatusRunning AppUserErasureStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the AppUserErasureStatus enum.
+func (e AppUserErasureStatus) Valid() bool {
+	switch e {
+	case AppUserErasureStatusDone:
+		return true
+	case AppUserErasureStatusFailed:
+		return true
+	case AppUserErasureStatusPending:
+		return true
+	case AppUserErasureStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateSiteRequestKind.
 const (
 	CreateSiteRequestKindApp   CreateSiteRequestKind = "app"
@@ -2696,7 +2720,7 @@ type AppEventPlatform string
 
 // AppEventBody defines model for AppEventBody.
 type AppEventBody struct {
-	// Body message, exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional.
+	// Body message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional.
 	Body    map[string]interface{} `json:"body"`
 	EventId string                 `json:"event_id"`
 	Ts      time.Time              `json:"ts"`
@@ -2883,10 +2907,46 @@ type AppReleases struct {
 type AppSettings struct {
 	Environments *[]string `json:"environments,omitempty"`
 
+	// FilterCrawlers Drop events sent by crawlers. Omitted or null means on.
+	FilterCrawlers *bool `json:"filter_crawlers,omitempty"`
+
+	// FilterExtensions Drop events raised inside browser extensions. Omitted or null means on.
+	FilterExtensions *bool `json:"filter_extensions,omitempty"`
+
+	// FilterLocalhost Drop events raised on localhost. Null means the server default (filter_localhost_default).
+	FilterLocalhost *bool `json:"filter_localhost,omitempty"`
+
+	// FilterLocalhostDefault The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update.
+	FilterLocalhostDefault *bool `json:"filter_localhost_default,omitempty"`
+
 	// MaxReportAgeDays 0 means the default of 7.
 	MaxReportAgeDays *int      `json:"max_report_age_days,omitempty"`
 	TagAllowlist     *[]string `json:"tag_allowlist,omitempty"`
 }
+
+// AppUserErase defines model for AppUserErase.
+type AppUserErase struct {
+	// UserId The user id the app's SDK reports.
+	UserId string `json:"user_id"`
+}
+
+// AppUserErasure defines model for AppUserErasure.
+type AppUserErasure struct {
+	Attempts         int                  `json:"attempts"`
+	BodiesDeleted    int64                `json:"bodies_deleted"`
+	CompletedAt      time.Time            `json:"completed_at"`
+	CreatedAt        time.Time            `json:"created_at"`
+	EventsAnonymized int64                `json:"events_anonymized"`
+	Id               int64                `json:"id"`
+	LastError        string               `json:"last_error"`
+	Status           AppUserErasureStatus `json:"status"`
+
+	// StatusUrl Present on the 202 response.
+	StatusUrl *string `json:"status_url,omitempty"`
+}
+
+// AppUserErasureStatus defines model for AppUserErasure.Status.
+type AppUserErasureStatus string
 
 // ChangeShareExpiryRequest defines model for ChangeShareExpiryRequest.
 type ChangeShareExpiryRequest struct {
@@ -3508,7 +3568,7 @@ type GitHubStarsRepo struct {
 	// HistoryComplete False while the history import of a large repository is unfinished.
 	HistoryComplete bool       `json:"history_complete"`
 	Id              int64      `json:"id"`
-	LastError       *string    `json:"last_error"`
+	LastError       string     `json:"last_error"`
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
 	LastWebhookAt   *time.Time `json:"last_webhook_at"`
 
@@ -5743,6 +5803,9 @@ type CreateAppDSNKeyJSONRequestBody = AppDSNKeyCreate
 // UpdateAppIssueStatusJSONRequestBody defines body for UpdateAppIssueStatus for application/json ContentType.
 type UpdateAppIssueStatusJSONRequestBody = AppIssueStatusInput
 
+// EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
+type EraseAppUserJSONRequestBody = AppUserErase
+
 // CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
 type CreateCohortJSONRequestBody = CohortInput
 
@@ -6620,6 +6683,12 @@ type ServerInterface interface {
 	// GetAppReleases Releases with events in the range, newest first, with crash-free rates
 	// (GET /api/private/sites/{site}/app/releases)
 	GetAppReleases(w http.ResponseWriter, r *http.Request, site int32, params GetAppReleasesParams)
+	// EraseAppUser Erase what an app project stores about one end user
+	// (POST /api/private/sites/{site}/app/users/erase)
+	EraseAppUser(w http.ResponseWriter, r *http.Request, site int32)
+	// GetAppUserErasure Get the status and counts of an app user erasure
+	// (GET /api/private/sites/{site}/app/users/erasures/{erasure})
+	GetAppUserErasure(w http.ResponseWriter, r *http.Request, site int32, erasure int64)
 	// ListCohorts List saved cohorts
 	// (GET /api/private/sites/{site}/cohorts)
 	ListCohorts(w http.ResponseWriter, r *http.Request, site int32)
@@ -10558,6 +10627,67 @@ func (siw *ServerInterfaceWrapper) GetAppReleases(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAppReleases(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EraseAppUser operation middleware
+func (siw *ServerInterfaceWrapper) EraseAppUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EraseAppUser(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppUserErasure operation middleware
+func (siw *ServerInterfaceWrapper) GetAppUserErasure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "erasure" -------------
+	var erasure int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "erasure", r.PathValue("erasure"), &erasure, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "erasure", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppUserErasure(w, r, site, erasure)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14680,6 +14810,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys", wrapper.ListAppDSNKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys", wrapper.CreateAppDSNKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys/{prefix}", wrapper.RevokeAppDSNKey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erase", wrapper.EraseAppUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
