@@ -83,6 +83,40 @@ func (f appFixture) create(t *testing.T, site int32, user string) AppRequest {
 	return r
 }
 
+func TestAppWorkerClearsInstallHashOnSessions(t *testing.T) {
+	f := newAppFixture(t)
+	ctx := context.Background()
+	for _, who := range []string{"alice", "alice", "bob"} {
+		if _, err := f.pool.Exec(ctx, `insert into app_sessions(site_id,started,session_hash,install_hash,release,status,updated_at)
+values (7,'2026-11-17T10:00:00Z',decode(md5(random()::text),'hex'),$1,'1.0','ok',now())`, appHashOf(who)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i, who := range []string{"alice", "bob"} {
+		if _, err := f.pool.Exec(ctx, `insert into app_events(site_id,ts,received_at,event_id,kind,release,install_hash)
+values (7,'2026-11-17T10:00:00Z','2026-11-17T10:00:00Z',$1,'session','1.0',$2)`, "ping"+string(rune('a'+i)), appHashOf(who)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.create(t, 7, "alice")
+	w := NewAppWorker(f.pool, f.store)
+	w.batch = 1
+	if err := w.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var sessAlice, sessBob, pingAlice, pingBob int
+	if err := f.pool.QueryRow(ctx, `select
+ (select count(*) from app_sessions where install_hash=$1),
+ (select count(*) from app_sessions where install_hash=$2),
+ (select count(*) from app_events where kind='session' and install_hash=$1),
+ (select count(*) from app_events where kind='session' and install_hash=$2)`, appHashOf("alice"), appHashOf("bob")).Scan(&sessAlice, &sessBob, &pingAlice, &pingBob); err != nil {
+		t.Fatal(err)
+	}
+	if sessAlice != 0 || sessBob != 1 || pingAlice != 0 || pingBob != 1 {
+		t.Fatalf("alice sessions=%d bob sessions=%d alice pings=%d bob pings=%d", sessAlice, sessBob, pingAlice, pingBob)
+	}
+}
+
 func (f appFixture) counts(t *testing.T) (bodies, hashed int) {
 	t.Helper()
 	if err := f.pool.QueryRow(context.Background(), `select (select count(*) from app_event_bodies where site_id=7),
