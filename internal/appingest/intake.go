@@ -241,6 +241,17 @@ func (in *Intake) close() { in.closed.Store(true) }
 
 // --- event id window ---
 
+// Seen reports whether key was already received for the site inside the dedup
+// window and records it if not. It shares the window of event ids, so callers
+// prefix their keys ("tx:") to keep kinds apart.
+func (in *Intake) Seen(siteID int32, key string, now time.Time) bool {
+	return in.dedup.seen(dedupKey{siteID, key}, now)
+}
+
+// Forget removes a key recorded by Seen, so a retry of a request that was not
+// stored (queue full, rate limited) is not mistaken for a duplicate.
+func (in *Intake) Forget(siteID int32, key string) { in.dedup.release(dedupKey{siteID, key}) }
+
 type dedupKey struct {
 	siteID int32
 	id     string

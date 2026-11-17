@@ -13,11 +13,25 @@ const (
 	// rejectUnsupported is sent on every 2xx so SDKs stop sending categories
 	// that Phase 1a does not store.
 	rejectUnsupported = "3600:transaction;span;profile;profile_chunk;replay;log;trace_metric;check_in;feedback:project:not_supported"
+	// perfUnsupported is sent instead of rejectUnsupported for projects with
+	// performance on: transactions and spans are accepted.
+	perfUnsupported = "3600:profile;profile_chunk;replay;log;trace_metric;check_in;feedback:project:not_supported"
+	// spanLimits accompanies a span or transaction that was over the project's
+	// span budget.
+	spanLimits = "60:transaction;span:project:rate_limit"
 	// spikeLimits and budgetLimits accompany a 429.
 	spikeLimits  = "60:error;default:project:spike_protection"
 	budgetLimits = "60:error;default:project:rate_limit"
 	ipLimits     = "60:error;default:ip:rate_limit"
 )
+
+// unsupportedLimits is the not_supported quota list sent on every 2xx.
+func unsupportedLimits(perf bool) string {
+	if perf {
+		return perfUnsupported
+	}
+	return rejectUnsupported
+}
 
 // spikeGuard caps events per site per minute with a fixed window. It is
 // in-memory and per process, on top of the intake's per-key budget.

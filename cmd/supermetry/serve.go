@@ -510,7 +510,6 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		},
 	}, spans.HealthStats{}, nil)
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
-	_, _ = spanWriter, spanBudget // handed to the Sentry and OTLP front doors by the next tasks
 	var sentryIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
@@ -519,7 +518,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
 		})
-		sentryHandler.WithSymbolicator(symbolicator)
+		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
 		sentryIngest = sentryHandler
 	}
 	intake := &ingest.Handler{
