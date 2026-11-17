@@ -1,0 +1,3 @@
+{"sent_at":"2026-11-17T13:11:41.686Z","sdk":{"name":"sentry.javascript.browser","version":"11.13.0"}}
+{"type":"session"}
+{"sid":"f4f879bbd40149b586a1c19480b043e2","init":true,"started":"2026-11-17T13:11:41.685Z","timestamp":"2026-11-17T13:11:41.685Z","status":"ok","errors":0,"attrs":{"release":"fixture@1.0.0","environment":"fixture","ip_address":"{{auto}}","user_agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36"}}
