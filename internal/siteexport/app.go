@@ -173,7 +173,20 @@ select b.id,b.release,b.dist,b.state,
 from app_artifact_bundles b
 where b.org_id=$5 and (b.site_ids='{}' or $1=any(b.site_ids)) and ` + inWindow("b.created_at") + `
 order by b.id`
-	return e.writeRows(ctx, archive, "app_artifacts.csv",
+	if err := e.writeRows(ctx, archive, "app_artifacts.csv",
 		[]string{"bundle_id", "release", "dist", "state", "debug_ids", "file_count", "size_bytes", "created"},
-		artifacts, siteID, f, t, tz, orgID)
+		artifacts, siteID, f, t, tz, orgID); err != nil {
+		return err
+	}
+
+	// Uploaded debug files: metadata only, never blob keys or contents.
+	debugFiles := `
+select d.id,d.kind,d.debug_id,d.code_id,d.arch,d.object_name,array_to_string(d.features,' '),d.cache_state,u.size,` + utc("d.created_at") + `
+from app_debug_files d
+join app_dif_uploads u on u.id=d.upload_id
+where d.org_id=$5 and (d.site_id is null or d.site_id=$1) and ` + inWindow("d.created_at") + `
+order by d.id`
+	return e.writeRows(ctx, archive, "app_debug_files.csv",
+		[]string{"file_id", "kind", "debug_id", "code_id", "arch", "object_name", "features", "cache_state", "size_bytes", "created"},
+		debugFiles, siteID, f, t, tz, orgID)
 }

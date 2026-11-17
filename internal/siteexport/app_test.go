@@ -65,6 +65,12 @@ insert into app_artifact_bundles(id,org_id,site_ids,release,dist,checksum,state,
 insert into app_artifact_files(bundle_id,org_id,site_id,debug_id,release,dist,url,type,blob_key,size) values
  (1,1,null,'11111111-1111-1111-1111-111111111111','1.1.0','d1','~/secret/path.js.map','source_map','bundles/1/secret-key',1024),
  (1,1,null,'22222222-2222-2222-2222-222222222222','1.1.0','d1','~/b.js','minified_source','bundles/1/secret-key2',1024);
+insert into app_dif_uploads(id,org_id,site_ids,checksum,name,state,size,blob_key,created_at) overriding system value values
+ (1,1,'{}','cccccccccccccccccccccccccccccccccccccccc','libfix.so','ok',4096,'difs/1/secret-raw','2026-10-02T07:30:00Z'),
+ (2,2,'{}','dddddddddddddddddddddddddddddddddddddddd','other.so','ok',1,'difs/2/x','2026-10-02T07:30:00Z');
+insert into app_debug_files(id,upload_id,org_id,site_id,debug_id,code_id,kind,arch,object_name,features,cache_state,cache_key,created_at) overriding system value values
+ (1,1,1,null,'7a3c9e10-55b2-4b8e-8a53-2f0c8d4e9a01','109e3c7a','elf','arm64','libfix.so','{symtab,debug}','ok','difcache/1/secret-cache','2026-10-02T07:30:00Z'),
+ (2,2,2,null,'33333333-3333-3333-3333-333333333333','','elf','arm64','other.so','{}','pending',null,'2026-10-02T07:30:00Z');
 `
 
 func newAppExport(t *testing.T) (*siteexport.Exporter, context.Context) {
@@ -113,7 +119,7 @@ func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site
 func TestAppSiteExportsExactCSVs(t *testing.T) {
 	e, ctx := newAppExport(t)
 	files, names, _ := exportFiles(t, e, ctx, 7)
-	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv", "app_sessions_daily.csv", "app_commits.csv"} {
+	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv", "app_sessions_daily.csv", "app_commits.csv", "app_debug_files.csv"} {
 		if !slices.Contains(names, want) {
 			t.Fatalf("missing %s in %v", want, names)
 		}
@@ -166,6 +172,10 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 		{"bundle_id", "release", "dist", "state", "debug_ids", "file_count", "size_bytes", "created"},
 		{"1", "1.1.0", "d1", "ok", "11111111-1111-1111-1111-111111111111 22222222-2222-2222-2222-222222222222", "2", "2048", "2026-10-02T07:00:00.000Z"},
 	})
+	check("app_debug_files.csv", [][]string{
+		{"file_id", "kind", "debug_id", "code_id", "arch", "object_name", "features", "cache_state", "size_bytes", "created"},
+		{"1", "elf", "7a3c9e10-55b2-4b8e-8a53-2f0c8d4e9a01", "109e3c7a", "arm64", "libfix.so", "symtab debug", "ok", "4096", "2026-10-02T07:30:00.000Z"},
+	})
 }
 
 func TestAppExportLeaksNoPersonalData(t *testing.T) {
@@ -190,7 +200,7 @@ func TestAppExportLeaksNoPersonalData(t *testing.T) {
 			}
 		}
 	}
-	for _, bad := range []string{"cafebabe", "deadbeef", "feedface", "leak@", "203.0.113.9", "secret", "bundles/1", "ip_address"} {
+	for _, bad := range []string{"cafebabe", "deadbeef", "feedface", "leak@", "203.0.113.9", "secret", "difcache/", "difs/1", "bundles/1", "ip_address"} {
 		if strings.Contains(strings.ToLower(raw), bad) {
 			t.Fatalf("export contains %q", bad)
 		}

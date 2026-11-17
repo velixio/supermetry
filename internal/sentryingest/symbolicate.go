@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/debugfile"
 	"supermetry/internal/replay"
 	"supermetry/internal/sourcemap"
 )
@@ -71,6 +73,39 @@ type SymbolicatorConfig struct {
 	Stats     *Stats
 	// Deliver receives events submitted through Submit, resolved or not.
 	Deliver func(appingest.Event, appingest.Body)
+	// Resolvers run in order on every event any of them wants; nil means the
+	// JavaScript resolver only.
+	Resolvers []Resolver
+	// DebugFiles finds uploaded native and JVM debug file caches; nil disables
+	// those resolvers' lookups.
+	DebugFiles DebugFileStore
+	// Disk materialises cache blobs for read-at-offset parsing; nil disables Cache.
+	Disk *debugfile.DiskCache
+	// Misses is told about debug images no uploaded file covered; nil drops them.
+	Misses MissSink
+}
+
+// Resolver rewrites the frames of one kind of event: minified JavaScript,
+// obfuscated JVM or native. Wants must be cheap and side-effect free, it runs
+// on the HTTP path. Resolve runs in a symbolication worker with a body whose
+// exceptions and frames are already private copies, so it may change them in
+// place, and reports how many frames it tried and how many it resolved.
+type Resolver interface {
+	Wants(b appingest.Body) bool
+	Resolve(ctx context.Context, ev appingest.Event, b *appingest.Body, s *Symbolicator) (attempted, resolved int)
+}
+
+// DebugFileStore finds the cache of an uploaded debug file for a project.
+type DebugFileStore interface {
+	// CacheFor returns the blob key of the newest finished cache of the kind
+	// ("macho", "elf", "proguard") and debug id that the site may use.
+	CacheFor(ctx context.Context, siteID int32, kind, debugID string) (cacheKey string, found bool, err error)
+}
+
+// MissSink receives the debug images an event needed and no uploaded file
+// provided, for the missing-symbols banner.
+type MissSink interface {
+	Missing(siteID int32, kind string, im appingest.DebugImage, at time.Time)
 }
 
 type job struct {
@@ -129,6 +164,9 @@ func NewSymbolicator(store ArtifactStore, blobs replay.BlobStore, cfg Symbolicat
 	if cfg.Stats == nil {
 		cfg.Stats = &Stats{}
 	}
+	if cfg.Resolvers == nil {
+		cfg.Resolvers = []Resolver{JSResolver()}
+	}
 	s := &Symbolicator{
 		store: store, blobs: blobs, cfg: cfg, queue: make(chan job, cfg.QueueSize),
 		cache: newMapCache(cfg.CacheBytes), lookups: map[string]lookupEntry{}, loading: map[string]*loadCall{},
@@ -170,7 +208,7 @@ func (s *Symbolicator) Submit(ev appingest.Event, body appingest.Body, sdkFinger
 // SubmitWith is Submit with a per-event delivery function, for callers that
 // carry request context (the site, the ingest key) with the event.
 func (s *Symbolicator) SubmitWith(ev appingest.Event, body appingest.Body, sdkFingerprint []string, deliver func(appingest.Event, appingest.Body)) bool {
-	if deliver == nil || !needsSymbolication(body) {
+	if deliver == nil || !s.wants(body) {
 		return false
 	}
 	s.mu.RLock()
@@ -225,6 +263,15 @@ func jsFrame(platform string, f appingest.Frame) bool {
 	return ok
 }
 
+func (s *Symbolicator) wants(b appingest.Body) bool {
+	for _, r := range s.cfg.Resolvers {
+		if r.Wants(b) {
+			return true
+		}
+	}
+	return false
+}
+
 func needsSymbolication(b appingest.Body) bool {
 	for _, ex := range b.Exceptions {
 		for _, f := range ex.Frames {
@@ -260,40 +307,24 @@ func scriptKeys(abs string) []string {
 }
 
 func (s *Symbolicator) symbolicate(ctx context.Context, ev appingest.Event, body appingest.Body, sdkFP []string) (appingest.Event, appingest.Body) {
-	siteID := body.SiteID
 	// Frames are copied before they are changed: the caller's body is not shared.
+	work := body
 	exceptions := make([]appingest.Exception, len(body.Exceptions))
 	copy(exceptions, body.Exceptions)
-	attempted, resolved := 0, 0
-	maps := map[string]*sourcemap.Map{} // per event, by script URL
-	missing := map[string]bool{}
 	for i := range exceptions {
 		frames := make([]appingest.Frame, len(exceptions[i].Frames))
 		copy(frames, exceptions[i].Frames)
 		exceptions[i].Frames = frames
-		for k := range frames {
-			f := frames[k]
-			if !jsFrame(body.Platform, f) {
-				continue
-			}
-			attempted++
-			m := maps[f.AbsURL]
-			if m == nil && !missing[f.AbsURL] {
-				m = s.mapFor(ctx, siteID, ev, body, f)
-				if m == nil {
-					missing[f.AbsURL] = true
-				} else {
-					maps[f.AbsURL] = m
-				}
-			}
-			if m == nil {
-				continue
-			}
-			if nf, ok := resolveFrame(m, f); ok {
-				frames[k] = nf
-				resolved++
-			}
+	}
+	work.Exceptions = exceptions
+	attempted, resolved := 0, 0
+	for _, r := range s.cfg.Resolvers {
+		if !r.Wants(work) {
+			continue
 		}
+		a, rs := r.Resolve(ctx, ev, &work, s)
+		attempted += a
+		resolved += rs
 	}
 	switch {
 	case attempted == 0:
@@ -317,6 +348,67 @@ func (s *Symbolicator) symbolicate(ctx context.Context, ev appingest.Event, body
 	ev.OwnerUserID = appingest.OwnerOf(body, body.Row.Rules)
 	body.Row.GroupingVersion = ev.GroupingVersion
 	return ev, body
+}
+
+type jsResolver struct{}
+
+// JSResolver resolves minified JavaScript frames through uploaded source maps.
+func JSResolver() Resolver { return jsResolver{} }
+
+func (jsResolver) Wants(b appingest.Body) bool { return needsSymbolication(b) }
+
+func (jsResolver) Resolve(ctx context.Context, ev appingest.Event, body *appingest.Body, s *Symbolicator) (attempted, resolved int) {
+	siteID := body.SiteID
+	maps := map[string]*sourcemap.Map{} // per event, by script URL
+	missing := map[string]bool{}
+	for i := range body.Exceptions {
+		frames := body.Exceptions[i].Frames
+		for k := range frames {
+			f := frames[k]
+			if !jsFrame(body.Platform, f) {
+				continue
+			}
+			attempted++
+			m := maps[f.AbsURL]
+			if m == nil && !missing[f.AbsURL] {
+				m = s.mapFor(ctx, siteID, ev, *body, f)
+				if m == nil {
+					missing[f.AbsURL] = true
+				} else {
+					maps[f.AbsURL] = m
+				}
+			}
+			if m == nil {
+				continue
+			}
+			if nf, ok := resolveFrame(m, f); ok {
+				frames[k] = nf
+				resolved++
+			}
+		}
+	}
+	return attempted, resolved
+}
+
+// Cache opens the cache blob of an uploaded debug file as a local file, through
+// the on-disk LRU. It is the resolvers' only way to read cache blobs; the
+// caller closes the file.
+func (s *Symbolicator) Cache(ctx context.Context, key string) (*os.File, int64, error) {
+	if s.cfg.Disk == nil {
+		return nil, 0, errors.New("sentryingest: no symbol cache configured")
+	}
+	return s.cfg.Disk.Open(ctx, key, func(ctx context.Context) (io.ReadCloser, error) { return s.blobs.Open(ctx, key) })
+}
+
+// cacheFor looks up the cache blob key of a debug id, reusing the lookup TTL
+// cache so a busy release costs one index probe per interval.
+func (s *Symbolicator) cacheFor(ctx context.Context, siteID int32, kind, debugID string) (string, bool) {
+	if s.cfg.DebugFiles == nil {
+		return "", false
+	}
+	return s.lookup(ctx, "c|"+itoa32(siteID)+"|"+kind+"|"+debugID, func() (string, bool, error) {
+		return s.cfg.DebugFiles.CacheFor(ctx, siteID, kind, debugID)
+	})
 }
 
 // resolveFrame rewrites one frame from the map; ok is false when the map has

@@ -838,6 +838,14 @@ func TestLoadSymbolicateSettings(t *testing.T) {
 	}
 	values := baseEnv()
 	values["SUPERMETRY_SYMBOLICATE_WORKERS"] = "4"
+	if c.DIFMaxMB != 512 || c.SymcacheDiskMB != 2048 {
+		t.Fatalf("debug file defaults = %d, %d", c.DIFMaxMB, c.SymcacheDiskMB)
+	}
+	values["SUPERMETRY_DIF_MAX_MB"] = "100"
+	values["SUPERMETRY_SYMCACHE_DISK_MB"] = "300"
+	if c, err = Load(env(values)); err != nil || c.DIFMaxMB != 100 || c.SymcacheDiskMB != 300 {
+		t.Fatalf("debug file settings = %d, %d, err %v", c.DIFMaxMB, c.SymcacheDiskMB, err)
+	}
 	values["SUPERMETRY_SYMBOLICATE_CACHE_MB"] = "64"
 	if c, err = Load(env(values)); err != nil || c.SymbolicateWorkers != 4 || c.SymbolicateCacheMB != 64 {
 		t.Fatalf("set = %d, %d, err %v", c.SymbolicateWorkers, c.SymbolicateCacheMB, err)

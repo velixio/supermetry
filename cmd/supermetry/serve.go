@@ -37,6 +37,7 @@ import (
 	"supermetry/internal/config"
 	"supermetry/internal/datapurge"
 	"supermetry/internal/db"
+	"supermetry/internal/debugfile"
 	"supermetry/internal/demo"
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
@@ -501,7 +502,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
-		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes})
+		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
@@ -527,6 +528,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
+			Disk: debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
 		})
 		sentryHandler.WithSymbolicator(symbolicator)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())

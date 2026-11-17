@@ -7,8 +7,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ArtifactScanner attributes uploaded source map storage to sites. The bytes
-// are the assembled bundle sizes the organization cap is enforced against
+// ArtifactScanner attributes uploaded source map and debug file storage to sites. The bytes
+// are the assembled bundle and debug file sizes the organization cap is enforced against
 // (app_artifact_bundles.size), reported in the auxiliary category next to the
 // bundles' index rows. A bundle that names sites is split between them, and
 // one that covers the whole organization is split between its live app sites,
@@ -21,13 +21,15 @@ type ArtifactScanner struct{ pool *pgxpool.Pool }
 
 func NewArtifactScanner(pool *pgxpool.Pool) *ArtifactScanner { return &ArtifactScanner{pool: pool} }
 
-func (s *ArtifactScanner) Fingerprint() string { return "app-artifact-bundle-and-commit-bytes-v2" }
+func (s *ArtifactScanner) Fingerprint() string { return "app-artifact-bundle-dif-commit-bytes-v3" }
 
 func (s *ArtifactScanner) WorkUnits(ctx context.Context, runID int64) ([]WorkUnit, error) {
 	rows, err := s.pool.Query(ctx, `
 		select o.org_id
 		from (
 			select distinct org_id from app_artifact_bundles where state='ok' and size>0
+			union
+			select distinct org_id from app_dif_uploads where state='ok' and size>0
 			union
 			select distinct org_id from app_commits
 		) o
@@ -64,11 +66,15 @@ func (s *ArtifactScanner) Scan(ctx context.Context, runID int64, unit WorkUnit) 
 	// with the sizes. The remainder of an uneven split goes to the lowest ids.
 	rows, err := s.pool.Query(ctx, `
 		with items as (
-			select b.id as item_id, b.size::bigint as size, b.site_ids
+			select 'b' || b.id as item, b.size::bigint as size, b.site_ids
 			from app_artifact_bundles b
 			where b.org_id=$2 and b.state='ok' and b.size>0
 			union all
-			select 0, x.total, '{}'::integer[]
+			select 'd' || d.id, d.size::bigint, d.site_ids
+			from app_dif_uploads d
+			where d.org_id=$2 and d.state='ok' and d.size>0
+			union all
+			select 'c', x.total, '{}'::integer[]
 			from (select
 				(select coalesce(sum(octet_length(c.sha)+octet_length(c.message)+octet_length(c.author_name)+octet_length(c.author_email)+32),0)
 				   from app_commits c where c.org_id=$2)
@@ -81,8 +87,8 @@ func (s *ArtifactScanner) Scan(ctx context.Context, runID int64, unit WorkUnit) 
 			where x.total>0
 		), covered as (
 			select b.size, s.id as site_id,
-				row_number() over (partition by b.item_id order by s.id) as rn,
-				count(*) over (partition by b.item_id) as cnt
+				row_number() over (partition by b.item order by s.id) as rn,
+				count(*) over (partition by b.item) as cnt
 			from items b
 			join sites s on s.org_id=$2
 				and s.erased_at is null and s.erasure_started_at is null

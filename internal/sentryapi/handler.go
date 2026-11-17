@@ -67,6 +67,11 @@ type Deps struct {
 	TrustedProxies []netip.Prefix
 	// Caps bounds a bundle; the zero value means sourcemap.DefaultCaps.
 	Caps sourcemap.Caps
+	// Builders convert debug objects to caches, keyed by object kind. Kinds
+	// without a builder keep their objects pending (the raw file is stored).
+	Builders map[string]CacheBuilder
+	// DIFMaxBytes caps one uploaded debug file; zero means 512 MiB.
+	DIFMaxBytes int64
 }
 
 // Handler serves /api/0/.
@@ -75,9 +80,12 @@ type Handler struct {
 	lim   *limits
 	mux   *http.ServeMux
 	queue chan int64
-	done  chan struct{}
-	stop  context.CancelFunc
-	ctx   context.Context
+	// difQueue feeds the single debug file worker, so only one file is held
+	// and converted at a time.
+	difQueue chan int64
+	done     chan struct{}
+	stop     context.CancelFunc
+	ctx      context.Context
 }
 
 // New builds the handler. Call Start to run assembly workers and Close to stop them.
@@ -91,7 +99,7 @@ func New(deps Deps) *Handler {
 	if deps.Caps == (sourcemap.Caps{}) {
 		deps.Caps = sourcemap.DefaultCaps()
 	}
-	h := &Handler{deps: deps, lim: newLimits(deps.IPPerMin, deps.TokenPerMin, deps.TrustedProxies), mux: http.NewServeMux(), queue: make(chan int64, assembleQueue), done: make(chan struct{})}
+	h := &Handler{deps: deps, lim: newLimits(deps.IPPerMin, deps.TokenPerMin, deps.TrustedProxies), mux: http.NewServeMux(), queue: make(chan int64, assembleQueue), difQueue: make(chan int64, difQueueSize), done: make(chan struct{})}
 	h.routes()
 	return h
 }
@@ -103,6 +111,7 @@ func (h *Handler) routes() {
 	m.HandleFunc("GET /api/0/organizations/{org}/chunk-upload/{$}", h.org(h.chunkOptions))
 	m.HandleFunc("POST /api/0/organizations/{org}/chunk-upload/{$}", h.org(h.chunkUpload))
 	m.HandleFunc("POST /api/0/organizations/{org}/artifactbundle/assemble/{$}", h.org(h.assemble))
+	m.HandleFunc("POST /api/0/projects/{org}/{project}/files/difs/assemble/{$}", h.org(h.difsAssemble))
 	m.HandleFunc("POST /api/0/organizations/{org}/releases/{$}", h.org(h.createRelease))
 	m.HandleFunc("GET /api/0/organizations/{org}/releases/{$}", h.org(h.listOrgReleases))
 	m.HandleFunc("GET /api/0/projects/{org}/{project}/releases/{$}", h.org(h.listProjectReleases))

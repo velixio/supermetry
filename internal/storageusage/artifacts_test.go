@@ -72,6 +72,11 @@ func TestArtifactScannerSplitsBundleBytesAcrossSites(t *testing.T) {
 	insertBundle(t, pool, orgA, []int32{s3}, "error", 999)     // failed assembly: not stored
 	insertBundle(t, pool, orgA, []int32{s3}, "assembling", 77) // not stored yet
 	insertBundle(t, pool, orgB, nil, "ok", 7)
+	// A stored debug file counts like a bundle; a failed one does not.
+	if _, err := pool.Exec(ctx, `insert into app_dif_uploads(org_id,site_ids,checksum,state,size) values($1,$2,$3,'ok',20),($1,$2,$4,'error',500)`,
+		orgA, []int32{s3}, fmt.Sprintf("%040x", 901), fmt.Sprintf("%040x", 902)); err != nil {
+		t.Fatal(err)
+	}
 
 	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
 	if err != nil {
@@ -95,11 +100,11 @@ func TestArtifactScannerSplitsBundleBytesAcrossSites(t *testing.T) {
 		return artifactBytes(t, got)
 	}
 	a := scan(units[0])
-	if len(a) != 3 || a[s1] != 55 || a[s2] != 53 || a[s3] != 3 {
-		t.Fatalf("org A = %v, want %d:55 %d:53 %d:3", a, s1, s2, s3)
+	if len(a) != 3 || a[s1] != 55 || a[s2] != 53 || a[s3] != 23 {
+		t.Fatalf("org A = %v, want %d:55 %d:53 %d:23", a, s1, s2, s3)
 	}
-	if sum := a[s1] + a[s2] + a[s3]; sum != 111 {
-		t.Fatalf("org A total = %d, want the 101+10 bundle bytes", sum)
+	if sum := a[s1] + a[s2] + a[s3]; sum != 131 {
+		t.Fatalf("org A total = %d, want the 101+10 bundle and 20 debug file bytes", sum)
 	}
 	if b := scan(units[1]); len(b) != 1 || b[b1] != 7 {
 		t.Fatalf("org B = %v", b)
