@@ -13,8 +13,11 @@ HOST="$(hostname)"
 ME="${USER:-$(id -un)}"
 fail=0
 
+PY=python3
+[ -x "$(dirname "$0")/python/.venv/bin/python" ] && PY="$(cd "$(dirname "$0")" && pwd)/python/.venv/bin/python"
+
 plain() {
-  python3 -I - "$1" <<'PY'
+  "$PY" -I - "$1" <<'PY'
 import sys, gzip, zlib
 d = open(sys.argv[1], 'rb').read()
 if d[:2] == b'\x1f\x8b':
@@ -33,6 +36,8 @@ else:
             pass
     except ImportError:
         pass
+    if d[:1] != b'{':
+        sys.exit("scrubcheck: cannot decode " + sys.argv[1] + " (brotli needs python/.venv)")
 sys.stdout.buffer.write(d)
 PY
 }
