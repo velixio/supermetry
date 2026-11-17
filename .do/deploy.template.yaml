@@ -1,0 +1,56 @@
+# DigitalOcean App Platform template for Supermetry.
+# Deploy: https://cloud.digitalocean.com/apps/new?repo=https://github.com/velixio/supermetry/tree/main
+# App spec reference: https://docs.digitalocean.com/products/app-platform/reference/app-spec/
+# Guide: deploy/README.md#digitalocean-app-platform
+#
+# App Platform has no persistent disks: /data (GeoIP downloads, on-disk session
+# replays) is lost on every deploy or restart. All analytics data lives in the
+# database. Store replays in Spaces by adding SUPERMETRY_REPLAY_S3_URL.
+spec:
+  name: supermetry
+  region: nyc
+  services:
+    - name: supermetry
+      image:
+        registry_type: GHCR
+        registry: velixio
+        repository: supermetry
+        # Pin a release (for example 0.1.22) for reproducible deploys.
+        tag: latest
+      instance_count: 1 # live sessions are kept in memory: run exactly one instance
+      instance_size_slug: apps-s-1vcpu-1gb
+      http_port: 8787
+      health_check:
+        http_path: /healthz
+        initial_delay_seconds: 20
+        period_seconds: 10
+        timeout_seconds: 5
+        failure_threshold: 6
+      envs:
+        - key: SUPERMETRY_BASE_URL
+          scope: RUN_TIME
+          value: ${APP_URL}
+        - key: SUPERMETRY_DATABASE_URL
+          scope: RUN_TIME
+          value: ${db.DATABASE_URL}
+        - key: SUPERMETRY_SECRET_KEY
+          # Required: base64 of at least 32 random bytes, e.g. `openssl rand -base64 32`.
+          # Keep it safe and never change it.
+          scope: RUN_TIME
+          type: SECRET
+        - key: SUPERMETRY_LISTEN
+          scope: RUN_TIME
+          value: 0.0.0.0:8787
+        - key: SUPERMETRY_DATA_DIR
+          scope: RUN_TIME
+          value: /data
+        - key: SUPERMETRY_SIGNUP
+          scope: RUN_TIME
+          value: invite
+  databases:
+    # Dev database for trying it out. For production, attach a managed
+    # PostgreSQL cluster (production: true, cluster_name: ...).
+    - name: db
+      engine: PG
+      version: "17"
+      production: false

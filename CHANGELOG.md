@@ -9,6 +9,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 ### Added
 
 - Guides: [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md). They cover exporting, importing, mapping the tracking calls and attributes, and what does not carry over. The Umami guide includes a ready-to-run export query.
+- A Helm chart in `deploy/helm/supermetry`. It runs Supermetry with a bundled PostgreSQL 18 StatefulSet or an external database, generates the secret key once and keeps it across upgrades, and supports ingress with TLS, a persistent data volume and the `restricted` Pod Security Standard. `helm test` checks `/healthz`.
+- One-click deploy templates for Railway (`railway.json`), Render (`render.yaml`), DigitalOcean App Platform (`.do/deploy.template.yaml`) and Coolify (`deploy/coolify/docker-compose.yml`), with deploy buttons in the README. See [One-click deploy](deploy/README.md#one-click-deploy).
 
 ### Fixed
 

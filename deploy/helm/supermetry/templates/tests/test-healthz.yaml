@@ -1,0 +1,49 @@
+{{- if .Values.tests.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "supermetry.fullname" . }}-test-healthz
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "supermetry.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    # The Supermetry image ships busybox wget, so no extra image is pulled.
+    - name: healthz
+      image: {{ include "supermetry.image" . }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      command:
+        - wget
+        - -q
+        - -O
+        - "-"
+        - "http://{{ include "supermetry.fullname" . }}:{{ .Values.service.port }}/healthz"
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          memory: 64Mi
+{{- end }}

@@ -1,0 +1,48 @@
+Supermetry {{ .Chart.AppVersion }} is installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Public URL (SUPERMETRY_BASE_URL): {{ include "supermetry.baseUrl" . }}
+{{- if .Values.ingress.enabled }}
+
+Create the admin account with the one-time setup link Supermetry prints on
+first start ({{ include "supermetry.baseUrl" . }}/setup?token=...):
+
+  kubectl --namespace {{ .Release.Namespace }} logs deploy/{{ include "supermetry.fullname" . }} | grep setup?token=
+{{- else }}
+
+No ingress is enabled. Reach the dashboard through a port-forward:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "supermetry.fullname" . }} 8787:{{ .Values.service.port }}
+
+then open the one-time setup link Supermetry prints on first start to create
+the admin account:
+
+  kubectl --namespace {{ .Release.Namespace }} logs deploy/{{ include "supermetry.fullname" . }} | grep setup?token=
+{{- if not .Values.config.baseUrl }}
+
+Before tracking real sites, expose Supermetry publicly (ingress.enabled=true or a
+LoadBalancer Service) and set config.baseUrl to its public https URL.
+{{- end }}
+{{- end }}
+
+Check the deployment:
+
+  kubectl --namespace {{ .Release.Namespace }} rollout status deploy/{{ include "supermetry.fullname" . }}
+  helm test {{ .Release.Name }} --namespace {{ .Release.Namespace }}
+{{- if not .Values.secretKey.existingSecret }}
+
+SUPERMETRY_SECRET_KEY lives in Secret "{{ include "supermetry.secretName" . }}" (kept on uninstall).
+Back it up; data encrypted with it cannot be read without it:
+
+  kubectl --namespace {{ .Release.Namespace }} get secret {{ include "supermetry.secretName" . }} -o jsonpath='{.data.secret-key}' | base64 -d
+{{- end }}
+{{- if .Values.postgresql.enabled }}
+
+The bundled PostgreSQL ({{ .Values.postgresql.image.tag }}) runs as StatefulSet "{{ include "supermetry.postgresql.fullname" . }}".
+Back up the database with `supermetry backup` (see deploy/README.md) or pg_dump.
+{{- end }}
+{{- if and .Values.ingress.enabled (not .Values.config.trustedProxies) }}
+
+Visitor IPs: the ingress controller's pod address is trusted by default (private ranges).
+Make sure the controller itself sees real client IPs (for example
+externalTrafficPolicy: Local on its Service) or visitor countries stay empty.
+{{- end }}

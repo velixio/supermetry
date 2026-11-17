@@ -1,0 +1,55 @@
+# documentation: https://github.com/velixio/supermetry/tree/main/docs
+# slogan: Self-hosted, privacy-first web analytics in one Go binary.
+# tags: analytics, privacy, web-analytics, google-analytics-alternative, postgres
+# logo: https://raw.githubusercontent.com/velixio/supermetry/main/web/public/apple-touch-icon.png
+# port: 8787
+#
+# Coolify one-click template. Coolify fills the SERVICE_* "magic" variables:
+#   SERVICE_URL_SUPERMETRY_8787       public URL, proxied to port 8787
+#   SERVICE_REALBASE64_32_SUPERMETRY  base64 of 32 random bytes (secret key)
+#   SERVICE_USER_POSTGRES / SERVICE_PASSWORD_POSTGRES  database credentials
+# Guide: deploy/README.md#coolify
+services:
+  supermetry:
+    image: ghcr.io/velixio/supermetry:latest
+    environment:
+      - SERVICE_URL_SUPERMETRY_8787
+      - SUPERMETRY_BASE_URL=${SERVICE_URL_SUPERMETRY}
+      - SUPERMETRY_SECRET_KEY=${SERVICE_REALBASE64_32_SUPERMETRY}
+      - SUPERMETRY_DATABASE_HOST=postgres
+      - SUPERMETRY_DATABASE_PORT=5432
+      - SUPERMETRY_DATABASE_USER=${SERVICE_USER_POSTGRES}
+      - SUPERMETRY_DATABASE_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - SUPERMETRY_DATABASE_NAME=${POSTGRES_DB:-supermetry}
+      - SUPERMETRY_SIGNUP=${SUPERMETRY_SIGNUP:-invite}
+      - SUPERMETRY_TRUSTED_PROXIES=${SUPERMETRY_TRUSTED_PROXIES:-}
+    volumes:
+      - supermetry-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8787/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_USER=${SERVICE_USER_POSTGRES}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - POSTGRES_DB=${POSTGRES_DB:-supermetry}
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/18/docker.
+      - supermetry-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  supermetry-data:
+  supermetry-postgres:
