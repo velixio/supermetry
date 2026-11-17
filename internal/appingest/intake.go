@@ -178,6 +178,26 @@ func (in *Intake) Accept(site sites.Site, budgetKey string, now time.Time, ev Ev
 	return Outcome{Stripped: stripped}
 }
 
+// Gate applies the duplicate and key-budget checks to a product event, which
+// bypasses the app_events queue. On success it returns a release func that
+// forgets the event id again, for when the hit could not be queued.
+func (in *Intake) Gate(site sites.Site, budgetKey string, now time.Time, id string) (Outcome, func()) {
+	if site.App == nil {
+		return Outcome{Reason: ReasonInvalid}, nil
+	}
+	if in.dedup.seen(dedupKey{site.ID, id}, now) {
+		in.Drop(site, now, dropstats.AppDuplicate)
+		return Outcome{Reason: ReasonDuplicate}, nil
+	}
+	release := func() { in.dedup.release(dedupKey{site.ID, id}) }
+	if !in.budgets.take(budgetKey, now) {
+		release()
+		in.Drop(site, now, dropstats.AppRateLimited)
+		return Outcome{Reason: ReasonRateLimited}, nil
+	}
+	return Outcome{}, release
+}
+
 func (in *Intake) enqueue(q Queued) bool {
 	select {
 	case in.ch <- q:
