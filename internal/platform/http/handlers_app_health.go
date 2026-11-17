@@ -44,7 +44,7 @@ func (h *handler) appQuerier() *appquery.Querier {
 }
 
 func appScope(site coresites.Site) appquery.Scope {
-	return appquery.Scope{SiteID: site.ID, TZ: siteLocation(site), RetentionDays: int(site.Retention)}
+	return appquery.Scope{SiteID: site.ID, OrgID: site.OrgID, TZ: siteLocation(site), RetentionDays: int(site.Retention)}
 }
 
 // appFilter reads from, to, release, environment and platform.

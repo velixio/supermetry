@@ -86,7 +86,7 @@ type mcpAppReleasesInput struct {
 
 // mcpAppScope is the appquery scope of a site: its time zone and retention.
 func mcpAppScope(site sites.Site) appquery.Scope {
-	return appquery.Scope{SiteID: site.ID, TZ: site.TZ, RetentionDays: int(site.Retention)}
+	return appquery.Scope{SiteID: site.ID, OrgID: site.OrgID, TZ: site.TZ, RetentionDays: int(site.Retention)}
 }
 
 // filter turns the period or date inputs into an inclusive date range in the
