@@ -14,13 +14,15 @@ import (
 )
 
 type releaseBody struct {
-	Version      string     `json:"version"`
-	Projects     []string   `json:"projects"`
-	URL          *string    `json:"url"`
-	Ref          *string    `json:"ref"`
-	DateReleased *time.Time `json:"dateReleased"`
-	DateStarted  *time.Time `json:"dateStarted"`
-	Status       *string    `json:"status"`
+	Version      string        `json:"version"`
+	Projects     []string      `json:"projects"`
+	URL          *string       `json:"url"`
+	Ref          *string       `json:"ref"`
+	DateReleased *time.Time    `json:"dateReleased"`
+	DateStarted  *time.Time    `json:"dateStarted"`
+	Status       *string       `json:"status"`
+	Commits      *[]commitBody `json:"commits"`
+	Refs         *[]refBody    `json:"refs"`
 }
 
 // validate checks the optional fields shared by create and update.
@@ -74,17 +76,6 @@ func (h *Handler) visibleSites(c *call, rel releaseRow) []int32 {
 		ids = slices.DeleteFunc(ids, func(id int32) bool { return !slices.Contains(c.principal.SiteIDs, id) })
 	}
 	return ids
-}
-
-// commitJSON is one commit in a release summary (filled by the commits task).
-type commitJSON struct {
-	ID      string `json:"id"`
-	Message string `json:"message"`
-}
-
-// releaseCommitSummary returns the commit count and newest commit of a release.
-func (h *Handler) releaseCommitSummary(_ context.Context, _ int64) (count int, last *commitJSON, err error) {
-	return 0, nil, nil
 }
 
 func (h *Handler) releaseJSON(ctx context.Context, c *call, rel releaseRow) map[string]any {
@@ -219,12 +210,28 @@ func (h *Handler) getRelease(w http.ResponseWriter, r *http.Request, c *call) {
 
 func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call) {
 	var body releaseBody
-	if !readJSON(w, r, &body) {
+	if !readJSONMax(w, r, &body, maxReleaseBody) {
 		return
 	}
 	if msg := body.validate(); msg != "" {
 		writeDetail(w, http.StatusBadRequest, msg)
 		return
+	}
+	var commits []commitBody
+	var refs []refBody
+	if body.Commits != nil {
+		var msg string
+		if commits, msg = normalizeCommits(*body.Commits); msg != "" {
+			writeDetail(w, http.StatusBadRequest, msg)
+			return
+		}
+	}
+	if body.Refs != nil {
+		var msg string
+		if refs, msg = normalizeRefs(*body.Refs); msg != "" {
+			writeDetail(w, http.StatusBadRequest, msg)
+			return
+		}
 	}
 	version := r.PathValue("version")
 	rel, err := h.loadRelease(r.Context(), c.orgID, version)
@@ -270,6 +277,12 @@ func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call)
 	if _, err := h.deps.Pool.Exec(r.Context(), `update app_releases set site_ids=$2, url=$3, date_released=$4, date_started=$5, ref=$6, status=$7 where id=$1`, rel.id, rel.siteIDs, rel.url, rel.dateReleased, rel.dateStarted, rel.ref, rel.status); err != nil {
 		serverError(w)
 		return
+	}
+	if body.Commits != nil || body.Refs != nil {
+		if err := replaceReleaseCommits(r.Context(), h.deps.Pool, c.orgID, rel.id, commits, body.Commits != nil, refs, body.Refs != nil); err != nil {
+			serverError(w)
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, h.releaseJSON(r.Context(), c, rel))
 }

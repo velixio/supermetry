@@ -135,6 +135,23 @@ order by d.id`
 		return err
 	}
 
+	// Commits of the site's releases (author email is customer-supplied
+	// developer metadata; exported, never shown over MCP). A commit shared by
+	// two releases appears once per release.
+	commits := `
+select r.version,p.name,c.sha,c.message,c.author_name,c.author_email,` + utc("c.committed_at") + `
+from app_releases r
+join app_release_commits rc on rc.release_id=r.id
+join app_commits c on c.id=rc.commit_id
+join app_repositories p on p.id=c.repository_id
+where r.org_id=$5 and (r.site_ids='{}' or $1=any(r.site_ids)) and ` + inWindow("r.date_created") + `
+order by r.id,rc.position`
+	if err := e.writeRows(ctx, archive, "app_commits.csv",
+		[]string{"release", "repository", "sha", "message", "author_name", "author_email", "committed_at"},
+		commits, siteID, f, t, tz, orgID); err != nil {
+		return err
+	}
+
 	// Daily counts of events the SDKs report they discarded; no event data.
 	reports := `
 select c.day::text,c.reason,c.category,c.quantity
