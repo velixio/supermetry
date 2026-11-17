@@ -28,7 +28,10 @@ type fixture struct {
 // Brotli bodies are skipped: the decoder for them lives in the front door.
 func loadFixtures(t testing.TB) []fixture {
 	t.Helper()
-	paths := fixtureFiles(t)
+	paths, err := filepath.Glob("testdata/*/*.envelope")
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("no fixtures: %v", err)
+	}
 	var out []fixture
 	for _, p := range paths {
 		raw, err := os.ReadFile(p)

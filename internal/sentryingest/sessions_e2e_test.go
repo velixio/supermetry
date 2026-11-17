@@ -11,7 +11,8 @@ import (
 	"supermetry/internal/appingest"
 )
 
-// The envelopes in testdata/sessions are written by hand from the public
+// The envelopes in testdata/sessions/protocol (nested one level deeper than the
+// recorded corpus, so the testdata/*/*.envelope globs and their sidecar rules skip them) are written by hand from the public
 // Sentry envelope and session protocol documentation, one per SDK shape. They
 // carry only example data and are not recorded from any SDK or relay.
 //
@@ -61,7 +62,7 @@ var todaySessions = map[string]todayWant{
 func TestSessionFixturesThroughHandlerToday(t *testing.T) {
 	for name, w := range todaySessions {
 		t.Run(name, func(t *testing.T) {
-			raw, err := os.ReadFile("testdata/sessions/" + name + ".envelope")
+			raw, err := os.ReadFile("testdata/sessions/protocol/" + name + ".envelope")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,7 +129,7 @@ func TestHangClassification(t *testing.T) {
 	for _, c := range []struct {
 		name, kind, exit string
 	}{{"android", "hang", "anr"}, {"cocoa", "hang", "app_hang"}} {
-		raw, err := os.ReadFile("testdata/sessions/" + c.name + ".envelope")
+		raw, err := os.ReadFile("testdata/sessions/protocol/" + c.name + ".envelope")
 		if err != nil {
 			t.Fatal(err)
 		}

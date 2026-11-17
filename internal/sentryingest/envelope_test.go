@@ -124,17 +124,9 @@ func TestParseEnvelopeTooLarge(t *testing.T) {
 
 func fixtureFiles(t testing.TB) []string {
 	t.Helper()
-	all, err := filepath.Glob("testdata/*/*.envelope")
-	if err != nil || len(all) == 0 {
+	files, err := filepath.Glob("testdata/*/*.envelope")
+	if err != nil || len(files) == 0 {
 		t.Fatalf("no fixtures: %v", err)
-	}
-	// testdata/sessions holds hand-written session envelopes without sidecars;
-	// sessions_e2e_test.go owns them.
-	var files []string
-	for _, f := range all {
-		if filepath.Base(filepath.Dir(f)) != "sessions" {
-			files = append(files, f)
-		}
 	}
 	return files
 }
