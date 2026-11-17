@@ -111,9 +111,12 @@ type Config struct {
 	SessionFlush         time.Duration
 	QueryTimeout         time.Duration
 	IngestRateIP         int
-	SentryIPPerMin       int // Sentry-compatible intake: requests per minute per client IP
-	SentryMaxInflight    int // Sentry-compatible intake: bodies read and parsed at once
-	AppSpikePerMin       int // Sentry-compatible intake: events per minute per app site
+	SentryIPPerMin       int   // Sentry-compatible intake: requests per minute per client IP
+	SentryMaxInflight    int   // Sentry-compatible intake: bodies read and parsed at once
+	AppSpikePerMin       int   // Sentry-compatible intake: events per minute per app site
+	SentryAPIIPPerMin    int   // Sentry-compatible upload API (/api/0/): requests per minute per client IP
+	SentryAPITokenPerMin int   // Sentry-compatible upload API: requests per minute per API token
+	SentryOrgCapBytes    int64 // Sentry-compatible upload API: stored source map bytes per organization
 	IngestRateSite       int
 	IngestRateGlobal     int
 	HTTPReadTimeout      time.Duration
@@ -229,6 +232,9 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		AppSpikePerMin:       600,
 		SentryIPPerMin:       600,
 		SentryMaxInflight:    32,
+		SentryAPIIPPerMin:    600,
+		SentryAPITokenPerMin: 300,
+		SentryOrgCapBytes:    5 << 30,
 		IngestRateSite:       defaultIngestRateSite,
 		IngestRateGlobal:     defaultIngestRateGlobal,
 		HTTPReadTimeout:      defaultHTTPReadTimeout,
@@ -469,6 +475,15 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parseDurationRange(getenv("SUPERMETRY_QUERY_TIMEOUT"), "SUPERMETRY_QUERY_TIMEOUT", time.Second, 5*time.Minute, &c.QueryTimeout, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_IP_PER_MIN"), "SUPERMETRY_SENTRY_IP_PER_MIN", &c.SentryIPPerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_MAX_INFLIGHT"), "SUPERMETRY_SENTRY_MAX_INFLIGHT", &c.SentryMaxInflight, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SENTRY_API_IP_PER_MIN"), "SUPERMETRY_SENTRY_API_IP_PER_MIN", &c.SentryAPIIPPerMin, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SENTRY_API_TOKEN_PER_MIN"), "SUPERMETRY_SENTRY_API_TOKEN_PER_MIN", &c.SentryAPITokenPerMin, &errs)
+	if raw := getenv("SUPERMETRY_SENTRY_ORG_CAP"); raw != "" {
+		if value, err := ParseSize(raw); err != nil || value <= 0 {
+			errs = append(errs, fmt.Errorf("SUPERMETRY_SENTRY_ORG_CAP must be a positive size such as 5GB"))
+		} else {
+			c.SentryOrgCapBytes = value
+		}
+	}
 	parsePositiveInt(getenv("SUPERMETRY_APP_SPIKE_PER_MIN"), "SUPERMETRY_APP_SPIKE_PER_MIN", &c.AppSpikePerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_IP"), "SUPERMETRY_INGEST_RATE_IP", &c.IngestRateIP, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_SITE"), "SUPERMETRY_INGEST_RATE_SITE", &c.IngestRateSite, &errs)
