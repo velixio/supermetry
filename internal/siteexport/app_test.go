@@ -44,6 +44,8 @@ insert into app_events(site_id,ts,received_at,event_id,issue_id,kind,level,relea
 insert into app_event_bodies(site_id,ts,event_id,body,size) values (7,'2026-10-02T11:00:00Z','evt-b','{"user":{"email":"leak@example.test","ip_address":"203.0.113.9"}}',10);
 insert into app_client_reports(site_id,day,reason,category,quantity) values
  (7,'2026-10-02','ratelimit_backoff','error',5),(7,'2026-09-15','queue_overflow','error',1),(9,'2026-10-02','network_error','error',9);
+insert into app_session_daily(site_id,day,release,environment,platform,sessions,errored,crashed,abnormal,users,crashed_users,errored_users) values
+ (7,'2026-10-02','1.1.0','prod','javascript',32,3,4,1,4,1,2),(7,'2026-09-15','1.0.0','prod','javascript',9,0,0,0,1,0,0),(9,'2026-10-02','x','prod','javascript',5,0,0,0,1,0,0);
 insert into app_releases(id,org_id,version,site_ids,url,date_created,date_released) overriding system value values
  (1,1,'1.1.0','{}','https://example.test/r','2026-10-02T08:00:00Z','2026-10-02T09:00:00Z'),
  (2,1,'only-web','{8}','','2026-10-02T08:00:00Z',null),
@@ -105,7 +107,7 @@ func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site
 func TestAppSiteExportsExactCSVs(t *testing.T) {
 	e, ctx := newAppExport(t)
 	files, names, _ := exportFiles(t, e, ctx, 7)
-	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv"} {
+	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv", "app_sessions_daily.csv"} {
 		if !slices.Contains(names, want) {
 			t.Fatalf("missing %s in %v", want, names)
 		}
@@ -146,6 +148,10 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 		{"day", "reason", "category", "quantity"},
 		{"2026-10-02", "ratelimit_backoff", "error", "5"},
 	})
+	check("app_sessions_daily.csv", [][]string{
+		{"day", "release", "environment", "platform", "sessions", "errored", "crashed", "abnormal", "users", "crashed_users"},
+		{"2026-10-02", "1.1.0", "prod", "javascript", "32", "3", "4", "1", "4", "1"},
+	})
 	check("app_artifacts.csv", [][]string{
 		{"bundle_id", "release", "dist", "state", "debug_ids", "file_count", "size_bytes", "created"},
 		{"1", "1.1.0", "d1", "ok", "11111111-1111-1111-1111-111111111111 22222222-2222-2222-2222-222222222222", "2", "2048", "2026-10-02T07:00:00.000Z"},
@@ -161,6 +167,9 @@ func TestAppExportLeaksNoPersonalData(t *testing.T) {
 		}
 		for _, col := range rows[0] {
 			lc := strings.ToLower(col)
+			if lc == "users" || lc == "crashed_users" { // distinct-user counts, not identities
+				continue
+			}
 			for _, bad := range []string{"user", "email", "ip", "hash", "body", "blob", "url_path"} {
 				if lc == bad || strings.Contains(lc, bad) && lc != "url" {
 					t.Fatalf("%s has sensitive column %q", name, col)

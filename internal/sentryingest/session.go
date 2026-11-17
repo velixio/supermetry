@@ -76,7 +76,7 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 				e.ID = id(strconv.Itoa(i) + "|" + status)
 				e.TS = ts
 				e.Occurrences = min(n, 1_000_000)
-				e.ExitReason = exitReasonOf(status)
+				e.ExitReason = aggregateExitReason(status)
 				out = append(out, e)
 			}
 		}
@@ -173,6 +173,15 @@ func firstNonNil(vals ...any) any {
 		}
 	}
 	return nil
+}
+
+// aggregateExitReason is exitReasonOf plus errored: an aggregate has no
+// per-session row, so the status rides on the row to keep the errored count.
+func aggregateExitReason(status string) string {
+	if status == "errored" {
+		return status
+	}
+	return exitReasonOf(status)
 }
 
 func exitReasonOf(status string) string {

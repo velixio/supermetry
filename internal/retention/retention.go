@@ -23,6 +23,8 @@ var eraseTables = []string{
 	"app_issue_daily",
 	"app_issue_hourly",
 	"app_release_daily",
+	"app_sessions",
+	"app_session_daily",
 	"app_issue_activity",
 	"app_issue_comments",
 	"app_issues",
@@ -111,11 +113,13 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 			expired = append(expired, partition)
 		}
 	}
-	appPartitions, err := expiredAppEventPartitions(ctx, pool, now)
-	if err != nil {
-		return nil, err
+	for _, table := range []string{"app_events", "app_sessions"} {
+		appPartitions, err := expiredAppEventPartitions(ctx, pool, table, now)
+		if err != nil {
+			return nil, err
+		}
+		expired = append(expired, appPartitions...)
 	}
-	expired = append(expired, appPartitions...)
 	bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now)
 	if err != nil {
 		return nil, err
@@ -283,6 +287,7 @@ func deleteExpiredAppRollups(ctx context.Context, pool *pgxpool.Pool, now time.T
 		}{
 			{"app_issue_daily", "day", day},
 			{"app_release_daily", "day", day},
+			{"app_session_daily", "day", day},
 			{"app_client_reports", "day", day},
 			{"app_issue_hourly", "hour", hour},
 		} {
@@ -379,11 +384,12 @@ func deleteExpiredDropStats(ctx context.Context, pool *pgxpool.Pool, now time.Ti
 // appEventsDefaultRetentionDays applies when no app project exists.
 const appEventsDefaultRetentionDays = 365
 
-// expiredAppEventPartitions returns the monthly app_events partitions that lie
+// expiredAppEventPartitions returns the monthly partitions of an app raw table
+// (app_events or app_sessions) that lie
 // wholly before the longest retention of any live app project, plus one day of
 // closing slack. A project that keeps data forever keeps every partition:
 // months are shared by all projects, so the longest retention decides.
-func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, table string, now time.Time) ([]db.Partition, error) {
 	var apps int
 	var forever bool
 	var longest int
@@ -398,9 +404,9 @@ func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time
 	if apps == 0 {
 		longest = appEventsDefaultRetentionDays
 	}
-	partitions, err := db.ListMonthlyPartitions(ctx, pool, "app_events")
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, table)
 	if err != nil {
-		return nil, fmt.Errorf("list app event retention partitions: %w", err)
+		return nil, fmt.Errorf("list %s retention partitions: %w", table, err)
 	}
 	cutoff := now.AddDate(0, 0, -longest-1)
 	var expired []db.Partition

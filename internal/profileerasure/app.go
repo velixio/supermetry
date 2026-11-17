@@ -237,6 +237,25 @@ with target as (
 where id = $4 returning (select count(*) from upd)`, r); err != nil {
 		return fmt.Errorf("clear app event user hash: %w", err)
 	}
+	// Sentry SDKs set the session did to the user's id, email or username, so
+	// install_hash can carry the same keyed hash as user_hash. Clear it on the
+	// session state and on the session pings. The request counters track event
+	// rows only; these batches just touch updated_at to report their size.
+	for _, table := range []string{"app_sessions", "app_events"} {
+		extra := ""
+		if table == "app_events" {
+			extra = " and kind = 'session'"
+		}
+		if err := w.drain(ctx, r.ID, `
+with target as (
+  select tableoid, ctid from `+table+` where site_id = $1 and install_hash = $2`+extra+` limit $3
+), upd as (
+  update `+table+` e set install_hash = null from target t where e.tableoid = t.tableoid and e.ctid = t.ctid returning 1
+) update app_erasure_requests set updated_at = now()
+where id = $4 returning (select count(*) from upd)`, r); err != nil {
+			return fmt.Errorf("clear %s install hash: %w", table, err)
+		}
+	}
 	return w.finish(ctx, r.ID)
 }
 
