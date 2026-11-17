@@ -57,6 +57,19 @@ function ExceptionBlock({ exception, index, total }: { exception: BodyException;
   )
 }
 
+const sourceMapsGuideURL = 'https://github.com/velixio/supermetry/blob/main/docs/guide/source-maps.md'
+
+function SourceMapsBanner({ status, release }: { status: string; release: string }) {
+  if (status !== 'missing' && status !== 'partial') return null
+  const where = release ? `release ${release}` : 'this release'
+  return (
+    <div role="status" aria-label="Source maps" className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm">
+      {status === 'missing' ? <p className="font-medium">Source maps missing for {where}</p> : <p className="font-medium">Some frames could not be resolved: source maps are missing or incomplete for {where}</p>}
+      <p className="mt-1 text-muted-foreground">Stack frames show the minified code. Events that arrive after you upload the maps resolve; stored events are not rewritten. <a className="font-medium text-foreground underline" href={sourceMapsGuideURL}>Upload source maps</a></p>
+    </div>
+  )
+}
+
 function KeyValues({ entries }: { entries: [string, unknown][] }) {
   return (
     <dl className="grid grid-cols-[minmax(6rem,auto)_1fr] gap-x-4 gap-y-1 text-sm">
@@ -72,6 +85,7 @@ export function EventBodyView({ body }: { body: unknown }) {
   const nothing = !view.message && view.exceptions.length === 0 && view.breadcrumbs.length === 0 && view.contexts.length === 0 && view.tags.length === 0
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <SourceMapsBanner status={view.symbolication} release={view.release} />
       {view.message ? <Card><CardHeader><CardTitle className="text-base">Message</CardTitle></CardHeader><CardContent><p className="break-words text-sm">{view.message}</p></CardContent></Card> : null}
       {view.exceptions.map((exception, i) => <ExceptionBlock key={i} exception={exception} index={i} total={view.exceptions.length} />)}
       {view.breadcrumbs.length > 0 ? (

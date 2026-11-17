@@ -13,6 +13,7 @@ import (
 	"supermetry/internal/appingest"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
+	"supermetry/internal/salts"
 	"supermetry/internal/sites"
 )
 
@@ -27,6 +28,12 @@ type BodyQueue interface {
 	Enqueue(appingest.Body) bool
 }
 
+// ClientReportSink takes the discarded-event counts of client reports; Add
+// must not block (the aggregator buffers in memory).
+type ClientReportSink interface {
+	Add(siteID int32, day time.Time, reason, category string, quantity int64)
+}
+
 // GeoLookup resolves a country code for an address; the address is not kept.
 type GeoLookup interface {
 	Country(netip.Addr) string
@@ -37,14 +44,17 @@ type Handler struct {
 	sites     sites.DSNRegistry
 	intake    *appingest.Intake
 	bodies    BodyQueue
+	reports   ClientReportSink
 	geo       GeoLookup
 	trusted   []netip.Prefix
 	now       func() time.Time
 	normalise NormaliseFunc
+	symb      *Symbolicator
 	spike     *spikeGuard
 	stats     *Stats
 	ips       *ipLimiter
 	inflight  chan struct{}
+	localhost bool // drop events raised on localhost (off by default)
 }
 
 // NewHandler builds the front door. bodies, geo and now may be nil.
@@ -57,9 +67,17 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 		ips: newIPLimiter(DefaultIPPerMinute), inflight: make(chan struct{}, DefaultMaxInflight)}
 }
 
+// WithClientReports sets where client-report counts go; nil discards them.
+func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r; return h }
+
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
 // function makes event items counted and dropped.
 func (h *Handler) WithNormaliser(n NormaliseFunc) *Handler { h.normalise = n; return h }
+
+// WithSymbolicator routes events with minified script frames through the
+// symbolication stage before intake; nil (the default) skips the stage. The
+// handler never waits for it: a full queue sends the event on unresolved.
+func (h *Handler) WithSymbolicator(s *Symbolicator) *Handler { h.symb = s; return h }
 
 // WithSpikeLimit sets the per-site events-per-minute cap.
 func (h *Handler) WithSpikeLimit(perMinute int) *Handler {
@@ -77,6 +95,10 @@ func (h *Handler) WithMaxInflight(n int) *Handler {
 	h.inflight = make(chan struct{}, max(n, 1))
 	return h
 }
+
+// WithLocalhostFilter turns the localhost inbound filter on or off (off by
+// default, so a local trial of Supermetry shows its events).
+func (h *Handler) WithLocalhostFilter(on bool) *Handler { h.localhost = on; return h }
 
 // Stats returns the in-memory drop and ignore counters.
 func (h *Handler) Stats() *Stats { return h.stats }
@@ -344,6 +366,10 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				h.stats.Add("event_unsupported", 1)
 				continue
 			}
+			if reason := filterEvent(it.Payload, req.UserAgent, h.localhost); reason != "" {
+				h.stats.Add("filtered", 1)
+				continue
+			}
 			ev, body, err := h.normalise(it.Payload, ctx, site, now)
 			if err != nil {
 				if errors.Is(err, ErrTooOld) {
@@ -359,6 +385,23 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				out.eventID = ev.ID
 			}
 			applyRow(&ev, body.Row)
+			if h.symb != nil && needsSymbolication(body) {
+				// The queued event is accepted later, so answer an exhausted
+				// budget now: the sender must see 429, not a silent 200.
+				if res := h.intake.Admit(site, budgetKey, now); res.Reason != "" {
+					count(res)
+					continue
+				}
+				body.Attachments = attachments
+				site, now := site, now
+				if h.symb.SubmitWith(ev, body, body.Row.SDKFingerprint, func(ev appingest.Event, body appingest.Body) {
+					if h.intake.Accept(site, budgetKey, now, ev).Reason == "" && h.bodies != nil && !h.bodies.Enqueue(body) {
+						h.stats.Add("body_queue_full", 1)
+					}
+				}) {
+					continue
+				}
+			}
 			if count(h.intake.Accept(site, budgetKey, now, ev)) && h.bodies != nil {
 				body.Attachments = attachments
 				if !h.bodies.Enqueue(body) {
@@ -376,11 +419,13 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				count(h.intake.Accept(site, budgetKey, now, ev))
 			}
 		case "client_report":
-			// Stored by a later change; counted here.
 			if counts, err := ParseClientReport(it.Payload); err == nil {
 				var total int64
 				for _, c := range counts {
 					total += c.Quantity
+					if h.reports != nil {
+						h.reports.Add(site.ID, salts.LocalDay(now, site.TZ), c.Reason, c.Category, c.Quantity)
+					}
 				}
 				h.stats.Add("client_report_discarded", uint64(max(total, 0)))
 			}

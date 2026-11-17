@@ -30,6 +30,24 @@ func CrashPredicate(prefix string) string {
 	return "(" + prefix + "kind <> 'session' and (" + prefix + "kind = 'crash' or " + prefix + "level = 'fatal'))"
 }
 
+// SessionsExpr counts sessions for a column prefix: distinct session hashes
+// of session rows (a retried ping counts once), plus the occurrences of
+// session rows without a hash, which are Sentry aggregates standing for that
+// many sessions.
+func SessionsExpr(prefix string) string {
+	return "(count(distinct " + prefix + "session_hash) filter (where " + prefix + "kind = 'session')" +
+		" + coalesce(sum(" + prefix + "occurrences) filter (where " + prefix + "kind = 'session' and " + prefix + "session_hash is null), 0))"
+}
+
+// CrashedSessionsExpr counts crashed sessions: sessions with a ping that saw a
+// crash event (alias p lists the ping hashes), session rows that report a
+// crashed exit, and the occurrences of hash-less (aggregate) rows that do.
+func CrashedSessionsExpr(prefix string) string {
+	crashedRow := prefix + "kind = 'session' and " + prefix + "exit_reason = 'crashed'"
+	return "(count(distinct " + prefix + "session_hash) filter (where (" + CrashPredicate(prefix) + " and p.session_hash is not null) or (" + crashedRow + "))" +
+		" + coalesce(sum(" + prefix + "occurrences) filter (where " + crashedRow + " and " + prefix + "session_hash is null), 0))"
+}
+
 func location(name string) *time.Location {
 	loc, err := time.LoadLocation(name)
 	if err != nil {
@@ -94,8 +112,8 @@ select e.site_id, $2::date, e.release, e.platform,
        coalesce(sum(e.occurrences) filter (where ` + CrashPredicate("e.") + `), 0),
        count(distinct e.install_hash),
        count(distinct e.install_hash) filter (where ` + CrashPredicate("e.") + `),
-       count(distinct e.session_hash) filter (where e.kind = 'session'),
-       count(distinct e.session_hash) filter (where ` + CrashPredicate("e.") + ` and p.session_hash is not null)
+       ` + SessionsExpr("e.") + `,
+       ` + CrashedSessionsExpr("e.") + `
 from app_events e
 left join pings p on p.session_hash = e.session_hash
 where e.site_id = $1 and e.ts >= $3 and e.ts < $4

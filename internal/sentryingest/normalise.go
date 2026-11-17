@@ -109,6 +109,8 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 	body.Level = level
 	ev.Handled = handled(body.Exceptions, ev.Kind)
 	ev.Release = clip(str(m["release"]), 64)
+	body.Release = ev.Release
+	body.DebugImages = parseDebugImages(m["debug_meta"])
 	ev.Environment = clip(str(m["environment"]), 32)
 	ev.Build = clip(str(asMap(contexts["app"])["app_build"]), 64)
 	osCtx, dev, rt := body.Contexts["os"], body.Contexts["device"], body.Contexts["runtime"]
@@ -149,7 +151,8 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 	if len(body.Exceptions) == 0 {
 		ev.ErrorType = "message"
 	}
-	ev.Fingerprint, ex.GroupingVersion = appingest.GroupingKey(ev, body, sdkFingerprint(m["fingerprint"]))
+	ex.SDKFingerprint = sdkFingerprint(m["fingerprint"])
+	ev.Fingerprint, ex.GroupingVersion = appingest.GroupingKey(ev, body, ex.SDKFingerprint)
 	if len(body.Contexts) == 0 {
 		body.Contexts = nil
 	}
@@ -276,6 +279,7 @@ func parseExceptions(v any) []appingest.Exception {
 func parseFrame(m map[string]any) appingest.Frame {
 	f := appingest.Frame{
 		Filename:        scrubFilename(firstNonEmpty(str(m["filename"]), str(m["abs_path"]))),
+		AbsURL:          stripQuery(clip(firstNonEmpty(str(m["abs_path"]), str(m["filename"])), 1024)),
 		Module:          clip(str(m["module"]), 200),
 		Function:        clip(str(m["function"]), 200),
 		Package:         scrubFilename(str(m["package"])),
@@ -583,4 +587,32 @@ func country(ctx EventContext, sdk map[string]any) string {
 		return c
 	}
 	return ""
+}
+
+// stripQuery drops the query string and fragment of a URL-like value.
+func stripQuery(s string) string {
+	if i := strings.IndexAny(s, "?#"); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// parseDebugImages keeps the debug_meta images symbolication can use.
+func parseDebugImages(v any) []appingest.DebugImage {
+	var out []appingest.DebugImage
+	for _, x := range asList(asMap(v)["images"]) {
+		im := asMap(x)
+		if im == nil {
+			continue
+		}
+		out = append(out, appingest.DebugImage{
+			Type:     clip(str(im["type"]), 32),
+			CodeFile: stripQuery(clip(str(im["code_file"]), 1024)),
+			DebugID:  clip(firstNonEmpty(str(im["debug_id"]), str(im["debugId"])), 64),
+		})
+		if len(out) == 50 {
+			break
+		}
+	}
+	return out
 }

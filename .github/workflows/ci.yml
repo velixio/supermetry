@@ -89,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           key="$RUNNER_TEMP/postgresql-pgdg.asc"
-          curl --fail --show-error --silent \
+          curl --fail --show-error --silent --retry 5 --retry-all-errors --retry-delay 3 \
             https://www.postgresql.org/media/keys/ACCC4CF8.asc \
             --output "$key"
           fingerprint="$(gpg --batch --show-keys --with-colons "$key" | awk -F: '$1 == "fpr" { print $10; exit }')"

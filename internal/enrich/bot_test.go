@@ -228,3 +228,16 @@ func TestBotRuleReturnsOnlyBoundedFilterMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCrawlerUA(t *testing.T) {
+	for ua, want := range map[string]bool{
+		"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)": true,
+		"":                             false,
+		desktopUserAgent():             false,
+		"sentry.javascript.node/8.0.0": false,
+	} {
+		if got := enrich.IsCrawlerUA(ua); got != want {
+			t.Errorf("IsCrawlerUA(%q) = %v, want %v", ua, got, want)
+		}
+	}
+}

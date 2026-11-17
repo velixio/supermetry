@@ -830,3 +830,20 @@ func TestLoadSentryUploadAPILimits(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadSymbolicateSettings(t *testing.T) {
+	c, err := Load(env(baseEnv()))
+	if err != nil || c.SymbolicateWorkers != 2 || c.SymbolicateCacheMB != 256 {
+		t.Fatalf("defaults = %d workers, %d MiB, err %v", c.SymbolicateWorkers, c.SymbolicateCacheMB, err)
+	}
+	values := baseEnv()
+	values["SUPERMETRY_SYMBOLICATE_WORKERS"] = "4"
+	values["SUPERMETRY_SYMBOLICATE_CACHE_MB"] = "64"
+	if c, err = Load(env(values)); err != nil || c.SymbolicateWorkers != 4 || c.SymbolicateCacheMB != 64 {
+		t.Fatalf("set = %d, %d, err %v", c.SymbolicateWorkers, c.SymbolicateCacheMB, err)
+	}
+	values["SUPERMETRY_SYMBOLICATE_WORKERS"] = "0"
+	if _, err = Load(env(values)); err == nil {
+		t.Fatal("zero workers accepted")
+	}
+}

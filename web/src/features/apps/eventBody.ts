@@ -4,6 +4,8 @@ export type BodyException = { type?: string; value?: string; mechanism?: { type?
 export type BodyBreadcrumb = { timestamp?: string | number; type?: string; category?: string; level?: string; message?: string; data?: Record<string, unknown> }
 export type BodyAttachment = { name?: string; type?: string; size?: number }
 export type EventBodyView = {
+  release?: string
+  symbolication?: string
   message?: string
   exceptions?: BodyException[]
   breadcrumbs?: BodyBreadcrumb[]
@@ -21,6 +23,8 @@ const asRecord = (value: unknown): Record<string, unknown> => (value && typeof v
 export function readBody(raw: unknown) {
   const body = asRecord(raw) as EventBodyView
   return {
+    release: typeof body.release === 'string' ? body.release : '',
+    symbolication: typeof body.symbolication === 'string' ? body.symbolication : '',
     message: typeof body.message === 'string' ? body.message : '',
     exceptions: asArray<BodyException>(body.exceptions).map((exception) => ({ ...exception, frames: asArray<BodyFrame>(exception?.frames) })),
     breadcrumbs: asArray<BodyBreadcrumb>(body.breadcrumbs),

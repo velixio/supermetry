@@ -79,6 +79,7 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 				`insert into app_issue_daily(site_id,issue_id,day,events) values($1::int,$1::int,$2::date,1)`,
 				`insert into app_release_daily(site_id,day,release,platform,events) values($1::int,$2::date,'1.0','linux',1)`,
 				`insert into app_issue_hourly(site_id,issue_id,hour,events) values($1::int,$1::int,$2::date + time '05:00',1)`,
+				`insert into app_client_reports(site_id,day,reason,category,quantity) values($1::int,$2::date,'sample_rate','error',1)`,
 			} {
 				if _, err := pool.Exec(ctx, q, site, day); err != nil {
 					t.Fatal(err)
@@ -89,7 +90,7 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 	if _, err := retention.Run(ctx, pool, now); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly"} {
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly", "app_client_reports"} {
 		var s1, s2 int
 		if err := pool.QueryRow(ctx, `select count(*) filter (where site_id=1), count(*) filter (where site_id=2) from `+table).Scan(&s1, &s2); err != nil {
 			t.Fatal(err)
@@ -101,7 +102,7 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 	if err := retention.Erase(ctx, pool, 1, 10, 0); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly"} {
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly", "app_client_reports"} {
 		var n int
 		if err := pool.QueryRow(ctx, `select count(*) from `+table+` where site_id=1`).Scan(&n); err != nil || n != 0 {
 			t.Fatalf("%s rows left after erase: %d %v", table, n, err)

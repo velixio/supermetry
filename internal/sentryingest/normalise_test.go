@@ -579,3 +579,24 @@ func FuzzNormalise(f *testing.F) {
 		}
 	})
 }
+
+func TestNormaliseKeepsSymbolicationInputs(t *testing.T) {
+	ev, body := normalise(t, `{"event_id":"`+strings.Repeat("b", 32)+`","timestamp":1794924000,"release":"1.2.3","fingerprint":["{{ default }}","x"],
+		"debug_meta":{"images":[{"type":"sourcemap","code_file":"https://a.example/app.js?v=1","debug_id":"EFD8CAD4-51CC-4E52-B63C-BE84E219418A"},"junk"]},
+		"exception":{"values":[{"type":"Error","stacktrace":{"frames":[{"abs_path":"https://a.example/app.js?v=1#x","lineno":1,"colno":9}]}}]}}`)
+	if body.Release != "1.2.3" || ev.Release != "1.2.3" {
+		t.Fatalf("release %q", body.Release)
+	}
+	if len(body.DebugImages) != 1 || body.DebugImages[0].CodeFile != "https://a.example/app.js" || body.DebugImages[0].Type != "sourcemap" {
+		t.Fatalf("images %+v", body.DebugImages)
+	}
+	if f := body.Exceptions[0].Frames[0]; f.AbsURL != "https://a.example/app.js" || f.AbsPath != "" {
+		t.Fatalf("frame %+v", f)
+	}
+	if len(body.Row.SDKFingerprint) != 2 {
+		t.Fatalf("fingerprint %v", body.Row.SDKFingerprint)
+	}
+	if b, _ := json.Marshal(body); strings.Contains(string(b), "a.example") && strings.Contains(string(b), "debug_id") {
+		t.Fatalf("in-memory fields leaked into the stored body: %s", b)
+	}
+}
