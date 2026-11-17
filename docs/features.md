@@ -46,6 +46,7 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | Short links and tracking pixels | ? | ✓ | ? | ✅ (`/l/{slug}`, `/px/{id}.gif`, default UTM tags, expiry, click limits, QR code, per-link stats) |
 | Pixel analytics projects and open GitHub counters | ? | ? | ? | ✅ (aggregate-only GIF pixels, branded SVG badges, snippets and a dedicated dashboard; open counters are opt-in) |
 | App health for desktop, mobile and backend apps | ? | ? | ? | ✅ (app projects with a write-only ingest key, crash and error reports grouped into issues, crash-free users and sessions, regressions by release, compatibility matrix, releases page, issue alerts, TypeScript and Python client kits, read-only MCP tools) |
+| App Monitoring: Sentry SDK compatibility | ? | ? | ? | ✅ (point an unmodified Sentry SDK at the project DSN: JavaScript, Node, Electron, Python, Go, Android and Cocoa; DSN keys with allowed origins and revoke; per-SDK setup screen; event detail with exception chain, in-app frames, breadcrumbs, contexts and tags; performance, replays, profiles, cron and source maps are later phases) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
