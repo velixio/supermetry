@@ -803,6 +803,34 @@ func TestLoadSMTPTLSModes(t *testing.T) {
 	}
 }
 
+func TestLoadSentryUploadAPILimits(t *testing.T) {
+	c, err := Load(env(baseEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SentryAPIIPPerMin != 600 || c.SentryAPITokenPerMin != 300 || c.SentryOrgCapBytes != 5<<30 {
+		t.Fatalf("defaults = %d %d %d", c.SentryAPIIPPerMin, c.SentryAPITokenPerMin, c.SentryOrgCapBytes)
+	}
+	values := baseEnv()
+	values["SUPERMETRY_SENTRY_API_IP_PER_MIN"] = "50"
+	values["SUPERMETRY_SENTRY_API_TOKEN_PER_MIN"] = "20"
+	values["SUPERMETRY_SENTRY_ORG_CAP"] = "2GB"
+	c, err = Load(env(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SentryAPIIPPerMin != 50 || c.SentryAPITokenPerMin != 20 || c.SentryOrgCapBytes != 2<<30 {
+		t.Fatalf("configured = %d %d %d", c.SentryAPIIPPerMin, c.SentryAPITokenPerMin, c.SentryOrgCapBytes)
+	}
+	for _, name := range []string{"SUPERMETRY_SENTRY_API_IP_PER_MIN", "SUPERMETRY_SENTRY_API_TOKEN_PER_MIN", "SUPERMETRY_SENTRY_ORG_CAP"} {
+		values := baseEnv()
+		values[name] = "0"
+		if _, err := Load(env(values)); err == nil {
+			t.Errorf("%s=0 accepted", name)
+		}
+	}
+}
+
 func TestLoadSymbolicateSettings(t *testing.T) {
 	c, err := Load(env(baseEnv()))
 	if err != nil || c.SymbolicateWorkers != 2 || c.SymbolicateCacheMB != 256 {

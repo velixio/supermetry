@@ -205,7 +205,7 @@ func (h *Handler) assembleBundle(ctx context.Context, id int64) {
 		return
 	}
 	if used+size > h.deps.OrgCapBytes {
-		h.fail(ctx, id, "organization source map storage limit reached")
+		h.fail(ctx, id, fmt.Sprintf("organization source map storage limit reached: %d of %d bytes used, this bundle needs %d more; delete old releases or raise SUPERMETRY_SENTRY_ORG_CAP", used, h.deps.OrgCapBytes, size))
 		return
 	}
 	bundle, err := sourcemap.ParseBundle(tmp, size, h.deps.Caps)
