@@ -12,7 +12,10 @@ import (
 
 type fakeSentry struct{ hits int }
 
-func (f *fakeSentry) ServeHTTP(w http.ResponseWriter, _ *http.Request) { f.hits++; w.WriteHeader(http.StatusTeapot) }
+func (f *fakeSentry) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	f.hits++
+	w.WriteHeader(http.StatusTeapot)
+}
 func (f *fakeSentry) Matches(r *http.Request) bool {
 	return strings.HasPrefix(r.URL.Path, "/api/42/envelope")
 }
