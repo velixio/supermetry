@@ -146,6 +146,10 @@ func TestCollectionReliabilityCountersAreExported(t *testing.T) {
 		{name: "app_ingest_write_failed_total", counter: &health.AppIngestWriteFailed, delta: 1},
 		{name: "app_body_queue_full_total", counter: &health.AppBodyQueueFull, delta: 1},
 		{name: "app_body_write_failed_total", counter: &health.AppBodyWriteFailed, delta: 1},
+		{name: "span_queue_full_total", counter: &health.SpanQueueFull, delta: 3},
+		{name: "span_rate_limited_total", counter: &health.SpanRateLimited, delta: 1},
+		{name: "span_write_failed_total", counter: &health.SpanWriteFailed, delta: 1},
+		{name: "span_no_partition_total", counter: &health.SpanNoPartition, delta: 1},
 	}
 	wants := make(map[string]uint64, len(metrics))
 	for _, metric := range metrics {

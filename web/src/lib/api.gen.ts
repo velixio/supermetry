@@ -3264,6 +3264,10 @@ export interface components {
             filter_crawlers?: boolean | null;
             /** @description Drop events raised on localhost. Null means the server default (filter_localhost_default). */
             filter_localhost?: boolean | null;
+            /** @description Accept transactions and spans. Omitted or null means on. */
+            performance_enabled?: boolean | null;
+            /** @description Raw span retention in days. 0 means the default of 14. */
+            span_retention_days?: number;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
         };

@@ -174,6 +174,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 				MaxReportAgeDays: parsed.MaxReportAgeDays, Environments: parsed.Environments,
 				HashSecret: hashSecrets[site.ID], FilterExtensions: parsed.FilterExtensions,
 				FilterCrawlers: parsed.FilterCrawlers, FilterLocalhost: parsed.FilterLocalhost,
+				PerformanceEnabled: parsed.PerformanceEnabled, SpanRetentionDays: parsed.SpanRetentionDays,
 			}
 			for _, key := range dsnBySite[site.ID] {
 				next.byDSN[key.PublicKey] = site.ID
