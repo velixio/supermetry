@@ -183,6 +183,7 @@ type Breakdown struct {
 // EventSample is a recent event of an issue. It carries no install or session
 // identifier, hashed or not.
 type EventSample struct {
+	EventID     string         `json:"event_id,omitempty"`
 	TS          time.Time      `json:"ts"`
 	Release     string         `json:"release"`
 	Platform    string         `json:"platform"`
@@ -350,7 +351,7 @@ func countTags(m map[string][]Breakdown) int {
 
 func (q *Querier) latest(ctx context.Context, args []any) ([]EventSample, error) {
 	rows, err := q.pool.Query(ctx, `
-select ts, release, platform, os_version, arch, device_class, runtime, exit_reason, signal, exit_code, frames, tags
+select event_id, ts, release, platform, os_version, arch, device_class, runtime, exit_reason, signal, exit_code, frames, tags
 from app_events where `+eventWhere+` and issue_id = $7 order by ts desc, event_id limit `+fmt.Sprint(latestEvents), args...)
 	if err != nil {
 		return nil, fmt.Errorf("read latest events: %w", err)
@@ -359,7 +360,7 @@ from app_events where `+eventWhere+` and issue_id = $7 order by ts desc, event_i
 	out := []EventSample{}
 	for rows.Next() {
 		var e EventSample
-		if err := rows.Scan(&e.TS, &e.Release, &e.Platform, &e.OSVersion, &e.Arch, &e.DeviceClass, &e.Runtime, &e.ExitReason, &e.Signal, &e.ExitCode, &e.Frames, &e.Tags); err != nil {
+		if err := rows.Scan(&e.EventID, &e.TS, &e.Release, &e.Platform, &e.OSVersion, &e.Arch, &e.DeviceClass, &e.Runtime, &e.ExitReason, &e.Signal, &e.ExitCode, &e.Frames, &e.Tags); err != nil {
 			return nil, err
 		}
 		if e.Tags == nil {

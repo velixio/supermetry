@@ -90,6 +90,7 @@ import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.
 import { Route as AppOrgSiteSettingsTrackingRouteImport } from './routes/app.$org.$site.settings.tracking'
 import { Route as AppOrgGithubStarsOwnerNameRouteImport } from './routes/app.$org.github-stars.$owner.$name'
 import { Route as AppOrgSiteLinksPixelIdRouteImport } from './routes/app.$org.$site.links.pixel_.$id'
+import { Route as AppOrgSiteIssuesIssueEventsEventRouteImport } from './routes/app.$org.$site.issues_.$issue.events.$event'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -511,6 +512,12 @@ const AppOrgSiteLinksPixelIdRoute = AppOrgSiteLinksPixelIdRouteImport.update({
   path: '/$site/links/pixel/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteIssuesIssueEventsEventRoute =
+  AppOrgSiteIssuesIssueEventsEventRouteImport.update({
+    id: '/$site/issues_/$issue/events/$event',
+    path: '/$site/issues/$issue/events/$event',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -594,6 +601,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
+  '/app/$org/$site/issues/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -674,6 +682,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
+  '/app/$org/$site/issues/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -758,6 +767,7 @@ export interface FileRoutesById {
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel_/$id': typeof AppOrgSiteLinksPixelIdRoute
+  '/app/$org/$site/issues_/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -843,6 +853,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
     | '/app/$org/$site/links/pixel/$id'
+    | '/app/$org/$site/issues/$issue/events/$event'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -923,6 +934,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
     | '/app/$org/$site/links/pixel/$id'
+    | '/app/$org/$site/issues/$issue/events/$event'
   id:
     | '__root__'
     | '/'
@@ -1006,6 +1018,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
     | '/app/$org/$site/links/pixel_/$id'
+    | '/app/$org/$site/issues_/$issue/events/$event'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1590,6 +1603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteLinksPixelIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/issues_/$issue/events/$event': {
+      id: '/app/$org/$site/issues_/$issue/events/$event'
+      path: '/$site/issues/$issue/events/$event'
+      fullPath: '/app/$org/$site/issues/$issue/events/$event'
+      preLoaderRoute: typeof AppOrgSiteIssuesIssueEventsEventRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
   }
 }
 
@@ -1700,6 +1720,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteProfilesIndexRoute: typeof AppOrgSiteProfilesIndexRoute
   AppOrgSiteReplaysIndexRoute: typeof AppOrgSiteReplaysIndexRoute
   AppOrgSiteLinksPixelIdRoute: typeof AppOrgSiteLinksPixelIdRoute
+  AppOrgSiteIssuesIssueEventsEventRoute: typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
 
 const AppOrgRouteChildren: AppOrgRouteChildren = {
@@ -1734,6 +1755,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteProfilesIndexRoute: AppOrgSiteProfilesIndexRoute,
   AppOrgSiteReplaysIndexRoute: AppOrgSiteReplaysIndexRoute,
   AppOrgSiteLinksPixelIdRoute: AppOrgSiteLinksPixelIdRoute,
+  AppOrgSiteIssuesIssueEventsEventRoute: AppOrgSiteIssuesIssueEventsEventRoute,
 }
 
 const AppOrgRouteWithChildren =
