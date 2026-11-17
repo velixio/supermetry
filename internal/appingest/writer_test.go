@@ -559,3 +559,60 @@ func TestWriterRecordsFirstSeenAndRegressionOnTheTimeline(t *testing.T) {
 		t.Fatalf("after a post-regression event: %q", got)
 	}
 }
+
+func TestWriterAppliesOwnershipOnFirstCreationOnly(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	ctx := context.Background()
+	var owner, other int64
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('own@example.test','Own','h') returning id`).Scan(&owner); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('out@example.test','Out','h') returning id`).Scan(&other); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into memberships(org_id,user_id,role) values (1,$1,'editor')`, owner); err != nil {
+		t.Fatal(err)
+	}
+	t1 := testNow.Add(-time.Hour)
+	first := queued("a", "fp-own", "1.0.0", t1, 1)
+	first.Event.OwnerUserID = owner
+	if err := w.flush(ctx, []Queued{first}); err != nil {
+		t.Fatal(err)
+	}
+	assignee := func(fp string) *int64 {
+		var a *int64
+		if err := pool.QueryRow(ctx, `select assignee_user_id from app_issues where site_id=7 and fingerprint=$1`, fp).Scan(&a); err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
+	if a := assignee("fp-own"); a == nil || *a != owner {
+		t.Fatalf("assignee = %v, want %d", a, owner)
+	}
+	var system int
+	if err := pool.QueryRow(ctx, `select count(*) from app_issue_activity a join app_issues i on i.id=a.issue_id
+where i.fingerprint='fp-own' and a.kind='assigned' and a.actor_user_id is null`).Scan(&system); err != nil || system != 1 {
+		t.Fatalf("system assigned activity = %d err=%v", system, err)
+	}
+	// Someone unassigns; a later event that matches the rule again must not re-assign.
+	if _, err := pool.Exec(ctx, `update app_issues set assignee_user_id=null where fingerprint='fp-own'`); err != nil {
+		t.Fatal(err)
+	}
+	again := queued("b", "fp-own", "1.0.0", t1.Add(time.Minute), 1)
+	again.Event.OwnerUserID = owner
+	if err := w.flush(ctx, []Queued{again}); err != nil {
+		t.Fatal(err)
+	}
+	if a := assignee("fp-own"); a != nil {
+		t.Fatalf("existing issue was re-assigned to %d", *a)
+	}
+	// An owner who is not a member of the organisation is skipped, not an error.
+	stranger := queued("c", "fp-stranger", "1.0.0", t1, 1)
+	stranger.Event.OwnerUserID = other
+	if err := w.flush(ctx, []Queued{stranger}); err != nil {
+		t.Fatal(err)
+	}
+	if a := assignee("fp-stranger"); a != nil {
+		t.Fatalf("non-member was assigned: %d", *a)
+	}
+}

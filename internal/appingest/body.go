@@ -1,6 +1,10 @@
 package appingest
 
-import "time"
+import (
+	"time"
+
+	"supermetry/internal/apprules"
+)
 
 // Body is the scrubbed detail of one Sentry-style event. It is serialised as
 // JSON into app_event_bodies.body. The key fields (SiteID, TS, EventID) are
@@ -39,7 +43,8 @@ type RowExtras struct {
 	SDKName         string
 	SDKVersion      string
 	GroupingVersion int16
-	SDKFingerprint  []string // the SDK's custom fingerprint, kept to regroup after symbolication
+	Rules           *apprules.Set // the project's rules, in memory only: symbolication regroups with them
+	SDKFingerprint  []string      // the SDK's custom fingerprint, kept to regroup after symbolication
 }
 
 // DebugImage is one debug_meta image of a Sentry event; only the fields

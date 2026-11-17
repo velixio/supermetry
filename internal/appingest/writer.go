@@ -158,6 +158,7 @@ type issueGroup struct {
 	inserted                   bool // the upsert created the issue
 	level, culprit             string
 	groupingVersion            int16
+	owner                      int64 // ownership-rule candidate; applied only when the upsert creates the issue
 }
 
 func (w *Writer) flush(ctx context.Context, batch []Queued) error {
@@ -209,6 +210,9 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 			groups[key] = g
 			order = append(order, g)
 		}
+		if g.owner == 0 {
+			g.owner = e.OwnerUserID
+		}
 		if e.TS.Before(g.firstSeen) {
 			g.firstSeen, g.firstRelease = e.TS, e.Release
 		}
@@ -250,6 +254,11 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 				if g.inserted {
 					if err := appissues.RecordSystem(ctx, tx, g.siteID, g.id, appissues.KindFirstSeen, map[string]any{"release": g.firstRelease}); err != nil {
 						return err
+					}
+					if g.owner > 0 {
+						if err := appissues.AssignOwner(ctx, tx, g.siteID, g.id, g.owner); err != nil {
+							return err
+						}
 					}
 				}
 			}

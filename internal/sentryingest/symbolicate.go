@@ -313,7 +313,8 @@ func (s *Symbolicator) symbolicate(ctx context.Context, ev appingest.Event, body
 	ev.Frames = eventFrames(exceptions)
 	ev.Culprit = culprit(exceptions, ev.Transaction)
 	body.Row.Culprit = ev.Culprit
-	ev.Fingerprint, ev.GroupingVersion = appingest.GroupingKey(ev, body, sdkFP)
+	ev.Fingerprint, ev.GroupingVersion = appingest.GroupingKeyRules(ev, body, sdkFP, body.Row.Rules)
+	ev.OwnerUserID = appingest.OwnerOf(body, body.Row.Rules)
 	body.Row.GroupingVersion = ev.GroupingVersion
 	return ev, body
 }
