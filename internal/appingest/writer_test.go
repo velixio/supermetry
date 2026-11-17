@@ -434,3 +434,43 @@ func TestResolveNextThenEventsFromOlderAndNewerReleases(t *testing.T) {
 		})
 	}
 }
+
+func TestWriterStoresSentryColumnsAndMaintainsIssueLevelAndCulprit(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	ctx := context.Background()
+	t1 := testNow.Add(-2 * time.Hour)
+	first := queued("a", "fp-s", "1.0.0", t1, 1)
+	first.Event.Level, first.Event.Culprit = "error", "old.fn"
+	first.Event.SDKName, first.Event.SDKVersion, first.Event.Dist = "sentry.javascript.browser", "11.13.0", "7"
+	first.Event.Transaction, first.Event.MessageHash, first.Event.UserHash = "/home", []byte{1, 2}, []byte{3, 4}
+	second := queued("b", "fp-s", "1.0.1", t1.Add(time.Hour), 1)
+	second.Event.Level, second.Event.Culprit = "fatal", "new.fn"
+	if err := w.flush(ctx, []Queued{first, second}); err != nil {
+		t.Fatal(err)
+	}
+	// An older late event must not overwrite the newest level and culprit.
+	late := queued("c", "fp-s", "0.9.0", t1.Add(-time.Hour), 1)
+	late.Event.Level, late.Event.Culprit = "warning", "ancient.fn"
+	if err := w.flush(ctx, []Queued{late}); err != nil {
+		t.Fatal(err)
+	}
+	var level, culprit, firstRelease, lastRelease string
+	var gv int16
+	if err := pool.QueryRow(ctx, `select level, culprit, first_release, last_release, grouping_version from app_issues where fingerprint='fp-s'`).
+		Scan(&level, &culprit, &firstRelease, &lastRelease, &gv); err != nil {
+		t.Fatal(err)
+	}
+	if level != "fatal" || culprit != "new.fn" || firstRelease != "0.9.0" || lastRelease != "1.0.1" || gv != 1 {
+		t.Fatalf("issue = %q %q %q %q %d", level, culprit, firstRelease, lastRelease, gv)
+	}
+	var sdk, dist, tx string
+	var mh, uh []byte
+	var egv int16
+	if err := pool.QueryRow(ctx, `select sdk_name, dist, transaction, message_hash, user_hash, grouping_version from app_events where event_id='a'`).
+		Scan(&sdk, &dist, &tx, &mh, &uh, &egv); err != nil {
+		t.Fatal(err)
+	}
+	if sdk != "sentry.javascript.browser" || dist != "7" || tx != "/home" || len(mh) != 2 || len(uh) != 2 || egv != 1 {
+		t.Fatalf("event = %q %q %q %v %v %d", sdk, dist, tx, mh, uh, egv)
+	}
+}

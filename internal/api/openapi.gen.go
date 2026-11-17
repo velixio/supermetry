@@ -2614,6 +2614,31 @@ type AppCompatibility struct {
 	} `json:"rows"`
 }
 
+// AppDSNKey defines model for AppDSNKey.
+type AppDSNKey struct {
+	AllowedOrigins []string  `json:"allowed_origins"`
+	CreatedAt      time.Time `json:"created_at"`
+
+	// Dsn Empty when the server has no public base URL configured.
+	Dsn       string    `json:"dsn"`
+	ExpiresAt time.Time `json:"expires_at"`
+	Label     string    `json:"label"`
+	Prefix    string    `json:"prefix"`
+	PublicKey string    `json:"public_key"`
+}
+
+// AppDSNKeyCreate defines model for AppDSNKeyCreate.
+type AppDSNKeyCreate struct {
+	AllowedOrigins *[]string  `json:"allowed_origins,omitempty"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
+	Label          *string    `json:"label,omitempty"`
+}
+
+// AppDSNKeyList defines model for AppDSNKeyList.
+type AppDSNKeyList struct {
+	Keys []AppDSNKey `json:"keys"`
+}
+
 // AppEvent One app report. Unknown fields are ignored. A wrong type, an over-long value or an unknown enum value drops the event as `invalid`.
 type AppEvent struct {
 	Arch        *AppEventArch `json:"arch,omitempty"`
@@ -5701,6 +5726,9 @@ type UpdateAppLinkJSONRequestBody = AppLink
 // UpdateAppSettingsJSONRequestBody defines body for UpdateAppSettings for application/json ContentType.
 type UpdateAppSettingsJSONRequestBody = AppSettings
 
+// CreateAppDSNKeyJSONRequestBody defines body for CreateAppDSNKey for application/json ContentType.
+type CreateAppDSNKeyJSONRequestBody = AppDSNKeyCreate
+
 // UpdateAppIssueStatusJSONRequestBody defines body for UpdateAppIssueStatus for application/json ContentType.
 type UpdateAppIssueStatusJSONRequestBody = AppIssueStatusInput
 
@@ -6554,6 +6582,15 @@ type ServerInterface interface {
 	// GetAppCompatibility Crash and install counts per platform, OS version, architecture and device class
 	// (GET /api/private/sites/{site}/app/compatibility)
 	GetAppCompatibility(w http.ResponseWriter, r *http.Request, site int32, params GetAppCompatibilityParams)
+	// ListAppDSNKeys List an app project's active DSN keys
+	// (GET /api/private/sites/{site}/app/dsn-keys)
+	ListAppDSNKeys(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateAppDSNKey Create a DSN key
+	// (POST /api/private/sites/{site}/app/dsn-keys)
+	CreateAppDSNKey(w http.ResponseWriter, r *http.Request, site int32)
+	// RevokeAppDSNKey Revoke a DSN key
+	// (DELETE /api/private/sites/{site}/app/dsn-keys/{prefix})
+	RevokeAppDSNKey(w http.ResponseWriter, r *http.Request, site int32, prefix string)
 	// ListAppIssues Issues with events in the range, filtered, sorted and paged
 	// (GET /api/private/sites/{site}/app/issues)
 	ListAppIssues(w http.ResponseWriter, r *http.Request, site int32, params ListAppIssuesParams)
@@ -9887,6 +9924,93 @@ func (siw *ServerInterfaceWrapper) GetAppCompatibility(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAppCompatibility(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppDSNKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListAppDSNKeys(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppDSNKeys(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAppDSNKey operation middleware
+func (siw *ServerInterfaceWrapper) CreateAppDSNKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAppDSNKey(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeAppDSNKey operation middleware
+func (siw *ServerInterfaceWrapper) RevokeAppDSNKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "prefix" -------------
+	var prefix string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "prefix", r.PathValue("prefix"), &prefix, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "prefix", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeAppDSNKey(w, r, site, prefix)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14504,6 +14628,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app-link", wrapper.UpdateAppLink)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.ListAppIngestKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/ingest-keys", wrapper.RotateAppIngestKey)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys", wrapper.ListAppDSNKeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys", wrapper.CreateAppDSNKey)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys/{prefix}", wrapper.RevokeAppDSNKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.GetAppIssue)

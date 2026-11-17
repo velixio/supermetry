@@ -40,3 +40,20 @@ func TestValidRejects(t *testing.T) {
 		t.Error("valid rejected")
 	}
 }
+
+func TestNewDSNKeyFormat(t *testing.T) {
+	seen := make(map[string]struct{}, 1000)
+	for i := 0; i < 1000; i++ {
+		key := appkeys.NewDSNKey()
+		if !appkeys.ValidDSNKey(key) || len(key) != 32 || strings.ToLower(key) != key {
+			t.Fatalf("bad key %q", key)
+		}
+		seen[key] = struct{}{}
+	}
+	if len(seen) != 1000 {
+		t.Fatalf("unique keys = %d", len(seen))
+	}
+	if appkeys.ValidDSNKey("0123456789ABCDEF0123456789abcdef") || appkeys.ValidDSNKey("") {
+		t.Fatal("invalid key accepted")
+	}
+}

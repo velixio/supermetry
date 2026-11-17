@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -43,11 +44,11 @@ func (s *Store) RotateAppKeyTx(ctx context.Context, tx pgx.Tx, siteID int32, cre
 	if err := tx.QueryRow(ctx, `select 1 from sites where id = $1 for update`, siteID).Scan(&locked); err != nil {
 		return nil, fmt.Errorf("lock site for key rotation: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `delete from app_ingest_keys where site_id = $1 and expires_at <= $2`, siteID, now); err != nil {
+	if _, err := tx.Exec(ctx, `delete from app_ingest_keys where site_id = $1 and kind = 'smk' and expires_at <= $2`, siteID, now); err != nil {
 		return nil, fmt.Errorf("delete expired ingest keys: %w", err)
 	}
 	grace := now.Add(AppKeyGrace)
-	tag, err := tx.Exec(ctx, `update app_ingest_keys set expires_at = $2 where site_id = $1 and expires_at is null`, siteID, grace)
+	tag, err := tx.Exec(ctx, `update app_ingest_keys set expires_at = $2 where site_id = $1 and kind = 'smk' and expires_at is null`, siteID, grace)
 	if err != nil {
 		return nil, fmt.Errorf("demote ingest key: %w", err)
 	}
@@ -64,7 +65,7 @@ func (s *Store) RotateAppKeyTx(ctx context.Context, tx pgx.Tx, siteID int32, cre
 // ListAppKeys returns a site's unexpired keys, newest first.
 func (s *Store) ListAppKeys(ctx context.Context, siteID int32) ([]AppKeyRow, error) {
 	rows, err := s.Pool.Query(ctx, `select prefix, created_at, expires_at from app_ingest_keys
-		where site_id = $1 and (expires_at is null or expires_at > now()) order by created_at desc, id desc`, siteID)
+		where site_id = $1 and kind = 'smk' and (expires_at is null or expires_at > now()) order by created_at desc, id desc`, siteID)
 	if err != nil {
 		return nil, fmt.Errorf("list ingest keys: %w", err)
 	}
@@ -83,7 +84,7 @@ func (s *Store) ListAppKeys(ctx context.Context, siteID int32) ([]AppKeyRow, err
 // ActiveAppKeys returns every unexpired key of every site, for the registry.
 func (s *Store) ActiveAppKeys(ctx context.Context) ([]AppKeyRow, error) {
 	rows, err := s.Pool.Query(ctx, `select site_id, prefix, hash, created_at, expires_at from app_ingest_keys
-		where expires_at is null or expires_at > now()`)
+		where kind = 'smk' and (expires_at is null or expires_at > now())`)
 	if err != nil {
 		return nil, fmt.Errorf("load ingest keys: %w", err)
 	}
@@ -212,4 +213,71 @@ func (s *Store) SetAppLink(ctx context.Context, tx pgx.Tx, siteID int32, appSite
 		return fmt.Errorf("save app link: %w", err)
 	}
 	return nil
+}
+
+// DSNKeyRow is a DSN public key as stored.
+type DSNKeyRow struct {
+	SiteID         int32
+	PublicKey      string
+	Label          string
+	AllowedOrigins []string
+	RatePerMin     *int32
+	CreatedAt      time.Time
+	ExpiresAt      *time.Time
+}
+
+// CreateDSNKeyTx stores a new DSN key inside the caller's transaction. The
+// hash column holds sha256(public_key) and prefix its first 8 characters.
+func (s *Store) CreateDSNKeyTx(ctx context.Context, tx pgx.Tx, row DSNKeyRow, createdBy *int64) error {
+	hash := sha256.Sum256([]byte(row.PublicKey))
+	origins := row.AllowedOrigins
+	if origins == nil {
+		origins = []string{}
+	}
+	if _, err := tx.Exec(ctx, `insert into app_ingest_keys(site_id, prefix, hash, created_by, created_at, expires_at, kind, public_key, allowed_origins, label, rate_limit_per_min)
+		values ($1,$2,$3,$4,$5,$6,'dsn',$7,$8,$9,$10)`,
+		row.SiteID, row.PublicKey[:8], hash[:], createdBy, row.CreatedAt, row.ExpiresAt, row.PublicKey, origins, row.Label, row.RatePerMin); err != nil {
+		return fmt.Errorf("insert dsn key: %w", err)
+	}
+	return nil
+}
+
+// ListDSNKeys returns a site's unrevoked, unexpired DSN keys, newest first.
+func (s *Store) ListDSNKeys(ctx context.Context, siteID int32) ([]DSNKeyRow, error) {
+	return s.queryDSNKeys(ctx, `select site_id, public_key, label, allowed_origins, rate_limit_per_min, created_at, expires_at
+		from app_ingest_keys where site_id = $1 and kind = 'dsn' and revoked_at is null and (expires_at is null or expires_at > now())
+		order by created_at desc, id desc`, siteID)
+}
+
+// ActiveDSNKeys returns every unrevoked, unexpired DSN key of every site, for the registry.
+func (s *Store) ActiveDSNKeys(ctx context.Context) ([]DSNKeyRow, error) {
+	return s.queryDSNKeys(ctx, `select site_id, public_key, label, allowed_origins, rate_limit_per_min, created_at, expires_at
+		from app_ingest_keys where kind = 'dsn' and revoked_at is null and (expires_at is null or expires_at > now())`)
+}
+
+func (s *Store) queryDSNKeys(ctx context.Context, query string, args ...any) ([]DSNKeyRow, error) {
+	rows, err := s.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("load dsn keys: %w", err)
+	}
+	defer rows.Close()
+	var out []DSNKeyRow
+	for rows.Next() {
+		var row DSNKeyRow
+		if err := rows.Scan(&row.SiteID, &row.PublicKey, &row.Label, &row.AllowedOrigins, &row.RatePerMin, &row.CreatedAt, &row.ExpiresAt); err != nil {
+			return nil, fmt.Errorf("scan dsn key: %w", err)
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+// RevokeDSNKeyTx revokes the site's active DSN key with the given 8-character
+// prefix and reports whether one was found.
+func (s *Store) RevokeDSNKeyTx(ctx context.Context, tx pgx.Tx, siteID int32, prefix string, now time.Time) (bool, error) {
+	tag, err := tx.Exec(ctx, `update app_ingest_keys set revoked_at = $3 where site_id = $1 and kind = 'dsn' and prefix = $2 and revoked_at is null`, siteID, prefix, now)
+	if err != nil {
+		return false, fmt.Errorf("revoke dsn key: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
 }

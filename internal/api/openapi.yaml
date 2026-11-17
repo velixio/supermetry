@@ -2864,6 +2864,41 @@ paths:
       responses:
         '201': { description: The new key, shown once, content: { application/json: { schema: { $ref: '#/components/schemas/AppIngestKeyIssued' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/dsn-keys:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppDSNKeys
+      tags: [Sites]
+      summary: List an app project's active DSN keys
+      description: |
+        DSN keys are the public half of a Sentry-style DSN (`https://<public_key>@<host>/<site id>`); they ship in
+        client bundles, so they are listed in full. Revoked and expired keys are not listed.
+      responses:
+        '200': { description: DSN keys, content: { application/json: { schema: { $ref: '#/components/schemas/AppDSNKeyList' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createAppDSNKey
+      tags: [Sites]
+      summary: Create a DSN key
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: '#/components/schemas/AppDSNKeyCreate' } } }
+      responses:
+        '201': { description: The new key, content: { application/json: { schema: { $ref: '#/components/schemas/AppDSNKey' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/dsn-keys/{prefix}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: prefix, in: path, required: true, description: The first 8 characters of the public key., schema: { type: string, minLength: 8, maxLength: 8 } }
+    delete:
+      operationId: revokeAppDSNKey
+      tags: [Sites]
+      summary: Revoke a DSN key
+      responses:
+        '204': { description: Revoked }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/overview:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -4187,6 +4222,28 @@ components:
         tag_allowlist: { type: array, maxItems: 50, items: { type: string, pattern: '^[a-z][a-z0-9_.]{0,39}$' } }
         max_report_age_days: { type: integer, minimum: 0, maximum: 30, description: "0 means the default of 7." }
         environments: { type: array, maxItems: 20, items: { type: string, pattern: '^[a-z0-9][a-z0-9_.-]{0,31}$' } }
+    AppDSNKeyCreate:
+      type: object
+      properties:
+        label: { type: string, maxLength: 80 }
+        allowed_origins: { type: array, maxItems: 20, items: { type: string, description: 'scheme://host[:port]' } }
+        expires_at: { type: string, format: date-time, nullable: true }
+    AppDSNKey:
+      type: object
+      required: [public_key, prefix, dsn, label, allowed_origins, created_at, expires_at]
+      properties:
+        public_key: { type: string, pattern: '^[0-9a-f]{32}$' }
+        prefix: { type: string }
+        dsn: { type: string, description: 'Empty when the server has no public base URL configured.' }
+        label: { type: string }
+        allowed_origins: { type: array, items: { type: string } }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time, nullable: true }
+    AppDSNKeyList:
+      type: object
+      required: [keys]
+      properties:
+        keys: { type: array, items: { $ref: '#/components/schemas/AppDSNKey' } }
     AppIngestKeyIssued:
       type: object
       required: [key, prefix, previous_expires_at]

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base32"
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -28,6 +29,27 @@ func New() (plain, prefix string, hash [32]byte, err error) {
 	}
 	plain = keyPrefix + strings.ToLower(encoding.EncodeToString(random))
 	return plain, plain[prefixFrom:prefixTo], Hash(plain), nil
+}
+
+// NewDSNKey returns the public part of a DSN: 32 lowercase hex characters from
+// 16 random bytes. It is public by design and stored in plain text.
+func NewDSNKey() string {
+	random := make([]byte, 16)
+	_, _ = rand.Read(random) // never fails since Go 1.24; it aborts the process instead
+	return hex.EncodeToString(random)
+}
+
+// ValidDSNKey reports whether s has the shape of a DSN public key.
+func ValidDSNKey(s string) bool {
+	if len(s) != 32 {
+		return false
+	}
+	for _, c := range []byte(s) {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // Hash returns the SHA-256 digest of a plaintext key.

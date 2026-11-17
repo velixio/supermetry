@@ -2032,6 +2032,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/dsn-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * List an app project's active DSN keys
+         * @description DSN keys are the public half of a Sentry-style DSN (`https://<public_key>@<host>/<site id>`); they ship in
+         *     client bundles, so they are listed in full. Revoked and expired keys are not listed.
+         */
+        get: operations["listAppDSNKeys"];
+        put?: never;
+        /** Create a DSN key */
+        post: operations["createAppDSNKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/dsn-keys/{prefix}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                /** @description The first 8 characters of the public key. */
+                prefix: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a DSN key */
+        delete: operations["revokeAppDSNKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/overview": {
         parameters: {
             query?: {
@@ -3040,6 +3085,27 @@ export interface components {
             /** @description 0 means the default of 7. */
             max_report_age_days?: number;
             environments?: string[];
+        };
+        AppDSNKeyCreate: {
+            label?: string;
+            allowed_origins?: string[];
+            /** Format: date-time */
+            expires_at?: string | null;
+        };
+        AppDSNKey: {
+            public_key: string;
+            prefix: string;
+            /** @description Empty when the server has no public base URL configured. */
+            dsn: string;
+            label: string;
+            allowed_origins: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string | null;
+        };
+        AppDSNKeyList: {
+            keys: components["schemas"]["AppDSNKey"][];
         };
         AppIngestKeyIssued: {
             /** @description Plaintext key; returned once and never stored. */
@@ -10047,6 +10113,80 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AppIngestKeyIssued"];
                 };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppDSNKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DSN keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDSNKeyList"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createAppDSNKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AppDSNKeyCreate"];
+            };
+        };
+        responses: {
+            /** @description The new key */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDSNKey"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokeAppDSNKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                /** @description The first 8 characters of the public key. */
+                prefix: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             404: components["responses"]["NotFound"];
         };
