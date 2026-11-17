@@ -601,42 +601,6 @@ func (e AppIssueRowPriority) Valid() bool {
 	}
 }
 
-// Defines values for AppOverviewHealthSource.
-const (
-	AppOverviewHealthSourceEvents   AppOverviewHealthSource = "events"
-	AppOverviewHealthSourceSessions AppOverviewHealthSource = "sessions"
-)
-
-// Valid indicates whether the value is a known member of the AppOverviewHealthSource enum.
-func (e AppOverviewHealthSource) Valid() bool {
-	switch e {
-	case AppOverviewHealthSourceEvents:
-		return true
-	case AppOverviewHealthSourceSessions:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AppReleasesReleasesHealthSource.
-const (
-	AppReleasesReleasesHealthSourceEvents   AppReleasesReleasesHealthSource = "events"
-	AppReleasesReleasesHealthSourceSessions AppReleasesReleasesHealthSource = "sessions"
-)
-
-// Valid indicates whether the value is a known member of the AppReleasesReleasesHealthSource enum.
-func (e AppReleasesReleasesHealthSource) Valid() bool {
-	switch e {
-	case AppReleasesReleasesHealthSourceEvents:
-		return true
-	case AppReleasesReleasesHealthSourceSessions:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for AppUserErasureStatus.
 const (
 	AppUserErasureStatusDone    AppUserErasureStatus = "done"
@@ -1230,55 +1194,55 @@ func (e MCPResponseJsonrpc) Valid() bool {
 
 // Defines values for Metric.
 const (
-	MetricAverageRevenue Metric = "average_revenue"
-	MetricBounceRate     Metric = "bounce_rate"
-	MetricConversionRate Metric = "conversion_rate"
-	MetricConversions    Metric = "conversions"
-	MetricEngagementTime Metric = "engagement_time"
-	MetricEvents         Metric = "events"
-	MetricExitRate       Metric = "exit_rate"
-	MetricPageviews      Metric = "pageviews"
-	MetricScrollDepth    Metric = "scroll_depth"
-	MetricTimeOnPage     Metric = "time_on_page"
-	MetricTotalRevenue   Metric = "total_revenue"
-	MetricViewsPerVisit  Metric = "views_per_visit"
-	MetricVisitDuration  Metric = "visit_duration"
-	MetricVisitors       Metric = "visitors"
-	MetricVisits         Metric = "visits"
+	AverageRevenue Metric = "average_revenue"
+	BounceRate     Metric = "bounce_rate"
+	ConversionRate Metric = "conversion_rate"
+	Conversions    Metric = "conversions"
+	EngagementTime Metric = "engagement_time"
+	Events         Metric = "events"
+	ExitRate       Metric = "exit_rate"
+	Pageviews      Metric = "pageviews"
+	ScrollDepth    Metric = "scroll_depth"
+	TimeOnPage     Metric = "time_on_page"
+	TotalRevenue   Metric = "total_revenue"
+	ViewsPerVisit  Metric = "views_per_visit"
+	VisitDuration  Metric = "visit_duration"
+	Visitors       Metric = "visitors"
+	Visits         Metric = "visits"
 )
 
 // Valid indicates whether the value is a known member of the Metric enum.
 func (e Metric) Valid() bool {
 	switch e {
-	case MetricAverageRevenue:
+	case AverageRevenue:
 		return true
-	case MetricBounceRate:
+	case BounceRate:
 		return true
-	case MetricConversionRate:
+	case ConversionRate:
 		return true
-	case MetricConversions:
+	case Conversions:
 		return true
-	case MetricEngagementTime:
+	case EngagementTime:
 		return true
-	case MetricEvents:
+	case Events:
 		return true
-	case MetricExitRate:
+	case ExitRate:
 		return true
-	case MetricPageviews:
+	case Pageviews:
 		return true
-	case MetricScrollDepth:
+	case ScrollDepth:
 		return true
-	case MetricTimeOnPage:
+	case TimeOnPage:
 		return true
-	case MetricTotalRevenue:
+	case TotalRevenue:
 		return true
-	case MetricViewsPerVisit:
+	case ViewsPerVisit:
 		return true
-	case MetricVisitDuration:
+	case VisitDuration:
 		return true
-	case MetricVisitors:
+	case Visitors:
 		return true
-	case MetricVisits:
+	case Visits:
 		return true
 	default:
 		return false
@@ -2985,20 +2949,23 @@ type AppIssueDetail struct {
 	AssigneeUserId int64  `json:"assignee_user_id"`
 
 	// Breakdowns Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`.
-	Breakdowns        map[string][]AppBreakdown `json:"breakdowns"`
-	ErrorType         string                    `json:"error_type"`
-	EventCount        int64                     `json:"event_count"`
-	FirstRelease      string                    `json:"first_release"`
-	FirstSeen         time.Time                 `json:"first_seen"`
-	GithubUrl         string                    `json:"github_url"`
-	Id                int64                     `json:"id"`
-	Kind              string                    `json:"kind"`
-	LastRelease       string                    `json:"last_release"`
-	LastSeen          time.Time                 `json:"last_seen"`
-	LatestEvents      []AppEventSample          `json:"latest_events"`
-	Priority          AppIssueDetailPriority    `json:"priority"`
-	ResolvedInRelease string                    `json:"resolved_in_release"`
-	ResolvedNext      bool                      `json:"resolved_next"`
+	Breakdowns   map[string][]AppBreakdown `json:"breakdowns"`
+	ErrorType    string                    `json:"error_type"`
+	EventCount   int64                     `json:"event_count"`
+	FirstRelease string                    `json:"first_release"`
+	FirstSeen    time.Time                 `json:"first_seen"`
+	GithubUrl    string                    `json:"github_url"`
+	Id           int64                     `json:"id"`
+	Kind         string                    `json:"kind"`
+	LastRelease  string                    `json:"last_release"`
+	LastSeen     time.Time                 `json:"last_seen"`
+	LatestEvents []AppEventSample          `json:"latest_events"`
+
+	// MergedInto Set when this issue was merged into another; its events and counts now belong to that issue.
+	MergedInto        *int64                 `json:"merged_into,omitempty"`
+	Priority          AppIssueDetailPriority `json:"priority"`
+	ResolvedInRelease string                 `json:"resolved_in_release"`
+	ResolvedNext      bool                   `json:"resolved_next"`
 	Series            []struct {
 		Day      openapi_types.Date `json:"day"`
 		Events   int64              `json:"events"`
@@ -3021,6 +2988,11 @@ type AppIssueList struct {
 	Issues     []AppIssueRow `json:"issues"`
 	NextOffset int           `json:"next_offset"`
 	Total      int           `json:"total"`
+}
+
+// AppIssueMergeInput defines model for AppIssueMergeInput.
+type AppIssueMergeInput struct {
+	SourceIds []int64 `json:"source_ids"`
 }
 
 // AppIssueRow defines model for AppIssueRow.
@@ -3062,25 +3034,43 @@ type AppIssueStatus struct {
 	Updated []int64 `json:"updated"`
 }
 
+// AppIssueUnmergeInput defines model for AppIssueUnmergeInput.
+type AppIssueUnmergeInput struct {
+	// Hashes sha256 of the fingerprint, hex, as listed by the merged issues endpoint.
+	Hashes []string `json:"hashes"`
+}
+
 // AppLink defines model for AppLink.
 type AppLink struct {
 	// AppSiteId Id of an app project in the same organization, or null when unlinked.
 	AppSiteId int32 `json:"app_site_id"`
 }
 
+// AppMergedIssue defines model for AppMergedIssue.
+type AppMergedIssue struct {
+	Events   int64     `json:"events"`
+	Hash     string    `json:"hash"`
+	IssueId  int64     `json:"issue_id"`
+	Kind     string    `json:"kind"`
+	LastSeen time.Time `json:"last_seen"`
+	Title    string    `json:"title"`
+}
+
 // AppOverview defines model for AppOverview.
 type AppOverview struct {
-	AbnormalSessions  int64                   `json:"abnormal_sessions"`
-	CrashFreeSessions AppRate                 `json:"crash_free_sessions"`
-	CrashFreeUsers    AppRate                 `json:"crash_free_users"`
-	Crashes           int64                   `json:"crashes"`
-	ErroredSessions   int64                   `json:"errored_sessions"`
-	Events            int64                   `json:"events"`
-	HandledErrors     int64                   `json:"handled_errors"`
-	HealthSource      AppOverviewHealthSource `json:"health_source"`
-	NewIssues         int64                   `json:"new_issues"`
-	RegressedIssues   int64                   `json:"regressed_issues"`
-	Series            []struct {
+	AbnormalSessions  int64   `json:"abnormal_sessions"`
+	CrashFreeSessions AppRate `json:"crash_free_sessions"`
+	CrashFreeUsers    AppRate `json:"crash_free_users"`
+	Crashes           int64   `json:"crashes"`
+	ErroredSessions   int64   `json:"errored_sessions"`
+	Events            int64   `json:"events"`
+	HandledErrors     int64   `json:"handled_errors"`
+
+	// HealthSource sessions (tracked session lifecycles) or events (v1 pings)
+	HealthSource    string `json:"health_source"`
+	NewIssues       int64  `json:"new_issues"`
+	RegressedIssues int64  `json:"regressed_issues"`
+	Series          []struct {
 		CrashFreeSessions AppRate            `json:"crash_free_sessions"`
 		CrashFreeUsers    AppRate            `json:"crash_free_users"`
 		Crashes           int64              `json:"crashes"`
@@ -3092,36 +3082,32 @@ type AppOverview struct {
 	Users           int64 `json:"users"`
 }
 
-// AppOverviewHealthSource defines model for AppOverview.HealthSource.
-type AppOverviewHealthSource string
-
 // AppRate defines model for AppRate.
 type AppRate = float64
 
 // AppReleases defines model for AppReleases.
 type AppReleases struct {
 	Releases []struct {
-		AbnormalSessions  int64                           `json:"abnormal_sessions"`
-		Adoption          AppRate                         `json:"adoption"`
-		CrashFreeSessions AppRate                         `json:"crash_free_sessions"`
-		CrashFreeUsers    AppRate                         `json:"crash_free_users"`
-		ErroredSessions   int64                           `json:"errored_sessions"`
-		FirstSeen         time.Time                       `json:"first_seen"`
-		HandledErrors     int64                           `json:"handled_errors"`
-		HealthSource      AppReleasesReleasesHealthSource `json:"health_source"`
-		Installs          int64                           `json:"installs"`
-		LastSeen          time.Time                       `json:"last_seen"`
-		NewIssues         int64                           `json:"new_issues"`
-		RegressedIssues   int64                           `json:"regressed_issues"`
-		Release           string                          `json:"release"`
-		Sessions          int64                           `json:"sessions"`
-		UnhandledErrors   int64                           `json:"unhandled_errors"`
-		Users             int64                           `json:"users"`
+		AbnormalSessions  int64     `json:"abnormal_sessions"`
+		Adoption          AppRate   `json:"adoption"`
+		CrashFreeSessions AppRate   `json:"crash_free_sessions"`
+		CrashFreeUsers    AppRate   `json:"crash_free_users"`
+		ErroredSessions   int64     `json:"errored_sessions"`
+		FirstSeen         time.Time `json:"first_seen"`
+		HandledErrors     int64     `json:"handled_errors"`
+
+		// HealthSource sessions (tracked session lifecycles) or events (v1 pings)
+		HealthSource    string    `json:"health_source"`
+		Installs        int64     `json:"installs"`
+		LastSeen        time.Time `json:"last_seen"`
+		NewIssues       int64     `json:"new_issues"`
+		RegressedIssues int64     `json:"regressed_issues"`
+		Release         string    `json:"release"`
+		Sessions        int64     `json:"sessions"`
+		UnhandledErrors int64     `json:"unhandled_errors"`
+		Users           int64     `json:"users"`
 	} `json:"releases"`
 }
-
-// AppReleasesReleasesHealthSource defines model for AppReleases.Releases.HealthSource.
-type AppReleasesReleasesHealthSource string
 
 // AppSettings defines model for AppSettings.
 type AppSettings struct {
@@ -3140,8 +3126,14 @@ type AppSettings struct {
 	FilterLocalhostDefault *bool `json:"filter_localhost_default,omitempty"`
 
 	// MaxReportAgeDays 0 means the default of 7.
-	MaxReportAgeDays *int      `json:"max_report_age_days,omitempty"`
-	TagAllowlist     *[]string `json:"tag_allowlist,omitempty"`
+	MaxReportAgeDays *int `json:"max_report_age_days,omitempty"`
+
+	// PerformanceEnabled Accept transactions and spans. Omitted or null means on.
+	PerformanceEnabled *bool `json:"performance_enabled,omitempty"`
+
+	// SpanRetentionDays Raw span retention in days. 0 means the default of 14.
+	SpanRetentionDays *int      `json:"span_retention_days,omitempty"`
+	TagAllowlist      *[]string `json:"tag_allowlist,omitempty"`
 }
 
 // AppUserErase defines model for AppUserErase.
@@ -6035,6 +6027,12 @@ type CreateAppIssueCommentJSONRequestBody = AppIssueCommentInput
 // EditAppIssueCommentJSONRequestBody defines body for EditAppIssueComment for application/json ContentType.
 type EditAppIssueCommentJSONRequestBody = AppIssueCommentInput
 
+// MergeAppIssuesJSONRequestBody defines body for MergeAppIssues for application/json ContentType.
+type MergeAppIssuesJSONRequestBody = AppIssueMergeInput
+
+// UnmergeAppIssueJSONRequestBody defines body for UnmergeAppIssue for application/json ContentType.
+type UnmergeAppIssueJSONRequestBody = AppIssueUnmergeInput
+
 // EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
 type EraseAppUserJSONRequestBody = AppUserErase
 
@@ -6927,6 +6925,15 @@ type ServerInterface interface {
 	// EditAppIssueComment Edit a comment
 	// (PATCH /api/private/sites/{site}/app/issues/{issue}/comments/{comment})
 	EditAppIssueComment(w http.ResponseWriter, r *http.Request, site int32, issue int64, comment int64)
+	// MergeAppIssues Merge other issues into this one
+	// (POST /api/private/sites/{site}/app/issues/{issue}/merge)
+	MergeAppIssues(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// ListMergedAppIssues The issues merged into this one, each with the hash to unmerge it by
+	// (GET /api/private/sites/{site}/app/issues/{issue}/merged)
+	ListMergedAppIssues(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// UnmergeAppIssue Split merged issues back out by fingerprint hash
+	// (POST /api/private/sites/{site}/app/issues/{issue}/unmerge)
+	UnmergeAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64)
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
@@ -10937,6 +10944,111 @@ func (siw *ServerInterfaceWrapper) EditAppIssueComment(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EditAppIssueComment(w, r, site, issue, comment)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MergeAppIssues operation middleware
+func (siw *ServerInterfaceWrapper) MergeAppIssues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MergeAppIssues(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMergedAppIssues operation middleware
+func (siw *ServerInterfaceWrapper) ListMergedAppIssues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMergedAppIssues(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnmergeAppIssue operation middleware
+func (siw *ServerInterfaceWrapper) UnmergeAppIssue(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnmergeAppIssue(w, r, site, issue)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15320,6 +15432,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.DeleteAppIssueComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.EditAppIssueComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/activity", wrapper.ListAppIssueActivity)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/merge", wrapper.MergeAppIssues)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/merged", wrapper.ListMergedAppIssues)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/unmerge", wrapper.UnmergeAppIssue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/assignees", wrapper.ListAppAssignees)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/compatibility", wrapper.GetAppCompatibility)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases", wrapper.GetAppReleases)

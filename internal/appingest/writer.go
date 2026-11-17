@@ -234,14 +234,26 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 					g.firstSeen, g.lastSeen, g.firstRelease, g.lastRelease, g.count, g.level, g.culprit, g.groupingVersion)
 			}
 			results := tx.SendBatch(ctx, pgBatch)
+			var again []*issueGroup
 			for _, g := range order {
 				if err := results.QueryRow().Scan(&g.id, &g.status, &g.resolvedIn, &g.resolvedNext, &g.inserted); err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						again = append(again, g) // a merge committed under the statement
+						continue
+					}
 					_ = results.Close()
 					return fmt.Errorf("upsert issue: %w", err)
 				}
 			}
 			if err := results.Close(); err != nil {
 				return err
+			}
+			for _, g := range again {
+				if err := tx.QueryRow(ctx, upsertIssueSQL, g.siteID, g.fingerprint, g.kind, g.errType, g.title,
+					g.firstSeen, g.lastSeen, g.firstRelease, g.lastRelease, g.count, g.level, g.culprit, g.groupingVersion).
+					Scan(&g.id, &g.status, &g.resolvedIn, &g.resolvedNext, &g.inserted); err != nil {
+					return fmt.Errorf("upsert issue after merge: %w", err)
+				}
 			}
 			if err := recordIssueHashes(ctx, tx, order); err != nil {
 				return err
@@ -339,18 +351,44 @@ func groupingVersion(e Event) int16 {
 // upsertIssueSQL creates or updates an issue. Timestamps only widen, so late
 // events keep first_seen and last_seen right. It never changes the status:
 // regress decides that with the release ordering, which SQL cannot do.
+//
+// A fingerprint whose issue was merged (merged_into set) is redirected to the
+// merge target inside the same statement, so the redirect costs no extra round
+// trip: the redirect branch updates the target, and the insert branch skips the
+// merged row. Merging always points at an unmerged target, so one level is
+// enough. When a merge commits between this statement's snapshot and its row
+// locks neither branch returns a row, and the caller runs the statement again.
 const upsertIssueSQL = `
-insert into app_issues (site_id, fingerprint, kind, error_type, title, first_seen, last_seen, first_release, last_release, event_count, level, culprit, grouping_version)
-values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-on conflict (site_id, fingerprint) do update set
-  first_seen    = least(app_issues.first_seen, excluded.first_seen),
-  last_seen     = greatest(app_issues.last_seen, excluded.last_seen),
-  first_release = case when excluded.first_seen < app_issues.first_seen then excluded.first_release else app_issues.first_release end,
-  last_release  = case when excluded.last_seen >= app_issues.last_seen then excluded.last_release else app_issues.last_release end,
-  level         = case when excluded.last_seen >= app_issues.last_seen and excluded.level <> '' then excluded.level else app_issues.level end,
-  culprit       = case when excluded.last_seen >= app_issues.last_seen and excluded.culprit <> '' then excluded.culprit else app_issues.culprit end,
-  event_count   = app_issues.event_count + excluded.event_count
-returning id, status, resolved_in_release, resolved_next, (xmax = 0)`
+with src as (
+  select merged_into from app_issues where site_id = $1 and fingerprint = $2 and merged_into is not null
+), redirected as (
+  update app_issues t set
+    first_seen    = least(t.first_seen, $6),
+    last_seen     = greatest(t.last_seen, $7),
+    first_release = case when $6 < t.first_seen then $8 else t.first_release end,
+    last_release  = case when $7 >= t.last_seen then $9 else t.last_release end,
+    level         = case when $7 >= t.last_seen and $11 <> '' then $11 else t.level end,
+    culprit       = case when $7 >= t.last_seen and $12 <> '' then $12 else t.culprit end,
+    event_count   = t.event_count + $10
+  where t.id = (select merged_into from src) and t.merged_into is null
+  returning t.id, t.status, t.resolved_in_release, t.resolved_next, false as inserted
+), upserted as (
+  insert into app_issues (site_id, fingerprint, kind, error_type, title, first_seen, last_seen, first_release, last_release, event_count, level, culprit, grouping_version)
+  values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+  on conflict (site_id, fingerprint) do update set
+    first_seen    = least(app_issues.first_seen, excluded.first_seen),
+    last_seen     = greatest(app_issues.last_seen, excluded.last_seen),
+    first_release = case when excluded.first_seen < app_issues.first_seen then excluded.first_release else app_issues.first_release end,
+    last_release  = case when excluded.last_seen >= app_issues.last_seen then excluded.last_release else app_issues.last_release end,
+    level         = case when excluded.last_seen >= app_issues.last_seen and excluded.level <> '' then excluded.level else app_issues.level end,
+    culprit       = case when excluded.last_seen >= app_issues.last_seen and excluded.culprit <> '' then excluded.culprit else app_issues.culprit end,
+    event_count   = app_issues.event_count + excluded.event_count
+  where app_issues.merged_into is null
+  returning id, status, resolved_in_release, resolved_next, (xmax = 0) as inserted
+)
+select id, status, resolved_in_release, resolved_next, inserted from redirected
+union all
+select id, status, resolved_in_release, resolved_next, inserted from upserted`
 
 // shouldRegress applies the regression rule to the releases of a batch's
 // events for a resolved issue. With no recorded release any event regresses.

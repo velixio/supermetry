@@ -265,7 +265,7 @@ func (q *Querier) Overview(ctx context.Context, scope Scope, f Filter) (Overview
 	if err := q.pool.QueryRow(ctx, `
 select count(*) filter (where first_seen >= $2 and first_seen < $3 and ($4 = '' or first_release = $4)),
        count(*) filter (where status = 'regressed' and last_seen >= $2 and last_seen < $3 and ($4 = '' or last_release = $4))
-from app_issues where site_id = $1 and (last_seen >= $2 or first_seen >= $2)`,
+from app_issues where site_id = $1 and merged_into is null and (last_seen >= $2 or first_seen >= $2)`,
 		scope.SiteID, w.start, w.end, f.Release).Scan(&out.NewIssues, &out.RegressedIssues); err != nil {
 		return out, fmt.Errorf("count issues: %w", err)
 	}
