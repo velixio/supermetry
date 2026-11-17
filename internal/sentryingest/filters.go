@@ -15,6 +15,9 @@ const (
 	filterCrawler   = "crawler"
 )
 
+// filterSet says which inbound filters apply to a project.
+type filterSet struct{ extensions, crawlers, localhost bool }
+
 var extensionSchemes = []string{"chrome-extension://", "moz-extension://", "safari-extension://", "safari-web-extension://"}
 
 // filterEvent decides from the raw event JSON (before scrubbing drops the
@@ -23,8 +26,8 @@ var extensionSchemes = []string{"chrome-extension://", "moz-extension://", "safa
 // parse is kept; the normaliser rejects bad payloads. The localhost filter
 // applies only when localhost is true. httpUA is the user agent of the HTTP
 // request; an empty one never counts as a crawler.
-func filterEvent(raw []byte, httpUA string, localhost bool) string {
-	if enrich.IsCrawlerUA(httpUA) {
+func filterEvent(raw []byte, httpUA string, f filterSet) string {
+	if f.crawlers && enrich.IsCrawlerUA(httpUA) {
 		return filterCrawler
 	}
 	m, err := decodeObject(raw)
@@ -32,10 +35,10 @@ func filterEvent(raw []byte, httpUA string, localhost bool) string {
 		return ""
 	}
 	req := asMap(m["request"])
-	if localhost && isLocalURL(str(req["url"])) {
+	if f.localhost && isLocalURL(str(req["url"])) {
 		return filterLocalhost
 	}
-	if enrich.IsCrawlerUA(requestUserAgent(req["headers"])) {
+	if f.crawlers && enrich.IsCrawlerUA(requestUserAgent(req["headers"])) {
 		return filterCrawler
 	}
 	ex := m["exception"]
@@ -44,6 +47,9 @@ func filterEvent(raw []byte, httpUA string, localhost bool) string {
 		values = asList(asMap(ex)["values"])
 	}
 	for _, v := range values {
+		if !f.extensions {
+			break
+		}
 		for _, f := range asList(asMap(asMap(v)["stacktrace"])["frames"]) {
 			fm := asMap(f)
 			if isExtensionURL(str(fm["filename"])) || isExtensionURL(str(fm["abs_path"])) {

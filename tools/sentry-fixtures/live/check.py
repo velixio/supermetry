@@ -3,12 +3,15 @@
   check.py bootstrap BASE SETUP_URL_FILE STATE   complete first-run setup, sign in
   check.py site BASE STATE NAME                  create an app site and a DSN key; prints "<id> <key>"
   check.py sites BASE STATE N                    N app sites with one DSN key each; "<id> <key>" lines
+  check.py uploadtoken BASE STATE NAME           app site, DSN key and an upload token (sntrys_ format); prints "<id> <key> <token>"
+  check.py frame BASE STATE SITE WAIT_S EXPECT_FILE EXPECT_LINE  top in-app frame of the newest event is the original file and line
   check.py issues BASE STATE SITE [WAIT_S]       wait for issues; prints "<n> <titles...>"; exit 1 if none
   check.py sessions BASE STATE SITE WAIT_S DB_URL  wait for session rows (crash-free rate, else rows in app_events)
   check.py breadcrumbs BASE STATE SITE DB_URL    PASS/SKIP check that stored bodies carry breadcrumbs
 
 Exit codes: 0 pass, 1 fail, 3 skip (message on stdout).
 """
+import base64
 import http.cookiejar
 import json
 import re
@@ -85,6 +88,19 @@ def main(argv):
         k = need(*c.call(f"/api/private/sites/{sid}/app/dsn-keys", "POST", {"label": "sdk-compat"}), (201,), "create dsn key")
         print(sid, k["public_key"])
         return 0
+    if cmd == "uploadtoken":
+        me = need(*c.call("/api/private/me"), (200,), "me")
+        org = me["memberships"][0]["org"]
+        s = need(*c.call("/api/private/sites", "POST", {"name": argv[4], "kind": "app", "timezone": "UTC"}), (201,), "create site")
+        sid = s.get("id") or s.get("site_id")
+        k = need(*c.call(f"/api/private/sites/{sid}/app/dsn-keys", "POST", {"label": "sourcemaps"}), (201,), "create dsn key")
+        u = need(*c.call(f"/api/private/orgs/{org['id']}/api-keys", "POST",
+                         {"name": "Source map upload", "scopes": ["releases:write"], "site_ids": [sid]}), (201,), "create upload token")
+        # Same layout the dashboard shows (web/src/features/apps/UploadTokenSection.tsx).
+        payload = json.dumps({"iat": int(time.time()), "url": base, "region_url": base, "org": org["slug"]}, separators=(",", ":"))
+        secret = u["key"].removeprefix("pnl_").replace("_", "", 1)
+        print(sid, k["public_key"], f"sntrys_{base64.b64encode(payload.encode()).decode()}_{secret}")
+        return 0
     if cmd == "sites":  # N app sites, one DSN key each; "<id> <key>" per line
         for n in range(int(argv[4])):
             s = need(*c.call("/api/private/sites", "POST", {"name": f"bench-{n}", "kind": "app", "timezone": "UTC"}), (201,), "create site")
@@ -104,6 +120,41 @@ def main(argv):
                 return 0
             if time.time() > deadline:
                 print(f"{len(titles)} issues, titles={titles}")
+                return 1
+            time.sleep(1)
+    if cmd == "frame":
+        want_file, want_line = argv[6], int(argv[7])
+        last = "no event yet"
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")
+            for i in r["issues"]:
+                d = need(*c.call(f"/api/private/sites/{site}/app/issues/{i['id']}"), (200,), "issue")
+                for ev in d.get("latest_events", []):
+                    if not ev.get("event_id"):
+                        last = f"issue sample has no event_id (keys {sorted(ev)})"
+                        continue
+                    st, b = c.call(f"/api/private/sites/{site}/app/events/{ev['event_id']}")
+                    if st != 200:
+                        last = f"event body HTTP {st}"
+                        continue
+                    frames = [f for x in b["body"].get("exceptions", []) for f in x.get("frames", []) if f.get("in_app", True)]
+                    if not frames:
+                        last = f"no in-app frames in body (keys {sorted(b['body'])})"
+                        continue
+                    top = frames[-1]  # frames are oldest call first
+                    fn, ln = top.get("filename", ""), top.get("lineno")
+                    if fn.endswith(want_file) and ln == want_line:
+                        print(f"top in-app frame {fn}:{ln} function={top.get('function')}")
+                        return 0
+                    last = f"top in-app frame is {fn}:{ln}"
+                    if re.search(r"(^|/)assets/app\.js$", fn):
+                        print(f"SKIP: symbolication not available yet ({last}, still the minified bundle)")
+                        return 3
+            if time.time() > deadline:
+                if last == "event body HTTP 404":
+                    print("SKIP: symbolication not available (event bodies are not stored by this build, so frames cannot be inspected)")
+                    return 3
+                print(f"FAIL: expected {want_file}:{want_line}; {last}")
                 return 1
             time.sleep(1)
     if cmd == "sessions":

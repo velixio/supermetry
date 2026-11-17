@@ -152,6 +152,53 @@ Stack frames are scrubbed before anything is stored: home folders
 absolute path keeps only its last three segments, and `file://` prefixes are
 removed. Raw `install_id` and `session_id` values are never stored.
 
+### Inbound filters
+
+Events that are noise are dropped before anything is stored. They are counted as
+`filtered` and still get a `200` reply, so SDKs do not retry. Each filter is a
+switch under **Settings, Inbound filters** of the app project (owner or admin):
+
+| Filter | What it drops | Default |
+|---|---|---|
+| Browser extensions | Events with a stack frame from a `chrome-extension://`, `moz-extension://` or `safari-extension://` file | On |
+| Crawlers | Events sent with a crawler or bot User-Agent | On |
+| Localhost | Events whose request URL is `localhost`, a `.localhost` name or a loopback address | The server's `SUPERMETRY_SENTRY_FILTER_LOCALHOST` (off unless set) |
+
+The localhost switch follows the server-wide setting until you change it for a
+project. The settings API (`PUT /api/private/sites/{site}/app-settings`) takes
+`filter_extensions`, `filter_crawlers` and `filter_localhost`; `null` returns a
+switch to its default.
+
+### Erasing a user's data
+
+To honour an erasure request for one end user, use **Settings, Erase a user's
+data** of the app project (owner or admin). The dashboard calls the private API
+with your signed-in session:
+
+```text
+POST /api/private/sites/<site-id>/app/users/erase
+{"user_id": "the-id-your-sdk-reports"}
+
+200 {"bodies_deleted": 3, "events_anonymized": 5}
+```
+
+The user is matched by a keyed hash of `user_id`, so the id itself is never
+stored, and it is not written to the audit log either; only the counts are.
+
+Erased:
+
+- the stored event bodies (the scrubbed event detail) of the user's events;
+- the user hash on the user's event rows, which can no longer be tied to them.
+
+Not erased:
+
+- the event rows themselves and the aggregate counts built from them (issue,
+  release and session counts). They hold no user identifier once the hash is
+  cleared, so they are anonymous statistics.
+
+The call runs to completion before it replies and is safe to repeat; a second
+call reports zeros.
+
 ### Sending diagnostic reports through a web site
 
 A web site can be linked to an app project in **Settings, General, Send

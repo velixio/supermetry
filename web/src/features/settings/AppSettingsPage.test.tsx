@@ -9,12 +9,17 @@ vi.mock('@/features/settings/privateApi', () => ({ privateRequest }))
 
 import { AppSettingsPage } from './AppSettingsPage'
 
-function renderPage() {
+function renderPage(role = 'owner') {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <AppSettingsPage orgId={3} siteId={7} publicId="pub7" />
+      <AppSettingsPage orgId={3} siteId={7} publicId="pub7" role={role} />
     </QueryClientProvider>,
   )
+}
+
+const base = {
+  tag_allowlist: [], max_report_age_days: 7, environments: [],
+  filter_extensions: true, filter_crawlers: true, filter_localhost: null, filter_localhost_default: false,
 }
 
 describe('AppSettingsPage', () => {
@@ -23,8 +28,8 @@ describe('AppSettingsPage', () => {
     privateRequest.mockImplementation((method: string, path: string, options?: { body?: unknown }) => {
       if (path.endsWith('/app-settings')) {
         return Promise.resolve(method === 'PUT'
-          ? { tag_allowlist: ['beta', 'stable'], max_report_age_days: 14, environments: ['prod'] }
-          : { tag_allowlist: ['a'], max_report_age_days: 7, environments: [] })
+          ? { ...base, tag_allowlist: ['beta', 'stable'], max_report_age_days: 14, environments: ['prod'] }
+          : { ...base, tag_allowlist: ['a'], max_report_age_days: 7, environments: [] })
       }
       if (method === 'POST') return Promise.resolve({ key: 'smk_new', prefix: 'zzzz9999', previous_expires_at: '2026-11-22T00:00:00Z' })
       return Promise.resolve({ keys: [
@@ -45,9 +50,54 @@ describe('AppSettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PUT', '/api/private/sites/7/app-settings', {
       orgId: 3,
-      body: { tag_allowlist: ['beta', 'stable'], max_report_age_days: 14, environments: ['prod'] },
+      body: {
+        tag_allowlist: ['beta', 'stable'], max_report_age_days: 14, environments: ['prod'],
+        filter_extensions: true, filter_crawlers: true, filter_localhost: null,
+      },
     }))
     await waitFor(() => expect(screen.getByLabelText('Tag allowlist')).toHaveValue('beta\nstable'))
+  })
+
+  it('saves the inbound filter switches; localhost stays on the server default until changed', async () => {
+    renderPage()
+    const extensions = await screen.findByRole('switch', { name: 'Browser extensions' })
+    await waitFor(() => expect(extensions).toBeChecked())
+    expect(screen.getByRole('switch', { name: 'Localhost' })).not.toBeChecked()
+    expect(screen.getByText(/Server default: off/)).toBeInTheDocument()
+    fireEvent.click(extensions)
+    fireEvent.click(screen.getByRole('switch', { name: 'Crawlers' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PUT', '/api/private/sites/7/app-settings', expect.objectContaining({
+      body: expect.objectContaining({ filter_extensions: false, filter_crawlers: false, filter_localhost: null }),
+    })))
+    fireEvent.click(screen.getByRole('switch', { name: 'Localhost' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(privateRequest).toHaveBeenLastCalledWith('PUT', '/api/private/sites/7/app-settings', expect.objectContaining({
+      body: expect.objectContaining({ filter_localhost: true }),
+    })))
+  })
+
+  it('erases a user after confirmation and shows the counts', async () => {
+    privateRequest.mockImplementation((method: string, path: string) => {
+      if (path.endsWith('/app/users/erase')) return Promise.resolve({ bodies_deleted: 3, events_anonymized: 1 })
+      if (path.endsWith('/app-settings')) return Promise.resolve(base)
+      return Promise.resolve({ keys: [] })
+    })
+    renderPage()
+    const erase = await screen.findByRole('button', { name: 'Erase data' })
+    expect(erase).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('User id'), { target: { value: ' user-9 ' } })
+    fireEvent.click(erase)
+    expect(privateRequest).not.toHaveBeenCalledWith('POST', expect.anything(), expect.anything())
+    fireEvent.click(await screen.findByRole('button', { name: 'Erase' }))
+    await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('POST', '/api/private/sites/7/app/users/erase', { orgId: 3, body: { user_id: 'user-9' } }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Erased 3 stored event bodies and anonymized 1 event.')
+  })
+
+  it('hides erasure from viewers', async () => {
+    renderPage('viewer')
+    await screen.findByLabelText('Tag allowlist')
+    expect(screen.queryByRole('button', { name: 'Erase data' })).toBeNull()
   })
 
   it('lists keys and rotates after confirmation', async () => {

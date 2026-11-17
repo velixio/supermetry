@@ -100,6 +100,13 @@ func (h *Handler) WithMaxInflight(n int) *Handler {
 // default, so a local trial of Supermetry shows its events).
 func (h *Handler) WithLocalhostFilter(on bool) *Handler { h.localhost = on; return h }
 
+// filtersFor resolves a project's filters from the site snapshot the DSN
+// lookup already returned; it never touches the database.
+func (h *Handler) filtersFor(site sites.Site) filterSet {
+	e, c, l := site.App.Filters(h.localhost)
+	return filterSet{extensions: e, crawlers: c, localhost: l}
+}
+
 // Stats returns the in-memory drop and ignore counters.
 func (h *Handler) Stats() *Stats { return h.stats }
 
@@ -366,7 +373,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				h.stats.Add("event_unsupported", 1)
 				continue
 			}
-			if reason := filterEvent(it.Payload, req.UserAgent, h.localhost); reason != "" {
+			if reason := filterEvent(it.Payload, req.UserAgent, h.filtersFor(site)); reason != "" {
 				h.stats.Add("filtered", 1)
 				continue
 			}

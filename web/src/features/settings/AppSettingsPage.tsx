@@ -1,21 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { privateRequest } from '@/features/settings/privateApi'
 import { AppKeyDialog } from '@/features/sites/AppKeyDialog'
 import { rotateAppIngestKey } from '@/features/sites/api'
 
-type AppSettings = { tag_allowlist: string[]; max_report_age_days: number; environments: string[] }
+type AppSettings = {
+  tag_allowlist: string[]
+  max_report_age_days: number
+  environments: string[]
+  filter_extensions: boolean | null
+  filter_crawlers: boolean | null
+  filter_localhost: boolean | null
+  filter_localhost_default: boolean
+}
+type EraseResult = { bodies_deleted: number; events_anonymized: number }
 type IngestKey = { prefix: string; created_at: string; expires_at: string | null }
 
 const toList = (text: string) => [...new Set(text.split(/[,\n]/).map((item) => item.trim()).filter(Boolean))]
 const date = (value: string) => new Date(value).toLocaleDateString()
 
-export function AppSettingsPage({ orgId, siteId, publicId }: { orgId: number; siteId: number; publicId: string }) {
+export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: number; siteId: number; publicId: string; role?: string }) {
   const client = useQueryClient()
   const base = `/api/private/sites/${siteId}`
   const settings = useQuery({ queryKey: ['app-settings', siteId], queryFn: () => privateRequest<AppSettings>('GET', `${base}/app-settings`, { orgId }) })
@@ -25,18 +39,33 @@ export function AppSettingsPage({ orgId, siteId, publicId }: { orgId: number; si
   const [environments, setEnvironments] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [issued, setIssued] = useState('')
+  const [extensions, setExtensions] = useState(true)
+  const [crawlers, setCrawlers] = useState(true)
+  const [localhost, setLocalhost] = useState(false)
+  // Until the owner flips the localhost switch the project keeps following the server default.
+  const [localhostTouched, setLocalhostTouched] = useState(false)
+  const [eraseId, setEraseId] = useState('')
+  const [erasing, setErasing] = useState(false)
+  const canErase = role === 'owner' || role === 'admin'
 
   function show(value: AppSettings) {
     setTags(value.tag_allowlist.join('\n'))
     setAge(String(value.max_report_age_days))
     setEnvironments(value.environments.join('\n'))
+    setExtensions(value.filter_extensions !== false)
+    setCrawlers(value.filter_crawlers !== false)
+    setLocalhost(value.filter_localhost ?? value.filter_localhost_default)
+    setLocalhostTouched(value.filter_localhost !== null && value.filter_localhost !== undefined)
   }
   useEffect(() => { if (settings.data) show(settings.data) }, [settings.data])
 
   const save = useMutation({
     mutationFn: () => privateRequest<AppSettings>('PUT', `${base}/app-settings`, {
       orgId,
-      body: { tag_allowlist: toList(tags), max_report_age_days: Number(age), environments: toList(environments) },
+      body: {
+        tag_allowlist: toList(tags), max_report_age_days: Number(age), environments: toList(environments),
+        filter_extensions: extensions, filter_crawlers: crawlers, filter_localhost: localhostTouched ? localhost : null,
+      },
     }),
     onSuccess: (value) => { show(value); client.setQueryData(['app-settings', siteId], value) },
   })
@@ -47,6 +76,11 @@ export function AppSettingsPage({ orgId, siteId, publicId }: { orgId: number; si
       setIssued(result.key)
       void client.invalidateQueries({ queryKey: ['app-ingest-keys', siteId] })
     },
+  })
+
+  const erase = useMutation({
+    mutationFn: () => privateRequest<EraseResult>('POST', `${base}/app/users/erase`, { orgId, body: { user_id: eraseId.trim() } }),
+    onSettled: () => setErasing(false),
   })
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -71,6 +105,17 @@ export function AppSettingsPage({ orgId, siteId, publicId }: { orgId: number; si
             <FieldLabel htmlFor="app-environments">Environments</FieldLabel>
             <Textarea id="app-environments" value={environments} onChange={(event) => setEnvironments(event.target.value)} />
             <FieldDescription>Comma or line separated, for example production, staging.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>Inbound filters</FieldLabel>
+            <FieldDescription>Events matching an enabled filter are dropped before they are stored.</FieldDescription>
+            <FilterSwitch id="filter-extensions" label="Browser extensions" checked={extensions} onChange={setExtensions}
+              hint="Errors raised by code from a browser extension." />
+            <FilterSwitch id="filter-crawlers" label="Crawlers" checked={crawlers} onChange={setCrawlers}
+              hint="Events sent by search engine and other bots." />
+            <FilterSwitch id="filter-localhost" label="Localhost" checked={localhost}
+              onChange={(value) => { setLocalhost(value); setLocalhostTouched(true) }}
+              hint={`Events raised on a developer machine. Server default: ${settings.data?.filter_localhost_default ? 'on' : 'off'}.`} />
           </Field>
           {save.error ? <FieldError>{save.error.message}</FieldError> : null}
         </FieldGroup>
@@ -100,7 +145,62 @@ export function AppSettingsPage({ orgId, siteId, publicId }: { orgId: number; si
         )}
         {rotate.error ? <p role="alert" className="text-sm text-destructive">{rotate.error.message}</p> : null}
       </section>
+      {canErase ? (
+        <section className="flex flex-col gap-3 rounded-xl border bg-card p-4" aria-label="Erase a user's data">
+          <h3 className="text-sm font-medium">Erase a user&apos;s data</h3>
+          <p className="text-sm text-muted-foreground">
+            Deletes the stored event bodies of this user&apos;s events and clears the user hash on their event rows.
+            Aggregate counts stay, without any link to the user.
+          </p>
+          <Field>
+            <FieldLabel htmlFor="erase-user-id">User id</FieldLabel>
+            <Input id="erase-user-id" value={eraseId} maxLength={512} autoComplete="off"
+              onChange={(event) => { setEraseId(event.target.value); erase.reset() }} />
+            <FieldDescription>The user id your SDK reports with <code>setUser</code>.</FieldDescription>
+          </Field>
+          <div>
+            <Button type="button" variant="destructive" disabled={!eraseId.trim() || erase.isPending} onClick={() => setErasing(true)}>
+              Erase data
+            </Button>
+          </div>
+          {erase.error ? <p role="alert" className="text-sm text-destructive">{erase.error.message}</p> : null}
+          {erase.data ? (
+            <p role="status" className="text-sm">
+              Erased {erase.data.bodies_deleted} stored event {erase.data.bodies_deleted === 1 ? 'body' : 'bodies'} and
+              anonymized {erase.data.events_anonymized} {erase.data.events_anonymized === 1 ? 'event' : 'events'}.
+            </p>
+          ) : null}
+          <AlertDialog open={erasing} onOpenChange={setErasing}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Erase this user&apos;s data?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes the stored event bodies of this user&apos;s events. It cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={() => erase.mutate()}>Erase</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </section>
+      ) : null}
       {issued ? <AppKeyDialog appId={publicId} ingestKey={issued} onClose={() => setIssued('')} /> : null}
+    </div>
+  )
+}
+
+function FilterSwitch({ id, label, hint, checked, onChange }: {
+  id: string; label: string; hint: string; checked: boolean; onChange: (value: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-1">
+      <div className="flex flex-col">
+        <label className="text-sm font-medium" htmlFor={id}>{label}</label>
+        <span className="text-sm text-muted-foreground">{hint}</span>
+      </div>
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
     </div>
   )
 }

@@ -12,6 +12,17 @@ import (
 	coresites "supermetry/internal/sites"
 )
 
+// appSettingsResponse adds the server-wide localhost default, so the UI can
+// show what a project that has not chosen will get.
+type appSettingsResponse struct {
+	coresites.AppSettings
+	FilterLocalhostDefault bool `json:"filter_localhost_default"`
+}
+
+func (h *handler) appSettingsResponse(s coresites.AppSettings) appSettingsResponse {
+	return appSettingsResponse{AppSettings: s, FilterLocalhostDefault: h.deps.SentryFilterLocalhost}
+}
+
 func (h *handler) getAppSettings(w http.ResponseWriter, r *http.Request) {
 	_, site, ok := h.appSite(w, r)
 	if !ok {
@@ -27,7 +38,7 @@ func (h *handler) getAppSettings(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, settings)
+	writeJSON(w, http.StatusOK, h.appSettingsResponse(settings))
 }
 
 func (h *handler) updateAppSettings(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +66,7 @@ func (h *handler) updateAppSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		return audit.Write(r.Context(), tx, principal, "site.app_settings_changed", "site", int64(site.ID), map[string]any{
 			"max_report_age_days": settings.MaxReportAgeDays, "tags": len(settings.TagAllowlist), "environments": len(settings.Environments),
+			"filter_extensions": *settings.FilterExtensions, "filter_crawlers": *settings.FilterCrawlers, "filter_localhost": settings.FilterLocalhost != nil && *settings.FilterLocalhost,
 		})
 	})
 	if err != nil {
@@ -66,7 +78,7 @@ func (h *handler) updateAppSettings(w http.ResponseWriter, r *http.Request) {
 			slog.Error("site registry refresh failed after app settings change", "site_id", site.ID, "error", err)
 		}
 	}
-	writeJSON(w, http.StatusOK, settings)
+	writeJSON(w, http.StatusOK, h.appSettingsResponse(settings))
 }
 
 // appLinkBody is {"app_site_id": int|null}. The field must be present.
