@@ -55,6 +55,10 @@ func nilIfEmpty(s string) any {
 	return s
 }
 
+// canUseRelease reports whether the principal may see and change a release.
+// Callers answer 404 when it is false so a foreign release is not revealed.
+func (h *Handler) canUseRelease(c *call, rel releaseRow) bool { return c.canUseSites(rel.siteIDs) }
+
 func (h *Handler) loadRelease(ctx context.Context, orgID int64, version string) (releaseRow, error) {
 	var rel releaseRow
 	err := h.deps.Pool.QueryRow(ctx, `select id, version, site_ids, url, date_created, date_released from app_releases where org_id=$1 and version=$2`, orgID, version).
@@ -101,6 +105,10 @@ func (h *Handler) createRelease(w http.ResponseWriter, r *http.Request, c *call)
 		serverError(w)
 		return
 	}
+	if !inserted && !h.canUseRelease(c, rel) {
+		notFound(w)
+		return
+	}
 	writeJSON(w, status, h.releaseJSON(r.Context(), c, rel))
 }
 
@@ -112,6 +120,10 @@ func (h *Handler) getRelease(w http.ResponseWriter, r *http.Request, c *call) {
 	}
 	if err != nil {
 		serverError(w)
+		return
+	}
+	if !h.canUseRelease(c, rel) {
+		notFound(w)
 		return
 	}
 	writeJSON(w, http.StatusOK, h.releaseJSON(r.Context(), c, rel))
@@ -130,6 +142,10 @@ func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call)
 	}
 	if err != nil {
 		serverError(w)
+		return
+	}
+	if !h.canUseRelease(c, rel) {
+		notFound(w)
 		return
 	}
 	if len(body.Projects) > 0 {
@@ -197,6 +213,10 @@ func (h *Handler) createDeploy(w http.ResponseWriter, r *http.Request, c *call) 
 		serverError(w)
 		return
 	}
+	if !h.canUseRelease(c, rel) {
+		notFound(w)
+		return
+	}
 	if _, perr := h.resolveProjects(c, body.Projects); perr != nil {
 		writeDetail(w, perr.status, perr.detail)
 		return
@@ -220,6 +240,10 @@ func (h *Handler) listDeploys(w http.ResponseWriter, r *http.Request, c *call) {
 	}
 	if err != nil {
 		serverError(w)
+		return
+	}
+	if !h.canUseRelease(c, rel) {
+		notFound(w)
 		return
 	}
 	rows, err := h.deps.Pool.Query(r.Context(), `select id, environment, name, url, date_started, date_finished, date_created from app_deploys where release_id=$1 order by id desc limit 100`, rel.id)

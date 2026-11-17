@@ -58,12 +58,16 @@ func (h *Handler) assemble(w http.ResponseWriter, r *http.Request, c *call) {
 		return
 	}
 	ctx := r.Context()
-	state, detail, found, err := h.bundleState(ctx, c.orgID, req.Checksum)
+	state, detail, bundleSites, found, err := h.bundleState(ctx, c.orgID, req.Checksum)
 	if err != nil {
 		serverError(w)
 		return
 	}
 	if found {
+		if !c.canUseSites(bundleSites) {
+			notFound(w)
+			return
+		}
 		writeJSON(w, http.StatusOK, assembleResponse{State: state, MissingChunks: []string{}, Detail: detail})
 		return
 	}
@@ -92,9 +96,14 @@ func (h *Handler) assemble(w http.ResponseWriter, r *http.Request, c *call) {
 		on conflict (org_id, checksum) do nothing
 		returning id`, c.orgID, siteIDs, req.Version, req.Dist, req.Checksum, req.Chunks).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) { // lost a race with an identical request
-		state, detail, _, err = h.bundleState(ctx, c.orgID, req.Checksum)
+		var bundleSites []int32
+		state, detail, bundleSites, _, err = h.bundleState(ctx, c.orgID, req.Checksum)
 		if err != nil {
 			serverError(w)
+			return
+		}
+		if !c.canUseSites(bundleSites) {
+			notFound(w)
 			return
 		}
 		writeJSON(w, http.StatusOK, assembleResponse{State: state, MissingChunks: []string{}, Detail: detail})
@@ -123,18 +132,18 @@ func contains(values []string, want string) bool {
 	return false
 }
 
-func (h *Handler) bundleState(ctx context.Context, orgID int64, checksum string) (state string, detail *string, found bool, err error) {
-	err = h.deps.Pool.QueryRow(ctx, `select state, detail from app_artifact_bundles where org_id=$1 and checksum=$2`, orgID, checksum).Scan(&state, &detail)
+func (h *Handler) bundleState(ctx context.Context, orgID int64, checksum string) (state string, detail *string, siteIDs []int32, found bool, err error) {
+	err = h.deps.Pool.QueryRow(ctx, `select state, detail, site_ids from app_artifact_bundles where org_id=$1 and checksum=$2`, orgID, checksum).Scan(&state, &detail, &siteIDs)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil, false, nil
+		return "", nil, nil, false, nil
 	}
 	if err != nil {
-		return "", nil, false, err
+		return "", nil, nil, false, err
 	}
 	if state == "created" || state == "assembling" {
 		detail = nil
 	}
-	return state, detail, true, nil
+	return state, detail, siteIDs, true, nil
 }
 
 func (h *Handler) fail(ctx context.Context, id int64, detail string) {

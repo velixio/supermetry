@@ -487,3 +487,73 @@ func TestReleaseRoundTrip(t *testing.T) {
 		t.Fatalf("cross-org release = %d", s)
 	}
 }
+
+func TestReleaseSiteRestrictionMatrix(t *testing.T) {
+	e := newEnv(t, nil)
+	full := e.svc(t, e.owner, []string{Scope}, nil)
+	restricted := e.svc(t, e.owner, []string{Scope}, []int32{10})
+	base := "/api/0/organizations/acme/releases/"
+	for version, projects := range map[string][]string{"site-b": {"appsite00020"}, "org-wide": nil, "site-a": {"appsite00010"}} {
+		if s, _ := e.json(t, "POST", base, full, map[string]any{"version": version, "projects": projects}); s != 201 {
+			t.Fatalf("create %s = %d", version, s)
+		}
+	}
+	for _, version := range []string{"site-b", "org-wide"} {
+		for name, call := range map[string]func() int{
+			"get": func() int { s, _ := e.json(t, "GET", base+version+"/", restricted, nil); return s },
+			"update": func() int {
+				s, _ := e.json(t, "PUT", base+version+"/", restricted, map[string]any{"url": "http://x"})
+				return s
+			},
+			"deploy create": func() int {
+				s, _ := e.json(t, "POST", base+version+"/deploys/", restricted, map[string]any{"environment": "e"})
+				return s
+			},
+			"deploy list":     func() int { s, _ := e.json(t, "GET", base+version+"/deploys/", restricted, nil); return s },
+			"create conflict": func() int { s, _ := e.json(t, "POST", base, restricted, map[string]any{"version": version}); return s },
+		} {
+			if got := call(); got != 404 {
+				t.Errorf("restricted %s %s = %d, want 404", name, version, got)
+			}
+		}
+		if s, _ := e.json(t, "GET", base+version+"/", full, nil); s != 200 {
+			t.Errorf("unrestricted get %s = %d", version, s)
+		}
+		if s, _ := e.json(t, "POST", base+version+"/deploys/", full, map[string]any{"environment": "e"}); s != 201 {
+			t.Errorf("unrestricted deploy %s = %d", version, s)
+		}
+	}
+	// Its own site works end to end.
+	if s, _ := e.json(t, "GET", base+"site-a/", restricted, nil); s != 200 {
+		t.Errorf("own release get = %d", s)
+	}
+	if s, _ := e.json(t, "POST", base+"site-a/deploys/", restricted, map[string]any{"environment": "e"}); s != 201 {
+		t.Errorf("own deploy = %d", s)
+	}
+	// A restricted key cannot attach a release to a site it may not use.
+	if s, _ := e.json(t, "PUT", base+"site-a/", restricted, map[string]any{"projects": []string{"appsite00020"}}); s != 403 {
+		t.Errorf("update with foreign project = %d, want 403", s)
+	}
+	// A restricted key's release without projects is bound to its own sites.
+	if s, _ := e.json(t, "POST", base, restricted, map[string]any{"version": "mine"}); s != 201 {
+		t.Fatalf("restricted create = %d", s)
+	}
+	if s, _ := e.json(t, "GET", base+"mine/", restricted, nil); s != 200 {
+		t.Errorf("restricted get own = %d", s)
+	}
+}
+
+func TestAssembleHidesBundlesOfOtherSites(t *testing.T) {
+	e := newEnv(t, nil)
+	full := e.svc(t, e.owner, []string{Scope}, nil)
+	restricted := e.svc(t, e.owner, []string{Scope}, []int32{10})
+	b := fixtureBundle(t)
+	e.upload(t, full, "file", sha(b), b)
+	req := map[string]any{"checksum": sha(b), "chunks": []string{sha(b)}, "projects": []string{"appsite00020"}}
+	if resp := e.waitState(t, full, req); resp["state"] != "ok" {
+		t.Fatalf("resp = %v", resp)
+	}
+	if s, _ := e.json(t, "POST", "/api/0/organizations/acme/artifactbundle/assemble/", restricted, map[string]any{"checksum": sha(b), "chunks": []string{sha(b)}}); s != 404 {
+		t.Fatalf("restricted key vs another site's bundle = %d, want 404", s)
+	}
+}

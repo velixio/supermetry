@@ -219,6 +219,21 @@ func (h *Handler) resolveProjects(c *call, slugs []string) ([]int32, *projectErr
 	return ids, nil
 }
 
+// canUseSites reports whether the principal may act on a resource bound to
+// siteIDs: an org-wide resource (no sites) needs an unrestricted key, a
+// site-bound one needs releases:write on every site it is bound to.
+func (c *call) canUseSites(siteIDs []int32) bool {
+	if len(siteIDs) == 0 {
+		return c.principal.SiteIDs == nil
+	}
+	for _, id := range siteIDs {
+		if !authz.Can(c.principal, authz.ActionReleasesWrite, id) {
+			return false
+		}
+	}
+	return true
+}
+
 func (h *Handler) findSite(orgID int64, slug string) (sites.Site, bool) {
 	if h.deps.Sites == nil {
 		return sites.Site{}, false
