@@ -1,0 +1,21 @@
+apiVersion: v2
+name: supermetry
+description: Self-hosted, privacy-first web analytics. One Go binary and PostgreSQL.
+type: application
+version: 0.1.0
+appVersion: "0.1.22"
+kubeVersion: ">=1.25.0-0"
+home: https://github.com/velixio/supermetry
+icon: https://raw.githubusercontent.com/velixio/supermetry/main/web/public/apple-touch-icon.png
+sources:
+  - https://github.com/velixio/supermetry
+keywords:
+  - analytics
+  - web-analytics
+  - privacy
+  - postgresql
+maintainers:
+  - name: velixio
+    url: https://github.com/velixio
+annotations:
+  artifacthub.io/license: Apache-2.0

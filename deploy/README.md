@@ -113,6 +113,91 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now supermetry
 ```
 
+## Kubernetes (Helm)
+
+The chart in [`deploy/helm/supermetry`](helm/supermetry) runs Supermetry with a
+bundled PostgreSQL 18 StatefulSet by default, or with an external database:
+
+```sh
+helm install supermetry deploy/helm/supermetry --namespace supermetry --create-namespace \
+  --set ingress.enabled=true --set ingress.className=nginx \
+  --set 'ingress.hosts[0].host=analytics.example.com' --set 'ingress.hosts[0].paths[0].path=/' \
+  --set 'ingress.tls[0].secretName=supermetry-tls' --set 'ingress.tls[0].hosts[0]=analytics.example.com'
+kubectl -n supermetry logs deploy/supermetry | grep 'setup?token='
+```
+
+See the [chart README](helm/supermetry/README.md) for external databases,
+secrets, storage and the full list of values.
+
+## One-click deploy
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/supermetry)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/velixio/supermetry)
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/velixio/supermetry/tree/main)
+
+Each template runs the published image `ghcr.io/velixio/supermetry` (Railway
+can also build `deploy/Dockerfile`) with a managed PostgreSQL database, health
+checks on `/healthz`, a generated or prompted `SUPERMETRY_SECRET_KEY`, and one
+instance. Live sessions are kept in memory, so never scale Supermetry to more
+than one instance. After the first deploy, find the one-time
+`<base URL>/setup?token=...` link in the service logs and open it to create the
+admin account. Back up the secret key: without it, TOTP and notification
+secrets cannot be decrypted.
+
+Platform load balancers forward the visitor address in `X-Forwarded-For`.
+Supermetry only reads it from trusted proxies (`SUPERMETRY_TRUSTED_PROXIES`,
+private ranges by default). If the dashboard shows one location for everyone,
+set `SUPERMETRY_INGEST_DIAG=1`, check the logged peer address, add its range,
+and remove the flag again.
+
+### Railway
+
+The template (TODO: not published yet, see
+[deploy/railway/README.md](railway/README.md)) adds a PostgreSQL service, a
+volume at `/data`, and these references: `SUPERMETRY_DATABASE_URL=${{Postgres.DATABASE_URL}}`,
+`SUPERMETRY_BASE_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}` and a generated
+`SUPERMETRY_SECRET_KEY`. It trusts Railway's proxy range `100.64.0.0/10` and
+runs as root (`RAILWAY_RUN_UID=0`) because Railway volumes are root-owned.
+[`railway.json`](../railway.json) holds the build and deploy settings for
+services created from the repository.
+
+### Render
+
+[`render.yaml`](../render.yaml) is a Blueprint for a `starter` web service from
+the published image, a 5 GB disk at `/data`, and a PostgreSQL 18
+`basic-256mb` database. Render generates `SUPERMETRY_SECRET_KEY` (a base64
+256-bit value, the required format) and prompts for `SUPERMETRY_BASE_URL`:
+enter the service URL, for example `https://supermetry.onrender.com`, or your
+custom domain. If the onrender.com name differs after creation, update the
+variable and redeploy. Disks need a paid instance type. If startup fails with
+`permission denied` under `/data`, the disk is not writable by uid 65532;
+remove the disk and store replays in S3 (`SUPERMETRY_REPLAY_S3_URL`) instead.
+
+### DigitalOcean App Platform
+
+[`.do/deploy.template.yaml`](../.do/deploy.template.yaml) creates a service from
+the GHCR image with a dev PostgreSQL database (`${db.DATABASE_URL}`) and
+`SUPERMETRY_BASE_URL=${APP_URL}`. App Platform cannot generate secrets: enter
+`SUPERMETRY_SECRET_KEY` yourself (`openssl rand -base64 32`). Use a managed
+production database for real traffic.
+
+App Platform has no persistent disks, so `/data` is reset on every deploy and
+restart. Analytics data is unaffected (it lives in PostgreSQL), but on-disk
+session replays are lost and MaxMind GeoIP files are downloaded again. If you
+enable replay, store it in Spaces with `SUPERMETRY_REPLAY_S3_URL`
+(see [Session replay](#session-replay)). App Platform routes through Cloudflare;
+if visitor locations are wrong, check client IPs as described above.
+
+### Coolify
+
+[`coolify/docker-compose.yml`](coolify/docker-compose.yml) is a Coolify service
+template. In Coolify, create a resource with **Docker Compose Empty**, paste
+the file, and deploy. Coolify fills the magic variables: the public URL
+(`SERVICE_URL_SUPERMETRY_8787`), a base64 secret key
+(`SERVICE_REALBASE64_32_SUPERMETRY`) and the PostgreSQL 18 credentials. Set a
+domain on the `supermetry` service before deploying, or change
+`SUPERMETRY_BASE_URL` afterwards to the domain you use.
+
 ## Manage the service
 
 ```sh

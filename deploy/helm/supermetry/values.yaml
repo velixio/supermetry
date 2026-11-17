@@ -1,0 +1,257 @@
+# Default values for the Supermetry chart.
+# Every key is documented here; see README.md next to this file for examples.
+
+image:
+  # Official multi-arch image (linux/amd64, linux/arm64).
+  repository: ghcr.io/velixio/supermetry
+  # Defaults to the chart's appVersion. Pin a release (for example "0.1.22") or a digest.
+  tag: ""
+  # Optional digest (sha256:...). When set, it wins over the tag.
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Keep this at 1. Supermetry aggregates live sessions in process memory, so
+# visitors' events must reach the same instance; a second replica would split
+# sessions and realtime counts. Scheduled jobs and migrations are already
+# guarded by PostgreSQL advisory locks, but ingest is not. There is no HPA for
+# the same reason.
+replicaCount: 1
+
+# Recreate stops the old pod before the new one starts: the data volume is
+# ReadWriteOnce and only one instance may ingest at a time.
+strategy:
+  type: Recreate
+
+# Application settings. Anything not listed here can be set with `env` or
+# `extraEnv`; see docs/guide/configuration.md for every SUPERMETRY_* variable.
+config:
+  # Public URL people use to reach this instance (SUPERMETRY_BASE_URL).
+  # Empty: derived from the first ingress host (https when that host is listed
+  # under ingress.tls), else http://localhost:8787 for `kubectl port-forward`.
+  baseUrl: ""
+  # SUPERMETRY_TRUSTED_PROXIES: comma-separated IPs/CIDRs whose X-Forwarded-For
+  # is trusted. Empty trusts loopback and private networks (10/8, 172.16/12,
+  # 192.168/16, fc00::/7), which covers in-cluster ingress controllers. Use
+  # "none" if untrusted clients can reach the pod from a private network.
+  trustedProxies: ""
+  # SUPERMETRY_SIGNUP: invite (default) or open.
+  signup: ""
+  # Where Supermetry keeps local state (GeoIP downloads, on-disk session
+  # replays, replay upload spill). It is a subdirectory of the volume so the app
+  # owns it: Supermetry chmods its data directory to 0700, which fails on a
+  # volume root owned by root.
+  dataDir: /data/supermetry
+  # Extra plain-text settings as a map, for example:
+  #   env:
+  #     SUPERMETRY_DEFAULT_RETENTION_DAYS: "90"
+  #     SUPERMETRY_REPLAY_ENABLED: "true"
+  env: {}
+
+# SUPERMETRY_SECRET_KEY: base64 of 32+ random bytes. It encrypts TOTP and
+# notification secrets, so it must never change once data exists.
+secretKey:
+  # Leave empty to generate one on first install. It is stored in the chart's
+  # Secret, which is kept on `helm uninstall` and reused on upgrades.
+  # Generate your own with: openssl rand -base64 32
+  value: ""
+  # Use an existing Secret instead (the chart then creates no secret key).
+  existingSecret: ""
+  existingSecretKey: secret-key
+
+# External PostgreSQL (14 or newer; 18 is what CI runs). Used only when
+# postgresql.enabled is false. Set exactly one of url or existingSecret.
+externalDatabase:
+  # Full connection URL, stored in the chart's Secret, for example
+  # postgres://supermetry:PASSWORD@db.example.com:5432/supermetry?sslmode=require
+  url: ""
+  # Existing Secret holding the connection URL.
+  existingSecret: ""
+  existingSecretKey: database-url
+
+# Bundled PostgreSQL 18 StatefulSet (official postgres image, no extra chart
+# dependency). Good for a quick start and small installs; for production
+# consider a managed database or an operator (CloudNativePG) and set
+# postgresql.enabled=false with externalDatabase.
+postgresql:
+  enabled: true
+  image:
+    repository: docker.io/library/postgres
+    tag: 18-alpine
+    pullPolicy: IfNotPresent
+  auth:
+    username: supermetry
+    database: supermetry
+    # Leave empty to generate one on first install (kept like the secret key).
+    password: ""
+    # Existing Secret with the password; the chart then creates none.
+    existingSecret: ""
+    existingSecretPasswordKey: postgres-password
+  persistence:
+    enabled: true
+    # Empty uses the cluster's default StorageClass.
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+    annotations: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  # The alpine image's postgres user is uid/gid 70.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+    fsGroup: 70
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  # Extra server settings passed as `-c key=value`.
+  extraArgs: []
+  #   - -c
+  #   - max_connections=200
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Wait for the bundled database before starting the app (init container using
+# pg_isready from the Supermetry image). Ignored for external databases.
+waitForDatabase: true
+
+# Volume for config.dataDir. Required for GeoIP updates and on-disk replays to
+# survive restarts. Disabled uses an emptyDir (data is lost on restart; store
+# replays in S3 with SUPERMETRY_REPLAY_S3_URL in that case).
+persistence:
+  enabled: true
+  # Use an existing PersistentVolumeClaim.
+  existingClaim: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  # Add `helm.sh/resource-policy: keep` to keep the claim on uninstall.
+  annotations: {}
+  mountPath: /data
+
+serviceAccount:
+  create: true
+  # Supermetry does not call the Kubernetes API.
+  automount: false
+  annotations: {}
+  # Defaults to the release fullname when create is true, "default" otherwise.
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+# The app writes only to config.dataDir and /tmp (an emptyDir), so the root
+# filesystem can be read-only.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8787
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  #   cert-manager.io/cluster-issuer: letsencrypt
+  #   nginx.ingress.kubernetes.io/proxy-body-size: 2m
+  hosts:
+    - host: analytics.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: supermetry-tls
+  #    hosts:
+  #      - analytics.example.com
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# Startup covers database migrations on first boot and upgrades.
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 60
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+terminationGracePeriodSeconds: 30
+
+# Extra environment variables (full EnvVar objects), for example a secret:
+#   extraEnv:
+#     - name: SUPERMETRY_SMTP_PASS
+#       valueFrom:
+#         secretKeyRef:
+#           name: supermetry-smtp
+#           key: password
+extraEnv: []
+
+# Load whole ConfigMaps/Secrets as environment, for example:
+#   extraEnvFrom:
+#     - secretRef:
+#         name: supermetry-smtp
+extraEnvFrom: []
+
+extraVolumes: []
+extraVolumeMounts: []
+
+priorityClassName: ""
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+# `helm test` runs a pod that requests /healthz through the Service.
+tests:
+  enabled: true
