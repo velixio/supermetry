@@ -2999,6 +2999,32 @@ paths:
         '200': { description: Event body, content: { application/json: { schema: { $ref: '#/components/schemas/AppEventBody' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/events/{event_id}/attachments/{idx}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: event_id, in: path, required: true, schema: { type: string, maxLength: 64 } }
+      - { name: idx, in: path, required: true, description: 'Position in the body''s attachments list.', schema: { type: integer, minimum: 0, maximum: 31 } }
+    get:
+      operationId: getAppEventAttachment
+      tags: [Apps]
+      summary: The scrubbed content of one stored event attachment
+      description: |
+        Only attachments whose metadata says stored=true have content. PNG, JPEG and WebP are served inline; text and
+        JSON are served as text downloads; anything else is an opaque download. Every response carries
+        X-Content-Type-Options: nosniff and a sandboxing Content-Security-Policy. Content ages out with the event body
+        (30 days) and then is a 404.
+      responses:
+        '200':
+          description: Attachment content
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            text/plain: { schema: { type: string, format: binary } }
+            application/json: { schema: { type: string, format: binary } }
+            application/octet-stream: { schema: { type: string, format: binary } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/issues/{issue}:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -5581,7 +5607,7 @@ components:
       properties:
         event_id: { type: string }
         ts: { type: string, format: date-time }
-        body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional.' }
+        body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.' }
     AppIssueDetail:
       type: object
       required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, series, breakdowns, latest_events]

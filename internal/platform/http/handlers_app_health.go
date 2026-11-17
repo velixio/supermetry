@@ -2,6 +2,7 @@ package platformhttp
 
 import (
 	"errors"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"supermetry/internal/appattach"
 	"supermetry/internal/appquery"
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
@@ -186,6 +188,64 @@ func (h *handler) getAppEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// getAppEventAttachment serves one stored attachment of an event. The bytes
+// are attacker-controlled, so: only PNG, JPEG and WebP are shown inline, every
+// other type goes out as an opaque download, and nosniff plus a sandboxing CSP
+// keep a browser from ever treating the response as a page.
+func (h *handler) getAppEventAttachment(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	id := r.PathValue("event_id")
+	idx, err := strconv.Atoi(r.PathValue("idx"))
+	if len(id) == 0 || len(id) > 64 || err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "attachment not found")
+		return
+	}
+	a, err := appattach.Get(r.Context(), h.deps.Store.Pool, site.ID, id, idx)
+	if err != nil {
+		if errors.Is(err, appattach.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "Not found", "attachment not found")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	contentType, disposition := "application/octet-stream", "attachment"
+	switch {
+	case appattach.Inline(a.ContentType):
+		contentType, disposition = a.ContentType, "inline"
+	case a.ContentType == appattach.TypeText:
+		contentType = "text/plain; charset=utf-8"
+	case a.ContentType == appattach.TypeJSON:
+		contentType = "application/json"
+	}
+	name := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || r == '"' || r == '\\' || r == '/' {
+			return -1
+		}
+		return r
+	}, a.Name)
+	if name == "" {
+		name = "attachment"
+	}
+	cd := mime.FormatMediaType(disposition, map[string]string{"filename": name})
+	if cd == "" {
+		cd = disposition
+	}
+	hdr := w.Header()
+	hdr.Set("Content-Type", contentType)
+	hdr.Set("Content-Disposition", cd)
+	hdr.Set("Content-Length", strconv.Itoa(len(a.Data)))
+	hdr.Set("X-Content-Type-Options", "nosniff")
+	hdr.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	hdr.Set("Cross-Origin-Resource-Policy", "same-origin")
+	hdr.Set("Cache-Control", "private, no-store")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(a.Data)
 }
 
 func (h *handler) getAppCompatibility(w http.ResponseWriter, r *http.Request) {
