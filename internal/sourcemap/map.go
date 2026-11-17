@@ -36,6 +36,8 @@ type Map struct {
 
 	segs   []segment // sorted by (genLine, genCol)
 	byName map[string]int
+
+	scopes *Scopes // optional; set once before the map is shared
 }
 
 type rawMap struct {
@@ -237,7 +239,13 @@ func joinRoot(root, src string) string {
 // when col precedes the first mapping of the line it returns that first
 // mapping. It never reads a neighbouring line. ok is false when the line has
 // no mappings or the chosen segment maps nowhere.
-func (m *Map) Lookup(line, col int) (Mapping, bool) {
+func (m *Map) Lookup(line, col int) (Mapping, bool) { return m.lookup(line, col, false) }
+
+// LookupExact is Lookup restricted to a segment that starts exactly at the
+// given generated position.
+func (m *Map) LookupExact(line, col int) (Mapping, bool) { return m.lookup(line, col, true) }
+
+func (m *Map) lookup(line, col int, exact bool) (Mapping, bool) {
 	if line < 0 || col < 0 || line > maxVLQ {
 		return Mapping{}, false
 	}
@@ -251,12 +259,14 @@ func (m *Map) Lookup(line, col int) (Mapping, bool) {
 	switch {
 	case i > 0 && m.segs[i-1].genLine == l:
 		s = m.segs[i-1]
+	case exact:
+		return Mapping{}, false
 	case i < len(m.segs) && m.segs[i].genLine == l:
 		s = m.segs[i]
 	default:
 		return Mapping{}, false
 	}
-	if s.src < 0 {
+	if s.src < 0 || (exact && s.genCol != c) {
 		return Mapping{}, false
 	}
 	out := Mapping{Source: m.Sources[s.src], Line: int(s.srcLine) + 1, Col: int(s.srcCol)}
