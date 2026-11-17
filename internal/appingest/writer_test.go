@@ -474,3 +474,15 @@ func TestWriterStoresSentryColumnsAndMaintainsIssueLevelAndCulprit(t *testing.T)
 		t.Fatalf("event = %q %q %q %v %v %d", sdk, dist, tx, mh, uh, egv)
 	}
 }
+
+func TestWriterUsesTheNormalisersIssueTitle(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	q := queued("t", "fp-title", "1.0.0", testNow.Add(-time.Hour), 1)
+	q.Event.Title = "TypeError: x is undefined"
+	if err := w.flush(context.Background(), []Queued{q}); err != nil {
+		t.Fatal(err)
+	}
+	if got := readIssue(t, pool, "fp-title").Title; got != "TypeError: x is undefined" {
+		t.Fatalf("title = %q", got)
+	}
+}

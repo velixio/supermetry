@@ -49,12 +49,17 @@ var allowedMaxMindEditions = map[string]bool{
 }
 
 type SMTP struct {
-	Host     string
-	Port     int
-	User     string
-	Pass     string
-	From     string
+	Host string
+	Port int
+	User string
+	Pass string
+	From string
+	// StartTLS upgrades a plaintext connection with STARTTLS (port 587).
 	StartTLS bool
+	// ImplicitTLS wraps the connection in TLS from the first byte (SMTPS,
+	// port 465). It takes precedence over StartTLS. With both false the
+	// connection stays plaintext and authentication is refused.
+	ImplicitTLS bool
 	// Hello is the host name the client announces in EHLO (a real name, not
 	// "localhost": some providers delay mail from clients that say localhost).
 	// SUPERMETRY_SMTP_HELO, else the host of SUPERMETRY_BASE_URL, else the
@@ -106,6 +111,9 @@ type Config struct {
 	SessionFlush         time.Duration
 	QueryTimeout         time.Duration
 	IngestRateIP         int
+	SentryIPPerMin       int // Sentry-compatible intake: requests per minute per client IP
+	SentryMaxInflight    int // Sentry-compatible intake: bodies read and parsed at once
+	AppSpikePerMin       int // Sentry-compatible intake: events per minute per app site
 	IngestRateSite       int
 	IngestRateGlobal     int
 	HTTPReadTimeout      time.Duration
@@ -218,6 +226,9 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		SessionFlush:         defaultSessionFlush,
 		QueryTimeout:         defaultQueryTimeout,
 		IngestRateIP:         defaultIngestRateIP,
+		AppSpikePerMin:       600,
+		SentryIPPerMin:       600,
+		SentryMaxInflight:    32,
 		IngestRateSite:       defaultIngestRateSite,
 		IngestRateGlobal:     defaultIngestRateGlobal,
 		HTTPReadTimeout:      defaultHTTPReadTimeout,
@@ -413,13 +424,36 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 			c.SMTP.Port = value
 		}
 	}
-	if raw := getenv("SUPERMETRY_SMTP_STARTTLS"); raw != "" {
-		value, err := strconv.ParseBool(raw)
+	startTLSRaw := strings.TrimSpace(getenv("SUPERMETRY_SMTP_STARTTLS"))
+	if startTLSRaw != "" {
+		value, err := strconv.ParseBool(startTLSRaw)
 		if err != nil {
 			errs = append(errs, errors.New("SUPERMETRY_SMTP_STARTTLS must be a boolean"))
 		} else {
 			c.SMTP.StartTLS = value
 		}
+	}
+	// SUPERMETRY_SMTP_TLS picks the mode explicitly. Without it, the legacy
+	// SUPERMETRY_SMTP_STARTTLS applies, and an unset pair on port 465 means
+	// implicit TLS (SMTPS), which a STARTTLS client cannot speak anyway.
+	switch mode := strings.ToLower(strings.TrimSpace(getenv("SUPERMETRY_SMTP_TLS"))); mode {
+	case "":
+		if startTLSRaw == "" && c.SMTP.Port == 465 {
+			c.SMTP.StartTLS, c.SMTP.ImplicitTLS = false, true
+		}
+	case "starttls", "implicit", "none":
+		wantStartTLS := mode == "starttls"
+		if startTLSRaw != "" && c.SMTP.StartTLS != wantStartTLS && !(mode == "implicit" && !c.SMTP.StartTLS) {
+			errs = append(errs, errors.New("SUPERMETRY_SMTP_TLS and SUPERMETRY_SMTP_STARTTLS disagree; set only SUPERMETRY_SMTP_TLS"))
+			break
+		}
+		c.SMTP.StartTLS = wantStartTLS
+		c.SMTP.ImplicitTLS = mode == "implicit"
+	default:
+		errs = append(errs, errors.New("SUPERMETRY_SMTP_TLS must be starttls, implicit or none"))
+	}
+	if c.SMTP.Host != "" && c.SMTP.User != "" && !c.SMTP.StartTLS && !c.SMTP.ImplicitTLS {
+		errs = append(errs, errors.New("SUPERMETRY_SMTP_USER requires TLS: use SUPERMETRY_SMTP_TLS=starttls or implicit"))
 	}
 	if c.SMTP.Host != "" && c.SMTP.From == "" {
 		errs = append(errs, errors.New("SUPERMETRY_SMTP_FROM is required when SUPERMETRY_SMTP_HOST is set"))
@@ -433,6 +467,9 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveDuration(getenv("SUPERMETRY_FLUSH_EVERY"), "SUPERMETRY_FLUSH_EVERY", &c.FlushEvery, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_SESSION_FLUSH"), "SUPERMETRY_SESSION_FLUSH", &c.SessionFlush, &errs)
 	parseDurationRange(getenv("SUPERMETRY_QUERY_TIMEOUT"), "SUPERMETRY_QUERY_TIMEOUT", time.Second, 5*time.Minute, &c.QueryTimeout, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SENTRY_IP_PER_MIN"), "SUPERMETRY_SENTRY_IP_PER_MIN", &c.SentryIPPerMin, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SENTRY_MAX_INFLIGHT"), "SUPERMETRY_SENTRY_MAX_INFLIGHT", &c.SentryMaxInflight, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_APP_SPIKE_PER_MIN"), "SUPERMETRY_APP_SPIKE_PER_MIN", &c.AppSpikePerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_IP"), "SUPERMETRY_INGEST_RATE_IP", &c.IngestRateIP, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_SITE"), "SUPERMETRY_INGEST_RATE_SITE", &c.IngestRateSite, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_GLOBAL"), "SUPERMETRY_INGEST_RATE_GLOBAL", &c.IngestRateGlobal, &errs)
@@ -747,4 +784,38 @@ func SMTPHelloName(explicit, baseURL, from string) string {
 		}
 	}
 	return "localhost"
+}
+
+// ValidateSMTP applies the same rules as Load to SMTP settings that come from
+// somewhere else (the instance admin screen). It returns every problem found,
+// one message per line.
+func ValidateSMTP(s SMTP) error {
+	var errs []error
+	host := strings.TrimSpace(s.Host)
+	if host == "" || strings.ContainsAny(host, " \t\r\n/@") {
+		errs = append(errs, errors.New("SMTP host must be a host name or IP address"))
+	}
+	if s.Port < 1 || s.Port > 65535 {
+		errs = append(errs, errors.New("SMTP port must be an integer from 1 to 65535"))
+	}
+	if strings.TrimSpace(s.From) == "" {
+		errs = append(errs, errors.New("SMTP from address is required"))
+	} else if strings.ContainsAny(s.From, "\r\n") {
+		errs = append(errs, errors.New("SMTP from address must not contain line breaks"))
+	} else if _, err := stdmail.ParseAddress(s.From); err != nil {
+		errs = append(errs, errors.New("SMTP from address must be an email address, optionally with a display name"))
+	}
+	if s.Hello != "" && !validHelloName(s.Hello) {
+		errs = append(errs, errors.New("SMTP HELO name must be a host name"))
+	}
+	if s.StartTLS && s.ImplicitTLS {
+		errs = append(errs, errors.New("SMTP TLS mode must be one of starttls, implicit or none"))
+	}
+	if s.User != "" && !s.StartTLS && !s.ImplicitTLS {
+		errs = append(errs, errors.New("SMTP username requires TLS: choose starttls or implicit"))
+	}
+	if strings.ContainsAny(s.User, "\r\n") || strings.ContainsAny(s.Pass, "\r\n") {
+		errs = append(errs, errors.New("SMTP username and password must not contain line breaks"))
+	}
+	return errors.Join(errs...)
 }

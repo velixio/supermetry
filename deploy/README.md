@@ -212,10 +212,14 @@ sudo journalctl -u supermetry -f
 
 ## Email (SMTP), optional
 
-Email enables invitations, password resets, and reports. Edit the install's
-`.env` file and fill in `SUPERMETRY_SMTP_HOST`, `SUPERMETRY_SMTP_PORT`,
-`SUPERMETRY_SMTP_USER`, `SUPERMETRY_SMTP_PASS`, and `SUPERMETRY_SMTP_FROM`.
-`SUPERMETRY_SMTP_STARTTLS` defaults to `true`. Then restart Supermetry:
+Email enables invitations, password resets, and reports. The simplest way is
+the app: sign in as an instance admin, open Instance admin, then Email (SMTP),
+fill in the form and use Send test email. No restart is needed. If you prefer
+files, edit the install's `.env` file and fill in `SUPERMETRY_SMTP_HOST`,
+`SUPERMETRY_SMTP_PORT`, `SUPERMETRY_SMTP_USER`, `SUPERMETRY_SMTP_PASS`, and
+`SUPERMETRY_SMTP_FROM`. `SUPERMETRY_SMTP_TLS` is `starttls` by default; use
+`implicit` for port 465. When `SUPERMETRY_SMTP_HOST` is set it wins over the
+app's settings. Then restart Supermetry:
 
 ```sh
 sudoedit /etc/supermetry/supermetry.env

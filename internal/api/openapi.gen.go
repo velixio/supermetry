@@ -46,6 +46,69 @@ func (e AdminDeleteUserResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for AdminEmailSettingsSource.
+const (
+	AdminEmailSettingsSourceDatabase    AdminEmailSettingsSource = "database"
+	AdminEmailSettingsSourceEnvironment AdminEmailSettingsSource = "environment"
+	AdminEmailSettingsSourceNone        AdminEmailSettingsSource = "none"
+)
+
+// Valid indicates whether the value is a known member of the AdminEmailSettingsSource enum.
+func (e AdminEmailSettingsSource) Valid() bool {
+	switch e {
+	case AdminEmailSettingsSourceDatabase:
+		return true
+	case AdminEmailSettingsSourceEnvironment:
+		return true
+	case AdminEmailSettingsSourceNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminEmailSettingsTls.
+const (
+	AdminEmailSettingsTlsImplicit AdminEmailSettingsTls = "implicit"
+	AdminEmailSettingsTlsNone     AdminEmailSettingsTls = "none"
+	AdminEmailSettingsTlsStarttls AdminEmailSettingsTls = "starttls"
+)
+
+// Valid indicates whether the value is a known member of the AdminEmailSettingsTls enum.
+func (e AdminEmailSettingsTls) Valid() bool {
+	switch e {
+	case AdminEmailSettingsTlsImplicit:
+		return true
+	case AdminEmailSettingsTlsNone:
+		return true
+	case AdminEmailSettingsTlsStarttls:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminEmailSettingsInputTls.
+const (
+	AdminEmailSettingsInputTlsImplicit AdminEmailSettingsInputTls = "implicit"
+	AdminEmailSettingsInputTlsNone     AdminEmailSettingsInputTls = "none"
+	AdminEmailSettingsInputTlsStarttls AdminEmailSettingsInputTls = "starttls"
+)
+
+// Valid indicates whether the value is a known member of the AdminEmailSettingsInputTls enum.
+func (e AdminEmailSettingsInputTls) Valid() bool {
+	switch e {
+	case AdminEmailSettingsInputTlsImplicit:
+		return true
+	case AdminEmailSettingsInputTlsNone:
+		return true
+	case AdminEmailSettingsInputTlsStarttls:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminEraseOrganizationResultStatus.
 const (
 	Erased  AdminEraseOrganizationResultStatus = "erased"
@@ -2171,6 +2234,60 @@ type AdminDeleteUserResult struct {
 
 // AdminDeleteUserResultStatus defines model for AdminDeleteUserResult.Status.
 type AdminDeleteUserResultStatus string
+
+// AdminEmailSettings defines model for AdminEmailSettings.
+type AdminEmailSettings struct {
+	From string `json:"from"`
+	Helo string `json:"helo"`
+	Host string `json:"host"`
+
+	// PasswordSet The password is write-only and never returned.
+	PasswordSet bool `json:"password_set"`
+	Port        int  `json:"port"`
+
+	// Source environment: read from SUPERMETRY_SMTP_* and read-only; database: saved here; none: not configured.
+	Source AdminEmailSettingsSource `json:"source"`
+	Tls    AdminEmailSettingsTls    `json:"tls"`
+	User   string                   `json:"user"`
+}
+
+// AdminEmailSettingsSource environment: read from SUPERMETRY_SMTP_* and read-only; database: saved here; none: not configured.
+type AdminEmailSettingsSource string
+
+// AdminEmailSettingsTls defines model for AdminEmailSettings.Tls.
+type AdminEmailSettingsTls string
+
+// AdminEmailSettingsInput defines model for AdminEmailSettingsInput.
+type AdminEmailSettingsInput struct {
+	ClearPassword *bool   `json:"clear_password,omitempty"`
+	From          string  `json:"from"`
+	Helo          *string `json:"helo,omitempty"`
+	Host          string  `json:"host"`
+
+	// Password Empty keeps the stored password.
+	Password *string                    `json:"password,omitempty"`
+	Port     int                        `json:"port"`
+	Tls      AdminEmailSettingsInputTls `json:"tls"`
+	User     *string                    `json:"user,omitempty"`
+}
+
+// AdminEmailSettingsInputTls defines model for AdminEmailSettingsInput.Tls.
+type AdminEmailSettingsInputTls string
+
+// AdminEmailTestRequest defines model for AdminEmailTestRequest.
+type AdminEmailTestRequest struct {
+	// To Recipient; defaults to the calling admin's email.
+	To *string `json:"to,omitempty"`
+}
+
+// AdminEmailTestResult defines model for AdminEmailTestResult.
+type AdminEmailTestResult struct {
+	// Error The error naming the failed step.
+	Error *string `json:"error,omitempty"`
+	Note  string  `json:"note"`
+	Ok    bool    `json:"ok"`
+	To    string  `json:"to"`
+}
 
 // AdminEraseOrganizationInput defines model for AdminEraseOrganizationInput.
 type AdminEraseOrganizationInput struct {
@@ -5506,6 +5623,12 @@ type TrackingPixelParams struct {
 // TrackingPixelParamsStyle defines parameters for TrackingPixel.
 type TrackingPixelParamsStyle string
 
+// AdminUpdateEmailJSONRequestBody defines body for AdminUpdateEmail for application/json ContentType.
+type AdminUpdateEmailJSONRequestBody = AdminEmailSettingsInput
+
+// AdminTestEmailJSONRequestBody defines body for AdminTestEmail for application/json ContentType.
+type AdminTestEmailJSONRequestBody = AdminEmailTestRequest
+
 // AdminEraseOrganizationJSONRequestBody defines body for AdminEraseOrganization for application/json ContentType.
 type AdminEraseOrganizationJSONRequestBody = AdminEraseOrganizationInput
 
@@ -6173,6 +6296,18 @@ type ServerInterface interface {
 	// AdminListAudit List instance administration audit entries
 	// (GET /api/private/admin/audit)
 	AdminListAudit(w http.ResponseWriter, r *http.Request, params AdminListAuditParams)
+	// AdminDeleteEmail Remove the saved SMTP settings, which turns email off
+	// (DELETE /api/private/admin/email)
+	AdminDeleteEmail(w http.ResponseWriter, r *http.Request)
+	// AdminGetEmail Get the effective SMTP settings (never the password)
+	// (GET /api/private/admin/email)
+	AdminGetEmail(w http.ResponseWriter, r *http.Request)
+	// AdminUpdateEmail Save SMTP settings; refused while SUPERMETRY_SMTP_HOST is set
+	// (PUT /api/private/admin/email)
+	AdminUpdateEmail(w http.ResponseWriter, r *http.Request)
+	// AdminTestEmail Send a test email with the effective SMTP settings
+	// (POST /api/private/admin/email/test)
+	AdminTestEmail(w http.ResponseWriter, r *http.Request)
 	// AdminListOrganizations List organizations, including restorable deletions, with member, site, quota and storage totals
 	// (GET /api/private/admin/organizations)
 	AdminListOrganizations(w http.ResponseWriter, r *http.Request, params AdminListOrganizationsParams)
@@ -6811,6 +6946,62 @@ func (siw *ServerInterfaceWrapper) AdminListAudit(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminListAudit(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteEmail operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteEmail(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteEmail(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetEmail operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetEmail(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetEmail(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateEmail operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateEmail(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateEmail(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminTestEmail operation middleware
+func (siw *ServerInterfaceWrapper) AdminTestEmail(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminTestEmail(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14360,6 +14551,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/sites/{site_id}", wrapper.AdminSetSiteRetention)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminGetSettings)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/settings", wrapper.AdminUpdateSettings)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/email", wrapper.AdminDeleteEmail)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/email", wrapper.AdminGetEmail)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/email", wrapper.AdminUpdateEmail)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/email/test", wrapper.AdminTestEmail)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/security/2fa-policy", wrapper.AdminGetTwoFactorPolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/security/2fa-policy", wrapper.AdminUpdateTwoFactorPolicy)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/security/2fa-exemptions/{user}", wrapper.AdminDeleteTwoFactorExemption)

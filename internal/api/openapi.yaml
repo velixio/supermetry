@@ -239,6 +239,54 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/email:
+    get:
+      operationId: adminGetEmail
+      security: [{ cookieAuth: [] }]
+      summary: Get the effective SMTP settings (never the password)
+      responses:
+        '200': { description: SMTP settings and where they come from., content: { application/json: { schema: { $ref: '#/components/schemas/AdminEmailSettings' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Email settings are managed by the operator of this instance. }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    put:
+      operationId: adminUpdateEmail
+      security: [{ cookieAuth: [] }]
+      summary: Save SMTP settings; refused while SUPERMETRY_SMTP_HOST is set
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminEmailSettingsInput' } } } }
+      responses:
+        '200': { description: Saved settings., content: { application/json: { schema: { $ref: '#/components/schemas/AdminEmailSettings' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Configured by environment variables, or managed by the operator. }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      operationId: adminDeleteEmail
+      security: [{ cookieAuth: [] }]
+      summary: Remove the saved SMTP settings, which turns email off
+      responses:
+        '200': { description: Settings after removal., content: { application/json: { schema: { $ref: '#/components/schemas/AdminEmailSettings' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Configured by environment variables, or managed by the operator. }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/email/test:
+    post:
+      operationId: adminTestEmail
+      security: [{ cookieAuth: [] }]
+      summary: Send a test email with the effective SMTP settings
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: '#/components/schemas/AdminEmailTestRequest' } } }
+      responses:
+        '200': { description: Test result; ok false carries the failed step in error., content: { application/json: { schema: { $ref: '#/components/schemas/AdminEmailTestResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Managed by the operator of this instance. }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/security/2fa-policy:
     get:
       operationId: adminGetTwoFactorPolicy
@@ -4603,6 +4651,46 @@ components:
       properties:
         signup_mode: { type: string, enum: [invite, open] }
         replay_visible: { type: boolean }
+    AdminEmailSettings:
+      type: object
+      additionalProperties: false
+      required: [source, host, port, tls, user, from, helo, password_set]
+      properties:
+        source: { type: string, enum: [environment, database, none], description: "environment: read from SUPERMETRY_SMTP_* and read-only; database: saved here; none: not configured." }
+        host: { type: string }
+        port: { type: integer }
+        tls: { type: string, enum: [starttls, implicit, none] }
+        user: { type: string }
+        from: { type: string }
+        helo: { type: string }
+        password_set: { type: boolean, description: The password is write-only and never returned. }
+    AdminEmailSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [host, port, tls, from]
+      properties:
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        tls: { type: string, enum: [starttls, implicit, none] }
+        user: { type: string }
+        password: { type: string, description: Empty keeps the stored password. }
+        clear_password: { type: boolean }
+        from: { type: string }
+        helo: { type: string }
+    AdminEmailTestRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        to: { type: string, description: Recipient; defaults to the calling admin's email. }
+    AdminEmailTestResult:
+      type: object
+      additionalProperties: false
+      required: [ok, to, note]
+      properties:
+        ok: { type: boolean }
+        to: { type: string }
+        error: { type: string, description: The error naming the failed step. }
+        note: { type: string }
     AdminSettingsPatch:
       type: object
       additionalProperties: false

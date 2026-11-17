@@ -1,0 +1,10 @@
+{
+  "name": "sentry-fixtures-sourcemaps",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "vite build" },
+  "dependencies": {
+    "@sentry/vite-plugin": "4.6.1",
+    "vite": "7.1.12"
+  }
+}

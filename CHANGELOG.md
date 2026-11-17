@@ -6,9 +6,16 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Fixed
+
+- A failed "email address changed" notice is now logged, and the deletion-notice log names the SMTP step that failed (never the recipient address).
+
 ### Added
 
 - **App Monitoring setup screen.** An app project's Installation page now shows the project DSN with a copy button and ready-to-paste snippets for the Sentry SDKs for JavaScript (browser), Node, Electron, Python, Go, Android and Cocoa; only `dsn` and `release` are set. DSN keys can be created with allowed origins and revoked there, and the TypeScript and Python kits move under "Legacy kits". Issues link to a full event detail view (exception chain with in-app frames, breadcrumbs, contexts, tags), served by `GET /api/private/sites/{site}/app/events/{event_id}`. The sidebar section for app projects is named "App Monitoring". Guides: [App Monitoring](docs/guide/apps.md) and [Migrate from Sentry](docs/guide/migrate-from-sentry.md).
+- **Email (SMTP) in the app.** Instance admins can set up outgoing email under Instance admin, Email (SMTP) (host, port, connection security, username, password, from, HELO name) and send a test email that reports the failing step. The settings live in the database with the password encrypted, apply without a restart, and the password is never shown again (`GET/PUT/DELETE /api/private/admin/email`, `POST /api/private/admin/email/test`). When `SUPERMETRY_SMTP_HOST` is set, the environment wins entirely and the screen is read-only. Not available on managed instances.
+- **Implicit TLS (SMTPS, port 465)** and the `SUPERMETRY_SMTP_TLS` variable (`starttls`, `implicit`, `none`). Without it, `SUPERMETRY_SMTP_STARTTLS` still applies, and port 465 with neither set uses implicit TLS. Certificates are always verified. A username without TLS is now rejected at startup instead of at the first send.
+
 - Five read-only **App Health tools** for AI assistants on the MCP server: `get_app_overview`, `list_app_issues`, `get_app_issue`, `get_app_compatibility` and `list_app_releases`. They use the same API key, `stats:read` scope and site restrictions as the other tools, work in every tracking mode, and never return install or session hashes. The web analytics tools now return a clear error on an app project, and the app tools on a web or pixel project.
 - Guides: [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md). They cover exporting, importing, mapping the tracking calls and attributes, and what does not carry over. The Umami guide includes a ready-to-run export query.
 - A Helm chart in `deploy/helm/supermetry`. It runs Supermetry with a bundled PostgreSQL 18 StatefulSet or an external database, generates the secret key once and keeps it across upgrades, and supports ingress with TLS, a persistent data volume and the `restricted` Pod Security Standard. `helm test` checks `/healthz`.

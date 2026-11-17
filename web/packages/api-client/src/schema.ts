@@ -179,6 +179,42 @@ export interface paths {
         patch: operations["adminUpdateSettings"];
         trace?: never;
     };
+    "/api/private/admin/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the effective SMTP settings (never the password) */
+        get: operations["adminGetEmail"];
+        /** Save SMTP settings; refused while SUPERMETRY_SMTP_HOST is set */
+        put: operations["adminUpdateEmail"];
+        post?: never;
+        /** Remove the saved SMTP settings, which turns email off */
+        delete: operations["adminDeleteEmail"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/email/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test email with the effective SMTP settings */
+        post: operations["adminTestEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/admin/security/2fa-policy": {
         parameters: {
             query?: never;
@@ -3502,6 +3538,45 @@ export interface components {
             signup_mode: "invite" | "open";
             replay_visible: boolean;
         };
+        AdminEmailSettings: {
+            /**
+             * @description environment: read from SUPERMETRY_SMTP_* and read-only; database: saved here; none: not configured.
+             * @enum {string}
+             */
+            source: "environment" | "database" | "none";
+            host: string;
+            port: number;
+            /** @enum {string} */
+            tls: "starttls" | "implicit" | "none";
+            user: string;
+            from: string;
+            helo: string;
+            /** @description The password is write-only and never returned. */
+            password_set: boolean;
+        };
+        AdminEmailSettingsInput: {
+            host: string;
+            port: number;
+            /** @enum {string} */
+            tls: "starttls" | "implicit" | "none";
+            user?: string;
+            /** @description Empty keeps the stored password. */
+            password?: string;
+            clear_password?: boolean;
+            from: string;
+            helo?: string;
+        };
+        AdminEmailTestRequest: {
+            /** @description Recipient; defaults to the calling admin's email. */
+            to?: string;
+        };
+        AdminEmailTestResult: {
+            ok: boolean;
+            to: string;
+            /** @description The error naming the failed step. */
+            error?: string;
+            note: string;
+        };
         AdminSettingsPatch: {
             /** @enum {string} */
             signup_mode?: "invite" | "open";
@@ -6257,6 +6332,136 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SMTP settings and where they come from. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminEmailSettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Email settings are managed by the operator of this instance. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminUpdateEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminEmailSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminEmailSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Configured by environment variables */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminDeleteEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings after removal. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminEmailSettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Configured by environment variables */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminTestEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AdminEmailTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Test result; ok false carries the failed step in error. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminEmailTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Managed by the operator of this instance. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             429: components["responses"]["RateLimited"];
         };
     };

@@ -25,6 +25,7 @@ const sections = [
   ['/app/admin/organizations', en.admin.organizations],
   ['/app/admin/sites', en.admin.sites],
   ['/app/admin/settings', en.admin.settings],
+  ['/app/admin/email', en.admin.email],
   ['/app/admin/security', en.admin.security],
   ['/app/admin/update', en.admin.update],
 ] as const

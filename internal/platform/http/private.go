@@ -158,6 +158,8 @@ type Deps struct {
 		Write(context.Context, io.Writer, int32, time.Time, time.Time) error
 	}
 	ReplayStore replay.BlobStore
+	// Mail serves the instance admin Email (SMTP) screen. Nil answers 404.
+	Mail        EmailSettings
 	ReplayEnv   config.ReplayEnv
 	DataDir     string
 	SecretKey   []byte
@@ -224,6 +226,7 @@ type handler struct {
 	overviewLimits  map[int64]overviewRateWindow
 	adminLimitMu    sync.Mutex
 	adminLimits     map[int64]adminRateWindow
+	emailTests      map[int64]adminRateWindow
 }
 
 // New returns the platform route set. It owns platform authentication so the
@@ -280,6 +283,10 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/private/admin/sites/{site_id}", h.adminSetSiteRetention)
 	mux.HandleFunc("GET /api/private/admin/settings", h.adminGetSettings)
 	mux.HandleFunc("PATCH /api/private/admin/settings", h.adminUpdateSettings)
+	mux.HandleFunc("GET /api/private/admin/email", h.adminGetEmail)
+	mux.HandleFunc("PUT /api/private/admin/email", h.adminPutEmail)
+	mux.HandleFunc("DELETE /api/private/admin/email", h.adminDeleteEmail)
+	mux.HandleFunc("POST /api/private/admin/email/test", h.adminTestEmail)
 	mux.HandleFunc("GET /api/private/admin/security/2fa-policy", h.adminGetTwoFactorPolicy)
 	mux.HandleFunc("PUT /api/private/admin/security/2fa-policy", h.adminUpdateTwoFactorPolicy)
 	mux.HandleFunc("PUT /api/private/admin/security/2fa-exemptions/{user}", h.adminSetTwoFactorExemption)

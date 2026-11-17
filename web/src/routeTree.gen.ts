@@ -30,6 +30,7 @@ import { Route as AppOrgSettingsRouteImport } from './routes/app.$org.settings'
 import { Route as AppAccountProfileRouteImport } from './routes/app.account.profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/app.account.security'
 import { Route as AppAccountSessionsRouteImport } from './routes/app.account.sessions'
+import { Route as AppAdminEmailRouteImport } from './routes/app.admin.email'
 import { Route as AppAdminGithubStarsRouteImport } from './routes/app.admin.github-stars'
 import { Route as AppAdminOrganizationsRouteImport } from './routes/app.admin.organizations'
 import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
@@ -195,6 +196,11 @@ const AppAccountSessionsRoute = AppAccountSessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
   getParentRoute: () => AppAccountRoute,
+} as any)
+const AppAdminEmailRoute = AppAdminEmailRouteImport.update({
+  id: '/email',
+  path: '/email',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminGithubStarsRoute = AppAdminGithubStarsRouteImport.update({
   id: '/github-stars',
@@ -535,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/email': typeof AppAdminEmailRoute
   '/app/admin/github-stars': typeof AppAdminGithubStarsRoute
   '/app/admin/organizations': typeof AppAdminOrganizationsRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
@@ -615,6 +622,7 @@ export interface FileRoutesByTo {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/email': typeof AppAdminEmailRoute
   '/app/admin/github-stars': typeof AppAdminGithubStarsRoute
   '/app/admin/organizations': typeof AppAdminOrganizationsRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
@@ -699,6 +707,7 @@ export interface FileRoutesById {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/email': typeof AppAdminEmailRoute
   '/app/admin/github-stars': typeof AppAdminGithubStarsRoute
   '/app/admin/organizations': typeof AppAdminOrganizationsRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
@@ -784,6 +793,7 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/email'
     | '/app/admin/github-stars'
     | '/app/admin/organizations'
     | '/app/admin/security'
@@ -864,6 +874,7 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/email'
     | '/app/admin/github-stars'
     | '/app/admin/organizations'
     | '/app/admin/security'
@@ -947,6 +958,7 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/email'
     | '/app/admin/github-stars'
     | '/app/admin/organizations'
     | '/app/admin/security'
@@ -1170,6 +1182,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/account/sessions'
       preLoaderRoute: typeof AppAccountSessionsRouteImport
       parentRoute: typeof AppAccountRoute
+    }
+    '/app/admin/email': {
+      id: '/app/admin/email'
+      path: '/email'
+      fullPath: '/app/admin/email'
+      preLoaderRoute: typeof AppAdminEmailRouteImport
+      parentRoute: typeof AppAdminRoute
     }
     '/app/admin/github-stars': {
       id: '/app/admin/github-stars'
@@ -1761,6 +1780,7 @@ const AppAccountRouteWithChildren = AppAccountRoute._addFileChildren(
 )
 
 interface AppAdminRouteChildren {
+  AppAdminEmailRoute: typeof AppAdminEmailRoute
   AppAdminGithubStarsRoute: typeof AppAdminGithubStarsRoute
   AppAdminOrganizationsRoute: typeof AppAdminOrganizationsRoute
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
@@ -1771,6 +1791,7 @@ interface AppAdminRouteChildren {
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminEmailRoute: AppAdminEmailRoute,
   AppAdminGithubStarsRoute: AppAdminGithubStarsRoute,
   AppAdminOrganizationsRoute: AppAdminOrganizationsRoute,
   AppAdminSecurityRoute: AppAdminSecurityRoute,

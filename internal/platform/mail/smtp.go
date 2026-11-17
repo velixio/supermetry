@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -22,6 +23,9 @@ import (
 
 type smtpSender struct {
 	config config.SMTP
+	// rootCAs overrides the system roots; tests use it to trust a throwaway
+	// certificate without ever disabling verification.
+	rootCAs *x509.CertPool
 }
 
 // NewSMTP creates a sender backed by net/smtp. An empty host disables email.
@@ -35,8 +39,8 @@ func (s *smtpSender) Send(ctx context.Context, message Message) error {
 	if !s.Enabled() {
 		return errors.New("SMTP is not configured")
 	}
-	if s.config.User != "" && !s.config.StartTLS {
-		return errors.New("SMTP authentication requires STARTTLS")
+	if s.config.User != "" && !s.config.StartTLS && !s.config.ImplicitTLS {
+		return errors.New("SMTP authentication requires STARTTLS or implicit TLS")
 	}
 	if strings.ContainsAny(s.config.From, "\r\n") {
 		return errors.New("parse SMTP from address: line breaks are not allowed")
@@ -58,11 +62,21 @@ func (s *smtpSender) Send(ctx context.Context, message Message) error {
 		port = 587
 	}
 	address := net.JoinHostPort(s.config.Host, strconv.Itoa(port))
-	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+	var conn net.Conn
+	rawConn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("connect SMTP: %w", err)
 	}
-	defer conn.Close()
+	conn = rawConn
+	defer func() { _ = conn.Close() }()
+	if s.config.ImplicitTLS {
+		// SMTPS: TLS from the first byte; the certificate is always verified.
+		tlsConn := tls.Client(rawConn, s.tlsConfig())
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			return fmt.Errorf("start SMTP TLS: %w", err)
+		}
+		conn = tlsConn
+	}
 	if deadline, ok := ctx.Deadline(); ok {
 		if err := conn.SetDeadline(deadline); err != nil {
 			return fmt.Errorf("set SMTP deadline: %w", err)
@@ -87,11 +101,11 @@ func (s *smtpSender) Send(ctx context.Context, message Message) error {
 	if err := client.Hello(hello); err != nil {
 		return fmt.Errorf("SMTP greeting: %w", err)
 	}
-	if s.config.StartTLS {
+	if s.config.StartTLS && !s.config.ImplicitTLS {
 		if ok, _ := client.Extension("STARTTLS"); !ok {
 			return errors.New("SMTP server does not support STARTTLS")
 		}
-		if err := client.StartTLS(&tls.Config{ServerName: s.config.Host, MinVersion: tls.VersionTLS12}); err != nil {
+		if err := client.StartTLS(s.tlsConfig()); err != nil {
 			return fmt.Errorf("start SMTP TLS: %w", err)
 		}
 	}
@@ -122,6 +136,35 @@ func (s *smtpSender) Send(ctx context.Context, message Message) error {
 		return fmt.Errorf("quit SMTP: %w", err)
 	}
 	return nil
+}
+
+func (s *smtpSender) tlsConfig() *tls.Config {
+	return &tls.Config{ServerName: s.config.Host, MinVersion: tls.VersionTLS12, RootCAs: s.rootCAs}
+}
+
+// sendSteps are the prefixes smtp.go puts on its errors, one per step.
+var sendSteps = []string{
+	"SMTP is not configured", "SMTP authentication requires", "parse SMTP from address", "parse SMTP recipient",
+	"connect SMTP", "start SMTP TLS", "set SMTP deadline", "create SMTP client", "SMTP greeting",
+	"SMTP server does not support STARTTLS", "authenticate SMTP", "set SMTP sender", "set SMTP recipient",
+	"open SMTP message", "write SMTP message", "finish SMTP message", "quit SMTP", "load SMTP settings",
+}
+
+// ErrorStep returns the step an SMTP send error names ("connect SMTP",
+// "authenticate SMTP", ...) without the detail after it, or "unknown step".
+// Server replies can echo a recipient address, so callers that keep personal
+// data out of logs record the step instead of the whole error.
+func ErrorStep(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	for _, step := range sendSteps {
+		if strings.HasPrefix(message, step) {
+			return step
+		}
+	}
+	return "unknown step"
 }
 
 func renderMessage(from, hello string, message Message, now time.Time) []byte {

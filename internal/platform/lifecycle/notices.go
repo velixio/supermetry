@@ -255,8 +255,11 @@ func (n *Notices) logFailure(ctx context.Context, target DeletionTarget, err err
 	var deliveryErr deletionDeliveryError
 	if errors.As(err, &deliveryErr) {
 		failed = deliveryErr.failedCount
+		err = deliveryErr.err
 	}
-	slog.ErrorContext(ctx, "send deletion notice", "target", targetName, "id", target.ID, "failed_count", failed)
+	// The step (for example "authenticate SMTP") says what to fix; the full
+	// error is left out because a server reply can echo a recipient address.
+	slog.ErrorContext(ctx, "send deletion notice", "target", targetName, "id", target.ID, "failed_count", failed, "step", mail.ErrorStep(err))
 }
 
 type deletionDeliveryError struct {

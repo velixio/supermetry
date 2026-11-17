@@ -77,7 +77,7 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | Teams / orgs with roles | ✓ | ✓ | ✓ | ✅ |
 | Per-site access | ✓ | ✓ | ? | ✅ |
 | Two-factor auth (TOTP) | ✓ | ✓ | ? | ✅ |
-| Instance admin console and a two-factor policy | ✓ (enterprise) | ? | ? | ✅ (users, organizations, sites, estimated site/organization storage, settings and security; policy for nobody, instance admins, owners and admins, or everyone with a grace period and audited exemptions) |
+| Instance admin console and a two-factor policy | ✓ (enterprise) | ? | ? | ✅ (users, organizations, sites, estimated site/organization storage, settings, security, and Email (SMTP) with a test email; policy for nobody, instance admins, owners and admins, or everyone with a grace period and audited exemptions) |
 | Interface languages | ? | ? | ? | ✅ (English, plus machine-assisted Spanish and German; pseudo-locale for layout tests; some text is not translated yet) |
 | Account self-service: edit name, change email or password, delete account | ✓ | ✓ | ✓ | ✅ |
 | Invite-only signup by default | ✓ (`DISABLE_REGISTRATION`) | – | – | ✅ (`SUPERMETRY_SIGNUP=open` to allow) |

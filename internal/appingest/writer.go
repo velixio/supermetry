@@ -200,7 +200,7 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 		if g == nil {
 			g = &issueGroup{
 				siteID: q.SiteID, fingerprint: e.Fingerprint, kind: e.Kind, errType: e.ErrorType,
-				title: IssueTitle(e.Kind, e.ErrorType, e.Frames), firstSeen: e.TS, lastSeen: e.TS,
+				title: issueTitle(e), firstSeen: e.TS, lastSeen: e.TS,
 				firstRelease: e.Release, lastRelease: e.Release, releases: map[string]struct{}{},
 				level: e.Level, culprit: e.Culprit, groupingVersion: groupingVersion(e),
 			}
@@ -285,6 +285,14 @@ var eventColumns = []string{
 	"error_type", "exit_reason", "signal", "exit_code", "frames", "fingerprint", "occurrences",
 	"install_hash", "session_hash", "tags",
 	"message_hash", "culprit", "transaction", "trace_id", "span_id", "user_hash", "sdk_name", "sdk_version", "dist", "symbolication", "grouping_version",
+}
+
+// issueTitle prefers the normaliser's title.
+func issueTitle(e Event) string {
+	if e.Title != "" {
+		return e.Title
+	}
+	return IssueTitle(e.Kind, e.ErrorType, e.Frames)
 }
 
 // groupingVersion is the event's grouping version, defaulting to 1.
