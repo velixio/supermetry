@@ -4,6 +4,12 @@ All notable changes to Supermetry are listed here, newest release first.
 
 Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL, no ClickHouse, no Kafka, no Node in production.
 
+## v0.1.26 (2026-11-17)
+
+### Added
+
+- Five read-only **App Health tools** for AI assistants on the MCP server: `get_app_overview`, `list_app_issues`, `get_app_issue`, `get_app_compatibility` and `list_app_releases`. They use the same API key, `stats:read` scope and site restrictions as the other tools, work in every tracking mode, and never return install or session hashes. The web analytics tools now return a clear error on an app project, and the app tools on a web or pixel project.
+
 ## v0.1.25 (2026-11-16)
 
 ### Added

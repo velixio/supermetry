@@ -165,6 +165,16 @@ curl -X POST https://supermetry.com/api/public/v1/events \
 - `list_goals`
 - `run_funnel`
 
+App projects have their own read-only tools, which need the same `stats:read` scope and the same site restrictions:
+
+- `get_app_overview`: crash-free users and sessions, events, crashes, new and regressed issues
+- `list_app_issues`: grouped errors and crashes, filtered by status (default `open`), kind, search text and release, sorted by `last_seen`, `events` or `users`, up to 100 per call
+- `get_app_issue`: one issue with its daily series, breakdowns and up to 5 latest events
+- `get_app_compatibility`: crash and error rates by OS version, architecture and device class
+- `list_app_releases`: releases with installs, crash-free rates and new issues
+
+All five take `site` plus `period` or `date_from`/`date_to` (at most 366 days), and optional `release`, `environment` and `platform` filters. They work in every tracking mode and never return install or session hashes. The web analytics tools return an error on an app project, and the app tools return an error on a web or pixel project.
+
 Connection instructions for common clients are under **Organization settings → API keys** in the dashboard.
 
 ## Cohorts and power users

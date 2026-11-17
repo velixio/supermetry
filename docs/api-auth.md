@@ -30,7 +30,7 @@ A key can do only what its scopes allow.
 
 | Scope | Allows |
 |---|---|
-| `stats:read` | Aggregate analytics, stats, queries, realtime, funnels, journeys, retention, heatmaps, Web Vitals, sessions/events without profile identity or replay metadata, properties, suggestions, and ordinary resource listings. Also the MCP server, with the same resource restrictions. |
+| `stats:read` | Aggregate analytics, stats, queries, realtime, funnels, journeys, retention, heatmaps, Web Vitals, sessions/events without profile identity or replay metadata, properties, suggestions, and ordinary resource listings. Also the MCP server, including its App Health tools, with the same resource restrictions. |
 | `profiles:read` | Read profiles and profile identity fields within allowed sites |
 | `replay:read` | Read replay lists, recordings and replay metadata within allowed sites |
 | `data:export` | Download analytics CSV/ZIP, in addition to the relevant read scope |
