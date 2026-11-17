@@ -119,7 +119,9 @@ type Config struct {
 	SymbolicateCacheMB    int   // parsed source map cache budget, MiB
 	SentryAPIIPPerMin     int   // Sentry-compatible upload API (/api/0/): requests per minute per client IP
 	SentryAPITokenPerMin  int   // Sentry-compatible upload API: requests per minute per API token
-	SentryOrgCapBytes     int64 // Sentry-compatible upload API: stored source map bytes per organization
+	SentryOrgCapBytes     int64 // Sentry-compatible upload API: stored source map and debug file bytes per organization
+	DIFMaxMB              int   // largest accepted debug file, MiB (parsed in memory, so peak RAM is about this)
+	SymcacheDiskMB        int   // on-disk native symbol cache budget under <DataDir>/symcache, MiB
 	IngestRateSite        int
 	IngestRateGlobal      int
 	HTTPReadTimeout       time.Duration
@@ -240,6 +242,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		SentryOrgCapBytes:    5 << 30,
 		SymbolicateWorkers:   2,
 		SymbolicateCacheMB:   256,
+		DIFMaxMB:             512,
+		SymcacheDiskMB:       2048,
 		IngestRateSite:       defaultIngestRateSite,
 		IngestRateGlobal:     defaultIngestRateGlobal,
 		HTTPReadTimeout:      defaultHTTPReadTimeout,
@@ -492,6 +496,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	parsePositiveInt(getenv("SUPERMETRY_SYMBOLICATE_WORKERS"), "SUPERMETRY_SYMBOLICATE_WORKERS", &c.SymbolicateWorkers, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SYMBOLICATE_CACHE_MB"), "SUPERMETRY_SYMBOLICATE_CACHE_MB", &c.SymbolicateCacheMB, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_DIF_MAX_MB"), "SUPERMETRY_DIF_MAX_MB", &c.DIFMaxMB, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SYMCACHE_DISK_MB"), "SUPERMETRY_SYMCACHE_DISK_MB", &c.SymcacheDiskMB, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_APP_SPIKE_PER_MIN"), "SUPERMETRY_APP_SPIKE_PER_MIN", &c.AppSpikePerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_IP"), "SUPERMETRY_INGEST_RATE_IP", &c.IngestRateIP, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_SITE"), "SUPERMETRY_INGEST_RATE_SITE", &c.IngestRateSite, &errs)
