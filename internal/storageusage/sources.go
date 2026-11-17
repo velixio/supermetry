@@ -65,6 +65,7 @@ var sourceRegistry = []Source{
 	{Table: "app_ingest_keys", Category: CategoryAuxiliary},
 	{Table: "app_issue_daily", Category: CategoryRetained},
 	{Table: "app_issue_hourly", Category: CategoryRetained},
+	{Table: "app_issue_hashes", Category: CategoryAuxiliary},
 	{Table: "app_issues", Category: CategoryAuxiliary},
 	{Table: "app_release_daily", Category: CategoryRetained},
 	{Table: "site_last_event", Category: CategoryAuxiliary},
