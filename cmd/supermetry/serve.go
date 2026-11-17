@@ -626,7 +626,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, cfg.OpenCounters, settings.clock, engine.InvalidateSite)
 	storageStore := storageusage.NewStore(pool)
-	storageScanners := []storageusage.Scanner{storageusage.NewPostgresScanner(pool, cfg.QueryTimeout)}
+	storageScanners := []storageusage.Scanner{storageusage.NewPostgresScanner(pool, cfg.QueryTimeout), storageusage.NewArtifactScanner(pool)}
 	if replayStore != nil {
 		storageScanners = append(storageScanners, storageusage.NewReplayScanner(pool, replayStore))
 	}
