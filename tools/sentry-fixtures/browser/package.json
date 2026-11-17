@@ -1,0 +1,9 @@
+{
+  "name": "sentry-fixtures-browser",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sentry/browser": "11.13.0",
+    "playwright-core": "1.63.0"
+  }
+}

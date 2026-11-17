@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "Content-Encoding": "gzip",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.java.android/8.64.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.java.android/8.64.0"
+  },
+  "sdk": "android",
+  "sdk_version": "sentry.java.android@8.64.0",
+  "synthetic": true,
+  "notes": "SYNTHETIC. NDK crash written by the native library into the outbox and sent on next launch: sentry-java@4fc0b1e sentry-android-core/src/main/java/io/sentry/android/core/AndroidOptionsInitializer.java:445-468, sentry-android-ndk/src/main/java/io/sentry/android/ndk/SentryNdk.java:48-60. debug_meta image keys type/debug_id/code_id/code_file/image_addr/image_size/arch: sentry/src/main/java/io/sentry/protocol/DebugImage.java:254-262. sentry-native (v0.17.6, gradle/libs.versions.toml:199) is NOT cloned, so the elf image type, the signalhandler mechanism, the sdk name sentry.native and raw instruction_addr frames are inference (research 0a-sentry-mobile-and-uploads.md A.1)."
+}

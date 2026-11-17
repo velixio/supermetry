@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "sentry_version=7&sentry_key=0123456789abcdef0123456789abcdef&sentry_client=sentry.javascript.node%2F11.13.0",
+  "headers": {
+    "User-Agent": "sentry.javascript.node/11.13.0"
+  },
+  "sdk": "node",
+  "sdk_version": "",
+  "notes": "@sentry/node 11.13.0 client-report"
+}

@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "Content-Encoding": "gzip",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.java.android/8.64.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.java.android/8.64.0"
+  },
+  "sdk": "android",
+  "sdk_version": "sentry.java.android@8.64.0",
+  "synthetic": true,
+  "notes": "SYNTHETIC. Shape from sentry-java@4fc0b1e: exception mechanism UncaughtExceptionHandler handled=false (sentry/src/main/java/io/sentry/UncaughtExceptionHandlerIntegration.java:168-169); proguard debug_meta image (sentry/src/main/java/io/sentry/protocol/DebugImage.java:52,254-262; DebugMeta.java:77); gzip + X-Sentry-Auth (sentry/src/main/java/io/sentry/transport/HttpConnection.java:127-132, RequestDetailsResolver.java:46-59); obfuscated frame names a.b.c.d are invented to show why the mapping UUID matters."
+}

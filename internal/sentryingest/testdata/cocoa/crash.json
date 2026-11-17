@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "Content-Encoding": "gzip",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.cocoa/9.35.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.cocoa/9.35.0"
+  },
+  "sdk": "cocoa",
+  "sdk_version": "sentry.cocoa@9.35.0",
+  "synthetic": true,
+  "notes": "SYNTHETIC. Crash written by the crash handler and sent next launch (sentry-cocoa@fedc5e3 Sources/Swift/Integrations/KSCrash/SentryKSCrash+Integration.swift:43). Exception type/value from a mach exception: Sources/Sentry/SentryCrashReportConverter.m:443-451; mechanism type mach, handled false, synthetic true, meta.mach_exception/signal, data.relevant_address: SentryCrashReportConverter.m:729-766; frame keys instruction_addr/image_addr/symbol_addr/function/package: Sources/Swift/Protocol/Codable/SentryFrameCodable.swift:13-20; macho debug_meta images (debug_id, image_addr, image_size, image_vmaddr, code_file): Sources/Swift/Protocol/Codable/SentryDebugMetaCodable.swift:19-25, Sources/Swift/SentryCrash/SentryDebugImageProvider.swift:43-80. UUIDs and addresses are invented."
+}

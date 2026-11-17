@@ -1,0 +1,3 @@
+{"sent_at":"2026-11-17T13:10:24.046Z","sdk":{"name":"sentry.javascript.node","version":"11.13.0"}}
+{"type":"sessions"}
+{"aggregates":[{"started":"2026-11-17T13:10:00.000Z","exited":3,"errored":0,"crashed":0}],"attrs":{"release":"fixture@1.0.0","environment":"fixture"}}

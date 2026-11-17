@@ -1,0 +1,8 @@
+{
+  "name": "sentry-fixtures-node",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sentry/node": "11.13.0"
+  }
+}

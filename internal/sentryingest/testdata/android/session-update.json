@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "Content-Encoding": "gzip",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.java.android/8.64.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.java.android/8.64.0"
+  },
+  "sdk": "android",
+  "sdk_version": "sentry.java.android@8.64.0",
+  "synthetic": true,
+  "notes": "SYNTHETIC. Session item with the fields in sentry-java@4fc0b1e sentry/src/main/java/io/sentry/Session.java:397-445 (sid, did, init, started, status, seq, errors, duration, timestamp, attrs); attrs release/environment/ip_address/user_agent as in research A.1; end of a session after 30 s in background: LifecycleWatcher.java:58-129. status exited is the update that closes a session."
+}
