@@ -19,6 +19,7 @@ var eraseTables = []string{
 	"site_drop_daily",
 	"heatmap_cells",
 	"app_events",
+	"app_event_bodies",
 	"app_issue_daily",
 	"app_issue_hourly",
 	"app_release_daily",
@@ -109,6 +110,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		return nil, err
 	}
 	expired = append(expired, appPartitions...)
+	bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, bodyPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -385,6 +391,26 @@ func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time
 		return nil, fmt.Errorf("list app event retention partitions: %w", err)
 	}
 	cutoff := now.AddDate(0, 0, -longest-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
+// appEventBodyRetentionDays is the fixed life of scrubbed event bodies.
+const appEventBodyRetentionDays = 30
+
+// expiredAppEventBodyPartitions returns the monthly app_event_bodies
+// partitions that lie wholly before the body retention, plus one day of slack.
+func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "app_event_bodies")
+	if err != nil {
+		return nil, fmt.Errorf("list app event body partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -appEventBodyRetentionDays-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {

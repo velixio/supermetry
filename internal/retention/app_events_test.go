@@ -108,3 +108,30 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 		}
 	}
 }
+
+func TestRunDropsExpiredAppEventBodyPartitions(t *testing.T) {
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into orgs(name,slug) values('Org','org');
+insert into sites(id,org_id,public_id,name,timezone,retention_class,kind) overriding system value values(1,1,'appbod001abc','App','UTC',365,'app')`); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 7, 3, 0, 0, 0, time.UTC)
+	if err := db.EnsureAppEventPartitions(ctx, pool, now.AddDate(0, -3, 0), now.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	dropped, err := retention.Run(ctx, pool, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Bodies live 30 days even though the project keeps events for a year.
+	if !containsPrefix(dropped, "app_event_bodies_202607") || !containsPrefix(dropped, "app_event_bodies_202608") {
+		t.Fatalf("expected July and August bodies dropped, got %v", dropped)
+	}
+	if containsPrefix(dropped, "app_event_bodies_202609") || containsPrefix(dropped, "app_event_bodies_202610") || containsPrefix(dropped, "app_events_") {
+		t.Fatalf("dropped too much: %v", dropped)
+	}
+}
