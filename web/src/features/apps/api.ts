@@ -13,6 +13,7 @@ export type AppIssueStatus = components['schemas']['AppIssueStatus']
 export type AppIssueChange = components['schemas']['AppIssueChange']
 export type AppIssueComment = components['schemas']['AppIssueComment']
 export type AppIssueActivity = components['schemas']['AppIssueActivity']
+export type AppFeedback = components['schemas']['AppFeedback']
 export type AppCompatibilityData = components['schemas']['AppCompatibility']
 export type AppReleasesData = components['schemas']['AppReleases']
 
@@ -127,5 +128,17 @@ export function useIssueActivity(siteId: number, issueId: number) {
     initialPageParam: '',
     queryFn: ({ pageParam }) => privateRequest<{ activity: AppIssueActivity[] }>('GET', `${base(siteId)}/issues/${issueId}/activity?limit=${ACTIVITY_PAGE}${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ''}`),
     getNextPageParam: (last) => (last.activity.length === ACTIVITY_PAGE ? last.activity[last.activity.length - 1].at : undefined),
+  })
+}
+
+export const FEEDBACK_PAGE = 20
+
+/** User reports linked to the issue, newest first; the reporter's email is never returned. */
+export function useIssueFeedback(siteId: number, issueId: number) {
+  return useInfiniteQuery({
+    queryKey: ['app-issue-feedback', siteId, issueId],
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => privateRequest<{ feedback: AppFeedback[] }>('GET', `${base(siteId)}/issues/${issueId}/feedback?limit=${FEEDBACK_PAGE}${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ''}`),
+    getNextPageParam: (last) => (last.feedback?.length === FEEDBACK_PAGE ? last.feedback[last.feedback.length - 1].at : undefined),
   })
 }
