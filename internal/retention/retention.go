@@ -25,6 +25,7 @@ var eraseTables = []string{
 	"app_release_daily",
 	"app_issue_activity",
 	"app_issue_comments",
+	"user_notification_prefs",
 	"app_issues",
 	"app_hash_secrets",
 	"app_artifact_files",

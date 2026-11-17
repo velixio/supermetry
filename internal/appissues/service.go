@@ -102,6 +102,10 @@ type Change struct {
 	Snooze            *Snooze `json:"snooze"`
 	Archive           *bool   `json:"archive"`
 	GitHubURL         *string `json:"github_url"`
+	// Reason is extra data merged into the activity of an automatic status
+	// change (why a snooze ended, the numbers behind an escalation). It is not
+	// part of the API body.
+	Reason map[string]any `json:"-"`
 }
 
 // IssueState is an issue's workflow state after a change.
@@ -327,6 +331,9 @@ func (s *Service) applyOne(ctx context.Context, tx pgx.Tx, siteID int32, cur iss
 			if r.ResolvedNext {
 				data["resolved_next"] = true
 			}
+			for k, v := range ch.Reason {
+				data[k] = v
+			}
 			acts = append(acts, act{KindStatus, data})
 			changed = append(changed, "status")
 		}
@@ -349,7 +356,16 @@ func (s *Service) applyOne(ctx context.Context, tx pgx.Tx, siteID int32, cur iss
 			set("status", "open")
 			sets = append(sets, "archived_until_escalating = false")
 			state.Status = "open"
-			acts = append(acts, act{KindArchived, map[string]any{"archived": false}})
+			if actor.System {
+				// Unarchiving by the system is an escalation.
+				data := map[string]any{"from": "archived"}
+				for k, v := range ch.Reason {
+					data[k] = v
+				}
+				acts = append(acts, act{KindEscalated, data})
+			} else {
+				acts = append(acts, act{KindArchived, map[string]any{"archived": false}})
+			}
 			changed = append(changed, "archive")
 		}
 	}
