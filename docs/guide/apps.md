@@ -179,8 +179,13 @@ with your signed-in session:
 POST /api/private/sites/<site-id>/app/users/erase
 {"user_id": "the-id-your-sdk-reports"}
 
-200 {"bodies_deleted": 3, "events_anonymized": 5}
+202 {"id": 41, "status": "pending", "status_url": "/api/private/sites/<site-id>/app/users/erasures/41", ...}
 ```
+
+The erasure runs in the background, in batches, so the call replies at once.
+Poll the status URL (`GET`, owner or admin) until `status` is `done`; it then
+carries `bodies_deleted` and `events_anonymized`. The settings page does this
+for you. The work resumes by itself after a restart.
 
 The user is matched by a keyed hash of `user_id`, so the id itself is never
 stored, and it is not written to the audit log either; only the counts are.
@@ -196,8 +201,9 @@ Not erased:
   release and session counts). They hold no user identifier once the hash is
   cleared, so they are anonymous statistics.
 
-The call runs to completion before it replies and is safe to repeat; a second
-call reports zeros.
+Asking again for a user whose erasure is still queued or running returns the
+same request. Once it is done, a repeat is a new request that reports zeros.
+The audit entry is written when the erasure finishes.
 
 ### Sending diagnostic reports through a web site
 

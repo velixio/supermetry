@@ -2907,16 +2907,35 @@ paths:
       tags: [Apps]
       summary: Erase what an app project stores about one end user
       description: |
-        Deletes the stored event bodies of the user's events and clears the user hash from their event rows, which
-        stay as anonymous counts. The user is matched by the HMAC of `user_id` under the project's hash secret, so
-        the id is never stored. Runs synchronously in batches and is safe to repeat (a repeat reports zeros).
-        Owner or admin only. Audited as app.user_erased with counts only.
+        Queues the erasure of the user's stored event bodies and of the user hash on their event rows, which stay
+        as anonymous counts. A worker does the batched deletion, so this returns 202 at once with a status URL; poll
+        it for the counts. The user is matched by the HMAC of `user_id` under the project's hash secret, and the
+        request stores only that hash, never the id. A repeat call for a user whose erasure is still queued or
+        running returns the same request; after it is done a repeat is a new request that reports zeros.
+        Owner or admin only. Audited as app.user_erased with counts only, once the erasure finishes.
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/AppUserErase' } } }
       responses:
-        '200': { description: Erased, content: { application/json: { schema: { $ref: '#/components/schemas/AppUserEraseResult' } } } }
+        '202':
+          description: Erasure queued
+          headers:
+            Location: { description: The status URL, schema: { type: string } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/AppUserErasure' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/users/erasures/{erasure}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: erasure, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getAppUserErasure
+      tags: [Apps]
+      summary: Get the status and counts of an app user erasure
+      description: Owner or admin only. The counts grow while the worker runs and are final once the status is done.
+      responses:
+        '200': { description: Erasure status, content: { application/json: { schema: { $ref: '#/components/schemas/AppUserErasure' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/overview:
@@ -4394,12 +4413,19 @@ components:
       additionalProperties: false
       properties:
         user_id: { type: string, minLength: 1, maxLength: 512, description: The user id the app's SDK reports. }
-    AppUserEraseResult:
+    AppUserErasure:
       type: object
-      required: [bodies_deleted, events_anonymized]
+      required: [id, status, bodies_deleted, events_anonymized, attempts, last_error, created_at, completed_at]
       properties:
+        id: { type: integer, format: int64 }
+        status: { type: string, enum: [pending, running, done, failed] }
+        status_url: { type: string, description: Present on the 202 response. }
         bodies_deleted: { type: integer, format: int64 }
         events_anonymized: { type: integer, format: int64 }
+        attempts: { type: integer }
+        last_error: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
     AppDSNKeyCreate:
       type: object
       properties:
@@ -4891,7 +4917,7 @@ components:
         created_at: { type: string, format: date-time }
         last_webhook_at: { type: [string, 'null'], format: date-time }
         last_reconcile_at: { type: [string, 'null'], format: date-time }
-        last_error: { type: [string, 'null'] }
+        last_error: { type: string, nullable: true }
     GitHubStarRepoLimit:
       type: object
       additionalProperties: false
@@ -7401,11 +7427,11 @@ components:
         profile_id: { type: integer, format: int64, minimum: 1 }
         status: { type: string, enum: [pending, running, settling, done, failed] }
         attempts: { type: integer, minimum: 0, maximum: 20 }
-        last_error: { type: [string, 'null'] }
+        last_error: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         settle_after: { type: [string, 'null'], format: date-time }
-        completed_at: { type: [string, 'null'], format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
     EventExploreItem:
       type: object
       additionalProperties: false
