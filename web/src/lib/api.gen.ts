@@ -721,6 +721,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/me/app-notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in user's issue notification switches for every app project they can read
+         * @description Defaults apply until saved. Assigned and regressed are on by default, resolved is off.
+         */
+        get: operations["listAppNotificationPrefs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/me/app-notifications/{site}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save the signed-in user's own issue notification switches for a project
+         * @description Any member may change their own switches, viewers included. A project the user cannot read is a 404.
+         */
+        put: operations["putAppNotificationPrefs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/me/orgs/deleted": {
         parameters: {
             query?: never;
@@ -4486,6 +4528,25 @@ export interface components {
             };
             latest_events: components["schemas"]["AppEventSample"][];
         };
+        AppNotificationPrefs: {
+            /** @description An issue was assigned to me. */
+            assigned: boolean;
+            /** @description An issue assigned to me was resolved by someone else. */
+            resolved: boolean;
+            /** @description An issue assigned to me regressed. */
+            regressed: boolean;
+        };
+        AppNotificationPrefsSite: {
+            /** Format: int32 */
+            site_id: number;
+            site_name: string;
+            site_slug: string;
+            org_slug: string;
+            org_name: string;
+            assigned: boolean;
+            resolved: boolean;
+            regressed: boolean;
+        };
         /** @description A partial update; at least one field is required. Omitted fields are left alone. */
         AppIssueChange: {
             /**
@@ -7784,6 +7845,58 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listAppNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Projects with switches */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sites: components["schemas"]["AppNotificationPrefsSite"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    putAppNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppNotificationPrefs"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppNotificationPrefs"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     listDeletedOrganizations: {

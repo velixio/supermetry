@@ -28,7 +28,7 @@ export function accountDestinations(me: Me, managed = false): AccountDestination
   return me.user.instance_admin && !managed ? ['account', 'admin'] : ['account']
 }
 
-const accountSections = ['/app/account/profile', '/app/account/security', '/app/account/sessions']
+const accountSections = ['/app/account/profile', '/app/account/security', '/app/account/sessions', '/app/account/notifications']
 
 export function accountDestinationIsActive(destination: AccountDestination, pathname: string): boolean {
   const within = (base: string) => pathname === base || pathname.startsWith(`${base}/`)

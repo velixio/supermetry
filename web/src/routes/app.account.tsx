@@ -30,7 +30,7 @@ export function AccountSettingsNavigation() {
   return (
     <nav aria-label="Account settings" className="flex flex-wrap gap-1 border-b pb-3">
       {([
-        ['/app/account/profile', 'Profile'], ['/app/account/security', 'Security'], ['/app/account/sessions', 'Sessions'],
+        ['/app/account/profile', 'Profile'], ['/app/account/security', 'Security'], ['/app/account/sessions', 'Sessions'], ['/app/account/notifications', 'Notifications'],
       ] as const).map(([to, label]) => (
         <Link key={to} to={to} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-muted" activeProps={{ className: 'bg-muted font-medium', 'aria-current': 'page' }}>{label}</Link>
       ))}
