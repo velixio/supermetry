@@ -1,0 +1,7 @@
+{"event_id":"00000000000000000000000000000d06","sent_at":"2026-11-17T10:00:05.000Z","sdk":{"name":"sentry.cocoa","version":"8.0.0"}}
+{"type":"session","length":250}
+{"sid":"c1c2c3c4c5c64c7c8c9cacbcccdcecf0","did":"install-cocoa-1","init":true,"seq":0,"started":"2026-11-17T09:50:00.000Z","timestamp":"2026-11-17T09:50:00.000Z","status":"ok","errors":0,"attrs":{"release":"ios-app@2.0.0","environment":"production"}}
+{"content_type":"application/json","type":"event","length":584}
+{"event_id":"00000000000000000000000000000d06","timestamp":"2026-11-17T09:59:58.000Z","platform":"cocoa","level":"error","release":"ios-app@2.0.0","environment":"production","user":{"id":"install-cocoa-1"},"sdk":{"name":"sentry.cocoa","version":"8.0.0"},"contexts":{"os":{"name":"iOS","version":"18.1"},"device":{"family":"iOS","model":"iPhone15,2","arch":"arm64"}},"exception":{"values":[{"type":"App Hanging","value":"App hanging for at least 2000 ms.","mechanism":{"type":"AppHang","handled":true},"stacktrace":{"frames":[{"function":"main","package":"Example","in_app":true}]}}]}}
+{"type":"session","length":273}
+{"sid":"c1c2c3c4c5c64c7c8c9cacbcccdcecf0","did":"install-cocoa-1","init":false,"seq":1,"started":"2026-11-17T09:50:00.000Z","timestamp":"2026-11-17T09:59:58.000Z","status":"crashed","errors":1,"duration":598.0,"attrs":{"release":"ios-app@2.0.0","environment":"production"}}

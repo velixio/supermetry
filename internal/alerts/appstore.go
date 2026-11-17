@@ -39,7 +39,7 @@ func (s *AppStore) Site(ctx context.Context, siteID int32) (AppSite, error) {
 func (s *AppStore) NewIssues(ctx context.Context, siteID int32, since time.Time, kinds []string, limit int) ([]AppIssue, error) {
 	rows, err := s.pool.Query(ctx, `
 select id, title, kind, first_release, event_count, first_seen from app_issues
-where site_id = $1 and first_seen >= $2 and (coalesce(cardinality($3::text[]), 0) = 0 or kind = any($3))
+where site_id = $1 and merged_into is null and first_seen >= $2 and (coalesce(cardinality($3::text[]), 0) = 0 or kind = any($3))
 order by first_seen, id limit $4`, siteID, since, kinds, limit)
 	if err != nil {
 		return nil, fmt.Errorf("read new app issues: %w", err)
@@ -59,7 +59,7 @@ order by first_seen, id limit $4`, siteID, since, kinds, limit)
 func (s *AppStore) RegressedIssues(ctx context.Context, siteID int32, since time.Time, limit int) ([]AppIssue, error) {
 	rows, err := s.pool.Query(ctx, `
 select id, title, kind, last_release, event_count, first_seen, regressed_at from app_issues
-where site_id = $1 and regressed_at >= $2 order by regressed_at, id limit $3`, siteID, since, limit)
+where site_id = $1 and merged_into is null and regressed_at >= $2 order by regressed_at, id limit $3`, siteID, since, limit)
 	if err != nil {
 		return nil, fmt.Errorf("read regressed app issues: %w", err)
 	}
