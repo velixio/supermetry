@@ -50,3 +50,4 @@ tools/**/node_modules/
 
 # TypeScript incremental build state
 *.tsbuildinfo
+tools/sentry-fixtures/**/.venv/
