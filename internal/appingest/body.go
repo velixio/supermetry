@@ -7,21 +7,24 @@ import "time"
 // table columns and stay out of the JSON; Row carries the extra app_events
 // columns and stays out too.
 type Body struct {
-	SiteID      int32                     `json:"-"`
-	TS          time.Time                 `json:"-"`
-	EventID     string                    `json:"-"`
-	Row         RowExtras                 `json:"-"`
-	Level       string                    `json:"level,omitempty"`
-	Platform    string                    `json:"platform,omitempty"`
-	Message     string                    `json:"message,omitempty"`
-	Country     string                    `json:"country,omitempty"`
-	Exceptions  []Exception               `json:"exceptions,omitempty"`
-	Breadcrumbs []Breadcrumb              `json:"breadcrumbs,omitempty"`
-	Contexts    map[string]map[string]any `json:"contexts,omitempty"`
-	Request     *Request                  `json:"request,omitempty"`
-	Tags        map[string]string         `json:"tags,omitempty"`
-	Attachments []AttachmentMeta          `json:"attachments,omitempty"`
-	SDK         SDKInfo                   `json:"sdk"`
+	SiteID        int32                     `json:"-"`
+	TS            time.Time                 `json:"-"`
+	EventID       string                    `json:"-"`
+	Row           RowExtras                 `json:"-"`
+	Release       string                    `json:"release,omitempty"`
+	Symbolication string                    `json:"symbolication,omitempty"` // "", "ok", "missing" or "partial"
+	DebugImages   []DebugImage              `json:"-"`                       // in memory only, for symbolication
+	Level         string                    `json:"level,omitempty"`
+	Platform      string                    `json:"platform,omitempty"`
+	Message       string                    `json:"message,omitempty"`
+	Country       string                    `json:"country,omitempty"`
+	Exceptions    []Exception               `json:"exceptions,omitempty"`
+	Breadcrumbs   []Breadcrumb              `json:"breadcrumbs,omitempty"`
+	Contexts      map[string]map[string]any `json:"contexts,omitempty"`
+	Request       *Request                  `json:"request,omitempty"`
+	Tags          map[string]string         `json:"tags,omitempty"`
+	Attachments   []AttachmentMeta          `json:"attachments,omitempty"`
+	SDK           SDKInfo                   `json:"sdk"`
 }
 
 // RowExtras are values the normaliser derives for columns of app_events and
@@ -36,6 +39,15 @@ type RowExtras struct {
 	SDKName         string
 	SDKVersion      string
 	GroupingVersion int16
+	SDKFingerprint  []string // the SDK's custom fingerprint, kept to regroup after symbolication
+}
+
+// DebugImage is one debug_meta image of a Sentry event; only the fields
+// symbolication needs. It never reaches storage.
+type DebugImage struct {
+	Type     string
+	CodeFile string
+	DebugID  string
 }
 
 // Exception is one entry of an exception chain, oldest first.
@@ -57,6 +69,8 @@ type Mechanism struct {
 // Frame is one scrubbed stack frame. Local variables are never kept.
 type Frame struct {
 	Filename        string   `json:"filename,omitempty"`
+	AbsPath         string   `json:"abs_path,omitempty"` // the minified file's path, kept on frames symbolication resolved
+	AbsURL          string   `json:"-"`                  // the reported abs_path or filename (query stripped), in memory only
 	Module          string   `json:"module,omitempty"`
 	Function        string   `json:"function,omitempty"`
 	Package         string   `json:"package,omitempty"`

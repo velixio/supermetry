@@ -73,7 +73,9 @@ type Deps struct {
 	Heatmaps       heatmapService
 	Ingest         http.Handler
 	AppIngest      http.Handler // app health reports; nil disables the endpoint
-	SentryIngest   SentryIngest // Sentry-compatible /api/{id}/envelope|store|security; nil disables it
+	// SentryAPI serves the Sentry-compatible upload and release API under /api/0/. Nil leaves the routes off.
+	SentryAPI    http.Handler
+	SentryIngest SentryIngest // Sentry-compatible /api/{id}/envelope|store|security; nil disables it
 	// Links serves the public short-link redirect and tracking pixel. Optional.
 	Links  *links.Handler
 	Pixels http.Handler
@@ -206,6 +208,10 @@ func NewRouter(deps Deps) http.Handler {
 	if deps.AppIngest != nil {
 		mux.Handle("POST /api/public/v1/app-events", deps.AppIngest)
 		mux.Handle("OPTIONS /api/public/v1/app-events", deps.AppIngest)
+	}
+	if deps.SentryAPI != nil {
+		// The Sentry intake matches only /api/{positive id}/..., so /api/0/ never collides with it.
+		mux.Handle("/api/0/", deps.SentryAPI)
 	}
 	mux.Handle(neutralPrefix+"{site}", neutralHandler(neutral))
 	mux.Handle(neutralPrefix+"{site}/{rest...}", neutralHandler(neutral))

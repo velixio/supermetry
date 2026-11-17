@@ -4331,7 +4331,7 @@ export interface components {
             event_id: string;
             /** Format: date-time */
             ts: string;
-            /** @description message, exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional. */
+            /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional. */
             body: {
                 [key: string]: unknown;
             };
