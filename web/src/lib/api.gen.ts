@@ -2077,6 +2077,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/users/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erase what an app project stores about one end user
+         * @description Deletes the stored event bodies of the user's events and clears the user hash from their event rows, which
+         *     stay as anonymous counts. The user is matched by the HMAC of `user_id` under the project's hash secret, so
+         *     the id is never stored. Runs synchronously in batches and is safe to repeat (a repeat reports zeros).
+         *     Owner or admin only. Audited as app.user_erased with counts only.
+         */
+        post: operations["eraseAppUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/overview": {
         parameters: {
             query?: {
@@ -3110,6 +3135,16 @@ export interface components {
             /** @description 0 means the default of 7. */
             max_report_age_days?: number;
             environments?: string[];
+        };
+        AppUserErase: {
+            /** @description The user id the app's SDK reports. */
+            user_id: string;
+        };
+        AppUserEraseResult: {
+            /** Format: int64 */
+            bodies_deleted: number;
+            /** Format: int64 */
+            events_anonymized: number;
         };
         AppDSNKeyCreate: {
             label?: string;
@@ -10224,6 +10259,35 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    eraseAppUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppUserErase"];
+            };
+        };
+        responses: {
+            /** @description Erased */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUserEraseResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
