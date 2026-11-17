@@ -326,6 +326,9 @@ func partitionNamePattern(table string) *regexp.Regexp {
 	if table == "events" || table == "sessions" {
 		return regexp.MustCompile(`^` + quoted + `_(?:r[0-9]{1,4}_[0-9]{8}|rf_[0-9]{6})$`)
 	}
+	if table == "spans" {
+		return regexp.MustCompile(`^` + quoted + `_[0-9]{8}$`)
+	}
 	return regexp.MustCompile(`^` + quoted + `_[0-9]{6}$`)
 }
 

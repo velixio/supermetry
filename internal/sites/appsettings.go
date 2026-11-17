@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	defaultMaxReportAgeDays = 7
-	maxReportAgeDaysLimit   = 30
-	maxTagKeys              = 50
-	maxEnvironments         = 20
+	defaultMaxReportAgeDays  = 7
+	defaultSpanRetentionDays = 14
+	maxReportAgeDaysLimit    = 30
+	maxTagKeys               = 50
+	maxEnvironments          = 20
 )
 
 var (
@@ -31,6 +32,10 @@ type AppSettings struct {
 	FilterExtensions *bool `json:"filter_extensions"`
 	FilterCrawlers   *bool `json:"filter_crawlers"`
 	FilterLocalhost  *bool `json:"filter_localhost"`
+	// PerformanceEnabled turns span ingest on or off. A nil pointer means on.
+	PerformanceEnabled *bool `json:"performance_enabled"`
+	// SpanRetentionDays is the raw span life, 1..14; 0 means the default 14.
+	SpanRetentionDays int `json:"span_retention_days"`
 }
 
 // ParseAppSettings decodes stored settings; empty or missing input gives the defaults.
@@ -60,6 +65,15 @@ func (a AppSettings) Normalize() (AppSettings, error) {
 	}
 	if a.FilterCrawlers == nil {
 		a.FilterCrawlers = &on
+	}
+	if a.PerformanceEnabled == nil {
+		a.PerformanceEnabled = &on
+	}
+	if a.SpanRetentionDays == 0 {
+		a.SpanRetentionDays = defaultSpanRetentionDays
+	}
+	if a.SpanRetentionDays < 1 || a.SpanRetentionDays > defaultSpanRetentionDays {
+		return AppSettings{}, fmt.Errorf("span_retention_days must be between 1 and %d", defaultSpanRetentionDays)
 	}
 	if a.MaxReportAgeDays == 0 {
 		a.MaxReportAgeDays = defaultMaxReportAgeDays
