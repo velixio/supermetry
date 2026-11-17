@@ -77,6 +77,17 @@ func TestPrepareNeverStoresActiveContent(t *testing.T) {
 	}
 }
 
+func TestPrepareNeverStoresMinidumps(t *testing.T) {
+	r := Prepare([]Input{
+		{Name: "a.bin", AttachmentType: "event.minidump", ContentType: "text/plain", Payload: []byte("MDMP")},
+		{Name: "crash.DMP", ContentType: "text/plain", Payload: []byte("MDMP")},
+		{Name: "ok.txt", ContentType: "text/plain", Payload: []byte("x")},
+	}, redact)
+	if r.Minidump != 2 || len(r.Metas) != 3 || len(r.Files) != 1 || r.Metas[0].Stored || r.Metas[1].Stored || r.Metas[0].Size != 4 {
+		t.Fatalf("result = %+v", r)
+	}
+}
+
 func TestPrepareScrubsAndKeepsInvalidJSONAsText(t *testing.T) {
 	data := []byte("email me at a@example.test\n" + strings.Repeat("x", 100) + "\n")
 	r := Prepare([]Input{{Name: "n.txt", ContentType: "text/plain", Payload: data}}, func(s string) string {

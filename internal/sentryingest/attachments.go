@@ -40,6 +40,9 @@ func (h *Handler) prepareAttachments(items []Item) preparedAttachments {
 	if n := res.TooLarge - oversize; n > 0 {
 		h.stats.Add("attachment_too_large", uint64(n))
 	}
+	if res.Minidump > 0 {
+		h.stats.Add("attachment_minidump_skipped", uint64(res.Minidump))
+	}
 	if res.Unsupported > 0 {
 		h.stats.Add("attachment_unsupported", uint64(res.Unsupported))
 	}

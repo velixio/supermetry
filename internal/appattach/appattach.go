@@ -68,6 +68,13 @@ type Result struct {
 	Files       []File
 	TooLarge    int // not stored for size: over the file or the event cap
 	Unsupported int // not stored for type or content
+	Minidump    int // minidumps are never stored, whatever their size
+}
+
+// isMinidump reports a native crash dump, which is processed separately and
+// never stored raw.
+func isMinidump(a Input) bool {
+	return a.AttachmentType == "event.minidump" || strings.HasSuffix(strings.ToLower(strings.TrimSpace(a.Name)), ".dmp")
 }
 
 // Prepare classifies, scrubs and caps the attachments of one event. scrub
@@ -82,6 +89,8 @@ func Prepare(in []Input, scrub func(string) string) Result {
 		m := Meta{Name: cleanName(a.Name, scrub), Type: clip(a.AttachmentType, 64), Size: len(a.Payload)}
 		ct, ok := classify(a)
 		switch {
+		case isMinidump(a):
+			res.Minidump++
 		case len(a.Payload) > MaxFile || stored+len(a.Payload) > MaxEvent:
 			res.TooLarge++
 		case !ok:

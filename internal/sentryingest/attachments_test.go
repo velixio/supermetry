@@ -50,6 +50,21 @@ func TestAttachmentsAreScrubbedCappedAndHandedToTheBodyWriter(t *testing.T) {
 	}
 }
 
+func TestMinidumpAttachmentsAreCountedNotStored(t *testing.T) {
+	e := newEnv(t)
+	env := attEvent + attachmentItem("text/plain", "event.minidump", "m.dmp", "MDMP") + attachmentItem("text/plain", "", "x.DMP", "MDMP")
+	if w := e.do(post(fdPath, fdQuery, env, nil)); w.Code != 200 {
+		t.Fatalf("status %d", w.Code)
+	}
+	b := e.bodies.items[0]
+	if len(b.Files) != 0 || len(b.Attachments) != 2 || b.Attachments[0].Stored || b.Attachments[1].Stored {
+		t.Fatalf("metas=%+v files=%d", b.Attachments, len(b.Files))
+	}
+	if got := e.h.Stats().Snapshot()["attachment_minidump_skipped"]; got != 2 {
+		t.Fatalf("attachment_minidump_skipped = %d", got)
+	}
+}
+
 func TestAttachmentCapsCountedAndMetadataKept(t *testing.T) {
 	e := newEnv(t)
 	big := strings.Repeat("a", MaxAttachment+1)
