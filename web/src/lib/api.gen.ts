@@ -2211,6 +2211,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+                /** @description Position in the body's attachments list. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The scrubbed content of one stored event attachment
+         * @description Only attachments whose metadata says stored=true have content. PNG, JPEG and WebP are served inline; text and
+         *     JSON are served as text downloads; anything else is an opaque download. Every response carries
+         *     X-Content-Type-Options: nosniff and a sandboxing Content-Security-Policy. Content ages out with the event body
+         *     (30 days) and then is a 404.
+         */
+        get: operations["getAppEventAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/issues/{issue}": {
         parameters: {
             query?: never;
@@ -4368,7 +4396,7 @@ export interface components {
             event_id: string;
             /** Format: date-time */
             ts: string;
-            /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional. */
+            /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional. */
             body: {
                 [key: string]: unknown;
             };
@@ -10457,6 +10485,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppEventBody"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppEventAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+                /** @description Position in the body's attachments list. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attachment content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "text/plain": string;
+                    "application/json": string;
+                    "application/octet-stream": string;
                 };
             };
             403: components["responses"]["Forbidden"];
