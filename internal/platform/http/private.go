@@ -86,9 +86,11 @@ type UpdateStarter interface {
 }
 
 type Deps struct {
-	Now          func() time.Time
-	Version      string
-	TrackingMode privacy.Mode
+	// SentryFilterLocalhost is the server-wide default of the per-project localhost inbound filter.
+	SentryFilterLocalhost bool
+	Now                   func() time.Time
+	Version               string
+	TrackingMode          privacy.Mode
 	// MaxOrgsPerUser caps the organizations a non-admin user may own. Zero means no cap.
 	MaxOrgsPerUser int
 	MaxSitesPerOrg int

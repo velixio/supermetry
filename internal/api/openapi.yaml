@@ -4258,6 +4258,10 @@ components:
         tag_allowlist: { type: array, maxItems: 50, items: { type: string, pattern: '^[a-z][a-z0-9_.]{0,39}$' } }
         max_report_age_days: { type: integer, minimum: 0, maximum: 30, description: "0 means the default of 7." }
         environments: { type: array, maxItems: 20, items: { type: string, pattern: '^[a-z0-9][a-z0-9_.-]{0,31}$' } }
+        filter_extensions: { type: boolean, nullable: true, description: "Drop events raised inside browser extensions. Omitted or null means on." }
+        filter_crawlers: { type: boolean, nullable: true, description: "Drop events sent by crawlers. Omitted or null means on." }
+        filter_localhost: { type: boolean, nullable: true, description: "Drop events raised on localhost. Null means the server default (filter_localhost_default)." }
+        filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
     AppUserErase:
       type: object
       required: [user_id]

@@ -90,6 +90,7 @@ type Env struct {
 	salts      *salts.Store
 	writerStop context.CancelFunc
 	writerDone <-chan error
+	app        *app // nil unless started with StartWithApp
 
 	mu            sync.Mutex
 	writerStopped bool
@@ -98,7 +99,9 @@ type Env struct {
 }
 
 // Start creates a fully migrated analytics environment in a disposable schema.
-func Start(t *testing.T) *Env {
+func Start(t *testing.T) *Env { return start(t, false) }
+
+func start(t *testing.T, withApp bool) *Env {
 	t.Helper()
 	pool, schema := testpg.New(t)
 	ctx := context.Background()
@@ -139,14 +142,21 @@ func Start(t *testing.T) *Env {
 		rateLimitTime = rateLimitTime.Add(time.Second)
 		return now
 	}
+	var appHarness *app
+	var sentry api.SentryIngest
+	if withApp {
+		appHarness = startApp(t, pool)
+		sentry = appHarness.handler
+	}
 	router := api.NewRouter(api.Deps{
-		Config: config.Config{Tracking: config.TrackingMode{Mode: privacy.Identified}, EventPath: "/api/public/v1/events", AdminAPIKey: TestAPIKey},
-		Query:  engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, AppQuery: appquery.New(pool, clock.Now), Now: clock.Now, RateLimitNow: rateLimitNow,
+		SentryIngest: sentry,
+		Config:       config.Config{Tracking: config.TrackingMode{Mode: privacy.Identified}, EventPath: "/api/public/v1/events", AdminAPIKey: TestAPIKey},
+		Query:        engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, AppQuery: appquery.New(pool, clock.Now), Now: clock.Now, RateLimitNow: rateLimitNow,
 		RateLimiter: ingest.NewTokenBuckets(100_000, 100_000), Ready: func() bool { return true },
 	})
 	env := &Env{
 		pool: pool, schema: schema, server: httptest.NewServer(router), clock: clock,
-		salts: saltStore, writerStop: stopWriter, writerDone: writerDone,
+		salts: saltStore, writerStop: stopWriter, writerDone: writerDone, app: appHarness,
 	}
 	t.Cleanup(func() {
 		env.stopServer()
@@ -279,6 +289,7 @@ func (e *Env) CloseAll(t *testing.T) {
 
 func (e *Env) stopWriter(t *testing.T) {
 	t.Helper()
+	e.app.stop()
 	e.mu.Lock()
 	if e.writerStopped {
 		e.mu.Unlock()
@@ -338,8 +349,15 @@ func PgDumpSchema(t *testing.T, env *Env) string {
 	if err != nil {
 		t.Skip("pg_dump is not installed")
 	}
+	// The pool may point at a cloned database (template setup), not the one in
+	// the DSN, so dump the database the pool is actually connected to.
+	dsn, err := url.Parse(os.Getenv("SUPERMETRY_TEST_DSN"))
+	if err != nil {
+		t.Fatalf("parse SUPERMETRY_TEST_DSN: %v", err)
+	}
+	dsn.Path = "/" + env.pool.Config().ConnConfig.Database
 	command := exec.Command(path,
-		"--dbname="+os.Getenv("SUPERMETRY_TEST_DSN"),
+		"--dbname="+dsn.String(),
 		"--schema="+env.schema,
 		"--format=plain",
 		"--no-owner",

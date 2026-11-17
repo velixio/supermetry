@@ -25,6 +25,12 @@ type AppSettings struct {
 	TagAllowlist     []string `json:"tag_allowlist"`
 	MaxReportAgeDays int      `json:"max_report_age_days"`
 	Environments     []string `json:"environments"`
+	// Inbound filters. A nil pointer means the default: on for extensions and
+	// crawlers, and the server-wide SUPERMETRY_SENTRY_FILTER_LOCALHOST value
+	// for localhost.
+	FilterExtensions *bool `json:"filter_extensions"`
+	FilterCrawlers   *bool `json:"filter_crawlers"`
+	FilterLocalhost  *bool `json:"filter_localhost"`
 }
 
 // ParseAppSettings decodes stored settings; empty or missing input gives the defaults.
@@ -47,6 +53,13 @@ func (a AppSettings) Normalize() (AppSettings, error) {
 	}
 	if a.Environments, err = normalizeList(a.Environments, "environments", maxEnvironments, environmentPattern); err != nil {
 		return AppSettings{}, err
+	}
+	on := true
+	if a.FilterExtensions == nil {
+		a.FilterExtensions = &on
+	}
+	if a.FilterCrawlers == nil {
+		a.FilterCrawlers = &on
 	}
 	if a.MaxReportAgeDays == 0 {
 		a.MaxReportAgeDays = defaultMaxReportAgeDays
