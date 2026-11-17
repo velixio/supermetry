@@ -19,6 +19,26 @@ import (
 	"supermetry/internal/testpg"
 )
 
+func TestUploadKeyFitsSentryTokenSecret(t *testing.T) {
+	keys, principal, _ := newKeys(t)
+	ctx := context.Background()
+	plain, _, err := keys.Create(ctx, principal, "upload", []string{"releases:write"}, []int32{10}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`^pnl_[a-z2-7]{8}_[A-Z2-7]{35}$`).MatchString(plain) {
+		t.Fatalf("upload key format %q", plain)
+	}
+	verified, ok := keys.Verify(ctx, plain)
+	if !ok || len(verified.Scopes) != 1 || verified.Scopes[0] != "releases:write" {
+		t.Fatalf("verify = (%+v, %t)", verified, ok)
+	}
+	other, _, err := keys.Create(ctx, principal, "multi", []string{"releases:write", "stats:read"}, nil, nil)
+	if err != nil || len(other) < len("pnl_")+8+1+40 {
+		t.Fatalf("a key with several scopes keeps the long secret: %q %v", other, err)
+	}
+}
+
 func TestKeyLifecycle(t *testing.T) {
 	keys, principal, pool := newKeys(t)
 	ctx := context.Background()
