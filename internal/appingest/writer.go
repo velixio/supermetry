@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/appissues"
 	"supermetry/internal/apprelease"
 	"supermetry/internal/db"
 	"supermetry/internal/health"
@@ -154,6 +155,7 @@ type issueGroup struct {
 	status                     string
 	resolvedIn                 *string
 	resolvedNext               bool
+	inserted                   bool // the upsert created the issue
 	level, culprit             string
 	groupingVersion            int16
 }
@@ -233,7 +235,7 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 			}
 			results := tx.SendBatch(ctx, pgBatch)
 			for _, g := range order {
-				if err := results.QueryRow().Scan(&g.id, &g.status, &g.resolvedIn, &g.resolvedNext); err != nil {
+				if err := results.QueryRow().Scan(&g.id, &g.status, &g.resolvedIn, &g.resolvedNext, &g.inserted); err != nil {
 					_ = results.Close()
 					return fmt.Errorf("upsert issue: %w", err)
 				}
@@ -243,6 +245,13 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 			}
 			if err := recordIssueHashes(ctx, tx, order); err != nil {
 				return err
+			}
+			for _, g := range order {
+				if g.inserted {
+					if err := appissues.RecordSystem(ctx, tx, g.siteID, g.id, appissues.KindFirstSeen, map[string]any{"release": g.firstRelease}); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		rows := make([][]any, 0, len(live))
@@ -341,7 +350,7 @@ on conflict (site_id, fingerprint) do update set
   level         = case when excluded.last_seen >= app_issues.last_seen and excluded.level <> '' then excluded.level else app_issues.level end,
   culprit       = case when excluded.last_seen >= app_issues.last_seen and excluded.culprit <> '' then excluded.culprit else app_issues.culprit end,
   event_count   = app_issues.event_count + excluded.event_count
-returning id, status, resolved_in_release, resolved_next`
+returning id, status, resolved_in_release, resolved_next, (xmax = 0)`
 
 // shouldRegress applies the regression rule to the releases of a batch's
 // events for a resolved issue. With no recorded release any event regresses.
@@ -424,8 +433,14 @@ func regress(ctx context.Context, tx pgx.Tx, groups []*issueGroup) error {
 		if !shouldRegress(releases, g.resolvedIn, g.resolvedNext, seen[g.siteID]) {
 			continue
 		}
-		if _, err := tx.Exec(ctx, `update app_issues set status = 'regressed', regressed_at = now() where id = $1 and status = 'resolved'`, g.id); err != nil {
+		tag, err := tx.Exec(ctx, `update app_issues set status = 'regressed', regressed_at = now() where id = $1 and status = 'resolved'`, g.id)
+		if err != nil {
 			return fmt.Errorf("mark issue regressed: %w", err)
+		}
+		if tag.RowsAffected() == 1 {
+			if err := appissues.RecordSystem(ctx, tx, g.siteID, g.id, appissues.KindRegressed, map[string]any{"release": g.lastRelease}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
