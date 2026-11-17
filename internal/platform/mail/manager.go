@@ -270,6 +270,11 @@ func (m *Manager) Save(ctx context.Context, s Settings) error {
 				return fmt.Errorf("decode SMTP settings: %w", err)
 			}
 		}
+		// Never carry a stored password over to a different server or account:
+		// it would be sent to wherever the new host points.
+		if old.Pass != "" && (!strings.EqualFold(old.Host, s.Host) || old.User != s.User) {
+			return fmt.Errorf("%w: enter the password again after changing the host or username", ErrInvalidSettings)
+		}
 		wire.Pass = old.Pass
 	}
 	return m.write(ctx, wire)

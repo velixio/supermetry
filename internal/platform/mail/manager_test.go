@@ -98,6 +98,38 @@ func TestManagerEmptyPasswordKeepsExistingAndClearDropsIt(t *testing.T) {
 	}
 }
 
+func TestManagerRefusesToCarryPasswordToNewHostOrUser(t *testing.T) {
+	ctx := context.Background()
+	for name, change := range map[string]func(*Settings){
+		"host": func(s *Settings) { s.Host = "evil.example.net" },
+		"user": func(s *Settings) { s.User = "someone-else" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := &memStore{}
+			manager := newTestManager(t, config.SMTP{}, store)
+			first := validSettings(587)
+			first.TLS, first.User, first.Pass = "starttls", "mailer", "one"
+			if err := manager.Save(ctx, first); err != nil {
+				t.Fatal(err)
+			}
+			second := first
+			second.Pass = ""
+			change(&second)
+			if err := manager.Save(ctx, second); !errors.Is(err, ErrInvalidSettings) {
+				t.Fatalf("err=%v, want ErrInvalidSettings", err)
+			}
+			cfg, err := manager.effective(ctx)
+			if err != nil || cfg.Host != first.Host || cfg.Pass != "one" {
+				t.Fatalf("stored settings changed: cfg=%+v err=%v", cfg, err)
+			}
+			second.Pass = "two"
+			if err := manager.Save(ctx, second); err != nil {
+				t.Fatalf("save with new password: %v", err)
+			}
+		})
+	}
+}
+
 func TestManagerValidatesLikeConfig(t *testing.T) {
 	manager := newTestManager(t, config.SMTP{}, &memStore{})
 	bad := []Settings{

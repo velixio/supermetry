@@ -162,13 +162,19 @@ func TestAdminEmailSettingsRoundTripHidesPassword(t *testing.T) {
 	if _, has := got["password"]; has {
 		t.Fatal("password field in response")
 	}
-	// An empty password keeps the stored one.
-	body = `{"host":"smtp2.example.test","port":587,"tls":"starttls","user":"mailer","password":"","from":"supermetry@example.com"}`
+	// An empty password keeps the stored one while host and username stay the same.
+	body = `{"host":"smtp.example.test","port":2587,"tls":"starttls","user":"mailer","password":"","from":"supermetry@example.com"}`
 	response = emailRequest(handler, "admin", http.MethodPut, "/api/private/admin/email", body)
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"password_set":true`) {
 		t.Fatalf("keep: %d %s", response.Code, response.Body.String())
 	}
-	response = emailRequest(handler, "admin", http.MethodPut, "/api/private/admin/email", `{"host":"smtp2.example.test","port":587,"tls":"starttls","user":"mailer","clear_password":true,"from":"supermetry@example.com"}`)
+	// A new host must not inherit the stored password.
+	body = `{"host":"smtp2.example.test","port":587,"tls":"starttls","user":"mailer","password":"","from":"supermetry@example.com"}`
+	response = emailRequest(handler, "admin", http.MethodPut, "/api/private/admin/email", body)
+	if response.Code != 400 {
+		t.Fatalf("host change kept password: %d %s", response.Code, response.Body.String())
+	}
+	response = emailRequest(handler, "admin", http.MethodPut, "/api/private/admin/email", `{"host":"smtp.example.test","port":587,"tls":"starttls","user":"mailer","clear_password":true,"from":"supermetry@example.com"}`)
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"password_set":false`) {
 		t.Fatalf("clear: %d %s", response.Code, response.Body.String())
 	}
