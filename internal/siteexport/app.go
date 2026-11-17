@@ -100,6 +100,18 @@ order by r.id`
 		return err
 	}
 
+	// User content. The reporter's email is stored only as a hash and is not
+	// exported; has_contact says whether one was given.
+	feedback := `
+select f.id,coalesce(f.issue_id::text,''),coalesce(f.event_id,''),` + utc("f.at") + `,(f.email_hash is not null)::text,f.message,coalesce(f.url,'')
+from app_feedback f
+where f.site_id=$1 and ` + inWindow("f.at") + `
+order by f.at,f.id`
+	if err := e.writeRows(ctx, archive, "app_feedback.csv",
+		[]string{"feedback_id", "issue_id", "event_id", "at", "has_contact", "text", "page"}, feedback, siteID, f, t, tz); err != nil {
+		return err
+	}
+
 	deploys := `
 select d.id,r.version,d.environment,d.name,d.url,` + utc("d.date_started") + `,` + utc("d.date_finished") + `,` + utc("d.date_created") + `
 from app_deploys d join app_releases r on r.id=d.release_id
