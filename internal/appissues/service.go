@@ -25,6 +25,8 @@ var (
 	// ErrInvalidAssignee reports an assignee who is not a member of the
 	// site's organisation with access to the site.
 	ErrInvalidAssignee = errors.New("assignee must be a member of the organisation with access to this project")
+	// ErrInvalidGitHubURL reports a link that is not a github.com issue URL.
+	ErrInvalidGitHubURL = fmt.Errorf("%w: github_url must look like https://github.com/<owner>/<repo>/issues/<number>", ErrInvalid)
 	// ErrNotFound reports an issue or comment that does not exist for the site.
 	ErrNotFound = errors.New("not found")
 	// ErrForbidden reports a comment change by someone who is neither its
@@ -121,7 +123,7 @@ type Result struct {
 	Fields []string `json:"-"`
 }
 
-var githubIssueURL = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}/issues/[1-9][0-9]{0,9}$`)
+var githubIssueURL = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}/issues/[0-9]{1,10}$`)
 
 const maxReleaseLen = 64
 
@@ -160,7 +162,7 @@ func (c Change) validate(now time.Time) error {
 	if c.GitHubURL != nil {
 		n++
 		if *c.GitHubURL != "" && !githubIssueURL.MatchString(*c.GitHubURL) {
-			return invalid("github_url must look like https://github.com/<owner>/<repo>/issues/<number>")
+			return ErrInvalidGitHubURL
 		}
 	}
 	if c.Archive != nil {

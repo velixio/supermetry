@@ -359,3 +359,27 @@ func TestRecordSystem(t *testing.T) {
 		t.Fatalf("row = %v %s %v", actor, data, err)
 	}
 }
+
+func TestUpdateGitHubURLAcceptsOnlyGitHubIssueLinks(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	for _, bad := range []string{
+		"javascript:alert(1)", "http://github.com/o/r/issues/1", "https://github.com.evil.com/o/r/issues/1",
+		"https://github.com/o/r/pull/1", "https://github.com/o/r/issues/1?x=1", "https://github.com/o/r/issues/12345678901",
+		"https://github.com/-o_/r/issues/1", "https://github.com/" + strings.Repeat("a", 40) + "/r/issues/1", " https://github.com/o/r/issues/1",
+	} {
+		if _, err := f.svc.Update(ctx, 7, []int64{f.issue}, f.actor, appissues.Change{GitHubURL: s(bad)}); !errors.Is(err, appissues.ErrInvalidGitHubURL) {
+			t.Errorf("%q: err = %v, want ErrInvalidGitHubURL", bad, err)
+		}
+	}
+	if _, err := f.svc.Update(ctx, 7, []int64{f.issue}, f.actor, appissues.Change{GitHubURL: s("https://github.com/o-1/my.repo_x/issues/12")}); err != nil {
+		t.Fatalf("valid url: %v", err)
+	}
+	if _, err := f.svc.Update(ctx, 7, []int64{f.issue}, f.actor, appissues.Change{GitHubURL: s("")}); err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	var u *string
+	if err := f.pool.QueryRow(ctx, `select github_url from app_issues where id=$1`, f.issue).Scan(&u); err != nil || u != nil {
+		t.Fatalf("not cleared: %v %v", u, err)
+	}
+}
