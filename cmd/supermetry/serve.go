@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
 	"supermetry/internal/appingest"
+	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
 	"supermetry/internal/appsessions"
@@ -198,6 +199,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		refreshReplayDiskGuard()
 	} else {
 		health.ReplayDiskLow.Store(0)
+	}
+	if created, err := sites.EnsureAppHashSecrets(ctx, pool); err != nil {
+		return fmt.Errorf("ensure app hash secrets: %w", err)
+	} else if created > 0 {
+		slog.Info("created app hash secrets", "sites", created)
 	}
 	databaseRegistry := sitesvc.NewRegistry(platformStore, 30*time.Second)
 	defer databaseRegistry.Close()
@@ -499,6 +505,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
+	appProduct := appproduct.New(w, sessions, dictionary, dropRecorder, settings.clock.Now)
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
 	appBodies := appingest.NewBodyWriter(pool, appingest.BodyWriterConfig{})
 	appReports := appingest.NewClientReports(pool, 0)
@@ -565,7 +572,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now), SentryIngest: sentryIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
 		StripeAttribution: &stripe.AttributionHandler{

@@ -144,6 +144,7 @@ func TestCollectionReliabilityCountersAreExported(t *testing.T) {
 		{name: "ingest_clock_skew_total", counter: &health.IngestClockSkew, delta: 7},
 		{name: "app_ingest_queue_full_total", counter: &health.AppIngestQueueFull, delta: 2},
 		{name: "app_ingest_write_failed_total", counter: &health.AppIngestWriteFailed, delta: 1},
+		{name: "app_secret_missing_total", counter: &health.AppSecretMissing, delta: 1},
 		{name: "app_body_queue_full_total", counter: &health.AppBodyQueueFull, delta: 1},
 		{name: "app_body_write_failed_total", counter: &health.AppBodyWriteFailed, delta: 1},
 		{name: "span_queue_full_total", counter: &health.SpanQueueFull, delta: 3},

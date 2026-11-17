@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"supermetry/internal/appproduct"
 )
 
 const (
@@ -23,12 +25,24 @@ const (
 )
 
 var (
-	kinds     = setOf("crash", "error", "hang", "install_failed", "install_stalled", "incompatibility", "operation_failed", "session")
+	kinds     = setOf("crash", "error", "hang", "install_failed", "install_stalled", "incompatibility", "operation_failed", "session", KindScreen, KindEvent)
 	levels    = setOf("fatal", "error", "warning")
 	platforms = setOf("windows", "macos", "linux", "ios", "android", "web", "other")
 	arches    = setOf("x64", "arm64", "x86", "arm", "other")
 	token     = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,32}$`)
 )
+
+// Product kinds exist on the wire only: they go to the product adapter and
+// never into app_events, whose kind CHECK is unchanged.
+const (
+	KindScreen = "screen"
+	KindEvent  = "event"
+
+	maxScreenBytes = 200
+)
+
+// IsProduct reports whether the event is a screen view or a custom event.
+func (e Event) IsProduct() bool { return e.Kind == KindScreen || e.Kind == KindEvent }
 
 func setOf(values ...string) map[string]struct{} {
 	m := make(map[string]struct{}, len(values))
@@ -64,6 +78,12 @@ type Event struct {
 	InstallID   string
 	SessionID   string
 	Tags        map[string]string
+
+	// Product kinds only (KindScreen, KindEvent); Props are the custom event
+	// properties, validated like tags but strings only.
+	Screen string
+	Name   string
+	Props  map[string]string
 
 	// Sentry-shaped events only; the zero values are the column defaults.
 	Culprit         string
@@ -179,6 +199,9 @@ func ParseEvent(m map[string]any) (Event, error) {
 		}
 		e.Occurrences = int(n)
 	}
+	if e.IsProduct() {
+		return parseProduct(m, e)
+	}
 	frames, err := str(m, "frames", math.MaxInt, false)
 	if err != nil {
 		return e, err
@@ -262,6 +285,58 @@ func tags(v any) (map[string]string, error) {
 		}
 		if len(value) > maxTagValueBytes || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
 			return nil, invalid("tags")
+		}
+		out[key] = value
+	}
+	return out, nil
+}
+
+// parseProduct validates the fields only screen and event reports carry.
+func parseProduct(m map[string]any, e Event) (Event, error) {
+	var err error
+	if e.InstallID == "" {
+		return e, invalid("install_id")
+	}
+	if e.Kind == KindScreen {
+		if e.Screen, err = str(m, "screen", maxScreenBytes, true); err != nil {
+			return e, err
+		}
+		if _, present := m["name"]; present && m["name"] != nil {
+			return e, invalid("name")
+		}
+	} else {
+		if e.Name, err = str(m, "name", appproduct.MaxNameBytes, true); err != nil {
+			return e, err
+		}
+		if !appproduct.ValidName(e.Name) {
+			return e, invalid("name")
+		}
+		if _, present := m["screen"]; present && m["screen"] != nil {
+			return e, invalid("screen")
+		}
+	}
+	if e.Props, err = productProps(m["props"]); err != nil {
+		return e, err
+	}
+	return e, nil
+}
+
+// productProps accepts an object of up to 20 string values; "$"-prefixed
+// keys are reserved for system properties.
+func productProps(v any) (map[string]string, error) {
+	out := map[string]string{}
+	if v == nil {
+		return out, nil
+	}
+	obj, ok := v.(map[string]any)
+	if !ok || len(obj) > maxTags {
+		return nil, invalid("props")
+	}
+	for key, raw := range obj {
+		value, isString := raw.(string)
+		if !isString || key == "" || strings.HasPrefix(key, "$") || len(key) > maxTagKeyBytes || len(value) > maxTagValueBytes ||
+			!utf8.ValidString(key) || !utf8.ValidString(value) || strings.ContainsRune(key, 0) || strings.ContainsRune(value, 0) {
+			return nil, invalid("props")
 		}
 		out[key] = value
 	}

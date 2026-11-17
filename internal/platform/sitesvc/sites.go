@@ -230,6 +230,11 @@ func (s *Sites) Create(ctx context.Context, principal authz.Principal, input any
 			if err != nil {
 				return err
 			}
+			if in.Kind == coresites.KindApp {
+				if err := coresites.InsertAppHashSecret(ctx, tx, created.ID); err != nil {
+					return err
+				}
+			}
 			return audit.Write(ctx, tx, principal, "site.created", "site", int64(created.ID), map[string]any{
 				"name": name, "timezone": location.String(), "retention_days": in.RetentionDays, "revenue_currency": in.RevenueCurrency,
 			})
