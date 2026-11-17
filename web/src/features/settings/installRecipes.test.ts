@@ -30,7 +30,7 @@ describe('install recipes', () => {
 
   it('points WordPress and Shopify to their platform plugins', () => {
     const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]))
-    expect(byId.get('wordpress')?.note).toContain('https://github.com/velixio/supermetry/tree/main/sdk/wordpress')
+    expect(byId.get('wordpress')?.note).toBe('https://github.com/velixio/supermetry-wordpress')
     expect(byId.get('shopify')?.note).toContain('https://github.com/velixio/supermetry/tree/main/sdk/shopify')
   })
 
