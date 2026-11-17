@@ -1,0 +1,12 @@
+{
+  "name": "sentry-fixtures-electron",
+  "private": true,
+  "main": "main.js",
+  "dependencies": {
+    "@sentry/electron": "8.4.0",
+    "electron": "^40"
+  },
+  "trustedDependencies": [
+    "electron"
+  ]
+}
