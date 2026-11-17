@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"supermetry/internal/profileerasure"
 	"testing"
 	"time"
 
@@ -95,6 +96,7 @@ func newLinkFixture(t *testing.T) linkFixture {
 	return linkFixture{
 		handler: platformhttp.New(platformhttp.Deps{
 			Authenticator: authenticator, Sites: registry, Store: data, LinkCache: cache,
+			AppErasures:        profileerasure.NewAppStore(pool),
 			TrackingPixelViews: views, Pixels: pixelReg,
 			BaseURL: "https://sm.example.test",
 			Now:     func() time.Time { return now },
