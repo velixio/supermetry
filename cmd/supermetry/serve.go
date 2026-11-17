@@ -30,6 +30,7 @@ import (
 	"supermetry/internal/appingest"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
+	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
@@ -513,6 +514,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	_, _ = spanWriter, spanBudget // handed to the Sentry and OTLP front doors by the next tasks
 	var sentryIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
+	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
@@ -520,6 +522,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
 		})
 		sentryHandler.WithSymbolicator(symbolicator)
+		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
+		sentryHandler.WithSessions(appSessions)
 		sentryIngest = sentryHandler
 	}
 	intake := &ingest.Handler{
@@ -767,7 +771,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if symbolicator != nil {
 		symbolicator.Close()
 	}
-	// Stop the span writer first: it drains on cancel, before the app writer.
+	// Session updates are queued by the handler too; flush them first.
+	if appSessions != nil {
+		appSessions.Close()
+	}
+	// Stop the span writer: it drains on cancel, before the app writer.
 	cancelSpanWriter()
 	cause = errors.Join(cause, <-spanWriterDone)
 	cancelAppWriter()

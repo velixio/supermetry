@@ -3,11 +3,13 @@ package sentryingest
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/appsessions"
 	"supermetry/internal/sites"
 )
 
@@ -16,16 +18,22 @@ import (
 var sessionStatuses = []string{"exited", "errored", "crashed", "abnormal"}
 
 // ParseSession turns a `session` or `sessions` item payload into kind=session
-// rows. A session update yields one row when it carries init=true (later
-// updates of the same session add nothing in 1a). A sessions aggregate yields
-// one row per status with a non-zero count, Occurrences set to that count,
-// never one row per session. A crashed or abnormal status sets ExitReason.
-// Row ids are digests of the payload and status, so a retried envelope
-// deduplicates.
-func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) ([]appingest.Event, error) {
+// rows and session-state updates. A single session update always yields one
+// appsessions.Update (every update, not only init) and, when it carries
+// init=true, the v1 kind=session row the fallback path counts. A sessions
+// aggregate yields one row per status with a non-zero count, Occurrences set
+// to that count, never one row per session, and no Update. A crashed or
+// abnormal status sets ExitReason. Row ids are digests of the payload and
+// status, so a retried envelope deduplicates.
+//
+// The Update carries HMACs of sid and did under the app's hash secret, the
+// same MAC the event writer applies. An app that has no secret yet (its first
+// event has not been written) gets no Update: nothing can be hashed, and the
+// v1 row still counts the session.
+func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) ([]appingest.Event, []appsessions.Update, error) {
 	m, err := decodeObject(raw)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	attrs := asMap(m["attrs"])
 	base := appingest.Event{
@@ -72,23 +80,90 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 				out = append(out, e)
 			}
 		}
-		return out, nil
+		return out, nil, nil
 	}
 
-	if init, _ := m["init"].(bool); !init {
-		return nil, nil
-	}
 	sid := clip(str(m["sid"]), 64)
 	if sid == "" {
-		return nil, ErrInvalid
+		return nil, nil, ErrInvalid
 	}
-	e := base
-	e.ID = id("session|" + sid)
-	e.TS = sessionTime(firstNonNil(m["started"], m["timestamp"]), ctx, site, now)
-	e.SessionID = sid
-	e.InstallID = clip(userIDString(m["did"]), 128)
-	e.ExitReason = exitReasonOf(str(m["status"]))
-	return []appingest.Event{e}, nil
+	init, _ := m["init"].(bool)
+	started := sessionTime(firstNonNil(m["started"], m["timestamp"]), ctx, site, now)
+	did := clip(userIDString(m["did"]), 128)
+
+	var events []appingest.Event
+	if init {
+		e := base
+		e.ID = id("session|" + sid)
+		e.TS = started
+		e.SessionID = sid
+		e.InstallID = did
+		e.ExitReason = exitReasonOf(str(m["status"]))
+		events = []appingest.Event{e}
+	}
+
+	var secret []byte
+	if site.App != nil {
+		secret = site.App.HashSecret
+	}
+	sessionHash := HashUser(secret, sid)
+	if sessionHash == nil {
+		return events, nil, nil
+	}
+	rawStarted, ok := parseTime(m["started"])
+	if !ok {
+		// Without `started` the key would fall back to `timestamp`, which changes
+		// on every update and would split one session into several rows.
+		ctx.Stats.Add("session_no_started", 1)
+		return events, nil, nil
+	}
+	u := appsessions.Update{
+		SiteID: site.ID, SessionHash: sessionHash, InstallHash: HashUser(secret, did), Started: sessionKeyTime(rawStarted, started, now),
+		Release: base.Release, Environment: base.Environment, Platform: base.Platform,
+		Status: sessionStatus(str(m["status"])), Errors: min(max(asInt(m["errors"]), 0), 1_000_000), Init: init,
+	}
+	if d, ok := seconds(m["duration"]); ok && d >= 0 && d < 1e9 {
+		ms := int64(d * 1000)
+		u.DurationMS = &ms
+	}
+	return events, []appsessions.Update{u}, nil
+}
+
+// sessionKeyTime is the start time used in the app_sessions key, so every
+// update of one session must produce the same value. The raw `started` is used
+// when it is plausible (within 31 days back and futureSkew ahead). A device
+// with a wildly wrong clock gets the skew-corrected time instead, truncated to
+// the minute so updates from the same clock agree despite sent_at jitter of a
+// few seconds (a correction landing across a minute boundary can still split a
+// session; that needs a broken clock and is accepted).
+func sessionKeyTime(raw, corrected, now time.Time) time.Time {
+	if !raw.Before(now.Add(-31*24*time.Hour)) && !raw.After(now.Add(futureSkew)) {
+		return raw
+	}
+	return corrected.Truncate(time.Minute)
+}
+
+func seconds(v any) (float64, bool) {
+	switch t := v.(type) {
+	case json.Number:
+		f, err := t.Float64()
+		return f, err == nil
+	case float64:
+		return t, true
+	}
+	return 0, false
+}
+
+// sessionStatus maps an SDK status onto the stored set. `unhandled` (newer
+// SDKs) is a crash; anything unknown counts as ok, the lowest rank.
+func sessionStatus(s string) string {
+	switch s {
+	case "exited", "errored", "abnormal", "crashed":
+		return s
+	case "unhandled":
+		return "crashed"
+	}
+	return "ok"
 }
 
 func firstNonNil(vals ...any) any {
