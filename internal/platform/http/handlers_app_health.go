@@ -110,28 +110,22 @@ func (h *handler) getAppOverview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) listAppIssues(w http.ResponseWriter, r *http.Request) {
-	site, ok := h.appReadSite(w, r)
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionStatsRead, linkRoles()...)
 	if !ok {
 		return
 	}
-	f, ok := appFilter(w, r, site, h.deps.Now())
+	in, ok := h.appIssueQuery(w, r, principal, site)
 	if !ok {
-		return
-	}
-	query := r.URL.Query()
-	in := appquery.IssueQuery{Filter: f, Status: query.Get("status"), Kind: query.Get("kind"), Q: query.Get("q"), Sort: query.Get("sort")}
-	if len(in.Kind) > 32 || len(in.Q) > maxIssueQuery {
-		writeProblem(w, http.StatusBadRequest, "Bad request", "kind or q is too long")
 		return
 	}
 	var err error
-	if raw := query.Get("limit"); raw != "" {
+	if raw := r.URL.Query().Get("limit"); raw != "" {
 		if in.Limit, err = strconv.Atoi(raw); err != nil || in.Limit < 1 {
 			writeProblem(w, http.StatusBadRequest, "Bad request", "limit must be a positive integer")
 			return
 		}
 	}
-	if raw := query.Get("offset"); raw != "" {
+	if raw := r.URL.Query().Get("offset"); raw != "" {
 		if in.Offset, err = strconv.Atoi(raw); err != nil || in.Offset < 0 {
 			writeProblem(w, http.StatusBadRequest, "Bad request", "offset must be a non-negative integer")
 			return

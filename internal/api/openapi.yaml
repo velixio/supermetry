@@ -2953,15 +2953,98 @@ paths:
       tags: [Apps]
       summary: Issues with events in the range, filtered, sorted and paged
       parameters:
-        - { name: status, in: query, description: 'open, resolved, ignored or regressed.', schema: { type: string, maxLength: 16 } }
+        - { name: status, in: query, description: 'open, resolved, ignored, regressed or archived.', schema: { type: string, maxLength: 16 } }
         - { name: kind, in: query, schema: { type: string, maxLength: 32 } }
         - { name: q, in: query, description: Case-insensitive prefix of the title or error type., schema: { type: string, maxLength: 100 } }
+        - name: query
+          in: query
+          description: |
+            Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
+            `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
+            (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
+            email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+            `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
+            `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
+            A syntax error is a 400 whose `position` is the character offset of the problem.
+          schema: { type: string, maxLength: 200 }
         - { name: sort, in: query, description: 'last_seen (default), events or users.', schema: { type: string, maxLength: 16 } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
         - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
       responses:
         '200': { description: One page of issues, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueList' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/bulk:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    post:
+      operationId: bulkUpdateAppIssues
+      tags: [Apps]
+      summary: Change many issues at once
+      description: |
+        Give `ids` (1 to 1,000) or a `query`; with a query the change applies to the issues the search matches, using
+        the range, filters and the `status`, `kind` and `q` parameters of the issue list (at most 1,000 matches, else
+        400). Ids that are not issues of this project are left alone and returned in `skipped`. The whole change is
+        one transaction and adds one activity row per changed field and issue. Owner, admin or editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueBulk' } } } }
+      responses:
+        '200': { description: What changed, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueBulkResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/views:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppSavedViews
+      tags: [Apps]
+      summary: Saved issue searches visible to you
+      description: Your private views and every shared view of the project.
+      responses:
+        '200': { description: Views, content: { application/json: { schema: { type: object, required: [views], properties: { views: { type: array, items: { $ref: '#/components/schemas/AppSavedView' } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createAppSavedView
+      tags: [Apps]
+      summary: Save an issue search
+      description: Owner, admin or editor only. A name is unique per owner; a duplicate is a 409.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedViewInput' } } } }
+      responses:
+        '201': { description: The view, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedView' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: You already have a view with this name., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/app/views/{view}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: view, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    patch:
+      operationId: updateAppSavedView
+      tags: [Apps]
+      summary: Rename, edit or share a view
+      description: The owner, or an owner or admin of the organisation for a shared view. Another member's private view is a 404.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedViewPatch' } } } }
+      responses:
+        '200': { description: The view, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedView' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: You already have a view with this name., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    delete:
+      operationId: deleteAppSavedView
+      tags: [Apps]
+      summary: Delete a view
+      description: Same rules as editing.
+      responses:
+        '204': { description: Deleted }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/events/{event_id}:
@@ -5694,6 +5777,47 @@ components:
             users: { type: integer, format: int64, minimum: 1, nullable: true }
         archive: { type: boolean, description: 'true archives until the issue escalates, false unarchives to open. Not combinable with status or snooze.' }
         github_url: { type: string, maxLength: 300, description: 'A link to an existing GitHub issue, https://github.com/<owner>/<repo>/issues/<number>; "" unlinks.' }
+    AppIssueBulk:
+      type: object
+      additionalProperties: false
+      required: [change]
+      description: Exactly one of `ids` and `query`.
+      properties:
+        ids: { type: array, minItems: 1, maxItems: 1000, items: { type: integer, format: int64, minimum: 1 } }
+        query: { type: string, maxLength: 200, description: The issue search syntax (see the `query` parameter of the issue list). }
+        change: { $ref: '#/components/schemas/AppIssueChange' }
+    AppIssueBulkResult:
+      type: object
+      required: [updated, skipped]
+      properties:
+        updated: { type: array, items: { type: integer, format: int64 } }
+        skipped: { type: array, description: Ids that are not issues of this project., items: { type: integer, format: int64 } }
+    AppSavedView:
+      type: object
+      required: [id, name, query, shared, mine, owner_name, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        query: { type: string, maxLength: 200 }
+        shared: { type: boolean }
+        mine: { type: boolean }
+        owner_name: { type: string }
+        created_at: { type: string, format: date-time }
+    AppSavedViewInput:
+      type: object
+      required: [name, query]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        query: { type: string, maxLength: 200 }
+        shared: { type: boolean, default: false }
+    AppSavedViewPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        query: { type: string, maxLength: 200 }
+        shared: { type: boolean }
     AppIssueStatus:
       type: object
       required: [id, status, resolved_in_release, resolved_next, updated, skipped]
@@ -7687,6 +7811,10 @@ components:
           maximum: 599
         detail:
           type: string
+        position:
+          type: integer
+          minimum: 0
+          description: For a rejected search, the character offset of the problem.
         instance:
           type: string
           format: uri-reference
