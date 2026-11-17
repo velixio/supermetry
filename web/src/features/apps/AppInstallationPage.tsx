@@ -9,6 +9,7 @@ import { privateRequest } from '@/features/settings/privateApi'
 import { dsnOf, DsnKeys, PrimaryDsn, useDsnKeys } from './DsnKeys'
 import { dsnPlaceholder, sdkSnippets } from './sdkSnippets'
 import { TestReportCheck } from './TestReportCheck'
+import { UploadTokenSection } from './UploadTokenSection'
 
 type IngestKey = { prefix: string; created_at: string; expires_at: string | null }
 
@@ -141,6 +142,8 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
         <h2 id="app-keys-title" className="text-lg font-semibold">DSN keys</h2>
         {dsnKeys.isSuccess ? <DsnKeys orgId={orgId} siteId={siteId} keys={dsnKeys.data.keys} /> : null}
       </section>
+
+      <UploadTokenSection org={org} orgId={orgId} siteId={siteId} />
 
       <section aria-labelledby="app-check-title" className="flex min-w-0 flex-col gap-3">
         <h2 id="app-check-title" className="text-lg font-semibold">Check it works</h2>

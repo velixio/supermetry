@@ -85,7 +85,7 @@ func (k *Keys) Create(ctx context.Context, principal authz.Principal, name strin
 	if !authz.ValidScopes(scopes) {
 		return "", KeyInfo{}, ErrInvalid
 	}
-	prefix, secret, err := newKeyParts()
+	prefix, secret, err := newKeyParts(isUploadKey(scopes))
 	if err != nil {
 		return "", KeyInfo{}, err
 	}
@@ -330,9 +330,22 @@ func (k *Keys) flushLastUsed(ctx context.Context, interval time.Duration) {
 	}
 }
 
-func newKeyParts() (string, string, error) {
+// uploadSecretLength is the secret length of an upload key. Sentry clients
+// require the secret of a sntrys_ organization token to be exactly 43
+// characters, so an upload key's prefix and secret together fill them.
+const uploadSecretLength = 43 - keyPrefixLength
+
+// isUploadKey reports whether scopes are exactly the source map upload scope.
+func isUploadKey(scopes []string) bool {
+	return len(scopes) == 1 && scopes[0] == "releases:write"
+}
+
+func newKeyParts(upload bool) (string, string, error) {
 	prefixBytes := make([]byte, 5)
 	secretBytes := make([]byte, 32)
+	if upload {
+		secretBytes = make([]byte, 22)
+	}
 	if _, err := rand.Read(prefixBytes); err != nil {
 		return "", "", fmt.Errorf("generate API key prefix: %w", err)
 	}
@@ -341,11 +354,14 @@ func newKeyParts() (string, string, error) {
 	}
 	prefix := strings.ToLower(base32NoPadding.EncodeToString(prefixBytes))
 	secret := base32NoPadding.EncodeToString(secretBytes)
+	if upload {
+		secret = secret[:uploadSecretLength]
+	}
 	return prefix, secret, nil
 }
 
 func parseKeyPrefix(plain string) (string, bool) {
-	if len(plain) < len("pnl_")+keyPrefixLength+1+40 || !strings.HasPrefix(plain, "pnl_") {
+	if len(plain) < len("pnl_")+keyPrefixLength+1+uploadSecretLength || !strings.HasPrefix(plain, "pnl_") {
 		return "", false
 	}
 	if plain[len("pnl_")+keyPrefixLength] != '_' {
