@@ -147,7 +147,7 @@ Defaults suit most installs. Durations use Go syntax (`500ms`, `2s`, `1m`) and m
 
 ## Email / SMTP
 
-Leave `SUPERMETRY_SMTP_HOST` empty to configure no mail server. How Supermetry behaves without it: see source (`internal/config`, `cmd/supermetry/serve.go`).
+Leave `SUPERMETRY_SMTP_HOST` empty to configure no mail server in the environment. You can then set email up in the app under Instance admin, Email (SMTP), which stores the settings in the database (the password is encrypted) and applies them without a restart. When `SUPERMETRY_SMTP_HOST` is set, the environment wins entirely and that screen shows the values read-only. The screen also has a Send test email button.
 
 | Variable | Meaning | Default | Example |
 |---|---|---|---|
@@ -156,7 +156,8 @@ Leave `SUPERMETRY_SMTP_HOST` empty to configure no mail server. How Supermetry b
 | `SUPERMETRY_SMTP_USER` | SMTP username. | empty | `supermetry@example.com` |
 | `SUPERMETRY_SMTP_PASS` | SMTP password. Treat as a secret. | empty | `CHANGE_ME` |
 | `SUPERMETRY_SMTP_FROM` | Sender address. Required whenever `SUPERMETRY_SMTP_HOST` is set. | empty | `supermetry@example.com` |
-| `SUPERMETRY_SMTP_STARTTLS` | Boolean; use STARTTLS. | `true` | `true` |
+| `SUPERMETRY_SMTP_TLS` | Connection security: `starttls` (upgrade a plain connection, port 587), `implicit` (TLS from the first byte, SMTPS, port 465) or `none` (plain; only for a trusted local relay, and a username is then refused). When unset, `SUPERMETRY_SMTP_STARTTLS` applies, and port `465` with neither set means `implicit`. Certificates are always verified (TLS 1.2 or later). Setting both variables to conflicting values is a startup error. | `starttls` | `implicit` |
+| `SUPERMETRY_SMTP_STARTTLS` | Boolean; use STARTTLS. Older switch, kept for compatibility; prefer `SUPERMETRY_SMTP_TLS`. | `true` | `true` |
 | `SUPERMETRY_SMTP_HELO` | Host name announced in the SMTP greeting (EHLO). Use a real, resolvable name. Default: the host of `SUPERMETRY_BASE_URL`, else the domain of `SUPERMETRY_SMTP_FROM`, else `localhost`. Some mail providers hold mail from a client that says `localhost` for a minute or more. | derived | `app.example.com` |
 
 ## Development and benchmark only
