@@ -65,6 +65,9 @@ values ($1,'2026-11-17T10:00:00Z','2026-11-17T10:00:00Z',$2,'error','1.0',$3)`, 
 		if _, err := pool.Exec(ctx, `insert into app_event_bodies(site_id,ts,event_id,body,size) values ($1,'2026-11-17T10:00:00Z',$2,'{}',2)`, e.site, e.id); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := pool.Exec(ctx, `insert into app_event_attachments(site_id,ts,event_id,idx,name,content_type,size,data) values ($1,'2026-11-17T10:00:00Z',$2,0,'log.txt','text/plain',2,'\x6869')`, e.site, e.id); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return appFixture{pool: pool, store: NewAppStore(pool)}
 }
@@ -81,6 +84,40 @@ func (f appFixture) create(t *testing.T, site int32, user string) AppRequest {
 		t.Fatal(err)
 	}
 	return r
+}
+
+func TestAppWorkerClearsInstallHashOnSessions(t *testing.T) {
+	f := newAppFixture(t)
+	ctx := context.Background()
+	for _, who := range []string{"alice", "alice", "bob"} {
+		if _, err := f.pool.Exec(ctx, `insert into app_sessions(site_id,started,session_hash,install_hash,release,status,updated_at)
+values (7,'2026-11-17T10:00:00Z',decode(md5(random()::text),'hex'),$1,'1.0','ok',now())`, appHashOf(who)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i, who := range []string{"alice", "bob"} {
+		if _, err := f.pool.Exec(ctx, `insert into app_events(site_id,ts,received_at,event_id,kind,release,install_hash)
+values (7,'2026-11-17T10:00:00Z','2026-11-17T10:00:00Z',$1,'session','1.0',$2)`, "ping"+string(rune('a'+i)), appHashOf(who)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.create(t, 7, "alice")
+	w := NewAppWorker(f.pool, f.store)
+	w.batch = 1
+	if err := w.RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var sessAlice, sessBob, pingAlice, pingBob int
+	if err := f.pool.QueryRow(ctx, `select
+ (select count(*) from app_sessions where install_hash=$1),
+ (select count(*) from app_sessions where install_hash=$2),
+ (select count(*) from app_events where kind='session' and install_hash=$1),
+ (select count(*) from app_events where kind='session' and install_hash=$2)`, appHashOf("alice"), appHashOf("bob")).Scan(&sessAlice, &sessBob, &pingAlice, &pingBob); err != nil {
+		t.Fatal(err)
+	}
+	if sessAlice != 0 || sessBob != 1 || pingAlice != 0 || pingBob != 1 {
+		t.Fatalf("alice sessions=%d bob sessions=%d alice pings=%d bob pings=%d", sessAlice, sessBob, pingAlice, pingBob)
+	}
 }
 
 func (f appFixture) counts(t *testing.T) (bodies, hashed int) {
@@ -114,9 +151,13 @@ func TestAppWorkerErasesBodiesAndHashAndAuditsCountsOnly(t *testing.T) {
 	if bodies, hashed := f.counts(t); bodies != 1 || hashed != 1 {
 		t.Fatalf("bodies=%d hashed=%d, want only bob's left", bodies, hashed)
 	}
-	var other, total int
-	if err := f.pool.QueryRow(ctx, `select (select count(*) from app_event_bodies where site_id=8),(select count(*) from app_events)`).Scan(&other, &total); err != nil || other != 1 || total != 5 {
+	var other, total, attachments int
+	if err := f.pool.QueryRow(ctx, `select (select count(*) from app_event_bodies where site_id=8),(select count(*) from app_events),
+ (select count(*) from app_event_attachments where site_id=7)`).Scan(&other, &total, &attachments); err != nil || other != 1 || total != 5 {
 		t.Fatalf("other site bodies=%d events=%d err=%v", other, total, err)
+	}
+	if attachments != 1 {
+		t.Fatalf("attachments left on site 7 = %d, want only bob's", attachments)
 	}
 	var n int
 	var meta string

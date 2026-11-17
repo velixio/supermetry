@@ -2810,7 +2810,7 @@ type AppEventPlatform string
 
 // AppEventBody defines model for AppEventBody.
 type AppEventBody struct {
-	// Body message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional.
+	// Body message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.
 	Body    map[string]interface{} `json:"body"`
 	EventId string                 `json:"event_id"`
 	Ts      time.Time              `json:"ts"`
@@ -2955,20 +2955,23 @@ type AppIssueDetail struct {
 	AssigneeUserId int64  `json:"assignee_user_id"`
 
 	// Breakdowns Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`.
-	Breakdowns        map[string][]AppBreakdown `json:"breakdowns"`
-	ErrorType         string                    `json:"error_type"`
-	EventCount        int64                     `json:"event_count"`
-	FirstRelease      string                    `json:"first_release"`
-	FirstSeen         time.Time                 `json:"first_seen"`
-	GithubUrl         string                    `json:"github_url"`
-	Id                int64                     `json:"id"`
-	Kind              string                    `json:"kind"`
-	LastRelease       string                    `json:"last_release"`
-	LastSeen          time.Time                 `json:"last_seen"`
-	LatestEvents      []AppEventSample          `json:"latest_events"`
-	Priority          AppIssueDetailPriority    `json:"priority"`
-	ResolvedInRelease string                    `json:"resolved_in_release"`
-	ResolvedNext      bool                      `json:"resolved_next"`
+	Breakdowns   map[string][]AppBreakdown `json:"breakdowns"`
+	ErrorType    string                    `json:"error_type"`
+	EventCount   int64                     `json:"event_count"`
+	FirstRelease string                    `json:"first_release"`
+	FirstSeen    time.Time                 `json:"first_seen"`
+	GithubUrl    string                    `json:"github_url"`
+	Id           int64                     `json:"id"`
+	Kind         string                    `json:"kind"`
+	LastRelease  string                    `json:"last_release"`
+	LastSeen     time.Time                 `json:"last_seen"`
+	LatestEvents []AppEventSample          `json:"latest_events"`
+
+	// MergedInto Set when this issue was merged into another; its events and counts now belong to that issue.
+	MergedInto        *int64                 `json:"merged_into,omitempty"`
+	Priority          AppIssueDetailPriority `json:"priority"`
+	ResolvedInRelease string                 `json:"resolved_in_release"`
+	ResolvedNext      bool                   `json:"resolved_next"`
 	Series            []struct {
 		Day      openapi_types.Date `json:"day"`
 		Events   int64              `json:"events"`
@@ -2991,6 +2994,11 @@ type AppIssueList struct {
 	Issues     []AppIssueRow `json:"issues"`
 	NextOffset int           `json:"next_offset"`
 	Total      int           `json:"total"`
+}
+
+// AppIssueMergeInput defines model for AppIssueMergeInput.
+type AppIssueMergeInput struct {
+	SourceIds []int64 `json:"source_ids"`
 }
 
 // AppIssueRow defines model for AppIssueRow.
@@ -3032,10 +3040,26 @@ type AppIssueStatus struct {
 	Updated []int64 `json:"updated"`
 }
 
+// AppIssueUnmergeInput defines model for AppIssueUnmergeInput.
+type AppIssueUnmergeInput struct {
+	// Hashes sha256 of the fingerprint, hex, as listed by the merged issues endpoint.
+	Hashes []string `json:"hashes"`
+}
+
 // AppLink defines model for AppLink.
 type AppLink struct {
 	// AppSiteId Id of an app project in the same organization, or null when unlinked.
 	AppSiteId int32 `json:"app_site_id"`
+}
+
+// AppMergedIssue defines model for AppMergedIssue.
+type AppMergedIssue struct {
+	Events   int64     `json:"events"`
+	Hash     string    `json:"hash"`
+	IssueId  int64     `json:"issue_id"`
+	Kind     string    `json:"kind"`
+	LastSeen time.Time `json:"last_seen"`
+	Title    string    `json:"title"`
 }
 
 // AppOverview defines model for AppOverview.
@@ -3071,6 +3095,27 @@ type AppReleases struct {
 	} `json:"releases"`
 }
 
+// AppRules defines model for AppRules.
+type AppRules struct {
+	Grouping []struct {
+		Fingerprint string `json:"fingerprint"`
+
+		// Matcher error_type, message, path, module or tag:<key>
+		Matcher string `json:"matcher"`
+
+		// Value Glob.
+		Value string `json:"value"`
+	} `json:"grouping"`
+	Ownership []struct {
+		// Matcher path, module or tag:<key>
+		Matcher     string `json:"matcher"`
+		OwnerUserId int64  `json:"owner_user_id"`
+
+		// Value Glob.
+		Value string `json:"value"`
+	} `json:"ownership"`
+}
+
 // AppSettings defines model for AppSettings.
 type AppSettings struct {
 	Environments *[]string `json:"environments,omitempty"`
@@ -3088,8 +3133,14 @@ type AppSettings struct {
 	FilterLocalhostDefault *bool `json:"filter_localhost_default,omitempty"`
 
 	// MaxReportAgeDays 0 means the default of 7.
-	MaxReportAgeDays *int      `json:"max_report_age_days,omitempty"`
-	TagAllowlist     *[]string `json:"tag_allowlist,omitempty"`
+	MaxReportAgeDays *int `json:"max_report_age_days,omitempty"`
+
+	// PerformanceEnabled Accept transactions and spans. Omitted or null means on.
+	PerformanceEnabled *bool `json:"performance_enabled,omitempty"`
+
+	// SpanRetentionDays Raw span retention in days. 0 means the default of 14.
+	SpanRetentionDays *int      `json:"span_retention_days,omitempty"`
+	TagAllowlist      *[]string `json:"tag_allowlist,omitempty"`
 }
 
 // AppUserErase defines model for AppUserErase.
@@ -5983,6 +6034,15 @@ type CreateAppIssueCommentJSONRequestBody = AppIssueCommentInput
 // EditAppIssueCommentJSONRequestBody defines body for EditAppIssueComment for application/json ContentType.
 type EditAppIssueCommentJSONRequestBody = AppIssueCommentInput
 
+// MergeAppIssuesJSONRequestBody defines body for MergeAppIssues for application/json ContentType.
+type MergeAppIssuesJSONRequestBody = AppIssueMergeInput
+
+// UnmergeAppIssueJSONRequestBody defines body for UnmergeAppIssue for application/json ContentType.
+type UnmergeAppIssueJSONRequestBody = AppIssueUnmergeInput
+
+// ReplaceAppRulesJSONRequestBody defines body for ReplaceAppRules for application/json ContentType.
+type ReplaceAppRulesJSONRequestBody = AppRules
+
 // EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
 type EraseAppUserJSONRequestBody = AppUserErase
 
@@ -6851,6 +6911,9 @@ type ServerInterface interface {
 	// GetAppEvent The scrubbed body of one stored event
 	// (GET /api/private/sites/{site}/app/events/{event_id})
 	GetAppEvent(w http.ResponseWriter, r *http.Request, site int32, eventId string)
+	// GetAppEventAttachment The scrubbed content of one stored event attachment
+	// (GET /api/private/sites/{site}/app/events/{event_id}/attachments/{idx})
+	GetAppEventAttachment(w http.ResponseWriter, r *http.Request, site int32, eventId string, idx int)
 	// ListAppIssues Issues with events in the range, filtered, sorted and paged
 	// (GET /api/private/sites/{site}/app/issues)
 	ListAppIssues(w http.ResponseWriter, r *http.Request, site int32, params ListAppIssuesParams)
@@ -6875,12 +6938,27 @@ type ServerInterface interface {
 	// EditAppIssueComment Edit a comment
 	// (PATCH /api/private/sites/{site}/app/issues/{issue}/comments/{comment})
 	EditAppIssueComment(w http.ResponseWriter, r *http.Request, site int32, issue int64, comment int64)
+	// MergeAppIssues Merge other issues into this one
+	// (POST /api/private/sites/{site}/app/issues/{issue}/merge)
+	MergeAppIssues(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// ListMergedAppIssues The issues merged into this one, each with the hash to unmerge it by
+	// (GET /api/private/sites/{site}/app/issues/{issue}/merged)
+	ListMergedAppIssues(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// UnmergeAppIssue Split merged issues back out by fingerprint hash
+	// (POST /api/private/sites/{site}/app/issues/{issue}/unmerge)
+	UnmergeAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64)
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
 	// GetAppReleases Releases with events in the range, newest first, with crash-free rates
 	// (GET /api/private/sites/{site}/app/releases)
 	GetAppReleases(w http.ResponseWriter, r *http.Request, site int32, params GetAppReleasesParams)
+	// GetAppRules An app project's ownership and grouping rules, in evaluation order
+	// (GET /api/private/sites/{site}/app/rules)
+	GetAppRules(w http.ResponseWriter, r *http.Request, site int32)
+	// ReplaceAppRules Replace both rule lists of an app project
+	// (PUT /api/private/sites/{site}/app/rules)
+	ReplaceAppRules(w http.ResponseWriter, r *http.Request, site int32)
 	// EraseAppUser Erase what an app project stores about one end user
 	// (POST /api/private/sites/{site}/app/users/erase)
 	EraseAppUser(w http.ResponseWriter, r *http.Request, site int32)
@@ -10362,6 +10440,50 @@ func (siw *ServerInterfaceWrapper) GetAppEvent(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetAppEventAttachment operation middleware
+func (siw *ServerInterfaceWrapper) GetAppEventAttachment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "event_id" -------------
+	var eventId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "event_id", r.PathValue("event_id"), &eventId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "event_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "idx" -------------
+	var idx int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "idx", r.PathValue("idx"), &idx, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "idx", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppEventAttachment(w, r, site, eventId, idx)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListAppIssues operation middleware
 func (siw *ServerInterfaceWrapper) ListAppIssues(w http.ResponseWriter, r *http.Request) {
 
@@ -10894,6 +11016,111 @@ func (siw *ServerInterfaceWrapper) EditAppIssueComment(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// MergeAppIssues operation middleware
+func (siw *ServerInterfaceWrapper) MergeAppIssues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MergeAppIssues(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMergedAppIssues operation middleware
+func (siw *ServerInterfaceWrapper) ListMergedAppIssues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMergedAppIssues(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnmergeAppIssue operation middleware
+func (siw *ServerInterfaceWrapper) UnmergeAppIssue(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnmergeAppIssue(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppOverview operation middleware
 func (siw *ServerInterfaceWrapper) GetAppOverview(w http.ResponseWriter, r *http.Request) {
 
@@ -11073,6 +11300,58 @@ func (siw *ServerInterfaceWrapper) GetAppReleases(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAppReleases(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppRules operation middleware
+func (siw *ServerInterfaceWrapper) GetAppRules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppRules(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceAppRules operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceAppRules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceAppRules(w, r, site)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15261,6 +15540,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.GetAppRules)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.ReplaceAppRules)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}", wrapper.GetAppEventAttachment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.GetAppIssue)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.UpdateAppIssue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments", wrapper.ListAppIssueComments)
@@ -15268,6 +15550,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.DeleteAppIssueComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.EditAppIssueComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/activity", wrapper.ListAppIssueActivity)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/merge", wrapper.MergeAppIssues)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/merged", wrapper.ListMergedAppIssues)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/unmerge", wrapper.UnmergeAppIssue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/assignees", wrapper.ListAppAssignees)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/compatibility", wrapper.GetAppCompatibility)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases", wrapper.GetAppReleases)

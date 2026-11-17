@@ -20,16 +20,23 @@ var eraseTables = []string{
 	"heatmap_cells",
 	"app_events",
 	"app_event_bodies",
+	"app_event_attachments",
 	"app_issue_daily",
 	"app_issue_hourly",
 	"app_release_daily",
+	"app_sessions",
+	"app_session_daily",
 	"app_issue_activity",
 	"app_issue_comments",
+	"app_ownership_rules",
+	"app_grouping_rules",
 	"app_issues",
 	"app_hash_secrets",
 	"app_erasure_requests",
 	"app_artifact_files",
+	"app_debug_files",
 	"app_client_reports",
+	"spans",
 	"events",
 	"sessions",
 	"profiles",
@@ -110,16 +117,25 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 			expired = append(expired, partition)
 		}
 	}
-	appPartitions, err := expiredAppEventPartitions(ctx, pool, now)
+	for _, table := range []string{"app_events", "app_sessions"} {
+		appPartitions, err := expiredAppEventPartitions(ctx, pool, table, now)
+		if err != nil {
+			return nil, err
+		}
+		expired = append(expired, appPartitions...)
+	}
+	for _, table := range []string{"app_event_bodies", "app_event_attachments"} {
+		bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now, table)
+		if err != nil {
+			return nil, err
+		}
+		expired = append(expired, bodyPartitions...)
+	}
+	spanPartitions, err := expiredSpanPartitions(ctx, pool, now)
 	if err != nil {
 		return nil, err
 	}
-	expired = append(expired, appPartitions...)
-	bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now)
-	if err != nil {
-		return nil, err
-	}
-	expired = append(expired, bodyPartitions...)
+	expired = append(expired, spanPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -277,6 +293,7 @@ func deleteExpiredAppRollups(ctx context.Context, pool *pgxpool.Pool, now time.T
 		}{
 			{"app_issue_daily", "day", day},
 			{"app_release_daily", "day", day},
+			{"app_session_daily", "day", day},
 			{"app_client_reports", "day", day},
 			{"app_issue_hourly", "hour", hour},
 		} {
@@ -373,11 +390,12 @@ func deleteExpiredDropStats(ctx context.Context, pool *pgxpool.Pool, now time.Ti
 // appEventsDefaultRetentionDays applies when no app project exists.
 const appEventsDefaultRetentionDays = 365
 
-// expiredAppEventPartitions returns the monthly app_events partitions that lie
+// expiredAppEventPartitions returns the monthly partitions of an app raw table
+// (app_events or app_sessions) that lie
 // wholly before the longest retention of any live app project, plus one day of
 // closing slack. A project that keeps data forever keeps every partition:
 // months are shared by all projects, so the longest retention decides.
-func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, table string, now time.Time) ([]db.Partition, error) {
 	var apps int
 	var forever bool
 	var longest int
@@ -392,9 +410,9 @@ func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time
 	if apps == 0 {
 		longest = appEventsDefaultRetentionDays
 	}
-	partitions, err := db.ListMonthlyPartitions(ctx, pool, "app_events")
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, table)
 	if err != nil {
-		return nil, fmt.Errorf("list app event retention partitions: %w", err)
+		return nil, fmt.Errorf("list %s retention partitions: %w", table, err)
 	}
 	cutoff := now.AddDate(0, 0, -longest-1)
 	var expired []db.Partition
@@ -409,14 +427,50 @@ func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time
 // appEventBodyRetentionDays is the fixed life of scrubbed event bodies.
 const appEventBodyRetentionDays = 30
 
-// expiredAppEventBodyPartitions returns the monthly app_event_bodies
-// partitions that lie wholly before the body retention, plus one day of slack.
-func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
-	partitions, err := db.ListMonthlyPartitions(ctx, pool, "app_event_bodies")
+// expiredAppEventBodyPartitions returns the monthly partitions of table
+// (app_event_bodies or app_event_attachments) that lie wholly before the body
+// retention, plus one day of slack.
+func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, table string) ([]db.Partition, error) {
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, table)
 	if err != nil {
-		return nil, fmt.Errorf("list app event body partitions: %w", err)
+		return nil, fmt.Errorf("list %s partitions: %w", table, err)
 	}
 	cutoff := now.AddDate(0, 0, -appEventBodyRetentionDays-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
+// spanDefaultRetentionDays is the raw span life when no app project sets one.
+const spanDefaultRetentionDays = 14
+
+// expiredSpanPartitions returns the daily spans partitions that lie wholly
+// before the longest span_retention_days of any live app project (default 14),
+// plus one day of closing slack. Days are shared by all projects, so the
+// longest value decides.
+func expiredSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('spans') is not null`).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check spans: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+	var longest int
+	if err := pool.QueryRow(ctx, `
+		select coalesce(max(coalesce(nullif((settings->'app'->>'span_retention_days')::int, 0), $1)), $1)
+		from sites where kind = 'app' and deleted_at is null`, spanDefaultRetentionDays).Scan(&longest); err != nil {
+		return nil, fmt.Errorf("read span retention: %w", err)
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "spans")
+	if err != nil {
+		return nil, fmt.Errorf("list span partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -longest-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {

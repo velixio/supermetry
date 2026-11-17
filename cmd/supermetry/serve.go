@@ -31,11 +31,13 @@ import (
 	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
+	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
 	"supermetry/internal/datapurge"
 	"supermetry/internal/db"
+	"supermetry/internal/debugfile"
 	"supermetry/internal/demo"
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
@@ -83,6 +85,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
@@ -227,6 +230,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("load salts: %w", err)
 	}
 	now := settings.clock.Now()
+	if err := ensureSpanPartitions(ctx, pool, now, 13); err != nil {
+		return fmt.Errorf("ensure startup span partitions: %w", err)
+	}
 	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead)); err != nil {
 		return fmt.Errorf("ensure startup partitions: %w", err)
 	}
@@ -496,7 +502,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
-		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes})
+		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
@@ -504,15 +510,29 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
 	appBodies := appingest.NewBodyWriter(pool, appingest.BodyWriterConfig{})
 	appReports := appingest.NewClientReports(pool, 0)
+	spanWriter := spans.NewWriter(pool, spans.WriterConfig{
+		Location: func(id int32) *time.Location {
+			if site, ok := registry.Site(id); ok {
+				return site.TZ
+			}
+			return nil
+		},
+	}, spans.HealthStats{}, nil)
+	spanBudget := spans.NewBudget(cfg.SpansPerMin)
+	_, _ = spanWriter, spanBudget // handed to the Sentry and OTLP front doors by the next tasks
 	var sentryIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
+	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
+			Disk: debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
 		})
 		sentryHandler.WithSymbolicator(symbolicator)
+		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
+		sentryHandler.WithSessions(appSessions)
 		sentryIngest = sentryHandler
 	}
 	intake := &ingest.Handler{
@@ -599,6 +619,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appWriterCtx, cancelAppWriter := context.WithCancel(context.Background())
 	appWriterDone := make(chan error, 1)
 	go func() { appWriterDone <- appWriter.Run(appWriterCtx) }()
+	spanWriterCtx, cancelSpanWriter := context.WithCancel(context.Background())
+	spanWriterDone := make(chan error, 1)
+	go func() { spanWriterDone <- spanWriter.Run(spanWriterCtx) }()
 	appBodiesDone := make(chan error, 1)
 	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
 	appReportsDone := make(chan error, 1)
@@ -757,6 +780,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if symbolicator != nil {
 		symbolicator.Close()
 	}
+	// Session updates are queued by the handler too; flush them first.
+	if appSessions != nil {
+		appSessions.Close()
+	}
+	// Stop the span writer: it drains on cancel, before the app writer.
+	cancelSpanWriter()
+	cause = errors.Join(cause, <-spanWriterDone)
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
@@ -1200,6 +1230,9 @@ func scheduledJobs(
 		}},
 		{Name: "partitions", Every: time.Hour, Run: func(ctx context.Context) error {
 			now := clk.Now()
+			if err := ensureSpanPartitions(ctx, pool, now, 1); err != nil {
+				return err
+			}
 			return db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead))
 		}},
 		{Name: "retention", Every: time.Hour, Run: func(ctx context.Context) error {
@@ -1575,4 +1608,13 @@ func closedDayKey(siteID int32, day time.Time) string {
 func civilDay(value time.Time) time.Time {
 	value = value.UTC()
 	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// ensureSpanPartitions pre-creates the daily spans partitions from daysBack
+// days ago to 3 days ahead. Startup goes 13 days back (late spans are accepted
+// that long); the hourly job only 1, so retention is not undone every hour.
+// The span writer never runs DDL: a span whose day has no partition is dropped
+// and counted.
+func ensureSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, daysBack int) error {
+	return db.EnsureDailyPartitions(ctx, pool, "spans", now.AddDate(0, 0, -daysBack), now.AddDate(0, 0, 3))
 }

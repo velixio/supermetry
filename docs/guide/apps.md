@@ -32,8 +32,11 @@ belongs to one app project.
 
 An issue lists its latest events. **Full event detail** shows the exception
 chain with in-app frames highlighted, breadcrumbs, contexts (OS, device, app,
-runtime, browser), tags and attachment names. Event detail is kept for 30 days;
-the issue and its counts are kept longer. Messages, emails, tokens, IP addresses,
+runtime, browser), tags and attachments. Screenshots (PNG, JPEG, WebP) show as
+thumbnails and text or JSON files open in a viewer, both with a download link;
+text is scrubbed like the rest of the event. Files over 1 MiB, anything past 5 MiB
+per event and other file types keep their name and size only. Event detail and
+attachments are kept for 30 days; the issue and its counts are kept longer. Messages, emails, tokens, IP addresses,
 cookies and query strings are scrubbed before storage. See
 [Migrate from Sentry](migrate-from-sentry.md) for what is and is not supported.
 
@@ -287,6 +290,28 @@ Open an issue to triage it. Owners, admins and editors can change an issue; view
 - **Activity:** a timeline of every change (status, assignee, priority, snooze, archive, comments) plus system rows for the first sighting and for regressions. It records the member who acted, or "System".
 
 Through the private API, `PATCH /api/private/sites/{site}/app/issues/{issue}` takes any of `status`, `resolved_in_release`, `assignee` (a user id, `0` to unassign), `priority`, `snooze` (`until`, `events`, `users`), `archive` and `github_url`. Comments live under `.../issues/{issue}/comments` and the timeline at `.../issues/{issue}/activity`. A change that alters nothing writes no activity row.
+
+### Merging and unmerging issues
+
+Two issues that are really the same bug can be merged. Open the issue you want to keep, type the ids of the others in "Merged issues" and choose Merge. Owners, admins and editors can merge; viewers can read the list.
+
+- The merged issues' events, fingerprints and daily and hourly counts move to the kept issue, whose counts are recomputed from its events. The merged issues disappear from the issue list, and their detail page says which issue they were merged into.
+- New events that arrive with a merged issue's fingerprint land on the kept issue; they never create the old issue again. Merging a kept issue into a third one moves everything to the third, so a merge is always one level deep.
+- All issues must belong to the same project. A merged issue cannot be merged again until it is unmerged.
+- **Unmerge** splits one merged issue back out by its fingerprint hash, shown beside it in the list. Its events, including those that arrived after the merge, return to it, it reappears in the list, and both issues' counts and rollups are recomputed from events. Counts older than your retention period cannot be attributed to a fingerprint and stay with the kept issue.
+- Both issues get a "merged" or "unmerged" row on their activity timeline.
+
+Through the private API: `POST .../issues/{issue}/merge` with `{"source_ids": [..]}`, `GET .../issues/{issue}/merged`, and `POST .../issues/{issue}/unmerge` with `{"hashes": ["<64 hex characters>"]}`.
+
+## Ownership and grouping rules
+
+Project settings have two ordered rule lists. Owners, admins and editors can change them; viewers can read them. Each list holds up to 200 rules, and a value is a glob of at most 200 characters: `*` matches any run of characters (including `/`), `?` matches one character, and a backslash makes the next character literal. Matching is case-sensitive. The first matching rule wins, so order matters.
+
+**Ownership rules** route a new issue to a member. A rule matches the file path or module of an in-app frame, or a tag (`path`, `module`, `tag:<key>`), and names the owner. The rule runs once, when an issue is first created: the issue is assigned and the timeline shows an `assigned` row by "System". It never changes the assignee of an existing issue, so unassigning stays unassigned, and an owner who has since left the project is skipped. Matching sees the original file names of symbolicated frames.
+
+**Grouping rules** decide which events share an issue. A rule matches the error type, the message, a frame path or module, or a tag (`error_type`, `message`, `path`, `module`, `tag:<key>`) and gives a fingerprint of 1 to 64 characters. Matching events are grouped by that fingerprint instead of the computed one (an SDK fingerprint included), so different stacks can land in one issue. Put `{{ default }}` in the fingerprint to keep the default grouping and add to it, for example `{{ default }}-acme` splits the default groups by customer. Rules apply to new events only: issues that already exist are not regrouped.
+
+Through the private API, `GET` and `PUT /api/private/sites/{site}/app/rules` read and replace both lists as `{"ownership": [{"matcher", "value", "owner_user_id"}], "grouping": [{"matcher", "value", "fingerprint"}]}`. A bad rule is a 400 that names its position, such as `ownership[1]`. Changes reach ingestion with the next site refresh, which the save triggers; no database lookup happens per event.
 
 ## Exporting your data
 

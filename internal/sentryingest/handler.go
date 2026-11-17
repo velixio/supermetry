@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
 	"supermetry/internal/salts"
@@ -26,6 +27,12 @@ type NormaliseFunc func(raw []byte, ctx EventContext, site sites.Site, now time.
 // counts the loss). Phase 1a has no consumer yet: a nil queue discards bodies.
 type BodyQueue interface {
 	Enqueue(appingest.Body) bool
+}
+
+// SessionQueue takes session updates for the state table. Enqueue must not
+// block; it counts its own drops. A nil queue discards updates.
+type SessionQueue interface {
+	Enqueue(appsessions.Update) bool
 }
 
 // ClientReportSink takes the discarded-event counts of client reports; Add
@@ -45,6 +52,7 @@ type Handler struct {
 	intake    *appingest.Intake
 	bodies    BodyQueue
 	reports   ClientReportSink
+	sessions  SessionQueue
 	geo       GeoLookup
 	trusted   []netip.Prefix
 	now       func() time.Time
@@ -69,6 +77,9 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 
 // WithClientReports sets where client-report counts go; nil discards them.
 func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r; return h }
+
+// WithSessions sets where session updates go; nil discards them.
+func (h *Handler) WithSessions(q SessionQueue) *Handler { h.sessions = q; return h }
 
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
 // function makes event items counted and dropped.
@@ -345,19 +356,14 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 	}
 	ctx := EventContext{
 		EventID: env.Header.EventID, SentAt: env.Header.SentAt, SDKName: env.Header.SDK.Name, SDKVersion: env.Header.SDK.Version,
-		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country,
+		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country, Stats: h.stats,
 	}
 	for _, it := range env.Items {
 		if it.Type == "attachment" && it.AttachmentType == "event.minidump" {
 			ctx.HasMinidump = true
 		}
 	}
-	var attachments []appingest.AttachmentMeta
-	for _, it := range env.Items {
-		if it.Type == "attachment" && len(it.Payload) <= MaxAttachment {
-			attachments = append(attachments, appingest.AttachmentMeta{Name: it.Filename, Type: it.AttachmentType, Size: len(it.Payload)})
-		}
-	}
+	prep := h.prepareAttachments(env.Items)
 	for _, it := range env.Items {
 		switch it.Type {
 		case "event":
@@ -399,7 +405,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 					count(res)
 					continue
 				}
-				body.Attachments = attachments
+				body.Attachments, body.Files = h.symbolicationAttachments(prep)
 				site, now := site, now
 				if h.symb.SubmitWith(ev, body, body.Row.SDKFingerprint, func(ev appingest.Event, body appingest.Body) {
 					if h.intake.Accept(site, budgetKey, now, ev).Reason == "" && h.bodies != nil && !h.bodies.Enqueue(body) {
@@ -410,20 +416,38 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				}
 			}
 			if count(h.intake.Accept(site, budgetKey, now, ev)) && h.bodies != nil {
-				body.Attachments = attachments
+				body.Attachments, body.Files = prep.Metas, prep.Files
 				if !h.bodies.Enqueue(body) {
 					h.stats.Add("body_queue_full", 1)
 				}
 			}
 		case "session", "sessions":
-			events, err := ParseSession(it.Payload, ctx, site, now)
+			events, updates, err := ParseSession(it.Payload, ctx, site, now)
 			if err != nil {
 				h.stats.Add("session_invalid", 1)
 				h.intake.Drop(site, now, dropstats.AppInvalid)
 				continue
 			}
+			var evRes appingest.Outcome
 			for _, ev := range events {
-				count(h.intake.Accept(site, budgetKey, now, ev))
+				evRes = h.intake.Accept(site, budgetKey, now, ev)
+				count(evRes)
+			}
+			for _, u := range updates {
+				if u.Init && len(events) == 1 {
+					// The init row's Accept already took the budget. A retried
+					// envelope is a duplicate there but the upsert is idempotent,
+					// so it still goes through; other refusals do not.
+					if evRes.Reason != "" && evRes.Reason != appingest.ReasonDuplicate {
+						continue
+					}
+				} else if res := h.intake.TakeBudget(site, budgetKey, now); res.Reason != "" {
+					count(res)
+					continue
+				}
+				if h.sessions != nil {
+					h.sessions.Enqueue(u) // a full queue counts itself
+				}
 			}
 		case "client_report":
 			if counts, err := ParseClientReport(it.Payload); err == nil {

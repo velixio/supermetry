@@ -218,6 +218,18 @@ func (w *AppWorker) process(ctx context.Context, r AppRequest) error {
 	// re-checks the first and carries on with the second.
 	if err := w.drain(ctx, r.ID, `
 with target as (
+  select a.tableoid, a.ctid from app_event_attachments a
+  join app_events e on e.site_id = a.site_id and e.event_id = a.event_id and e.ts = a.ts
+  where e.site_id = $1 and e.user_hash = $2
+  limit $3
+), del as (
+  delete from app_event_attachments a using target t where a.tableoid = t.tableoid and a.ctid = t.ctid returning 1
+) update app_erasure_requests set updated_at = now()
+where id = $4 returning (select count(*) from del)`, r); err != nil {
+		return fmt.Errorf("delete app event attachments: %w", err)
+	}
+	if err := w.drain(ctx, r.ID, `
+with target as (
   select b.tableoid, b.ctid from app_event_bodies b
   join app_events e on e.site_id = b.site_id and e.event_id = b.event_id and e.ts = b.ts
   where e.site_id = $1 and e.user_hash = $2
@@ -236,6 +248,25 @@ with target as (
 ) update app_erasure_requests set events_anonymized = events_anonymized + (select count(*) from upd), updated_at = now()
 where id = $4 returning (select count(*) from upd)`, r); err != nil {
 		return fmt.Errorf("clear app event user hash: %w", err)
+	}
+	// Sentry SDKs set the session did to the user's id, email or username, so
+	// install_hash can carry the same keyed hash as user_hash. Clear it on the
+	// session state and on the session pings. The request counters track event
+	// rows only; these batches just touch updated_at to report their size.
+	for _, table := range []string{"app_sessions", "app_events"} {
+		extra := ""
+		if table == "app_events" {
+			extra = " and kind = 'session'"
+		}
+		if err := w.drain(ctx, r.ID, `
+with target as (
+  select tableoid, ctid from `+table+` where site_id = $1 and install_hash = $2`+extra+` limit $3
+), upd as (
+  update `+table+` e set install_hash = null from target t where e.tableoid = t.tableoid and e.ctid = t.ctid returning 1
+) update app_erasure_requests set updated_at = now()
+where id = $4 returning (select count(*) from upd)`, r); err != nil {
+			return fmt.Errorf("clear %s install hash: %w", table, err)
+		}
 	}
 	return w.finish(ctx, r.ID)
 }

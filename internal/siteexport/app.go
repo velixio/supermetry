@@ -73,6 +73,18 @@ order by c.created_at,c.id`
 		return err
 	}
 
+	// Rules are project configuration: exported whole, in evaluation order.
+	if err := e.writeRows(ctx, archive, "app_ownership_rules.csv",
+		[]string{"position", "matcher", "value", "owner_id"},
+		`select position,matcher,value,owner_user_id from app_ownership_rules where site_id=$1 order by position,id`, siteID); err != nil {
+		return err
+	}
+	if err := e.writeRows(ctx, archive, "app_grouping_rules.csv",
+		[]string{"position", "matcher", "value", "fingerprint"},
+		`select position,matcher,value,fingerprint from app_grouping_rules where site_id=$1 order by position,id`, siteID); err != nil {
+		return err
+	}
+
 	events := `
 select v.event_id,` + utc("v.ts") + `,coalesce(v.issue_id::text,''),v.kind,v.level,v.release,v.dist,v.environment,
  v.platform,v.sdk_name,v.sdk_version,v.os_version,v.arch,v.device_class,v.runtime,v.symbolication,v.occurrences
@@ -84,6 +96,18 @@ order by v.ts,v.event_id`
 		"platform", "sdk_name", "sdk_version", "os_version", "arch", "device_class", "runtime",
 		"symbolication", "occurrences",
 	}, events, siteID, f, t, tz); err != nil {
+		return err
+	}
+
+	// Daily release-health counts; distinct-user counts only, never hashes.
+	sessionsDaily := `
+select d.day::text,d.release,d.environment,d.platform,d.sessions,d.errored,d.crashed,d.abnormal,d.users,d.crashed_users
+from app_session_daily d
+where d.site_id=$1 and d.day between $2::date and $3::date
+order by d.day,d.release,d.environment,d.platform`
+	if err := e.writeRows(ctx, archive, "app_sessions_daily.csv", []string{
+		"day", "release", "environment", "platform", "sessions", "errored", "crashed", "abnormal", "users", "crashed_users",
+	}, sessionsDaily, siteID, f, t); err != nil {
 		return err
 	}
 
@@ -111,6 +135,23 @@ order by d.id`
 		return err
 	}
 
+	// Commits of the site's releases (author email is customer-supplied
+	// developer metadata; exported, never shown over MCP). A commit shared by
+	// two releases appears once per release.
+	commits := `
+select r.version,p.name,c.sha,c.message,c.author_name,c.author_email,` + utc("c.committed_at") + `
+from app_releases r
+join app_release_commits rc on rc.release_id=r.id
+join app_commits c on c.id=rc.commit_id
+join app_repositories p on p.id=c.repository_id
+where r.org_id=$5 and (r.site_ids='{}' or $1=any(r.site_ids)) and ` + inWindow("r.date_created") + `
+order by r.id,rc.position`
+	if err := e.writeRows(ctx, archive, "app_commits.csv",
+		[]string{"release", "repository", "sha", "message", "author_name", "author_email", "committed_at"},
+		commits, siteID, f, t, tz, orgID); err != nil {
+		return err
+	}
+
 	// Daily counts of events the SDKs report they discarded; no event data.
 	reports := `
 select c.day::text,c.reason,c.category,c.quantity
@@ -132,7 +173,20 @@ select b.id,b.release,b.dist,b.state,
 from app_artifact_bundles b
 where b.org_id=$5 and (b.site_ids='{}' or $1=any(b.site_ids)) and ` + inWindow("b.created_at") + `
 order by b.id`
-	return e.writeRows(ctx, archive, "app_artifacts.csv",
+	if err := e.writeRows(ctx, archive, "app_artifacts.csv",
 		[]string{"bundle_id", "release", "dist", "state", "debug_ids", "file_count", "size_bytes", "created"},
-		artifacts, siteID, f, t, tz, orgID)
+		artifacts, siteID, f, t, tz, orgID); err != nil {
+		return err
+	}
+
+	// Uploaded debug files: metadata only, never blob keys or contents.
+	debugFiles := `
+select d.id,d.kind,d.debug_id,d.code_id,d.arch,d.object_name,array_to_string(d.features,' '),d.cache_state,u.size,` + utc("d.created_at") + `
+from app_debug_files d
+join app_dif_uploads u on u.id=d.upload_id
+where d.org_id=$5 and (d.site_id is null or d.site_id=$1) and ` + inWindow("d.created_at") + `
+order by d.id`
+	return e.writeRows(ctx, archive, "app_debug_files.csv",
+		[]string{"file_id", "kind", "debug_id", "code_id", "arch", "object_name", "features", "cache_state", "size_bytes", "created"},
+		debugFiles, siteID, f, t, tz, orgID)
 }

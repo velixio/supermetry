@@ -2211,6 +2211,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** An app project's ownership and grouping rules, in evaluation order */
+        get: operations["getAppRules"];
+        /**
+         * Replace both rule lists of an app project
+         * @description Ownership rules route a newly created issue to a member (the issue gets an `assigned` activity by the system;
+         *     an existing issue is never re-assigned). Grouping rules replace the computed grouping key of matching events
+         *     with the rule's fingerprint; the token `{{ default }}` keeps the default key and appends. The first matching
+         *     rule by position wins. Values are globs (`*` any run, `?` one character, `\` escapes) of at most 200
+         *     characters; at most 200 rules of each kind. A bad rule is a 400 naming its zero-based index. Owner, admin or
+         *     editor only. The change reaches ingestion with the next registry refresh.
+         */
+        put: operations["replaceAppRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+                /** @description Position in the body's attachments list. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The scrubbed content of one stored event attachment
+         * @description Only attachments whose metadata says stored=true have content. PNG, JPEG and WebP are served inline; text and
+         *     JSON are served as text downloads; anything else is an opaque download. Every response carries
+         *     X-Content-Type-Options: nosniff and a sandboxing Content-Security-Policy. Content ages out with the event body
+         *     (30 days) and then is a 404.
+         */
+        get: operations["getAppEventAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/issues/{issue}": {
         parameters: {
             query?: never;
@@ -2310,6 +2366,76 @@ export interface paths {
         get: operations["listAppIssueActivity"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge other issues into this one
+         * @description Moves the source issues' events, fingerprint hashes and rollups into the issue in the path and recomputes its
+         *     counts. The sources are hidden; later events with their fingerprints land on this issue. A source or target
+         *     that is already merged, or an id that is not an issue of the project, is rejected as a whole. Owner, admin or
+         *     editor only.
+         */
+        post: operations["mergeAppIssues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/merged": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        /** The issues merged into this one, each with the hash to unmerge it by */
+        get: operations["listMergedAppIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/unmerge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Split merged issues back out by fingerprint hash
+         * @description Moves the events whose fingerprint hash is given back to the issue that was merged in, makes it visible again
+         *     and recomputes both issues' counts and rollups from events. Owner, admin or editor only.
+         */
+        post: operations["unmergeAppIssue"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3264,8 +3390,29 @@ export interface components {
             filter_crawlers?: boolean | null;
             /** @description Drop events raised on localhost. Null means the server default (filter_localhost_default). */
             filter_localhost?: boolean | null;
+            /** @description Accept transactions and spans. Omitted or null means on. */
+            performance_enabled?: boolean | null;
+            /** @description Raw span retention in days. 0 means the default of 14. */
+            span_retention_days?: number;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
+        };
+        AppRules: {
+            ownership: {
+                /** @description path, module or tag:<key> */
+                matcher: string;
+                /** @description Glob. */
+                value: string;
+                /** Format: int64 */
+                owner_user_id: number;
+            }[];
+            grouping: {
+                /** @description error_type, message, path, module or tag:<key> */
+                matcher: string;
+                /** @description Glob. */
+                value: string;
+                fingerprint: string;
+            }[];
         };
         AppUserErase: {
             /** @description The user id the app's SDK reports. */
@@ -4436,6 +4583,24 @@ export interface components {
             /** @enum {string} */
             priority: "high" | "medium" | "low";
         };
+        AppIssueMergeInput: {
+            source_ids: number[];
+        };
+        AppIssueUnmergeInput: {
+            /** @description sha256 of the fingerprint, hex, as listed by the merged issues endpoint. */
+            hashes: string[];
+        };
+        AppMergedIssue: {
+            /** Format: int64 */
+            issue_id: number;
+            hash: string;
+            title: string;
+            kind: string;
+            /** Format: int64 */
+            events: number;
+            /** Format: date-time */
+            last_seen: string;
+        };
         AppIssueList: {
             issues: components["schemas"]["AppIssueRow"][];
             total: number;
@@ -4472,7 +4637,7 @@ export interface components {
             event_id: string;
             /** Format: date-time */
             ts: string;
-            /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional. */
+            /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional. */
             body: {
                 [key: string]: unknown;
             };
@@ -4509,6 +4674,11 @@ export interface components {
             snooze_users: number | null;
             archived_until_escalating: boolean;
             github_url: string | null;
+            /**
+             * Format: int64
+             * @description Set when this issue was merged into another; its events and counts now belong to that issue.
+             */
+            merged_into?: number | null;
             series: {
                 /** Format: date */
                 day: string;
@@ -10642,6 +10812,89 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getAppRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppRules"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replaceAppRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppRules"];
+            };
+        };
+        responses: {
+            /** @description The stored rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppRules"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getAppEventAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+                /** @description Position in the body's attachments list. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attachment content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "text/plain": string;
+                    "application/json": string;
+                    "application/octet-stream": string;
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getAppIssue: {
         parameters: {
             query?: {
@@ -10841,6 +11094,98 @@ export interface operations {
                 content: {
                     "application/json": {
                         activity: components["schemas"]["AppIssueActivity"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    mergeAppIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueMergeInput"];
+            };
+        };
+        responses: {
+            /** @description Merged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        merged: number[];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMergedAppIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Merged issues */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        merged: components["schemas"]["AppMergedIssue"][];
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    unmergeAppIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueUnmergeInput"];
+            };
+        };
+        responses: {
+            /** @description The reinstated issue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        issue_id: number;
                     };
                 };
             };

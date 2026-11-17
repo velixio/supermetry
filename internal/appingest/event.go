@@ -97,6 +97,7 @@ type Event struct {
 	Dist            string
 	Symbolication   string // "", "ok", "missing" or "partial"
 	GroupingVersion int16  // 0 means 1
+	OwnerUserID     int64  // the user ownership rules route a new issue to; 0 for none
 	Title           string // issue title when the normaliser derived one; else built from kind, type and frames
 }
 

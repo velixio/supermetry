@@ -2999,6 +2999,58 @@ paths:
         '200': { description: Event body, content: { application/json: { schema: { $ref: '#/components/schemas/AppEventBody' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/rules:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppRules
+      tags: [Apps]
+      summary: An app project's ownership and grouping rules, in evaluation order
+      responses:
+        '200': { description: Rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: replaceAppRules
+      tags: [Apps]
+      summary: Replace both rule lists of an app project
+      description: |
+        Ownership rules route a newly created issue to a member (the issue gets an `assigned` activity by the system;
+        an existing issue is never re-assigned). Grouping rules replace the computed grouping key of matching events
+        with the rule's fingerprint; the token `{{ default }}` keeps the default key and appends. The first matching
+        rule by position wins. Values are globs (`*` any run, `?` one character, `\` escapes) of at most 200
+        characters; at most 200 rules of each kind. A bad rule is a 400 naming its zero-based index. Owner, admin or
+        editor only. The change reaches ingestion with the next registry refresh.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+      responses:
+        '200': { description: The stored rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/private/sites/{site}/app/events/{event_id}/attachments/{idx}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: event_id, in: path, required: true, schema: { type: string, maxLength: 64 } }
+      - { name: idx, in: path, required: true, description: 'Position in the body''s attachments list.', schema: { type: integer, minimum: 0, maximum: 31 } }
+    get:
+      operationId: getAppEventAttachment
+      tags: [Apps]
+      summary: The scrubbed content of one stored event attachment
+      description: |
+        Only attachments whose metadata says stored=true have content. PNG, JPEG and WebP are served inline; text and
+        JSON are served as text downloads; anything else is an opaque download. Every response carries
+        X-Content-Type-Options: nosniff and a sandboxing Content-Security-Policy. Content ages out with the event body
+        (30 days) and then is a 404.
+      responses:
+        '200':
+          description: Attachment content
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            text/plain: { schema: { type: string, format: binary } }
+            application/json: { schema: { type: string, format: binary } }
+            application/octet-stream: { schema: { type: string, format: binary } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/issues/{issue}:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3096,6 +3148,54 @@ paths:
         - { name: before, in: query, schema: { type: string, format: date-time } }
       responses:
         '200': { description: Activity, content: { application/json: { schema: { type: object, required: [activity], properties: { activity: { type: array, items: { $ref: '#/components/schemas/AppIssueActivity' } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/merge:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    post:
+      operationId: mergeAppIssues
+      tags: [Apps]
+      summary: Merge other issues into this one
+      description: |
+        Moves the source issues' events, fingerprint hashes and rollups into the issue in the path and recomputes its
+        counts. The sources are hidden; later events with their fingerprints land on this issue. A source or target
+        that is already merged, or an id that is not an issue of the project, is rejected as a whole. Owner, admin or
+        editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueMergeInput' } } } }
+      responses:
+        '200': { description: Merged, content: { application/json: { schema: { type: object, required: [merged], properties: { merged: { type: array, items: { type: integer, format: int64 } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/merged:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listMergedAppIssues
+      tags: [Apps]
+      summary: The issues merged into this one, each with the hash to unmerge it by
+      responses:
+        '200': { description: Merged issues, content: { application/json: { schema: { type: object, required: [merged], properties: { merged: { type: array, items: { $ref: '#/components/schemas/AppMergedIssue' } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/unmerge:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    post:
+      operationId: unmergeAppIssue
+      tags: [Apps]
+      summary: Split merged issues back out by fingerprint hash
+      description: |
+        Moves the events whose fingerprint hash is given back to the issue that was merged in, makes it visible again
+        and recomputes both issues' counts and rollups from events. Owner, admin or editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueUnmergeInput' } } } }
+      responses:
+        '200': { description: The reinstated issue, content: { application/json: { schema: { type: object, required: [issue_id], properties: { issue_id: { type: integer, format: int64 } } } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -4358,7 +4458,36 @@ components:
         filter_extensions: { type: boolean, nullable: true, description: "Drop events raised inside browser extensions. Omitted or null means on." }
         filter_crawlers: { type: boolean, nullable: true, description: "Drop events sent by crawlers. Omitted or null means on." }
         filter_localhost: { type: boolean, nullable: true, description: "Drop events raised on localhost. Null means the server default (filter_localhost_default)." }
+        performance_enabled: { type: boolean, nullable: true, description: "Accept transactions and spans. Omitted or null means on." }
+        span_retention_days: { type: integer, minimum: 0, maximum: 14, description: "Raw span retention in days. 0 means the default of 14." }
         filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
+    AppRules:
+      type: object
+      required: [ownership, grouping]
+      additionalProperties: false
+      properties:
+        ownership:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [matcher, value, owner_user_id]
+            additionalProperties: false
+            properties:
+              matcher: { type: string, description: 'path, module or tag:<key>' }
+              value: { type: string, minLength: 1, maxLength: 200, description: Glob. }
+              owner_user_id: { type: integer, format: int64, minimum: 1 }
+        grouping:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [matcher, value, fingerprint]
+            additionalProperties: false
+            properties:
+              matcher: { type: string, description: 'error_type, message, path, module or tag:<key>' }
+              value: { type: string, minLength: 1, maxLength: 200, description: Glob. }
+              fingerprint: { type: string, minLength: 1, maxLength: 64 }
     AppUserErase:
       type: object
       required: [user_id]
@@ -5625,6 +5754,26 @@ components:
         assignee_user_id: { type: integer, format: int64, nullable: true }
         assignee_name: { type: string, description: Empty when unassigned. }
         priority: { type: string, enum: [high, medium, low] }
+    AppIssueMergeInput:
+      type: object
+      required: [source_ids]
+      properties:
+        source_ids: { type: array, minItems: 1, maxItems: 100, items: { type: integer, format: int64, minimum: 1 } }
+    AppIssueUnmergeInput:
+      type: object
+      required: [hashes]
+      properties:
+        hashes: { type: array, minItems: 1, maxItems: 100, items: { type: string, pattern: '^[0-9a-f]{64}$' }, description: 'sha256 of the fingerprint, hex, as listed by the merged issues endpoint.' }
+    AppMergedIssue:
+      type: object
+      required: [issue_id, hash, title, kind, events, last_seen]
+      properties:
+        issue_id: { type: integer, format: int64 }
+        hash: { type: string }
+        title: { type: string }
+        kind: { type: string }
+        events: { type: integer, format: int64 }
+        last_seen: { type: string, format: date-time }
     AppIssueList:
       type: object
       required: [issues, total, next_offset]
@@ -5662,7 +5811,7 @@ components:
       properties:
         event_id: { type: string }
         ts: { type: string, format: date-time }
-        body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional.' }
+        body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.' }
     AppIssueDetail:
       type: object
       required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, assignee_user_id, assignee_name, priority, snooze_until, snooze_events, snooze_users, archived_until_escalating, github_url, series, breakdowns, latest_events]
@@ -5687,6 +5836,7 @@ components:
         snooze_users: { type: integer, format: int64, nullable: true }
         archived_until_escalating: { type: boolean }
         github_url: { type: string, nullable: true }
+        merged_into: { type: integer, format: int64, nullable: true, description: 'Set when this issue was merged into another; its events and counts now belong to that issue.' }
         series:
           type: array
           items:
