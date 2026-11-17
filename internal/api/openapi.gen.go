@@ -601,6 +601,36 @@ func (e AppIssueRowPriority) Valid() bool {
 	}
 }
 
+// Defines values for AppIssueWebhooksKinds.
+const (
+	AppIssueWebhooksKindsAssigned     AppIssueWebhooksKinds = "assigned"
+	AppIssueWebhooksKindsCreated      AppIssueWebhooksKinds = "created"
+	AppIssueWebhooksKindsEscalated    AppIssueWebhooksKinds = "escalated"
+	AppIssueWebhooksKindsGithubLinked AppIssueWebhooksKinds = "github_linked"
+	AppIssueWebhooksKindsRegressed    AppIssueWebhooksKinds = "regressed"
+	AppIssueWebhooksKindsResolved     AppIssueWebhooksKinds = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the AppIssueWebhooksKinds enum.
+func (e AppIssueWebhooksKinds) Valid() bool {
+	switch e {
+	case AppIssueWebhooksKindsAssigned:
+		return true
+	case AppIssueWebhooksKindsCreated:
+		return true
+	case AppIssueWebhooksKindsEscalated:
+		return true
+	case AppIssueWebhooksKindsGithubLinked:
+		return true
+	case AppIssueWebhooksKindsRegressed:
+		return true
+	case AppIssueWebhooksKindsResolved:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateSiteRequestKind.
 const (
 	CreateSiteRequestKindApp   CreateSiteRequestKind = "app"
@@ -2833,6 +2863,31 @@ type AppEventsResponseDroppedReason string
 // AppEventsResponseWarningsReason defines model for AppEventsResponse.Warnings.Reason.
 type AppEventsResponseWarningsReason string
 
+// AppFeedback defines model for AppFeedback.
+type AppFeedback struct {
+	At      time.Time `json:"at"`
+	EventId string    `json:"event_id"`
+
+	// HasContact Whether the reporter gave an email. The address itself is stored only as a keyed hash and never returned.
+	HasContact bool  `json:"has_contact"`
+	Id         int64 `json:"id"`
+
+	// IssueId Null when the event the report names is unknown.
+	IssueId int64  `json:"issue_id"`
+	Message string `json:"message"`
+
+	// Name Always null until the opt-in to keep names exists.
+	Name string `json:"name"`
+
+	// Url The page path
+	Url string `json:"url"`
+}
+
+// AppFeedbackList defines model for AppFeedbackList.
+type AppFeedbackList struct {
+	Feedback []AppFeedback `json:"feedback"`
+}
+
 // AppIngestKeyIssued defines model for AppIngestKeyIssued.
 type AppIngestKeyIssued struct {
 	// Key Plaintext key; returned once and never stored.
@@ -3001,6 +3056,15 @@ type AppIssueStatus struct {
 	Status  string  `json:"status"`
 	Updated []int64 `json:"updated"`
 }
+
+// AppIssueWebhooks defines model for AppIssueWebhooks.
+type AppIssueWebhooks struct {
+	ChannelIds []int64                 `json:"channel_ids"`
+	Kinds      []AppIssueWebhooksKinds `json:"kinds"`
+}
+
+// AppIssueWebhooksKinds defines model for AppIssueWebhooks.Kinds.
+type AppIssueWebhooksKinds string
 
 // AppLink defines model for AppLink.
 type AppLink struct {
@@ -5469,6 +5533,12 @@ type GetAppCompatibilityParams struct {
 	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
 }
 
+// ListAppFeedbackParams defines parameters for ListAppFeedback.
+type ListAppFeedbackParams struct {
+	Limit  *int       `form:"limit,omitempty" json:"limit,omitempty"`
+	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+}
+
 // ListAppIssuesParams defines parameters for ListAppIssues.
 type ListAppIssuesParams struct {
 	// Status open, resolved, ignored or regressed.
@@ -5507,6 +5577,12 @@ type GetAppIssueParams struct {
 
 // ListAppIssueActivityParams defines parameters for ListAppIssueActivity.
 type ListAppIssueActivityParams struct {
+	Limit  *int       `form:"limit,omitempty" json:"limit,omitempty"`
+	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+}
+
+// ListAppIssueFeedbackParams defines parameters for ListAppIssueFeedback.
+type ListAppIssueFeedbackParams struct {
 	Limit  *int       `form:"limit,omitempty" json:"limit,omitempty"`
 	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
 }
@@ -5931,6 +6007,9 @@ type UpdateAppSettingsJSONRequestBody = AppSettings
 
 // CreateAppDSNKeyJSONRequestBody defines body for CreateAppDSNKey for application/json ContentType.
 type CreateAppDSNKeyJSONRequestBody = AppDSNKeyCreate
+
+// UpdateAppIssueWebhooksJSONRequestBody defines body for UpdateAppIssueWebhooks for application/json ContentType.
+type UpdateAppIssueWebhooksJSONRequestBody = AppIssueWebhooks
 
 // UpdateAppIssueJSONRequestBody defines body for UpdateAppIssue for application/json ContentType.
 type UpdateAppIssueJSONRequestBody = AppIssueChange
@@ -6809,6 +6888,15 @@ type ServerInterface interface {
 	// GetAppEvent The scrubbed body of one stored event
 	// (GET /api/private/sites/{site}/app/events/{event_id})
 	GetAppEvent(w http.ResponseWriter, r *http.Request, site int32, eventId string)
+	// ListAppFeedback All user feedback of the project, newest first
+	// (GET /api/private/sites/{site}/app/feedback)
+	ListAppFeedback(w http.ResponseWriter, r *http.Request, site int32, params ListAppFeedbackParams)
+	// GetAppIssueWebhooks Issue webhook settings
+	// (GET /api/private/sites/{site}/app/issue-webhooks)
+	GetAppIssueWebhooks(w http.ResponseWriter, r *http.Request, site int32)
+	// UpdateAppIssueWebhooks Choose the notification channels and event kinds that receive issue webhooks
+	// (PUT /api/private/sites/{site}/app/issue-webhooks)
+	UpdateAppIssueWebhooks(w http.ResponseWriter, r *http.Request, site int32)
 	// ListAppIssues Issues with events in the range, filtered, sorted and paged
 	// (GET /api/private/sites/{site}/app/issues)
 	ListAppIssues(w http.ResponseWriter, r *http.Request, site int32, params ListAppIssuesParams)
@@ -6833,6 +6921,9 @@ type ServerInterface interface {
 	// EditAppIssueComment Edit a comment
 	// (PATCH /api/private/sites/{site}/app/issues/{issue}/comments/{comment})
 	EditAppIssueComment(w http.ResponseWriter, r *http.Request, site int32, issue int64, comment int64)
+	// ListAppIssueFeedback User feedback linked to the issue, newest first
+	// (GET /api/private/sites/{site}/app/issues/{issue}/feedback)
+	ListAppIssueFeedback(w http.ResponseWriter, r *http.Request, site int32, issue int64, params ListAppIssueFeedbackParams)
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
@@ -10317,6 +10408,113 @@ func (siw *ServerInterfaceWrapper) GetAppEvent(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListAppFeedback operation middleware
+func (siw *ServerInterfaceWrapper) ListAppFeedback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAppFeedbackParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppFeedback(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppIssueWebhooks operation middleware
+func (siw *ServerInterfaceWrapper) GetAppIssueWebhooks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppIssueWebhooks(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppIssueWebhooks operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppIssueWebhooks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppIssueWebhooks(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListAppIssues operation middleware
 func (siw *ServerInterfaceWrapper) ListAppIssues(w http.ResponseWriter, r *http.Request) {
 
@@ -10840,6 +11038,70 @@ func (siw *ServerInterfaceWrapper) EditAppIssueComment(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EditAppIssueComment(w, r, site, issue, comment)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppIssueFeedback operation middleware
+func (siw *ServerInterfaceWrapper) ListAppIssueFeedback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAppIssueFeedbackParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppIssueFeedback(w, r, site, issue, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15187,6 +15449,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.DeleteAppIssueComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.EditAppIssueComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/activity", wrapper.ListAppIssueActivity)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/feedback", wrapper.ListAppIssueFeedback)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/feedback", wrapper.ListAppFeedback)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issue-webhooks", wrapper.GetAppIssueWebhooks)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/issue-webhooks", wrapper.UpdateAppIssueWebhooks)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/assignees", wrapper.ListAppAssignees)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/compatibility", wrapper.GetAppCompatibility)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases", wrapper.GetAppReleases)

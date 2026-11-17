@@ -20,6 +20,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"supermetry/internal/appissues"
 	"supermetry/internal/appquery"
 	"supermetry/internal/clientip"
 	"supermetry/internal/config"
@@ -93,9 +94,10 @@ type Deps struct {
 	ReplayCSS           http.Handler
 	PublicAuth          Authenticator
 	PrivateAuth         Authenticator
-	AppQuery            *appquery.Querier // App Health reads for the MCP tools; nil disables them
-	Sites               sites.Registry    // resolves site ownership for every site-scoped request
-	UI                  http.Handler      // the embedded dashboard; serves every GET that no API route claims
+	AppQuery            *appquery.Querier  // App Health reads for the MCP tools; nil disables them
+	AppIssues           *appissues.Service // issue timeline and impact for the MCP tools; nil disables them
+	Sites               sites.Registry     // resolves site ownership for every site-scoped request
+	UI                  http.Handler       // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter         ingest.RateLimiter
 	Sessions            session.Store
 	MinuteSource        realtime.MinuteSource
@@ -161,6 +163,9 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.AppQuery != nil {
 		mcpDeps.AppHealth = deps.AppQuery
+	}
+	if deps.AppIssues != nil {
+		mcpDeps.AppIssues = deps.AppIssues
 	}
 	mcp := NewMCPHandler(mcpDeps)
 	mux.Handle("POST "+publicPrefix+"/mcp", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, true, mcp))
@@ -542,6 +547,10 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PATCH " + privatePrefix + "/sites/{site}/app/issues/{issue}/comments/{comment}",
 		"DELETE " + privatePrefix + "/sites/{site}/app/issues/{issue}/comments/{comment}",
 		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}/activity",
+		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}/feedback",
+		"GET " + privatePrefix + "/sites/{site}/app/feedback",
+		"GET " + privatePrefix + "/sites/{site}/app/issue-webhooks",
+		"PUT " + privatePrefix + "/sites/{site}/app/issue-webhooks",
 		"GET " + privatePrefix + "/sites/{site}/app/assignees",
 		"GET " + privatePrefix + "/sites/{site}/app/events/{event_id}",
 		"GET " + privatePrefix + "/sites/{site}/app/compatibility",

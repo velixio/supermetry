@@ -38,6 +38,7 @@ type MCPDeps struct {
 	MinuteSource  realtime.MinuteSource
 	Dictionary    dictionaryResolver
 	AppHealth     appHealthReader // nil omits the App Health tools
+	AppIssues     appIssueReader  // nil omits the issue timeline and impact tools
 	Now           func() time.Time
 }
 
@@ -135,6 +136,9 @@ func NewMCPHandler(deps MCPDeps) http.Handler {
 	tools := mcpTools()
 	if deps.AppHealth != nil {
 		tools = append(tools, mcpAppTools()...)
+	}
+	if deps.AppIssues != nil {
+		tools = append(tools, mcpIssueTools()...)
 	}
 	return &mcpHandler{deps: deps, tools: tools}
 }
@@ -238,6 +242,9 @@ func (h *mcpHandler) callTool(w http.ResponseWriter, r *http.Request, request mc
 }
 
 func (h *mcpHandler) runTool(ctx context.Context, r *http.Request, name string, arguments json.RawMessage) (any, error) {
+	if mcpIssueToolNames[name] && h.deps.AppIssues != nil {
+		return h.runIssueTool(ctx, r, name, arguments)
+	}
 	if mcpAppToolNames[name] && h.deps.AppHealth != nil {
 		// App tools hold no visitor history, so every tracking mode serves them.
 		return h.runAppTool(ctx, r, name, arguments)
