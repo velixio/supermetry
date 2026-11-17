@@ -213,6 +213,16 @@ func (e *Env) SiteInTimezone(t testing.TB, org Org, timezone string) Site {
 	return Site{ID: created.ID, PublicID: created.PublicID, OrgID: org.ID}
 }
 
+// APIKeyForSites creates an organization key restricted to the given sites.
+func (e *Env) APIKeyForSites(t testing.TB, org Org, siteIDs []int32, scopes ...string) string {
+	t.Helper()
+	plain, _, err := e.keys.Create(context.Background(), authz.Principal{UserID: org.Owner.ID, OrgID: org.ID, Role: authz.RoleOwner}, "API matrix restricted", scopes, siteIDs, nil)
+	if err != nil {
+		t.Fatalf("seed restricted API key: %v", err)
+	}
+	return plain
+}
+
 // APIKey creates an unrestricted organization key with scopes.
 func (e *Env) APIKey(t testing.TB, org Org, scopes ...string) string {
 	t.Helper()
