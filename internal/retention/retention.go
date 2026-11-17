@@ -29,6 +29,7 @@ var eraseTables = []string{
 	"app_hash_secrets",
 	"app_erasure_requests",
 	"app_artifact_files",
+	"app_debug_files",
 	"app_client_reports",
 	"events",
 	"sessions",

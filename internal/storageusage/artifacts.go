@@ -7,8 +7,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ArtifactScanner attributes uploaded source map storage to sites. The bytes
-// are the assembled bundle sizes the organization cap is enforced against
+// ArtifactScanner attributes uploaded source map and debug file storage to sites. The bytes
+// are the assembled bundle and debug file sizes the organization cap is enforced against
 // (app_artifact_bundles.size), reported in the auxiliary category next to the
 // bundles' index rows. A bundle that names sites is split between them, and
 // one that covers the whole organization is split between its live app sites,
@@ -19,15 +19,15 @@ type ArtifactScanner struct{ pool *pgxpool.Pool }
 
 func NewArtifactScanner(pool *pgxpool.Pool) *ArtifactScanner { return &ArtifactScanner{pool: pool} }
 
-func (s *ArtifactScanner) Fingerprint() string { return "app-artifact-bundle-bytes-v1" }
+func (s *ArtifactScanner) Fingerprint() string { return "app-artifact-bundle-dif-bytes-v2" }
 
 func (s *ArtifactScanner) WorkUnits(ctx context.Context, runID int64) ([]WorkUnit, error) {
 	rows, err := s.pool.Query(ctx, `
 		select distinct b.org_id
-		from app_artifact_bundles b
+		from (select org_id from app_artifact_bundles where state='ok' and size>0
+		      union all select org_id from app_dif_uploads where state='ok' and size>0) b
 		join sites s on s.org_id=b.org_id
 		join storage_usage_run_sites rs on rs.site_id=s.id and rs.run_id=$1
-		where b.state='ok' and b.size>0
 		order by b.org_id`, runID)
 	if err != nil {
 		return nil, fmt.Errorf("list source map storage organizations: %w", err)
@@ -56,15 +56,18 @@ func (s *ArtifactScanner) Scan(ctx context.Context, runID int64, unit WorkUnit) 
 	// One statement, so the captured-site and erasure checks share a snapshot
 	// with the sizes. The remainder of an uneven split goes to the lowest ids.
 	rows, err := s.pool.Query(ctx, `
-		with covered as (
+		with items as (
+			select 'b' || id as item, org_id, site_ids, size from app_artifact_bundles where org_id=$2 and state='ok' and size>0
+			union all
+			select 'd' || id, org_id, site_ids, size from app_dif_uploads where org_id=$2 and state='ok' and size>0
+		), covered as (
 			select b.size, s.id as site_id,
-				row_number() over (partition by b.id order by s.id) as rn,
-				count(*) over (partition by b.id) as cnt
-			from app_artifact_bundles b
+				row_number() over (partition by b.item order by s.id) as rn,
+				count(*) over (partition by b.item) as cnt
+			from items b
 			join sites s on s.org_id=b.org_id
 				and s.erased_at is null and s.erasure_started_at is null
 				and (s.id = any(b.site_ids) or (cardinality(b.site_ids)=0 and s.kind='app'))
-			where b.org_id=$2 and b.state='ok' and b.size>0
 		)
 		select c.site_id, sum(c.size/c.cnt + case when c.rn <= c.size % c.cnt then 1 else 0 end)::bigint
 		from covered c
