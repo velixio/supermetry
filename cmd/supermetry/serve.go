@@ -486,7 +486,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	ipRate, siteRate, globalRate := clampIngestRates(slog.Default(), cfg.IngestRateIP, cfg.IngestRateSite, cfg.IngestRateGlobal)
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
-	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp")})
+	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
+		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
@@ -1211,6 +1212,10 @@ func scheduledJobs(
 		}},
 	}
 	if replayStore != nil {
+		jobs = append(jobs, scheduler.Job{Name: "sentry-artifact-sweep", Every: 24 * time.Hour, Run: func(ctx context.Context) error {
+			_, err := sentryapi.Sweep(ctx, pool, replayStore, clk.Now(), sentryapi.ChunkGrace)
+			return err
+		}})
 		jobs = append(jobs, scheduler.Job{Name: "replay-retention", Every: time.Hour, Run: func(ctx context.Context) error {
 			return replay.RunRetentionConfigured(ctx, pool, replayStore, clk.Now(), replayEnvironment)
 		}})
