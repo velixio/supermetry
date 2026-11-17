@@ -45,9 +45,17 @@ type RowExtras struct {
 // DebugImage is one debug_meta image of a Sentry event; only the fields
 // symbolication needs. It never reaches storage.
 type DebugImage struct {
-	Type     string
-	CodeFile string
-	DebugID  string
+	Type      string
+	CodeFile  string
+	DebugID   string
+	CodeID    string
+	DebugFile string
+	Arch      string
+	UUID      string // ProGuard mapping id
+	ImageAddr uint64
+	ImageSize uint64
+	// ImageVMAddr is the image's link-time base address (Mach-O __TEXT vmaddr).
+	ImageVMAddr uint64
 }
 
 // Exception is one entry of an exception chain, oldest first.
