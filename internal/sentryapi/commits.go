@@ -208,13 +208,13 @@ func writeCommits(ctx context.Context, tx pgx.Tx, orgID, releaseID int64, commit
 		`insert into app_commits(org_id, repository_id, sha, message, author_name, author_email, committed_at)
 		 select $1, r.id, t.sha, t.message, t.author_name, t.author_email, t.committed_at
 		 from tmp_release_commits t join app_repositories r on r.org_id=$1 and r.name=t.repo
-		 on conflict (repository_id, sha) do update set message=excluded.message, author_name=excluded.author_name,
-		   author_email=excluded.author_email, committed_at=coalesce(excluded.committed_at, app_commits.committed_at)`,
+		 on conflict (repository_id, sha) do update set committed_at=excluded.committed_at
+		   where app_commits.committed_at is null`,
 		`insert into app_commit_files(commit_id, path, change)
 		 select c.id, f.path, f.change
 		 from tmp_release_files f join app_repositories r on r.org_id=$1 and r.name=f.repo
 		 join app_commits c on c.repository_id=r.id and c.sha=f.sha
-		 on conflict (commit_id, path) do update set change=excluded.change`,
+		 on conflict (commit_id, path) do nothing`,
 		`insert into app_release_commits(release_id, commit_id, position)
 		 select $2, c.id, t.position
 		 from tmp_release_commits t join app_repositories r on r.org_id=$1 and r.name=t.repo

@@ -181,6 +181,28 @@ func TestSetCommitsLimits(t *testing.T) {
 	}
 }
 
+func TestSetCommitsCannotRewriteExistingCommit(t *testing.T) {
+	e := newEnv(t, nil)
+	owner := e.svc(t, e.owner, []string{Scope}, nil)
+	narrow := e.svc(t, e.owner, []string{Scope}, []int32{10})
+	e.createRel(t, owner, "1.0.0", map[string]any{"projects": []string{"appsite00020"}})
+	e.createRel(t, narrow, "2.0.0", map[string]any{"projects": []string{"appsite00010"}})
+	orig := commitPayload("9999aaaa", "original", [2]string{"a.ts", "M"})
+	e.json(t, "PUT", relBase+"1.0.0/", owner, map[string]any{"commits": []any{orig}})
+	evil := commitPayload("9999aaaa", "rewritten", [2]string{"a.ts", "D"})
+	evil["author_name"], evil["author_email"] = "Mallory", "m@example.com"
+	if s, _ := e.json(t, "PUT", relBase+"2.0.0/", narrow, map[string]any{"commits": []any{evil}}); s != 200 {
+		t.Fatalf("put = %d", s)
+	}
+	rows := e.commitsOf(t, owner, "1.0.0")
+	if len(rows) != 1 || rows[0]["message"] != "original" || rows[0]["author"].(map[string]any)["name"] != "Dev One" {
+		t.Fatalf("commit rewritten: %v", rows)
+	}
+	if n := e.countOf(t, `select count(*) from app_commit_files where change='M'`); n != 1 {
+		t.Fatal("file change rewritten")
+	}
+}
+
 func TestRefsOnly(t *testing.T) {
 	e := newEnv(t, nil)
 	token := e.svc(t, e.owner, []string{Scope}, nil)
