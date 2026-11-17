@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"supermetry/internal/sites"
 )
 
 func sessionFixtures(t *testing.T) map[string]fixtureItem {
@@ -20,7 +22,7 @@ func sessionFixtures(t *testing.T) map[string]fixtureItem {
 }
 
 func TestParseSessionAggregates(t *testing.T) {
-	rows, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00.000Z","exited":3,"errored":1}],"attrs":{"release":"r@1","environment":"prod"}}`), EventContext{}, testSite(), testNow)
+	rows, _, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00.000Z","exited":3,"errored":1}],"attrs":{"release":"r@1","environment":"prod"}}`), EventContext{}, testSite(), testNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +43,7 @@ func TestParseSessionAggregates(t *testing.T) {
 }
 
 func TestParseSessionAggregateCrashedSetsExitReason(t *testing.T) {
-	rows, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":3,"errored":1,"crashed":2,"abnormal":1}]}`), EventContext{}, testSite(), testNow)
+	rows, _, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":3,"errored":1,"crashed":2,"abnormal":1}]}`), EventContext{}, testSite(), testNow)
 	if err != nil || len(rows) != 4 {
 		t.Fatalf("%v %+v", err, rows)
 	}
@@ -55,24 +57,24 @@ func TestParseSessionAggregateCrashedSetsExitReason(t *testing.T) {
 }
 
 func TestParseSessionAggregatesZeroAndShapes(t *testing.T) {
-	rows, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":0},null,{"started":"2026-11-17T13:11:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	rows, _, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":0},null,{"started":"2026-11-17T13:11:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
 	if err != nil || len(rows) != 1 || rows[0].Occurrences != 2 {
 		t.Fatalf("%v %+v", err, rows)
 	}
-	rows, err = ParseSession([]byte(`{"aggregates":[]}`), EventContext{}, testSite(), testNow)
+	rows, _, err = ParseSession([]byte(`{"aggregates":[]}`), EventContext{}, testSite(), testNow)
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("%v %+v", err, rows)
 	}
-	a, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
-	b, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
-	c, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:11:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	a, _, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	b, _, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
+	c, _, _ := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:11:00Z","exited":2}]}`), EventContext{}, testSite(), testNow)
 	if a[0].ID != b[0].ID || a[0].ID == c[0].ID {
 		t.Fatal("ids must be stable for a retry and differ for different payloads")
 	}
 }
 
 func TestParseSessionInit(t *testing.T) {
-	rows, err := ParseSession([]byte(`{"sid":"f4f879bbd40149b586a1c19480b043e2","did":"user-1","init":true,"started":"2026-11-17T13:11:41.685Z","timestamp":"2026-11-17T13:11:41.685Z","status":"ok","errors":0,"attrs":{"release":"fixture@1.0.0","environment":"fixture","ip_address":"{{auto}}","user_agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/150.0 Safari/537.36"}}`),
+	rows, _, err := ParseSession([]byte(`{"sid":"f4f879bbd40149b586a1c19480b043e2","did":"user-1","init":true,"started":"2026-11-17T13:11:41.685Z","timestamp":"2026-11-17T13:11:41.685Z","status":"ok","errors":0,"attrs":{"release":"fixture@1.0.0","environment":"fixture","ip_address":"{{auto}}","user_agent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/150.0 Safari/537.36"}}`),
 		EventContext{SDKName: "sentry.javascript.browser"}, testSite(), testNow)
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("%v %+v", err, rows)
@@ -82,27 +84,89 @@ func TestParseSessionInit(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 	// the same session crashing at init
-	rows, _ = ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-17T13:11:41Z","status":"crashed"}`), EventContext{}, testSite(), testNow)
+	rows, _, _ = ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-17T13:11:41Z","status":"crashed"}`), EventContext{}, testSite(), testNow)
 	if len(rows) != 1 || rows[0].ExitReason != "crashed" {
 		t.Fatalf("%+v", rows)
 	}
 }
 
-func TestParseSessionUpdateWithoutInitYieldsNothing(t *testing.T) {
-	rows, err := ParseSession([]byte(`{"sid":"s1","init":false,"started":"2026-11-17T13:11:41Z","status":"exited"}`), EventContext{}, testSite(), testNow)
-	if err != nil || len(rows) != 0 {
-		t.Fatalf("%v %+v", err, rows)
+func TestParseSessionUpdateNotInit(t *testing.T) {
+	rows, ups, err := ParseSession([]byte(`{"sid":"s1","did":"u1","init":false,"started":"2026-11-17T13:11:41Z","timestamp":"2026-11-17T13:20:00Z","status":"crashed","errors":2,"duration":12.5,"attrs":{"release":"r@1","environment":"prod"}}`), EventContext{}, testSite(), testNow)
+	if err != nil || len(rows) != 0 || len(ups) != 1 {
+		t.Fatalf("%v %+v %+v", err, rows, ups)
 	}
-	if _, err := ParseSession([]byte(`{"init":true}`), EventContext{}, testSite(), testNow); !errors.Is(err, ErrInvalid) {
+	u := ups[0]
+	if u.SiteID != 42 || u.Status != "crashed" || u.Errors != 2 || u.Init || u.Release != "r@1" || u.Environment != "prod" ||
+		u.DurationMS == nil || *u.DurationMS != 12500 || u.Started.Hour() != 13 || u.Started.Minute() != 11 {
+		t.Fatalf("%+v", u)
+	}
+	if _, _, err := ParseSession([]byte(`{"init":true}`), EventContext{}, testSite(), testNow); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("init without sid: %v", err)
 	}
-	if _, err := ParseSession([]byte(`nope`), EventContext{}, testSite(), testNow); !errors.Is(err, ErrInvalid) {
+	if _, _, err := ParseSession([]byte(`nope`), EventContext{}, testSite(), testNow); !errors.Is(err, ErrInvalid) {
 		t.Fatal(err)
 	}
 }
 
+func TestParseSessionInitEmitsEventAndUpdate(t *testing.T) {
+	rows, ups, err := ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-17T13:11:41Z","status":"ok"}`), EventContext{}, testSite(), testNow)
+	if err != nil || len(rows) != 1 || len(ups) != 1 || !ups[0].Init || ups[0].Status != "ok" || ups[0].InstallHash != nil {
+		t.Fatalf("%v %+v %+v", err, rows, ups)
+	}
+}
+
+func TestParseSessionStatusNormalised(t *testing.T) {
+	for in, want := range map[string]string{"ok": "ok", "exited": "exited", "errored": "errored", "abnormal": "abnormal", "crashed": "crashed", "unhandled": "crashed", "weird": "ok", "": "ok"} {
+		_, ups, err := ParseSession([]byte(`{"sid":"s1","started":"2026-11-17T13:11:41Z","status":"`+in+`"}`), EventContext{}, testSite(), testNow)
+		if err != nil || len(ups) != 1 || ups[0].Status != want {
+			t.Errorf("%q: %v %+v", in, err, ups)
+		}
+	}
+}
+
+func TestParseSessionHashesSid(t *testing.T) {
+	site := testSite()
+	_, a, _ := ParseSession([]byte(`{"sid":"sid-123","did":"did-9","started":"2026-11-17T13:11:41Z","status":"ok"}`), EventContext{}, site, testNow)
+	_, b, _ := ParseSession([]byte(`{"sid":"sid-123","did":"did-9","started":"2026-11-17T13:11:41Z","status":"exited"}`), EventContext{}, site, testNow)
+	_, c, _ := ParseSession([]byte(`{"sid":"sid-124","started":"2026-11-17T13:11:41Z","status":"ok"}`), EventContext{}, site, testNow)
+	if len(a) != 1 || len(b) != 1 || len(c) != 1 {
+		t.Fatal("updates missing")
+	}
+	if len(a[0].SessionHash) != 32 || string(a[0].SessionHash) == "sid-123" || strings.Contains(string(a[0].SessionHash), "sid-123") {
+		t.Fatalf("session hash %x", a[0].SessionHash)
+	}
+	if string(a[0].SessionHash) != string(b[0].SessionHash) || string(a[0].SessionHash) == string(c[0].SessionHash) {
+		t.Fatal("same sid must hash the same, different sid differently")
+	}
+	if string(a[0].InstallHash) != string(HashUser(site.App.HashSecret, "did-9")) || len(a[0].InstallHash) != 32 {
+		t.Fatalf("install hash %x", a[0].InstallHash)
+	}
+	if c[0].InstallHash != nil {
+		t.Fatal("no did, no install hash")
+	}
+	// The session hash is the MAC the event writer applies to session ids.
+	if string(a[0].SessionHash) != string(HashUser(site.App.HashSecret, "sid-123")) {
+		t.Fatal("session hash differs from the writer's MAC")
+	}
+}
+
+func TestParseSessionNoSecretNoUpdate(t *testing.T) {
+	site := sites.Site{ID: 42, Kind: sites.KindApp, App: &sites.AppConfig{MaxReportAgeDays: 30}}
+	rows, ups, err := ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-17T13:11:41Z"}`), EventContext{}, site, testNow)
+	if err != nil || len(rows) != 1 || len(ups) != 0 {
+		t.Fatalf("%v %+v %+v", err, rows, ups)
+	}
+}
+
+func TestParseSessionsAggregateNoUpdates(t *testing.T) {
+	rows, ups, err := ParseSession([]byte(`{"aggregates":[{"started":"2026-11-17T13:10:00Z","exited":3,"crashed":1}]}`), EventContext{}, testSite(), testNow)
+	if err != nil || len(rows) != 2 || len(ups) != 0 {
+		t.Fatalf("%v %+v %+v", err, rows, ups)
+	}
+}
+
 func TestParseSessionFutureStartClamped(t *testing.T) {
-	rows, _ := ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-18T13:11:41Z"}`), EventContext{}, testSite(), testNow)
+	rows, _, _ := ParseSession([]byte(`{"sid":"s1","init":true,"started":"2026-11-18T13:11:41Z"}`), EventContext{}, testSite(), testNow)
 	if !rows[0].TS.Equal(testNow) {
 		t.Fatalf("%s", rows[0].TS)
 	}
@@ -122,7 +186,7 @@ func TestParseSessionFixtures(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing fixture %s", name)
 		}
-		rows, err := ParseSession(it.Payload, EventContext{SentAt: time.Time{}}, testSite(), testNow)
+		rows, _, err := ParseSession(it.Payload, EventContext{SentAt: time.Time{}}, testSite(), testNow)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -182,7 +246,7 @@ func FuzzParseSession(f *testing.F) {
 		f.Add([]byte(it))
 	}
 	f.Fuzz(func(t *testing.T, raw []byte) {
-		rows, err := ParseSession(raw, EventContext{}, testSite(), testNow)
+		rows, _, err := ParseSession(raw, EventContext{}, testSite(), testNow)
 		if err != nil {
 			return
 		}
