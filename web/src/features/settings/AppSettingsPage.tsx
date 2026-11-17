@@ -10,6 +10,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { AppRulesSection } from '@/features/settings/AppRulesSection'
 import { privateRequest } from '@/features/settings/privateApi'
 import { AppKeyDialog } from '@/features/sites/AppKeyDialog'
 import { rotateAppIngestKey } from '@/features/sites/api'
@@ -220,6 +221,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
           </AlertDialog>
         </section>
       ) : null}
+      <AppRulesSection orgId={orgId} siteId={siteId} canEdit={role === 'owner' || role === 'admin' || role === 'editor'} />
       {issued ? <AppKeyDialog appId={publicId} ingestKey={issued} onClose={() => setIssued('')} /> : null}
     </div>
   )

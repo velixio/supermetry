@@ -73,6 +73,18 @@ order by c.created_at,c.id`
 		return err
 	}
 
+	// Rules are project configuration: exported whole, in evaluation order.
+	if err := e.writeRows(ctx, archive, "app_ownership_rules.csv",
+		[]string{"position", "matcher", "value", "owner_id"},
+		`select position,matcher,value,owner_user_id from app_ownership_rules where site_id=$1 order by position,id`, siteID); err != nil {
+		return err
+	}
+	if err := e.writeRows(ctx, archive, "app_grouping_rules.csv",
+		[]string{"position", "matcher", "value", "fingerprint"},
+		`select position,matcher,value,fingerprint from app_grouping_rules where site_id=$1 order by position,id`, siteID); err != nil {
+		return err
+	}
+
 	events := `
 select v.event_id,` + utc("v.ts") + `,coalesce(v.issue_id::text,''),v.kind,v.level,v.release,v.dist,v.environment,
  v.platform,v.sdk_name,v.sdk_version,v.os_version,v.arch,v.device_class,v.runtime,v.symbolication,v.occurrences

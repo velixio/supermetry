@@ -152,7 +152,11 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 		ev.ErrorType = "message"
 	}
 	ex.SDKFingerprint = sdkFingerprint(m["fingerprint"])
-	ev.Fingerprint, ex.GroupingVersion = appingest.GroupingKey(ev, body, ex.SDKFingerprint)
+	if site.App != nil {
+		ex.Rules = site.App.Rules
+	}
+	ev.Fingerprint, ex.GroupingVersion = appingest.GroupingKeyRules(ev, body, ex.SDKFingerprint, ex.Rules)
+	ev.OwnerUserID = appingest.OwnerOf(body, ex.Rules)
 	if len(body.Contexts) == 0 {
 		body.Contexts = nil
 	}

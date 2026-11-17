@@ -2211,6 +2211,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** An app project's ownership and grouping rules, in evaluation order */
+        get: operations["getAppRules"];
+        /**
+         * Replace both rule lists of an app project
+         * @description Ownership rules route a newly created issue to a member (the issue gets an `assigned` activity by the system;
+         *     an existing issue is never re-assigned). Grouping rules replace the computed grouping key of matching events
+         *     with the rule's fingerprint; the token `{{ default }}` keeps the default key and appends. The first matching
+         *     rule by position wins. Values are globs (`*` any run, `?` one character, `\` escapes) of at most 200
+         *     characters; at most 200 rules of each kind. A bad rule is a 400 naming its zero-based index. Owner, admin or
+         *     editor only. The change reaches ingestion with the next registry refresh.
+         */
+        put: operations["replaceAppRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/issues/{issue}": {
         parameters: {
             query?: never;
@@ -3340,6 +3368,23 @@ export interface components {
             span_retention_days?: number;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
+        };
+        AppRules: {
+            ownership: {
+                /** @description path, module or tag:<key> */
+                matcher: string;
+                /** @description Glob. */
+                value: string;
+                /** Format: int64 */
+                owner_user_id: number;
+            }[];
+            grouping: {
+                /** @description error_type, message, path, module or tag:<key> */
+                matcher: string;
+                /** @description Glob. */
+                value: string;
+                fingerprint: string;
+            }[];
         };
         AppUserErase: {
             /** @description The user id the app's SDK reports. */
@@ -10735,6 +10780,59 @@ export interface operations {
                     "application/json": components["schemas"]["AppEventBody"];
                 };
             };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppRules"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replaceAppRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppRules"];
+            };
+        };
+        responses: {
+            /** @description The stored rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppRules"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };

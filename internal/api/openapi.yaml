@@ -2999,6 +2999,34 @@ paths:
         '200': { description: Event body, content: { application/json: { schema: { $ref: '#/components/schemas/AppEventBody' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/rules:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppRules
+      tags: [Apps]
+      summary: An app project's ownership and grouping rules, in evaluation order
+      responses:
+        '200': { description: Rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: replaceAppRules
+      tags: [Apps]
+      summary: Replace both rule lists of an app project
+      description: |
+        Ownership rules route a newly created issue to a member (the issue gets an `assigned` activity by the system;
+        an existing issue is never re-assigned). Grouping rules replace the computed grouping key of matching events
+        with the rule's fingerprint; the token `{{ default }}` keeps the default key and appends. The first matching
+        rule by position wins. Values are globs (`*` any run, `?` one character, `\` escapes) of at most 200
+        characters; at most 200 rules of each kind. A bad rule is a 400 naming its zero-based index. Owner, admin or
+        editor only. The change reaches ingestion with the next registry refresh.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+      responses:
+        '200': { description: The stored rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/issues/{issue}:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -4409,6 +4437,33 @@ components:
         performance_enabled: { type: boolean, nullable: true, description: "Accept transactions and spans. Omitted or null means on." }
         span_retention_days: { type: integer, minimum: 0, maximum: 14, description: "Raw span retention in days. 0 means the default of 14." }
         filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
+    AppRules:
+      type: object
+      required: [ownership, grouping]
+      additionalProperties: false
+      properties:
+        ownership:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [matcher, value, owner_user_id]
+            additionalProperties: false
+            properties:
+              matcher: { type: string, description: 'path, module or tag:<key>' }
+              value: { type: string, minLength: 1, maxLength: 200, description: Glob. }
+              owner_user_id: { type: integer, format: int64, minimum: 1 }
+        grouping:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [matcher, value, fingerprint]
+            additionalProperties: false
+            properties:
+              matcher: { type: string, description: 'error_type, message, path, module or tag:<key>' }
+              value: { type: string, minLength: 1, maxLength: 200, description: Glob. }
+              fingerprint: { type: string, minLength: 1, maxLength: 64 }
     AppUserErase:
       type: object
       required: [user_id]
