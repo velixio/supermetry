@@ -25,6 +25,8 @@ func appIssueError(w http.ResponseWriter, err error) {
 		writeProblem(w, http.StatusNotFound, "Not found", "not found")
 	case errors.Is(err, appissues.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", err.Error())
+	case errors.Is(err, appissues.ErrViewExists):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, appissues.ErrInvalidAssignee):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 	case errors.Is(err, appissues.ErrInvalid):

@@ -17,6 +17,7 @@ import (
 type appReaderStub struct {
 	filter  appquery.Filter
 	issueQ  appquery.IssueQuery
+	hitsLim int
 	issueID int64
 	events  int
 }
@@ -38,6 +39,11 @@ func (s *appReaderStub) Issue(_ context.Context, _ appquery.Scope, id int64, f a
 		return appquery.IssueDetail{}, appquery.ErrNotFound
 	}
 	return appquery.IssueDetail{ID: id, Title: "Null pointer in Save", LatestEvents: make([]appquery.EventSample, s.events)}, nil
+}
+
+func (s *appReaderStub) SearchEvents(_ context.Context, _ appquery.Scope, in appquery.IssueQuery, limit int) ([]appquery.EventHit, error) {
+	s.filter, s.issueQ, s.hitsLim = in.Filter, in, limit
+	return []appquery.EventHit{{EventID: "ev1", IssueID: 4, Release: "1.4.0", Platform: "linux"}}, nil
 }
 
 func (s *appReaderStub) Compatibility(_ context.Context, _ appquery.Scope, f appquery.Filter) ([]appquery.CompatRow, error) {
@@ -96,7 +102,7 @@ func mcpErrorOf(t *testing.T, response *httptest.ResponseRecorder) (int, string)
 	return out.Error.Code, detail
 }
 
-var appToolNames = []string{"get_app_overview", "list_app_issues", "get_app_issue", "get_app_compatibility", "list_app_releases"}
+var appToolNames = []string{"get_app_overview", "list_app_issues", "get_app_issue", "get_app_compatibility", "list_app_releases", "search_app_events"}
 
 func TestMCPAppToolsListed(t *testing.T) {
 	handler := mcpAppHandler(privacy.Identified, &appReaderStub{})
@@ -160,6 +166,40 @@ func TestMCPAppToolsCall(t *testing.T) {
 	callMCPApp(handler, "list_app_issues", `{"site":4,"date_from":"2026-09-01","date_to":"2026-09-30","status":"all","sort":"users","limit":100,"offset":5,"q":"nil","kind":"crash","release":"1.4.0"}`)
 	if q := stub.issueQ; q.Status != "all" || q.Sort != "users" || q.Limit != 100 || q.Offset != 5 || q.Release != "1.4.0" || q.Filter.From.Day() != 1 {
 		t.Fatalf("passthrough: %+v", q)
+	}
+}
+
+func TestMCPAppSearch(t *testing.T) {
+	stub := &appReaderStub{}
+	handler := mcpAppHandler(privacy.Identified, stub)
+	callMCPApp(handler, "list_app_issues", `{"site":4,"period":"7d","query":"is:unresolved !level:info events:>10"}`)
+	if q := stub.issueQ.Search; q == nil || len(q.Terms) != 3 || q.Terms[1].Key != "level" || !q.Terms[1].Negate {
+		t.Fatalf("list query not parsed: %+v", q)
+	}
+	response := callMCPApp(handler, "search_app_events", `{"site":4,"period":"7d","query":"release:1.4.0","limit":50}`)
+	body := response.Body.String()
+	if stub.hitsLim != 50 || stub.issueQ.Search == nil || !strings.Contains(body, "ev1") {
+		t.Fatalf("search_app_events: limit=%d body=%s", stub.hitsLim, body)
+	}
+	for _, banned := range []string{"user_hash", "install_hash", "session_hash", "body"} {
+		if strings.Contains(body, banned) {
+			t.Errorf("search_app_events output carries %q: %s", banned, body)
+		}
+	}
+	for name, test := range map[string]struct{ tool, arguments string }{
+		"list unknown key":   {"list_app_issues", `{"site":4,"period":"7d","query":"bogus:1"}`},
+		"list nul":           {"list_app_issues", `{"site":4,"period":"7d","query":"a\u0000b"}`},
+		"list too long":      {"list_app_issues", `{"site":4,"period":"7d","query":"` + strings.Repeat("a", 201) + `"}`},
+		"search no query":    {"search_app_events", `{"site":4,"period":"7d"}`},
+		"search limit 51":    {"search_app_events", `{"site":4,"period":"7d","query":"a","limit":51}`},
+		"search limit 0 neg": {"search_app_events", `{"site":4,"period":"7d","query":"a","limit":-1}`},
+		"search bad syntax":  {"search_app_events", `{"site":4,"period":"7d","query":"is:"}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if code, _ := mcpErrorOf(t, callMCPApp(handler, test.tool, test.arguments)); code != -32602 {
+				t.Fatalf("code=%d", code)
+			}
+		})
 	}
 }
 

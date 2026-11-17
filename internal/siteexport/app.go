@@ -84,6 +84,16 @@ order by c.created_at,c.id`
 		`select position,matcher,value,fingerprint from app_grouping_rules where site_id=$1 order by position,id`, siteID); err != nil {
 		return err
 	}
+	// Shared saved searches are team content; private ones stay personal.
+	views := `
+select v.id,v.name,v.query,coalesce(v.owner_user_id::text,''),` + utc("v.created_at") + `
+from app_saved_views v
+where v.site_id=$1 and v.shared
+order by v.id`
+	if err := e.writeRows(ctx, archive, "app_saved_views.csv",
+		[]string{"view_id", "name", "query", "owner_id", "created"}, views, siteID); err != nil {
+		return err
+	}
 
 	events := `
 select v.event_id,` + utc("v.ts") + `,coalesce(v.issue_id::text,''),v.kind,v.level,v.release,v.dist,v.environment,

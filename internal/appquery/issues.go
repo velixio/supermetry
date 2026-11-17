@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"supermetry/internal/appquery/search"
 )
 
 // IssueQuery is the issue list request.
@@ -13,6 +15,25 @@ type IssueQuery struct {
 	Filter
 	Status, Kind, Q, Sort string
 	Limit, Offset         int
+	// Search is a parsed query-bar search, ANDed with the other fields. Me is
+	// the signed-in user's id (0 when there is none, as for API keys) and
+	// LookupMember resolves a member email for assigned:<email>.
+	Search       *search.Query
+	Me           int64
+	LookupMember func(email string) (int64, bool)
+}
+
+// searchWhere compiles the search into a condition whose placeholders start
+// after base.
+func (in IssueQuery) searchWhere(now time.Time, base int) (string, []any, error) {
+	if in.Search == nil {
+		return "true", nil, nil
+	}
+	where, args, err := search.Compile(*in.Search, now, in.Me, in.LookupMember, base)
+	if err != nil {
+		return "", nil, invalid("%s", err.Error())
+	}
+	return where, args, nil
 }
 
 // IssueRow is one issue of the list. Events and Users count the range (and the
@@ -91,6 +112,11 @@ func (q *Querier) Issues(ctx context.Context, scope Scope, in IssueQuery) (Issue
 	}
 	prefix := likeEscaper.Replace(in.Q) + "%"
 	args := append(w.evArgs(), in.Status, in.Kind, in.Q, prefix, limit, in.Offset)
+	searchSQL, searchArgs, err := in.searchWhere(q.now(), len(args))
+	if err != nil {
+		return out, err
+	}
+	args = append(args, searchArgs...)
 	rows, err := q.pool.Query(ctx, `
 with agg as (
   select issue_id, sum(occurrences) as events, count(distinct install_hash) as users
@@ -102,6 +128,7 @@ select i.id, i.title, i.kind, i.error_type, i.status, i.first_seen, i.last_seen,
 from app_issues i join agg a on a.issue_id = i.id left join users u on u.id = i.assignee_user_id
 where i.site_id = $1 and i.merged_into is null and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8)
   and ($9 = '' or i.title ilike $10 escape '\' or i.error_type ilike $10 escape '\')
+  and (`+searchSQL+`)
 order by `+order+`
 limit $11 offset $12`, args...)
 	if err != nil {
@@ -471,4 +498,103 @@ where rn <= 3 order by platform, os_version, arch, device_class, rn`, w.evArgs()
 		}
 	}
 	return rows, top.Err()
+}
+
+// MatchIssues returns the ids of the issues the request matches, up to max+1
+// of them (so a caller can tell the match is larger than max). It applies the
+// same filters as Issues but not paging or sort.
+func (q *Querier) MatchIssues(ctx context.Context, scope Scope, in IssueQuery, max int) ([]int64, error) {
+	w, err := q.window(scope, in.Filter)
+	if err != nil {
+		return nil, err
+	}
+	if in.Status == "all" {
+		in.Status = ""
+	}
+	if in.Status != "" && !issueStatuses[in.Status] {
+		return nil, invalid("status must be open, resolved, ignored, regressed or archived")
+	}
+	prefix := likeEscaper.Replace(in.Q) + "%"
+	args := append(w.evArgs(), in.Status, in.Kind, in.Q, prefix, max+1)
+	searchSQL, searchArgs, err := in.searchWhere(q.now(), len(args))
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, searchArgs...)
+	rows, err := q.pool.Query(ctx, `
+with agg as (
+  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users
+  from app_events where `+eventWhere+` and issue_id is not null and kind <> 'session'
+  group by issue_id
+)
+select i.id from app_issues i join agg a on a.issue_id = i.id
+where i.site_id = $1 and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8)
+  and ($9 = '' or i.title ilike $10 escape '\' or i.error_type ilike $10 escape '\')
+  and (`+searchSQL+`)
+order by i.id
+limit $11`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("match issues: %w", err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// EventHit is one event found by SearchEvents: identifiers and dimensions
+// only, no event body, install, session or user identifier.
+type EventHit struct {
+	EventID  string    `json:"event_id"`
+	TS       time.Time `json:"ts"`
+	IssueID  int64     `json:"issue_id"`
+	Release  string    `json:"release"`
+	Platform string    `json:"platform"`
+}
+
+// SearchEvents returns the newest events of the issues the search matches.
+func (q *Querier) SearchEvents(ctx context.Context, scope Scope, in IssueQuery, limit int) ([]EventHit, error) {
+	w, err := q.window(scope, in.Filter)
+	if err != nil {
+		return nil, err
+	}
+	if limit < 1 || limit > 50 {
+		return nil, invalid("limit must be between 1 and 50")
+	}
+	args := append(w.evArgs(), limit)
+	searchSQL, searchArgs, err := in.searchWhere(q.now(), len(args))
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, searchArgs...)
+	rows, err := q.pool.Query(ctx, `
+with agg as (
+  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users
+  from app_events where `+eventWhere+` and issue_id is not null and kind <> 'session'
+  group by issue_id
+), hit as (
+  select i.id from app_issues i join agg a on a.issue_id = i.id where i.site_id = $1 and (`+searchSQL+`)
+)
+select event_id, ts, issue_id, release, platform from app_events
+where `+eventWhere+` and kind <> 'session' and issue_id in (select id from hit) and event_id <> ''
+order by ts desc, event_id limit $7`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("search events: %w", err)
+	}
+	defer rows.Close()
+	out := []EventHit{}
+	for rows.Next() {
+		var h EventHit
+		if err := rows.Scan(&h.EventID, &h.TS, &h.IssueID, &h.Release, &h.Platform); err != nil {
+			return nil, err
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
 }

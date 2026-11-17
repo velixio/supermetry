@@ -2892,6 +2892,23 @@ type AppIssueActivity struct {
 	Kind string `json:"kind"`
 }
 
+// AppIssueBulk Exactly one of `ids` and `query`.
+type AppIssueBulk struct {
+	// Change A partial update; at least one field is required. Omitted fields are left alone.
+	Change AppIssueChange `json:"change"`
+	Ids    *[]int64       `json:"ids,omitempty"`
+
+	// Query The issue search syntax (see the `query` parameter of the issue list).
+	Query *string `json:"query,omitempty"`
+}
+
+// AppIssueBulkResult defines model for AppIssueBulkResult.
+type AppIssueBulkResult struct {
+	// Skipped Ids that are not issues of this project.
+	Skipped []int64 `json:"skipped"`
+	Updated []int64 `json:"updated"`
+}
+
 // AppIssueChange A partial update; at least one field is required. Omitted fields are left alone.
 type AppIssueChange struct {
 	// Archive true archives until the issue escalates, false unarchives to open. Not combinable with status or snooze.
@@ -3108,6 +3125,31 @@ type AppRules struct {
 		// Value Glob.
 		Value string `json:"value"`
 	} `json:"ownership"`
+}
+
+// AppSavedView defines model for AppSavedView.
+type AppSavedView struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        int64     `json:"id"`
+	Mine      bool      `json:"mine"`
+	Name      string    `json:"name"`
+	OwnerName string    `json:"owner_name"`
+	Query     string    `json:"query"`
+	Shared    bool      `json:"shared"`
+}
+
+// AppSavedViewInput defines model for AppSavedViewInput.
+type AppSavedViewInput struct {
+	Name   string `json:"name"`
+	Query  string `json:"query"`
+	Shared *bool  `json:"shared,omitempty"`
+}
+
+// AppSavedViewPatch defines model for AppSavedViewPatch.
+type AppSavedViewPatch struct {
+	Name   *string `json:"name,omitempty"`
+	Query  *string `json:"query,omitempty"`
+	Shared *bool   `json:"shared,omitempty"`
 }
 
 // AppSettings defines model for AppSettings.
@@ -4336,9 +4378,12 @@ type Problem struct {
 	Detail   *string            `json:"detail,omitempty"`
 	Errors   *[]ValidationError `json:"errors,omitempty"`
 	Instance *string            `json:"instance,omitempty"`
-	Status   int                `json:"status"`
-	Title    string             `json:"title"`
-	Type     string             `json:"type"`
+
+	// Position For a rejected search, the character offset of the problem.
+	Position *int   `json:"position,omitempty"`
+	Status   int    `json:"status"`
+	Title    string `json:"title"`
+	Type     string `json:"type"`
 }
 
 // Profile defines model for Profile.
@@ -5558,18 +5603,39 @@ type GetAppCompatibilityParams struct {
 
 // ListAppIssuesParams defines parameters for ListAppIssues.
 type ListAppIssuesParams struct {
-	// Status open, resolved, ignored or regressed.
+	// Status open, resolved, ignored, regressed or archived.
 	Status *string `form:"status,omitempty" json:"status,omitempty"`
 	Kind   *string `form:"kind,omitempty" json:"kind,omitempty"`
 
 	// Q Case-insensitive prefix of the title or error type.
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
+	// Query Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
+	// `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
+	// (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
+	// email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+	// `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
+	// `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
+	// A syntax error is a 400 whose `position` is the character offset of the problem.
+	Query *string `form:"query,omitempty" json:"query,omitempty"`
+
 	// Sort last_seen (default), events or users.
 	Sort   *string `form:"sort,omitempty" json:"sort,omitempty"`
 	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
 
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// BulkUpdateAppIssuesParams defines parameters for BulkUpdateAppIssues.
+type BulkUpdateAppIssuesParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
 	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
 
@@ -6019,6 +6085,9 @@ type UpdateAppSettingsJSONRequestBody = AppSettings
 // CreateAppDSNKeyJSONRequestBody defines body for CreateAppDSNKey for application/json ContentType.
 type CreateAppDSNKeyJSONRequestBody = AppDSNKeyCreate
 
+// BulkUpdateAppIssuesJSONRequestBody defines body for BulkUpdateAppIssues for application/json ContentType.
+type BulkUpdateAppIssuesJSONRequestBody = AppIssueBulk
+
 // UpdateAppIssueJSONRequestBody defines body for UpdateAppIssue for application/json ContentType.
 type UpdateAppIssueJSONRequestBody = AppIssueChange
 
@@ -6039,6 +6108,12 @@ type ReplaceAppRulesJSONRequestBody = AppRules
 
 // EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
 type EraseAppUserJSONRequestBody = AppUserErase
+
+// CreateAppSavedViewJSONRequestBody defines body for CreateAppSavedView for application/json ContentType.
+type CreateAppSavedViewJSONRequestBody = AppSavedViewInput
+
+// UpdateAppSavedViewJSONRequestBody defines body for UpdateAppSavedView for application/json ContentType.
+type UpdateAppSavedViewJSONRequestBody = AppSavedViewPatch
 
 // CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
 type CreateCohortJSONRequestBody = CohortInput
@@ -6911,6 +6986,9 @@ type ServerInterface interface {
 	// ListAppIssues Issues with events in the range, filtered, sorted and paged
 	// (GET /api/private/sites/{site}/app/issues)
 	ListAppIssues(w http.ResponseWriter, r *http.Request, site int32, params ListAppIssuesParams)
+	// BulkUpdateAppIssues Change many issues at once
+	// (POST /api/private/sites/{site}/app/issues/bulk)
+	BulkUpdateAppIssues(w http.ResponseWriter, r *http.Request, site int32, params BulkUpdateAppIssuesParams)
 	// GetAppIssue One issue with its daily series, breakdowns and latest events
 	// (GET /api/private/sites/{site}/app/issues/{issue})
 	GetAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64, params GetAppIssueParams)
@@ -6959,6 +7037,18 @@ type ServerInterface interface {
 	// GetAppUserErasure Get the status and counts of an app user erasure
 	// (GET /api/private/sites/{site}/app/users/erasures/{erasure})
 	GetAppUserErasure(w http.ResponseWriter, r *http.Request, site int32, erasure int64)
+	// ListAppSavedViews Saved issue searches visible to you
+	// (GET /api/private/sites/{site}/app/views)
+	ListAppSavedViews(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateAppSavedView Save an issue search
+	// (POST /api/private/sites/{site}/app/views)
+	CreateAppSavedView(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppSavedView Delete a view
+	// (DELETE /api/private/sites/{site}/app/views/{view})
+	DeleteAppSavedView(w http.ResponseWriter, r *http.Request, site int32, view int64)
+	// UpdateAppSavedView Rename, edit or share a view
+	// (PATCH /api/private/sites/{site}/app/views/{view})
+	UpdateAppSavedView(w http.ResponseWriter, r *http.Request, site int32, view int64)
 	// ListCohorts List saved cohorts
 	// (GET /api/private/sites/{site}/cohorts)
 	ListCohorts(w http.ResponseWriter, r *http.Request, site int32)
@@ -10535,6 +10625,19 @@ func (siw *ServerInterfaceWrapper) ListAppIssues(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// ------------- Optional query parameter "query" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "query", r.URL.Query(), &params.Query, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "query"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "query", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "sort" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
@@ -10641,6 +10744,100 @@ func (siw *ServerInterfaceWrapper) ListAppIssues(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListAppIssues(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BulkUpdateAppIssues operation middleware
+func (siw *ServerInterfaceWrapper) BulkUpdateAppIssues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params BulkUpdateAppIssuesParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BulkUpdateAppIssues(w, r, site, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11407,6 +11604,128 @@ func (siw *ServerInterfaceWrapper) GetAppUserErasure(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAppUserErasure(w, r, site, erasure)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) ListAppSavedViews(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppSavedViews(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAppSavedView operation middleware
+func (siw *ServerInterfaceWrapper) CreateAppSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAppSavedView(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "view" -------------
+	var view int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "view", r.PathValue("view"), &view, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "view", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppSavedView(w, r, site, view)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppSavedView operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppSavedView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "view" -------------
+	var view int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "view", r.PathValue("view"), &view, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "view", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppSavedView(w, r, site, view)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15533,6 +15852,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/bulk", wrapper.BulkUpdateAppIssues)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/views", wrapper.ListAppSavedViews)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/views", wrapper.CreateAppSavedView)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.DeleteAppSavedView)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.UpdateAppSavedView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.GetAppRules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.ReplaceAppRules)

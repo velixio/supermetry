@@ -12,7 +12,7 @@ export type IssueStatusTab = (typeof ISSUE_STATUSES)[number]
 export type IssueSort = (typeof ISSUE_SORTS)[number]
 
 export type AppSearch = { period: Period; release?: string; environment?: string; platform?: string }
-export type AppIssuesSearch = AppSearch & { status: IssueStatusTab; kind?: string; q?: string; sort: IssueSort; offset?: number }
+export type AppIssuesSearch = AppSearch & { status: IssueStatusTab; kind?: string; q?: string; query?: string; sort: IssueSort; offset?: number }
 
 const text = (value: unknown): string | undefined => (typeof value === 'string' && value.trim() !== '' ? value.trim().slice(0, 200) : undefined)
 const oneOf = <T extends string>(list: readonly T[], value: unknown): T | undefined => list.find((item) => item === value)
@@ -29,6 +29,7 @@ export function parseAppIssuesSearch(search: Record<string, unknown>): AppIssues
     status: oneOf(ISSUE_STATUSES, search.status) ?? 'open',
     kind: oneOf(ISSUE_KINDS, search.kind),
     q: text(search.q),
+    query: text(search.query),
     sort: oneOf(ISSUE_SORTS, search.sort) ?? 'last_seen',
     offset: Number.isInteger(offset) && offset > 0 ? offset : undefined,
   }
