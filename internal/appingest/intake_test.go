@@ -212,3 +212,22 @@ func TestIntakeEnvironments(t *testing.T) {
 		t.Fatalf("environments: %q %q %q", q[0].Event.Environment, q[1].Event.Environment, q[2].Event.Environment)
 	}
 }
+
+func TestAdmitDoesNotConsumeBudget(t *testing.T) {
+	site := sites.Site{ID: 1, Kind: sites.KindApp, App: &sites.AppConfig{MaxReportAgeDays: 30}}
+	in := NewIntake(Config{KeyBudgetPerMinute: 2})
+	now := time.Date(2026, 11, 17, 14, 0, 0, 0, time.UTC)
+	for i := 0; i < 5; i++ {
+		if out := in.Admit(site, "k", now); out.Reason != "" {
+			t.Fatalf("admit %d: %q", i, out.Reason)
+		}
+	}
+	for i := 0; i < 2; i++ {
+		if out := in.Accept(site, "k", now, Event{ID: fmt.Sprint("e", i), Kind: "error", Level: "error", Occurrences: 1}); out.Reason != "" {
+			t.Fatalf("accept %d: %q", i, out.Reason)
+		}
+	}
+	if out := in.Admit(site, "k", now); out.Reason != ReasonRateLimited {
+		t.Fatalf("exhausted budget admitted: %+v", out)
+	}
+}

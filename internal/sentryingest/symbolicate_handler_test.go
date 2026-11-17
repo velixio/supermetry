@@ -1,8 +1,12 @@
 package sentryingest
 
 import (
+	"net/http/httptest"
+	"strings"
+
 	"fmt"
 	"net/http"
+	"supermetry/internal/sites"
 	"testing"
 	"time"
 
@@ -99,3 +103,34 @@ func TestHandlerEventsWithoutScriptFramesBypassTheQueue(t *testing.T) {
 		t.Fatal("a message event must reach the intake synchronously")
 	}
 }
+
+func TestHandlerBudgetExhaustedIs429EvenWhenSymbolicated(t *testing.T) {
+	v := loadVite(t)
+	run := func(withSymbolicator bool) []int {
+		reg := newRegistry(appSite(fdSite, sitesKey(fdKey)))
+		intake := appingest.NewIntake(appingest.Config{KeyBudgetPerMinute: 2})
+		h := NewHandler(reg, intake, nil, nil, nil, func() time.Time { return fdNow }).WithIPLimit(-1)
+		if withSymbolicator {
+			s := NewSymbolicator(newFakeArtifacts(), newMemBlobs(), SymbolicatorConfig{Stats: &Stats{}})
+			defer s.Close()
+			h.WithSymbolicator(s)
+		}
+		var codes []int
+		for i := 0; i < 6; i++ {
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, post(fdPath, fdQuery, jsEnvelope(v, fmt.Sprintf("%032d", i), "1.0.0"), nil))
+			codes = append(codes, w.Code)
+			if w.Code == http.StatusTooManyRequests && (w.Header().Get("Retry-After") == "" || !strings.HasPrefix(w.Header().Get("X-Sentry-Rate-Limits"), "60:")) {
+				t.Errorf("429 headers = %v", w.Header())
+			}
+			time.Sleep(20 * time.Millisecond) // let the worker take its token
+		}
+		return codes
+	}
+	without, with := run(false), run(true)
+	if fmt.Sprint(without) != fmt.Sprint(with) || with[len(with)-1] != http.StatusTooManyRequests {
+		t.Fatalf("without symbolicator %v, with %v", without, with)
+	}
+}
+
+func sitesKey(k string) sites.DSNKey { return sites.DSNKey{PublicKey: k} }

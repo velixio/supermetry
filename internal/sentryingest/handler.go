@@ -365,7 +365,13 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				out.eventID = ev.ID
 			}
 			applyRow(&ev, body.Row)
-			if h.symb != nil {
+			if h.symb != nil && needsSymbolication(body) {
+				// The queued event is accepted later, so answer an exhausted
+				// budget now: the sender must see 429, not a silent 200.
+				if res := h.intake.Admit(site, budgetKey, now); res.Reason != "" {
+					count(res)
+					continue
+				}
 				body.Attachments = attachments
 				site, now := site, now
 				if h.symb.SubmitWith(ev, body, body.Row.SDKFingerprint, func(ev appingest.Event, body appingest.Body) {

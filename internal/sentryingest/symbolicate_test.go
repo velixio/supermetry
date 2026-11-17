@@ -14,6 +14,7 @@ import (
 
 	"supermetry/internal/appingest"
 	"supermetry/internal/replay"
+	"supermetry/internal/sourcemap"
 )
 
 const viteDir = "../sourcemap/testdata/vite/"
@@ -473,5 +474,35 @@ func TestSymbolicateFunctionFromMapNames(t *testing.T) {
 	_, gb := col.wait(t)
 	if f := topFrame(gb); f.Function != "checkout" {
 		t.Fatalf("function = %q", f.Function)
+	}
+}
+
+// Sentry frames carry 1-based lineno and colno; source map v3 positions are
+// 0-based. The map below has generated line index 2 with segments at column
+// indices 4 and 9, so frame (3, 5) and (3, 10) are the two hits.
+func TestResolveFrameConvertsOneBasedPositions(t *testing.T) {
+	m, err := sourcemap.ParseMap([]byte(`{"version":3,"sources":["a.js"],"names":[],"mappings":";;IAAA,KAAK"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame := func(line, col int) appingest.Frame {
+		return appingest.Frame{AbsURL: "https://x.example/a.min.js", Lineno: line, Colno: col}
+	}
+	cases := []struct {
+		line, col         int
+		wantLine, wantCol int // output: 1-based line and column
+		ok                bool
+	}{
+		{3, 5, 1, 1, true},  // gen (2,4) -> orig (0,0)
+		{3, 10, 1, 6, true}, // gen (2,9) -> orig (0,5)
+		{3, 9, 1, 1, true},  // gen (2,8) is still inside the first segment
+		{2, 5, 0, 0, false}, // line index 1 has no mappings
+		{4, 5, 0, 0, false}, // line index 3 has none: never a neighbour line
+	}
+	for _, c := range cases {
+		got, ok := resolveFrame(m, frame(c.line, c.col))
+		if ok != c.ok || (ok && (got.Lineno != c.wantLine || got.Colno != c.wantCol)) {
+			t.Errorf("frame (%d,%d) = %d:%d ok=%v, want %d:%d ok=%v", c.line, c.col, got.Lineno, got.Colno, ok, c.wantLine, c.wantCol, c.ok)
+		}
 	}
 }
