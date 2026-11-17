@@ -197,6 +197,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	} else {
 		health.ReplayDiskLow.Store(0)
 	}
+	if created, err := sites.EnsureAppHashSecrets(ctx, pool); err != nil {
+		return fmt.Errorf("ensure app hash secrets: %w", err)
+	} else if created > 0 {
+		slog.Info("created app hash secrets", "sites", created)
+	}
 	databaseRegistry := sitesvc.NewRegistry(platformStore, 30*time.Second)
 	defer databaseRegistry.Close()
 	var registry sites.Registry = databaseRegistry
