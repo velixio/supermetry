@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "Content-Encoding": "gzip",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.cocoa/9.35.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.cocoa/9.35.0"
+  },
+  "sdk": "cocoa",
+  "sdk_version": "sentry.cocoa@9.35.0",
+  "synthetic": true,
+  "notes": "SYNTHETIC. sentry-cocoa@fedc5e3 Sources/Swift/Integrations/AppHangTracking/SentryHangTrackingIntegration.swift:98-121 (message 'App hanging for at least N ms.', mechanism AppHang, data key app_hang_duration at :24, stacktrace snapshot=true, threads, debug_meta); exception types: Sources/Swift/Integrations/AppHangTracking/SentryAppHangTypeMapper.swift:8-12. Level error and handled=true for a non-fatal hang are inference (fatal variants set handled=false at SentryHangTrackingIntegration.swift:190)."
+}
