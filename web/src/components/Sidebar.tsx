@@ -464,7 +464,7 @@ export function SupermetrySidebar({
           const headingId = `sidebar-${section.key}-heading`
           return (
             <SidebarGroup key={section.key}>
-              <SidebarGroupLabel asChild><h2 id={headingId}>{section.label}</h2></SidebarGroupLabel>
+              <SidebarGroupLabel asChild><h2 id={headingId}>{section.key === 'analyze' && site?.kind === 'app' ? en.a11y2.sidebarSections.appMonitoring : section.label}</h2></SidebarGroupLabel>
               <SidebarGroupContent>
                 <nav aria-labelledby={headingId}>
                   <SidebarMenu>
