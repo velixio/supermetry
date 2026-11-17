@@ -160,23 +160,22 @@ func TestHangClassification(t *testing.T) {
 // sessions are tracked by state (worst status of a session wins). Every number
 // is computed by hand from the envelope, not from the parser:
 //
-//   - crash-free sessions = 1 - (crashed + abnormal) / sessions; abnormal counts
-//     as not crash-free (plan Task 2, Sentry semantics).
+//   - crash-free sessions = 1 - crashed / sessions; abnormal (ANR, app hang,
+//     watchdog) is not a crash, as in Sentry, and is reported as its own count.
 //   - crash-free users = 1 - crashed users / users; aggregates carry no did, so
 //     they add sessions but no users and leave the user rate null.
 //
 // javascript: 1 session, ok                          -> sessions 1, cfs 1
 // node:       5+2 exited/errored, 3 exited, 1 crashed -> sessions 11, crashed 1, errored 2, cfs 10/11
-// python:     4 exited, 1 errored, 1 abnormal         -> sessions 6, abnormal 1, errored 1, cfs 5/6
+// python:     4 exited, 1 errored, 1 abnormal         -> sessions 6, abnormal 1, errored 1, cfs 1
 // electron:   1 session crashed, one install          -> sessions 1, crashed 1, users 1, cfs 0, cfu 0
-// android:    1 session abnormal (after an ANR)       -> sessions 1, abnormal 1, cfs 0
+// android:    1 session abnormal (after an ANR)       -> sessions 1, abnormal 1, users 1, cfs 1, cfu 1
 // cocoa:      1 session ok then crashed (one session) -> sessions 1, crashed 1, users 1, cfs 0, cfu 0
 type afterWant struct {
 	sessions, errored, crashed, abnormal int64
 	users, crashedUsers                  int64
 	cfs                                  float64
 	cfu                                  *float64 // nil: no users, rate is null
-	cfuUndefined                         bool     // abnormal-only user: the plan does not say whether it is a crashed user
 }
 
 func ptr(v float64) *float64 { return &v }
@@ -184,9 +183,9 @@ func ptr(v float64) *float64 { return &v }
 var afterSessions = map[string]afterWant{
 	"javascript": {sessions: 1, cfs: 1},
 	"node":       {sessions: 11, errored: 2, crashed: 1, cfs: 10.0 / 11},
-	"python":     {sessions: 6, errored: 1, abnormal: 1, cfs: 5.0 / 6},
+	"python":     {sessions: 6, errored: 1, abnormal: 1, cfs: 1},
 	"electron":   {sessions: 1, crashed: 1, users: 1, crashedUsers: 1, cfs: 0, cfu: ptr(0)},
-	"android":    {sessions: 1, abnormal: 1, users: 1, cfs: 0, cfuUndefined: true},
+	"android":    {sessions: 1, abnormal: 1, users: 1, cfs: 1, cfu: ptr(1)},
 	"cocoa":      {sessions: 1, crashed: 1, users: 1, crashedUsers: 1, cfs: 0, cfu: ptr(0)},
 }
 
@@ -197,11 +196,8 @@ func TestSessionExpectationsAreConsistent(t *testing.T) {
 		t.Fatalf("%d after-2a rows for %d fixtures", len(afterSessions), len(todaySessions))
 	}
 	for name, w := range afterSessions {
-		if got := 1 - float64(w.crashed+w.abnormal)/float64(w.sessions); math.Abs(got-w.cfs) > 1e-12 {
+		if got := 1 - float64(w.crashed)/float64(w.sessions); math.Abs(got-w.cfs) > 1e-12 {
 			t.Errorf("%s: crash-free sessions formula %v, table %v", name, got, w.cfs)
-		}
-		if w.cfuUndefined {
-			continue
 		}
 		if w.users == 0 {
 			if w.cfu != nil {
