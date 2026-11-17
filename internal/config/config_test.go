@@ -758,3 +758,47 @@ func TestNeutralPathsOnByDefaultAndSwitchable(t *testing.T) {
 		t.Fatalf("invalid value error = %v", err)
 	}
 }
+
+func TestLoadSMTPTLSModes(t *testing.T) {
+	tests := []struct {
+		name     string
+		env      map[string]string
+		startTLS bool
+		implicit bool
+		wantErr  string
+	}{
+		{name: "default is STARTTLS", env: nil, startTLS: true},
+		{name: "port 465 implies implicit TLS", env: map[string]string{"SUPERMETRY_SMTP_PORT": "465"}, implicit: true},
+		{name: "port 465 with legacy STARTTLS keeps it", env: map[string]string{"SUPERMETRY_SMTP_PORT": "465", "SUPERMETRY_SMTP_STARTTLS": "true"}, startTLS: true},
+		{name: "explicit implicit", env: map[string]string{"SUPERMETRY_SMTP_TLS": "implicit", "SUPERMETRY_SMTP_PORT": "2465"}, implicit: true},
+		{name: "explicit none", env: map[string]string{"SUPERMETRY_SMTP_TLS": "none", "SUPERMETRY_SMTP_PORT": "25"}},
+		{name: "legacy STARTTLS false is none", env: map[string]string{"SUPERMETRY_SMTP_STARTTLS": "false"}},
+		{name: "explicit starttls on 465", env: map[string]string{"SUPERMETRY_SMTP_TLS": "STARTTLS", "SUPERMETRY_SMTP_PORT": "465"}, startTLS: true},
+		{name: "invalid mode", env: map[string]string{"SUPERMETRY_SMTP_TLS": "ssl"}, wantErr: "SUPERMETRY_SMTP_TLS must be starttls, implicit or none"},
+		{name: "conflict", env: map[string]string{"SUPERMETRY_SMTP_TLS": "none", "SUPERMETRY_SMTP_STARTTLS": "true"}, wantErr: "disagree"},
+		{name: "auth needs TLS", env: map[string]string{"SUPERMETRY_SMTP_TLS": "none", "SUPERMETRY_SMTP_USER": "u"}, wantErr: "SUPERMETRY_SMTP_USER requires TLS"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values := baseEnv()
+			values["SUPERMETRY_SMTP_HOST"] = "smtp.example.test"
+			values["SUPERMETRY_SMTP_FROM"] = "supermetry@example.com"
+			for key, value := range tt.env {
+				values[key] = value
+			}
+			c, err := Load(env(values))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("error = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.SMTP.StartTLS != tt.startTLS || c.SMTP.ImplicitTLS != tt.implicit {
+				t.Fatalf("StartTLS=%v ImplicitTLS=%v", c.SMTP.StartTLS, c.SMTP.ImplicitTLS)
+			}
+		})
+	}
+}

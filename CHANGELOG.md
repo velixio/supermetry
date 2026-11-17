@@ -6,7 +6,14 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Fixed
+
+- A failed "email address changed" notice is now logged, and the deletion-notice log names the SMTP step that failed (never the recipient address).
+
 ### Added
+
+- **Email (SMTP) in the app.** Instance admins can set up outgoing email under Instance admin, Email (SMTP) (host, port, connection security, username, password, from, HELO name) and send a test email that reports the failing step. The settings live in the database with the password encrypted, apply without a restart, and the password is never shown again (`GET/PUT/DELETE /api/private/admin/email`, `POST /api/private/admin/email/test`). When `SUPERMETRY_SMTP_HOST` is set, the environment wins entirely and the screen is read-only. Not available on managed instances.
+- **Implicit TLS (SMTPS, port 465)** and the `SUPERMETRY_SMTP_TLS` variable (`starttls`, `implicit`, `none`). Without it, `SUPERMETRY_SMTP_STARTTLS` still applies, and port 465 with neither set uses implicit TLS. Certificates are always verified. A username without TLS is now rejected at startup instead of at the first send.
 
 - Five read-only **App Health tools** for AI assistants on the MCP server: `get_app_overview`, `list_app_issues`, `get_app_issue`, `get_app_compatibility` and `list_app_releases`. They use the same API key, `stats:read` scope and site restrictions as the other tools, work in every tracking mode, and never return install or session hashes. The web analytics tools now return a clear error on an app project, and the app tools on a web or pixel project.
 - Guides: [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md). They cover exporting, importing, mapping the tracking calls and attributes, and what does not carry over. The Umami guide includes a ready-to-run export query.

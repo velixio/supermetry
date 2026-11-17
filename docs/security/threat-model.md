@@ -329,7 +329,7 @@ Impersonation controls: the session lasts 1 hour with a hard expiry; the UI show
 | Site icon discovery | `safehttp` with private access always off; 3 redirects, each re-validated; 256/512 KiB caps; triggered by owner/admin | `internal/sites/icon/discover.go:19-67` (helper-reported) |
 | Telegram | Fixed host `api.telegram.org`, redirects off; no `safehttp` | `internal/alerts/telegram.go:47-62` (helper-reported) |
 | GeoIP update | Fixed MaxMind URL; 200 MiB caps; SHA-256 verified; `Authorization` stripped on redirect | `internal/geoupdate/update.go` (helper-reported) |
-| SMTP | Operator-configured host; STARTTLS default on, TLS 1.2 minimum | `internal/platform/mail/smtp.go` (helper-reported) |
+| SMTP | Operator-configured host; STARTTLS default on (or implicit TLS on port 465), certificates always verified, TLS 1.2 minimum; the password saved from the admin screen is sealed with the instance secret key | `internal/platform/mail/smtp.go` (helper-reported) |
 
 `safehttp` (`internal/safehttp/safehttp.go:20-77`) resolves the host, rejects the destination if **any** answer is in a blocked range, then dials the vetted IP (no DNS-rebinding gap). The blocked ranges are:
 

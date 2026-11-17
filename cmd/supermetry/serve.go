@@ -256,7 +256,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	profileErasureWorker := profileerasure.NewWorker(pool, profileErasures, replayStore, settings.clock, engine.InvalidateSite)
 	rollupBackfill := closer.NewRollupBackfill(pool, query.CurrentRollupLayout(), pauseRollupBackfill, engine.InvalidateSite)
 	heatmaps := heatmap.New(pool, registry)
-	sender := mail.NewSMTP(cfg.SMTP)
+	smtpBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, mail.SMTPSecretInfo)
+	if err != nil {
+		return fmt.Errorf("initialize SMTP encryption: %w", err)
+	}
+	// Environment settings win; otherwise the admin screen's settings apply, without a restart.
+	sender := mail.NewManager(cfg.SMTP, store.SMTPSettings{Data: platformStore}, smtpBox).WithBaseURL(cfg.BaseURL)
 	deletionNotices := lifecycle.NewNotices(pool, sender, cfg.BaseURL, settings.clock.Now)
 	secretBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/totp/v1")
 	if err != nil {
@@ -467,6 +472,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Demo:               demoService,
 		Overview:           overviewService,
 		Admin:              adminService,
+		Mail:               sender,
 	})
 	var publicAuthenticator api.Authenticator = apiAuthenticator
 	if compatibility != nil {
