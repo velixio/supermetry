@@ -111,7 +111,8 @@ func (h *Handler) routes() {
 	m.HandleFunc("PUT /api/0/organizations/{org}/releases/{version}/{$}", h.org(h.updateRelease))
 	m.HandleFunc("POST /api/0/organizations/{org}/releases/{version}/deploys/{$}", h.org(h.createDeploy))
 	m.HandleFunc("GET /api/0/organizations/{org}/releases/{version}/deploys/{$}", h.org(h.listDeploys))
-	m.HandleFunc("GET /api/0/organizations/{org}/releases/{version}/previous-with-commits/{$}", h.org(func(w http.ResponseWriter, _ *http.Request, _ *call) { notFound(w) }))
+	m.HandleFunc("GET /api/0/organizations/{org}/releases/{version}/previous-with-commits/{$}", h.org(h.previousWithCommits))
+	m.HandleFunc("GET /api/0/organizations/{org}/releases/{version}/commits/{$}", h.org(h.listCommits))
 	m.HandleFunc("GET /api/0/organizations/{org}/repos/{$}", h.org(func(w http.ResponseWriter, _ *http.Request, _ *call) { writeJSON(w, http.StatusOK, []any{}) }))
 	m.HandleFunc("/api/0/", func(w http.ResponseWriter, _ *http.Request) { notFound(w) })
 }
@@ -300,7 +301,11 @@ func (h *Handler) chunkOptions(w http.ResponseWriter, r *http.Request, c *call) 
 }
 
 func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
+	return readJSONMax(w, r, v, maxJSONBody)
+}
+
+func readJSONMax(w http.ResponseWriter, r *http.Request, v any, limit int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	dec := json.NewDecoder(r.Body)
 	if err := dec.Decode(v); err != nil {
 		writeDetail(w, http.StatusBadRequest, "invalid JSON body")
