@@ -6007,6 +6007,9 @@ type MergeAppIssuesJSONRequestBody = AppIssueMergeInput
 // UnmergeAppIssueJSONRequestBody defines body for UnmergeAppIssue for application/json ContentType.
 type UnmergeAppIssueJSONRequestBody = AppIssueUnmergeInput
 
+// EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
+type EraseAppUserJSONRequestBody = AppUserErase
+
 // CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
 type CreateCohortJSONRequestBody = CohortInput
 
