@@ -15,6 +15,7 @@ import (
 	"supermetry/internal/api"
 	"supermetry/internal/dict"
 	"supermetry/internal/privacy"
+	"supermetry/internal/sites"
 )
 
 // Funnel returns exact session counts for ordered page and custom-event steps.
@@ -26,7 +27,8 @@ func (e *Engine) Funnel(ctx context.Context, req api.FunnelRequest) (api.FunnelR
 	if e == nil || e.pool == nil || e.registry == nil {
 		return api.FunnelResponse{}, errors.New("query engine is not configured")
 	}
-	if _, ok := e.registry.Site(req.SiteId); !ok {
+	site, ok := e.registry.Site(req.SiteId)
+	if !ok {
 		return api.FunnelResponse{}, fmt.Errorf("unknown site %d", req.SiteId)
 	}
 	if len(req.Steps) < 2 {
@@ -75,7 +77,7 @@ func (e *Engine) Funnel(ctx context.Context, req api.FunnelRequest) (api.FunnelR
 	for _, dateRange := range ranges {
 		dateRange := dateRange
 		group.Go(func() error {
-			querySQL, args := buildFunnelSQL(req.SiteId, dateRange[0], dateRange[1], closedThrough, matchers, countBy, window)
+			querySQL, args := buildFunnelSQLFor(req.SiteId, dateRange[0], dateRange[1], closedThrough, matchers, countBy, window, site.Kind == sites.KindApp)
 			local := make([]int64, len(matchers))
 			if acquireErr := globalQuerySlots.Acquire(groupCtx, 1); acquireErr != nil {
 				return acquireErr
@@ -162,13 +164,20 @@ func (e *Engine) resolveFunnelStep(ctx context.Context, step api.FunnelStep) (fu
 }
 
 func buildFunnelSQL(siteID int32, from, to, closedThrough time.Time, matchers []funnelMatcher, countBy api.FunnelRequestCountBy, window api.FunnelRequestWindow) (string, []any) {
+	return buildFunnelSQLFor(siteID, from, to, closedThrough, matchers, countBy, window, false)
+}
+
+// buildFunnelSQLFor builds the funnel query. With app set, count_by=visitors
+// counts distinct installs (the stable visitor id) across the whole range
+// instead of daily identities or profiles.
+func buildFunnelSQLFor(siteID int32, from, to, closedThrough time.Time, matchers []funnelMatcher, countBy api.FunnelRequestCountBy, window api.FunnelRequestWindow, app bool) (string, []any) {
 	builder := &sqlBuilder{}
 	siteArg := builder.arg(siteID)
 	propertyCTEs, propertyNames := funnelPropertyCTEs(builder, siteArg, from, to, matchers)
 	if window == api.FunnelWindowSession {
-		return buildSessionFunnelSQL(builder, siteArg, from, to, closedThrough, matchers, countBy, propertyCTEs, propertyNames)
+		return buildSessionFunnelSQL(builder, siteArg, from, to, closedThrough, matchers, countBy, app, propertyCTEs, propertyNames)
 	}
-	return buildTimedFunnelSQL(builder, siteArg, from, to, closedThrough, matchers, countBy, window, propertyCTEs, propertyNames)
+	return buildTimedFunnelSQL(builder, siteArg, from, to, closedThrough, matchers, countBy, window, app, propertyCTEs, propertyNames)
 }
 
 func funnelPropertyCTEs(builder *sqlBuilder, siteArg string, from, to time.Time, matchers []funnelMatcher) ([]string, map[int]string) {
@@ -262,11 +271,14 @@ func funnelEventMatch(builder *sqlBuilder, alias string, index int, matcher funn
 	return "(" + condition + ")"
 }
 
-func funnelIdentity() string {
+func funnelIdentity(app bool) string {
+	if app {
+		return "'i:'||visitor_id::text"
+	}
 	return "case when profile_id is not null then 'p:'||profile_id::text else 'a:'||day::text||':'||visitor_id::text end"
 }
 
-func buildSessionFunnelSQL(builder *sqlBuilder, siteArg string, from, to, closedThrough time.Time, matchers []funnelMatcher, countBy api.FunnelRequestCountBy, propertyCTEs []string, propertyNames map[int]string) (string, []any) {
+func buildSessionFunnelSQL(builder *sqlBuilder, siteArg string, from, to, closedThrough time.Time, matchers []funnelMatcher, countBy api.FunnelRequestCountBy, app bool, propertyCTEs []string, propertyNames map[int]string) (string, []any) {
 	var sequences []string
 	closedTo := minTime(to, closedThrough)
 	if !closedTo.Before(from) {
@@ -297,7 +309,7 @@ group by s.local_day,s.visitor_id,s.session_id`)
 	ctes = append(ctes, "sequences_base as ("+strings.Join(sequences, " union all ")+")")
 	fromSQL, columns := funnelPropertyJoins("sequences_base s", []string{"s.*"}, propertyNames)
 	ctes = append(ctes, "sequences as (select "+strings.Join(columns, ",")+" from "+fromSQL+")")
-	ctes = append(ctes, "step0 as (select *,"+funnelIdentity()+" as identity_key,0::int8 as p0 from sequences)")
+	ctes = append(ctes, "step0 as (select *,"+funnelIdentity(app)+" as identity_key,0::int8 as p0 from sequences)")
 	for i, matcher := range matchers {
 		previous, current := "step"+strconv.Itoa(i), "step"+strconv.Itoa(i+1)
 		previousPosition, currentPosition := "p"+strconv.Itoa(i), "p"+strconv.Itoa(i+1)
@@ -323,7 +335,7 @@ group by s.local_day,s.visitor_id,s.session_id`)
 	return "with " + strings.Join(ctes, ",\n") + " select " + strings.Join(counts, ", ") + " from step" + strconv.Itoa(len(matchers)), builder.args
 }
 
-func buildTimedFunnelSQL(builder *sqlBuilder, siteArg string, from, to, closedThrough time.Time, matchers []funnelMatcher, countBy api.FunnelRequestCountBy, window api.FunnelRequestWindow, propertyCTEs []string, propertyNames map[int]string) (string, []any) {
+func buildTimedFunnelSQL(builder *sqlBuilder, siteArg string, from, to, closedThrough time.Time, matchers []funnelMatcher, countBy api.FunnelRequestCountBy, window api.FunnelRequestWindow, app bool, propertyCTEs []string, propertyNames map[int]string) (string, []any) {
 	var events []string
 	closedTo := minTime(to, closedThrough)
 	if !closedTo.Before(from) {
@@ -361,7 +373,7 @@ where s.site_id=`+siteArg+` and s.local_day between `+builder.arg(dateParam(hotF
 		matchAny[i] = funnelEventMatch(builder, "e", i, matcher, propertyNames)
 	}
 	ctes = append(ctes, "matched_events as (select "+strings.Join(matchedColumns, ",")+" from "+matchedFrom+" where "+strings.Join(matchAny, " or ")+")")
-	ctes = append(ctes, "identified_events as (select *,"+funnelIdentity()+" as identity_key from matched_events)")
+	ctes = append(ctes, "identified_events as (select *,"+funnelIdentity(app)+" as identity_key from matched_events)")
 	unit := "session_id::text"
 	if countBy == api.FunnelCountByVisitors {
 		unit = "identity_key"

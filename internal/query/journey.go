@@ -61,7 +61,7 @@ func (e *Engine) Journey(ctx context.Context, req api.JourneyRequest) (api.Journ
 	if err != nil {
 		return api.JourneyResponse{}, err
 	}
-	querySQL, args, err := buildJourneySQL(req, site.Retention, site.TZ, e.reportNow(), closedThrough)
+	querySQL, args, err := buildJourneySQLFor(req, site.Retention, site.TZ, e.reportNow(), closedThrough, site.Kind == sites.KindApp)
 	if err != nil {
 		return api.JourneyResponse{}, err
 	}
@@ -113,6 +113,12 @@ func validateJourneyRequest(req api.JourneyRequest, site sites.Site, now time.Ti
 }
 
 func buildJourneySQL(req api.JourneyRequest, retention db.RetentionClass, location *time.Location, now, closedThrough time.Time) (string, []any, error) {
+	return buildJourneySQLFor(req, retention, location, now, closedThrough, false)
+}
+
+// buildJourneySQLFor builds the journey query. With app set, visitors are
+// installs counted across the whole range rather than daily identities.
+func buildJourneySQLFor(req api.JourneyRequest, retention db.RetentionClass, location *time.Location, now, closedThrough time.Time, app bool) (string, []any, error) {
 	builder := &sqlBuilder{}
 	from, to := civilDate(req.DateRange.From.Time), civilDate(req.DateRange.To.Time)
 	if location == nil {
@@ -202,11 +208,15 @@ group by c.local_day,c.visitor_id,c.session_id,c.ended`)
 	if appendExit {
 		displayPaths = "case when ended and cardinality(" + displayPaths + ") < " + stepsArg + " then " + displayPaths + " || (-1)::int8 else " + displayPaths + " end"
 	}
+	visitorOrder := "local_day, visitor_id"
+	if app {
+		visitorOrder = "visitor_id"
+	}
 	ctes := append(hotCTEs, "sequences as ("+strings.Join(sequenceQueries, "\nunion all\n")+")")
 	querySQL := `with ` + strings.Join(ctes, ",\n") + `, indexed as (
   select *, ` + anchorIndex + ` as anchor_index from sequences
 ), displayed as (
-  select dense_rank() over (order by local_day, visitor_id) as vid,
+  select dense_rank() over (order by ` + visitorOrder + `) as vid,
          row_number() over (order by local_day, session_id) as sk,
          ended, ` + displayPaths + ` as paths
   from indexed where ` + anchorPredicate + `
