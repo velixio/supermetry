@@ -86,6 +86,9 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 	if err := ensureAppEventBodyPartitions(ctx, tx, from, to); err != nil {
 		return err
 	}
+	if err := ensureAppSessionPartitions(ctx, tx, from, to); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit partition creation: %w", err)
 	}
@@ -113,7 +116,23 @@ func EnsureAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, from, to 
 	if err := ensureAppEventBodyPartitions(ctx, tx, from, to); err != nil {
 		return err
 	}
+	if err := ensureAppSessionPartitions(ctx, tx, from, to); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
+}
+
+// ensureAppSessionPartitions creates app_sessions partitions when the table
+// exists (migration tests build older schemas).
+func ensureAppSessionPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
+	var has bool
+	if err := tx.QueryRow(ctx, `select to_regclass('app_sessions') is not null`).Scan(&has); err != nil {
+		return fmt.Errorf("check app_sessions: %w", err)
+	}
+	if !has {
+		return nil
+	}
+	return ensureMonthlyTimestampPartitions(ctx, tx, "app_sessions", from, to)
 }
 
 // ensureAppEventBodyPartitions creates app_event_bodies partitions when the
