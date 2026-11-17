@@ -54,7 +54,12 @@ type SMTP struct {
 	User     string
 	Pass     string
 	From     string
+	// StartTLS upgrades a plaintext connection with STARTTLS (port 587).
 	StartTLS bool
+	// ImplicitTLS wraps the connection in TLS from the first byte (SMTPS,
+	// port 465). It takes precedence over StartTLS. With both false the
+	// connection stays plaintext and authentication is refused.
+	ImplicitTLS bool
 	// Hello is the host name the client announces in EHLO (a real name, not
 	// "localhost": some providers delay mail from clients that say localhost).
 	// SUPERMETRY_SMTP_HELO, else the host of SUPERMETRY_BASE_URL, else the
@@ -413,13 +418,36 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 			c.SMTP.Port = value
 		}
 	}
-	if raw := getenv("SUPERMETRY_SMTP_STARTTLS"); raw != "" {
-		value, err := strconv.ParseBool(raw)
+	startTLSRaw := strings.TrimSpace(getenv("SUPERMETRY_SMTP_STARTTLS"))
+	if startTLSRaw != "" {
+		value, err := strconv.ParseBool(startTLSRaw)
 		if err != nil {
 			errs = append(errs, errors.New("SUPERMETRY_SMTP_STARTTLS must be a boolean"))
 		} else {
 			c.SMTP.StartTLS = value
 		}
+	}
+	// SUPERMETRY_SMTP_TLS picks the mode explicitly. Without it, the legacy
+	// SUPERMETRY_SMTP_STARTTLS applies, and an unset pair on port 465 means
+	// implicit TLS (SMTPS), which a STARTTLS client cannot speak anyway.
+	switch mode := strings.ToLower(strings.TrimSpace(getenv("SUPERMETRY_SMTP_TLS"))); mode {
+	case "":
+		if startTLSRaw == "" && c.SMTP.Port == 465 {
+			c.SMTP.StartTLS, c.SMTP.ImplicitTLS = false, true
+		}
+	case "starttls", "implicit", "none":
+		wantStartTLS := mode == "starttls"
+		if startTLSRaw != "" && c.SMTP.StartTLS != wantStartTLS && !(mode == "implicit" && !c.SMTP.StartTLS) {
+			errs = append(errs, errors.New("SUPERMETRY_SMTP_TLS and SUPERMETRY_SMTP_STARTTLS disagree; set only SUPERMETRY_SMTP_TLS"))
+			break
+		}
+		c.SMTP.StartTLS = wantStartTLS
+		c.SMTP.ImplicitTLS = mode == "implicit"
+	default:
+		errs = append(errs, errors.New("SUPERMETRY_SMTP_TLS must be starttls, implicit or none"))
+	}
+	if c.SMTP.Host != "" && c.SMTP.User != "" && !c.SMTP.StartTLS && !c.SMTP.ImplicitTLS {
+		errs = append(errs, errors.New("SUPERMETRY_SMTP_USER requires TLS: use SUPERMETRY_SMTP_TLS=starttls or implicit"))
 	}
 	if c.SMTP.Host != "" && c.SMTP.From == "" {
 		errs = append(errs, errors.New("SUPERMETRY_SMTP_FROM is required when SUPERMETRY_SMTP_HOST is set"))
