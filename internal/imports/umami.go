@@ -161,6 +161,8 @@ func parseUmamiTime(value string) (time.Time, error) {
 	for _, layout := range []string{
 		time.RFC3339Nano,
 		"2006-01-02 15:04:05.999999999-07:00",
+		// PostgreSQL's default timestamptz text, as written by psql \copy.
+		"2006-01-02 15:04:05.999999999-07",
 		"2006-01-02 15:04:05.999999999",
 		"2006-01-02 15:04:05",
 	} {
