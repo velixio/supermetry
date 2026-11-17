@@ -282,6 +282,29 @@ Open an issue to triage it. Owners, admins and editors can change an issue; view
 
 Through the private API, `PATCH /api/private/sites/{site}/app/issues/{issue}` takes any of `status`, `resolved_in_release`, `assignee` (a user id, `0` to unassign), `priority`, `snooze` (`until`, `events`, `users`), `archive` and `github_url`. Comments live under `.../issues/{issue}/comments` and the timeline at `.../issues/{issue}/activity`. A change that alters nothing writes no activity row.
 
+## Searching issues, saved views and bulk actions
+
+The query bar above the issue list takes a search. Terms are separated by spaces and all must match.
+
+| Term | Matches |
+|---|---|
+| `timeout`, `"null pointer"` | A bare word or quoted phrase in the title or culprit (case-insensitive substring) |
+| `is:unresolved` | `unresolved` (open or regressed), `resolved`, `ignored`, `archived`, `snoozed`, `assigned`, `unassigned` |
+| `assigned:me`, `assigned:none`, `assigned:ann@example.com` | Assignee. Owners, admins and editors can search by a member's email; for viewers an email never matches, so emails are not revealed |
+| `release:1.4.0`, `environment:prod`, `platform:linux`, `level:fatal` | Issues that had at least one event with that value (`"quoted value"` if it has spaces) |
+| `kind:crash`, `priority:high` | Issue kind and priority |
+| `first-seen:-24h`, `last-seen:+30d`, `first-seen:2026-11-01` | `-` is within the last, `+` is older than that (units `m`, `h`, `d`, `w`); a date is that UTC day |
+| `events:>10`, `users:<=3`, `events:7` | Events or affected users in the selected date range (`>`, `<`, `>=`, `<=`, or equal) |
+| `!is:ignored`, `!release:1.0.0`, `!flaky` | A leading `!` negates any term |
+
+An unknown key is an error that names the key and where it is; it is never ignored. A search can have at most 20 terms and 200 characters. Special characters are plain text: `%`, quotes and unicode only ever match literally. The search combines with the status tabs, kind, text and date filters of the page.
+
+**Saved views** keep a search under a name (up to 80 characters). A private view is visible only to you; a shared view is visible to everyone who can open the project. You can delete your own views, and owners and admins can change or delete shared ones. Viewers can use shared views but cannot save any.
+
+**Bulk actions:** tick issues in the list (or "Select all N matching issues") and resolve, ignore, archive, assign or set a priority in one step. Each change appears on every issue's activity timeline. At most 1,000 issues change at once, and a bulk change only ever touches issues of the project you are in. The private API is `POST /api/private/sites/{site}/app/issues/bulk` with `{"ids": [...], "change": {...}}` or `{"query": "...", "change": {...}}`; the reply lists `updated` ids and `skipped` ids that are not issues of this project. Saved views live under `.../app/views`. The search itself is the `query` parameter of `GET .../app/issues`; a syntax error is a 400 whose `position` is the character offset of the problem.
+
+The issue list filters by the tags each issue's events carried (release, environment, platform, level, OS version, browser and device class). Those per-issue tag counts are rebuilt by the same rollup as the daily counts, which runs every ten minutes, so a very new event can take up to about ten minutes to be found by a `release:` or `level:` term.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.
@@ -292,6 +315,7 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_events.csv` | Stored events in the range: event id, timestamp, issue id, kind, level, release, dist, environment, platform, SDK name and version, OS version, architecture, device class, runtime, symbolication status, occurrences |
 | `app_releases.csv`, `app_deploys.csv` | Releases and deploys created in the range that apply to the project |
 | `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
+| `app_saved_views.csv` | Shared saved searches: id, name, query, owner id, created. Private views are not exported |
 | `app_issue_activity.csv`, `app_issue_comments.csv` | The issue timeline and the comments written in the range (deleted comments are left out). Authors and actors appear as organisation member ids |
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
@@ -302,4 +326,4 @@ The export never includes end-user identifiers or hashes, install or session has
 An AI assistant connected to the [MCP server](../api.md#mcp-for-ai-assistants) can read
 an app's health with an API key that has the `stats:read` scope: the overview, open
 issues, one issue with its latest events, the compatibility matrix and the releases.
-The tools are read-only, so an assistant cannot resolve or ignore issues.
+The tools are read-only, so an assistant cannot resolve or ignore issues. `list_app_issues` takes an optional `query` in the search syntax above (without `assigned:me` or emails, which need a signed-in user), and `search_app_events` returns the newest events of the issues a query matches: event ids, times, issue ids, release and platform, up to 50, and never event bodies or user identifiers.
