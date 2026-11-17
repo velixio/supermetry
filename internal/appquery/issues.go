@@ -100,7 +100,7 @@ with agg as (
 select i.id, i.title, i.kind, i.error_type, i.status, i.first_seen, i.last_seen, i.first_release, i.last_release,
        a.events, a.users, i.assignee_user_id, coalesce(u.name, ''), i.priority, count(*) over ()
 from app_issues i join agg a on a.issue_id = i.id left join users u on u.id = i.assignee_user_id
-where i.site_id = $1 and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8)
+where i.site_id = $1 and i.merged_into is null and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8)
   and ($9 = '' or i.title ilike $10 escape '\' or i.error_type ilike $10 escape '\')
 order by `+order+`
 limit $11 offset $12`, args...)
@@ -227,6 +227,7 @@ type IssueDetail struct {
 	SnoozeUsers             *int64                 `json:"snooze_users"`
 	ArchivedUntilEscalating bool                   `json:"archived_until_escalating"`
 	GitHubURL               *string                `json:"github_url"`
+	MergedInto              *int64                 `json:"merged_into"`
 	Series                  []IssueDay             `json:"series"`
 	Breakdowns              map[string][]Breakdown `json:"breakdowns"`
 	LatestEvents            []EventSample          `json:"latest_events"`
@@ -250,10 +251,10 @@ func (q *Querier) Issue(ctx context.Context, scope Scope, id int64, f Filter) (I
 	var d IssueDetail
 	err = q.pool.QueryRow(ctx, `
 select i.id, i.title, i.kind, i.error_type, i.status, i.first_seen, i.last_seen, i.first_release, i.last_release, i.resolved_in_release, i.resolved_next, i.event_count,
-       i.assignee_user_id, coalesce(u.name, ''), i.priority, i.snooze_until, i.snooze_events, i.snooze_users, i.archived_until_escalating, i.github_url
+       i.assignee_user_id, coalesce(u.name, ''), i.priority, i.snooze_until, i.snooze_events, i.snooze_users, i.archived_until_escalating, i.github_url, i.merged_into
 from app_issues i left join users u on u.id = i.assignee_user_id where i.id = $1 and i.site_id = $2`, id, scope.SiteID).
 		Scan(&d.ID, &d.Title, &d.Kind, &d.ErrorType, &d.Status, &d.FirstSeen, &d.LastSeen, &d.FirstRelease, &d.LastRelease, &d.ResolvedInRelease, &d.ResolvedNext, &d.EventCount,
-			&d.AssigneeUserID, &d.AssigneeName, &d.Priority, &d.SnoozeUntil, &d.SnoozeEvents, &d.SnoozeUsers, &d.ArchivedUntilEscalating, &d.GitHubURL)
+			&d.AssigneeUserID, &d.AssigneeName, &d.Priority, &d.SnoozeUntil, &d.SnoozeEvents, &d.SnoozeUsers, &d.ArchivedUntilEscalating, &d.GitHubURL, &d.MergedInto)
 	if err != nil {
 		if isNoRows(err) {
 			return IssueDetail{}, ErrNotFound

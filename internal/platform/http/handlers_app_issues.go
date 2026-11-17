@@ -1,6 +1,7 @@
 package platformhttp
 
 import (
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -246,4 +247,98 @@ where m.org_id = $1 and (m.site_ids is null or $2 = any(m.site_ids)) order by lo
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"members": out})
+}
+
+type appMergeBody struct {
+	SourceIDs []int64 `json:"source_ids"`
+}
+
+// mergeAppIssues folds other issues of the project into the issue in the path.
+func (h *handler) mergeAppIssues(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	var in appMergeBody
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		if err := h.appIssues().MergeTx(r.Context(), tx, site.ID, id, in.SourceIDs, appIssueActor(principal)); err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "app.issues_merged", "app_issue", id, map[string]any{"site_id": site.ID, "sources": in.SourceIDs})
+	})
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"merged": in.SourceIDs})
+}
+
+func (h *handler) listMergedAppIssues(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	list, err := h.appIssues().Merged(r.Context(), site.ID, id)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"merged": list})
+}
+
+type appUnmergeBody struct {
+	Hashes []string `json:"hashes"`
+}
+
+// unmergeAppIssue splits merged issues back out by fingerprint hash.
+func (h *handler) unmergeAppIssue(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	var in appUnmergeBody
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	hashes := make([][]byte, 0, len(in.Hashes))
+	for _, s := range in.Hashes {
+		b, err := hex.DecodeString(s)
+		if err != nil || len(b) != 32 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "each hash must be 64 hex characters")
+			return
+		}
+		hashes = append(hashes, b)
+	}
+	var newID int64
+	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		var err error
+		newID, err = h.appIssues().UnmergeTx(r.Context(), tx, site.ID, id, hashes, appIssueActor(principal))
+		if err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "app.issues_unmerged", "app_issue", id, map[string]any{"site_id": site.ID, "hashes": len(hashes)})
+	})
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"issue_id": newID})
 }

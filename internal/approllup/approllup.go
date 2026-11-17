@@ -48,6 +48,16 @@ func CrashedSessionsExpr(prefix string) string {
 		" + coalesce(sum(" + prefix + "occurrences) filter (where " + crashedRow + " and " + prefix + "session_hash is null), 0))"
 }
 
+// LockSite takes the per-site advisory lock that serialises rollup rewrites
+// for the rest of tx. Merging issues rewrites rollup rows outside the
+// scheduler job and takes the same lock.
+func LockSite(ctx context.Context, tx pgx.Tx, siteID int32) error {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1, $2)`, int32(lockClass), siteID); err != nil {
+		return fmt.Errorf("lock app rollups: %w", err)
+	}
+	return nil
+}
+
 func location(name string) *time.Location {
 	loc, err := time.LoadLocation(name)
 	if err != nil {

@@ -66,9 +66,9 @@ func (q *Querier) Releases(ctx context.Context, scope Scope, f Filter) ([]Releas
 	}
 	counts, err := q.pool.Query(ctx, `
 select release, count(*) filter (where is_first), count(*) filter (where is_last and status = 'regressed') from (
-  select first_release as release, true as is_first, false as is_last, status from app_issues where site_id = $1 and first_release = any($2)
+  select first_release as release, true as is_first, false as is_last, status from app_issues where site_id = $1 and merged_into is null and first_release = any($2)
   union all
-  select last_release, false, true, status from app_issues where site_id = $1 and last_release = any($2)
+  select last_release, false, true, status from app_issues where site_id = $1 and merged_into is null and last_release = any($2)
 ) t group by release`, scope.SiteID, names)
 	if err != nil {
 		return nil, fmt.Errorf("count release issues: %w", err)
