@@ -45,6 +45,7 @@ type Handler struct {
 	intake    *appingest.Intake
 	bodies    BodyQueue
 	reports   ClientReportSink
+	feedback  FeedbackSink
 	geo       GeoLookup
 	trusted   []netip.Prefix
 	now       func() time.Time
@@ -69,6 +70,10 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 
 // WithClientReports sets where client-report counts go; nil discards them.
 func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r; return h }
+
+// WithFeedback sets where scrubbed user reports go; nil counts and discards
+// them.
+func (h *Handler) WithFeedback(f FeedbackSink) *Handler { h.feedback = f; return h }
 
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
 // function makes event items counted and dropped.
@@ -274,8 +279,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	events := 0
 	for _, it := range env.Items {
-		if it.Type == "event" {
-			events++
+		if it.Type == "event" || isFeedbackItem(it.Type) {
+			events++ // reports count toward spike protection like events
 		}
 	}
 	var cspEvents []appingest.Event
@@ -425,6 +430,18 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			for _, ev := range events {
 				count(h.intake.Accept(site, budgetKey, now, ev))
 			}
+		case "feedback", "user_report":
+			item, err := ParseFeedback(it.Type, it.Payload, site, now)
+			switch {
+			case err != nil:
+				h.stats.Add("feedback_invalid", 1)
+			case h.feedback == nil:
+				h.stats.Add("feedback_discarded", 1)
+			case h.feedback.Add(item):
+				h.stats.Add("feedback_stored", 1)
+			default:
+				h.stats.Add("feedback_dropped", 1)
+			}
 		case "client_report":
 			if counts, err := ParseClientReport(it.Payload); err == nil {
 				var total int64
@@ -454,6 +471,8 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 	}
 	return out
 }
+
+func isFeedbackItem(t string) bool { return t == "feedback" || t == "user_report" }
 
 // applyRow copies the normaliser's extra columns onto the event.
 func applyRow(ev *appingest.Event, r appingest.RowExtras) {
