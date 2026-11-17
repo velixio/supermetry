@@ -11,7 +11,7 @@
     "build": "shopify app build",
     "dev": "shopify app dev",
     "deploy": "shopify app deploy",
-    "test": "node --test extensions/supermetry-pixel/test/"
+    "test": "node --test extensions/supermetry-pixel/test/*.test.js"
   },
   "dependencies": {
     "@shopify/app": "^3",
