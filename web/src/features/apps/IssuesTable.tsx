@@ -19,7 +19,7 @@ import { Sparkline } from './Sparkline'
 
 const PAGE_SIZE = 50
 const ALL = '__all__'
-const STATUS_LABELS: Record<IssueStatusTab, string> = { open: 'Open', regressed: 'Regressed', resolved: 'Resolved', ignored: 'Ignored', all: 'All' }
+const STATUS_LABELS: Record<IssueStatusTab, string> = { open: 'Open', regressed: 'Regressed', resolved: 'Resolved', ignored: 'Ignored', archived: 'Archived', all: 'All' }
 const SORT_LABELS: Record<IssueSort, string> = { last_seen: 'Last seen', events: 'Events', users: 'Users' }
 
 export function StatusBadge({ status }: { status: string }) {

@@ -39,15 +39,37 @@ func (e *Exporter) writeApp(ctx context.Context, archive *zip.Writer, siteID int
 
 	issues := `
 select i.id,i.title,i.culprit,i.level,i.status,i.kind,i.error_type,` + utc("i.first_seen") + `,` + utc("i.last_seen") + `,
- i.event_count,i.first_release,i.last_release,coalesce(i.resolved_in_release,'')
+ i.event_count,i.first_release,i.last_release,coalesce(i.resolved_in_release,''),
+ i.priority,coalesce(i.assignee_user_id::text,''),coalesce(i.github_url,'')
 from app_issues i
 where i.site_id=$1 and i.last_seen >= ($2::date)::timestamp at time zone $4
   and i.first_seen < (($3::date)+1)::timestamp at time zone $4
 order by i.id`
 	if err := e.writeRows(ctx, archive, "app_issues.csv", []string{
 		"issue_id", "title", "culprit", "level", "status", "kind", "error_type", "first_seen", "last_seen",
-		"occurrences", "first_release", "last_release", "resolved_in_release",
+		"occurrences", "first_release", "last_release", "resolved_in_release", "priority", "assignee_id", "github_url",
 	}, issues, siteID, f, t, tz); err != nil {
+		return err
+	}
+
+	// Activity and comments are team content, exported as written; actors are
+	// organisation user ids.
+	activity := `
+select a.id,a.issue_id,` + utc("a.at") + `,a.kind,coalesce(a.actor_user_id::text,''),a.data::text
+from app_issue_activity a
+where a.site_id=$1 and ` + inWindow("a.at") + `
+order by a.at,a.id`
+	if err := e.writeRows(ctx, archive, "app_issue_activity.csv",
+		[]string{"activity_id", "issue_id", "at", "kind", "actor_id", "data"}, activity, siteID, f, t, tz); err != nil {
+		return err
+	}
+	comments := `
+select c.id,c.issue_id,coalesce(c.author_user_id::text,''),` + utc("c.created_at") + `,coalesce(` + utc("c.edited_at") + `,''),c.body
+from app_issue_comments c
+where c.site_id=$1 and c.deleted_at is null and ` + inWindow("c.created_at") + `
+order by c.created_at,c.id`
+	if err := e.writeRows(ctx, archive, "app_issue_comments.csv",
+		[]string{"comment_id", "issue_id", "author_id", "created", "edited", "text"}, comments, siteID, f, t, tz); err != nil {
 		return err
 	}
 

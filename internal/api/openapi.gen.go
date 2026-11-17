@@ -517,6 +517,90 @@ func (e AppEventsResponseWarningsReason) Valid() bool {
 	}
 }
 
+// Defines values for AppIssueChangePriority.
+const (
+	AppIssueChangePriorityHigh   AppIssueChangePriority = "high"
+	AppIssueChangePriorityLow    AppIssueChangePriority = "low"
+	AppIssueChangePriorityMedium AppIssueChangePriority = "medium"
+)
+
+// Valid indicates whether the value is a known member of the AppIssueChangePriority enum.
+func (e AppIssueChangePriority) Valid() bool {
+	switch e {
+	case AppIssueChangePriorityHigh:
+		return true
+	case AppIssueChangePriorityLow:
+		return true
+	case AppIssueChangePriorityMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppIssueChangeStatus.
+const (
+	AppIssueChangeStatusIgnored  AppIssueChangeStatus = "ignored"
+	AppIssueChangeStatusOpen     AppIssueChangeStatus = "open"
+	AppIssueChangeStatusResolved AppIssueChangeStatus = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the AppIssueChangeStatus enum.
+func (e AppIssueChangeStatus) Valid() bool {
+	switch e {
+	case AppIssueChangeStatusIgnored:
+		return true
+	case AppIssueChangeStatusOpen:
+		return true
+	case AppIssueChangeStatusResolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppIssueDetailPriority.
+const (
+	AppIssueDetailPriorityHigh   AppIssueDetailPriority = "high"
+	AppIssueDetailPriorityLow    AppIssueDetailPriority = "low"
+	AppIssueDetailPriorityMedium AppIssueDetailPriority = "medium"
+)
+
+// Valid indicates whether the value is a known member of the AppIssueDetailPriority enum.
+func (e AppIssueDetailPriority) Valid() bool {
+	switch e {
+	case AppIssueDetailPriorityHigh:
+		return true
+	case AppIssueDetailPriorityLow:
+		return true
+	case AppIssueDetailPriorityMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppIssueRowPriority.
+const (
+	AppIssueRowPriorityHigh   AppIssueRowPriority = "high"
+	AppIssueRowPriorityLow    AppIssueRowPriority = "low"
+	AppIssueRowPriorityMedium AppIssueRowPriority = "medium"
+)
+
+// Valid indicates whether the value is a known member of the AppIssueRowPriority enum.
+func (e AppIssueRowPriority) Valid() bool {
+	switch e {
+	case AppIssueRowPriorityHigh:
+		return true
+	case AppIssueRowPriorityLow:
+		return true
+	case AppIssueRowPriorityMedium:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppUserErasureStatus.
 const (
 	AppUserErasureStatusDone    AppUserErasureStatus = "done"
@@ -2792,19 +2876,91 @@ type AppIngestKeyList struct {
 	} `json:"keys"`
 }
 
+// AppIssueActivity defines model for AppIssueActivity.
+type AppIssueActivity struct {
+	ActorName string `json:"actor_name"`
+
+	// ActorUserId Null for the system.
+	ActorUserId int64     `json:"actor_user_id"`
+	At          time.Time `json:"at"`
+
+	// Data Kind-specific details, for example {"from","to"} for status and priority.
+	Data map[string]interface{} `json:"data"`
+	Id   int64                  `json:"id"`
+
+	// Kind status, assigned, unassigned, priority, snoozed, archived, escalated, commented, merged, unmerged, github_linked, regressed or first_seen.
+	Kind string `json:"kind"`
+}
+
+// AppIssueChange A partial update; at least one field is required. Omitted fields are left alone.
+type AppIssueChange struct {
+	// Archive true archives until the issue escalates, false unarchives to open. Not combinable with status or snooze.
+	Archive *bool `json:"archive,omitempty"`
+
+	// Assignee An organisation member with access to the project; 0 unassigns.
+	Assignee *int64 `json:"assignee,omitempty"`
+
+	// GithubUrl A link to an existing GitHub issue, https://github.com/<owner>/<repo>/issues/<number>; "" unlinks.
+	GithubUrl *string                 `json:"github_url,omitempty"`
+	Priority  *AppIssueChangePriority `json:"priority,omitempty"`
+
+	// ResolvedInRelease A release, or "next". Only with status resolved.
+	ResolvedInRelease *string `json:"resolved_in_release,omitempty"`
+
+	// Snooze Ignores the issue until a time passes or it has had that many more events or users. At least one limit is required; not combinable with status.
+	Snooze *struct {
+		Events *int64     `json:"events,omitempty"`
+		Until  *time.Time `json:"until,omitempty"`
+		Users  *int64     `json:"users,omitempty"`
+	} `json:"snooze,omitempty"`
+
+	// Status Leaving ignored or archived ends the snooze or archive.
+	Status *AppIssueChangeStatus `json:"status,omitempty"`
+}
+
+// AppIssueChangePriority defines model for AppIssueChange.Priority.
+type AppIssueChangePriority string
+
+// AppIssueChangeStatus Leaving ignored or archived ends the snooze or archive.
+type AppIssueChangeStatus string
+
+// AppIssueComment defines model for AppIssueComment.
+type AppIssueComment struct {
+	AuthorName   string    `json:"author_name"`
+	AuthorUserId int64     `json:"author_user_id"`
+	Body         string    `json:"body"`
+	CreatedAt    time.Time `json:"created_at"`
+	EditedAt     time.Time `json:"edited_at"`
+	Id           int64     `json:"id"`
+	IssueId      int64     `json:"issue_id"`
+}
+
+// AppIssueCommentInput defines model for AppIssueCommentInput.
+type AppIssueCommentInput struct {
+	Body string `json:"body"`
+}
+
 // AppIssueDetail defines model for AppIssueDetail.
 type AppIssueDetail struct {
+	ArchivedUntilEscalating bool `json:"archived_until_escalating"`
+
+	// AssigneeName Empty when unassigned.
+	AssigneeName   string `json:"assignee_name"`
+	AssigneeUserId int64  `json:"assignee_user_id"`
+
 	// Breakdowns Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`.
 	Breakdowns        map[string][]AppBreakdown `json:"breakdowns"`
 	ErrorType         string                    `json:"error_type"`
 	EventCount        int64                     `json:"event_count"`
 	FirstRelease      string                    `json:"first_release"`
 	FirstSeen         time.Time                 `json:"first_seen"`
+	GithubUrl         string                    `json:"github_url"`
 	Id                int64                     `json:"id"`
 	Kind              string                    `json:"kind"`
 	LastRelease       string                    `json:"last_release"`
 	LastSeen          time.Time                 `json:"last_seen"`
 	LatestEvents      []AppEventSample          `json:"latest_events"`
+	Priority          AppIssueDetailPriority    `json:"priority"`
 	ResolvedInRelease string                    `json:"resolved_in_release"`
 	ResolvedNext      bool                      `json:"resolved_next"`
 	Series            []struct {
@@ -2812,11 +2968,17 @@ type AppIssueDetail struct {
 		Events   int64              `json:"events"`
 		Installs int64              `json:"installs"`
 	} `json:"series"`
+	SnoozeEvents int64     `json:"snooze_events"`
+	SnoozeUntil  time.Time `json:"snooze_until"`
+	SnoozeUsers  int64     `json:"snooze_users"`
 
-	// Status open, resolved, ignored or regressed.
+	// Status open, resolved, ignored, regressed or archived.
 	Status string `json:"status"`
 	Title  string `json:"title"`
 }
+
+// AppIssueDetailPriority defines model for AppIssueDetail.Priority.
+type AppIssueDetailPriority string
 
 // AppIssueList defines model for AppIssueList.
 type AppIssueList struct {
@@ -2827,41 +2989,41 @@ type AppIssueList struct {
 
 // AppIssueRow defines model for AppIssueRow.
 type AppIssueRow struct {
-	ErrorType    string    `json:"error_type"`
-	Events       int64     `json:"events"`
-	FirstRelease string    `json:"first_release"`
-	FirstSeen    time.Time `json:"first_seen"`
-	Id           int64     `json:"id"`
-	Kind         string    `json:"kind"`
-	LastRelease  string    `json:"last_release"`
-	LastSeen     time.Time `json:"last_seen"`
+	// AssigneeName Empty when unassigned.
+	AssigneeName   string              `json:"assignee_name"`
+	AssigneeUserId int64               `json:"assignee_user_id"`
+	ErrorType      string              `json:"error_type"`
+	Events         int64               `json:"events"`
+	FirstRelease   string              `json:"first_release"`
+	FirstSeen      time.Time           `json:"first_seen"`
+	Id             int64               `json:"id"`
+	Kind           string              `json:"kind"`
+	LastRelease    string              `json:"last_release"`
+	LastSeen       time.Time           `json:"last_seen"`
+	Priority       AppIssueRowPriority `json:"priority"`
 
 	// Sparkline Daily events over the range
 	Sparkline []int64 `json:"sparkline"`
 
-	// Status open, resolved, ignored or regressed.
+	// Status open, resolved, ignored, regressed or archived.
 	Status string `json:"status"`
 	Title  string `json:"title"`
 	Users  int64  `json:"users"`
 }
 
+// AppIssueRowPriority defines model for AppIssueRow.Priority.
+type AppIssueRowPriority string
+
 // AppIssueStatus defines model for AppIssueStatus.
 type AppIssueStatus struct {
-	Id                int64  `json:"id"`
-	ResolvedInRelease string `json:"resolved_in_release"`
-	ResolvedNext      bool   `json:"resolved_next"`
+	Id                int64   `json:"id"`
+	ResolvedInRelease string  `json:"resolved_in_release"`
+	ResolvedNext      bool    `json:"resolved_next"`
+	Skipped           []int64 `json:"skipped"`
 
-	// Status open, resolved or ignored.
-	Status string `json:"status"`
-}
-
-// AppIssueStatusInput defines model for AppIssueStatusInput.
-type AppIssueStatusInput struct {
-	// ResolvedInRelease A release, or "next". Only with status resolved.
-	ResolvedInRelease *string `json:"resolved_in_release,omitempty"`
-
-	// Status open, resolved or ignored.
-	Status string `json:"status"`
+	// Status open, resolved, ignored or archived.
+	Status  string  `json:"status"`
+	Updated []int64 `json:"updated"`
 }
 
 // AppLink defines model for AppLink.
@@ -5379,6 +5541,12 @@ type GetAppIssueParams struct {
 	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
 }
 
+// ListAppIssueActivityParams defines parameters for ListAppIssueActivity.
+type ListAppIssueActivityParams struct {
+	Limit  *int       `form:"limit,omitempty" json:"limit,omitempty"`
+	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
+}
+
 // GetAppOverviewParams defines parameters for GetAppOverview.
 type GetAppOverviewParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
@@ -5800,8 +5968,14 @@ type UpdateAppSettingsJSONRequestBody = AppSettings
 // CreateAppDSNKeyJSONRequestBody defines body for CreateAppDSNKey for application/json ContentType.
 type CreateAppDSNKeyJSONRequestBody = AppDSNKeyCreate
 
-// UpdateAppIssueStatusJSONRequestBody defines body for UpdateAppIssueStatus for application/json ContentType.
-type UpdateAppIssueStatusJSONRequestBody = AppIssueStatusInput
+// UpdateAppIssueJSONRequestBody defines body for UpdateAppIssue for application/json ContentType.
+type UpdateAppIssueJSONRequestBody = AppIssueChange
+
+// CreateAppIssueCommentJSONRequestBody defines body for CreateAppIssueComment for application/json ContentType.
+type CreateAppIssueCommentJSONRequestBody = AppIssueCommentInput
+
+// EditAppIssueCommentJSONRequestBody defines body for EditAppIssueComment for application/json ContentType.
+type EditAppIssueCommentJSONRequestBody = AppIssueCommentInput
 
 // EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
 type EraseAppUserJSONRequestBody = AppUserErase
@@ -6653,6 +6827,9 @@ type ServerInterface interface {
 	// UpdateAppSettings Replace an app project's settings; lists are lower-cased, deduped and sorted
 	// (PUT /api/private/sites/{site}/app-settings)
 	UpdateAppSettings(w http.ResponseWriter, r *http.Request, site int32)
+	// ListAppAssignees Organisation members who can be assigned issues of the project
+	// (GET /api/private/sites/{site}/app/assignees)
+	ListAppAssignees(w http.ResponseWriter, r *http.Request, site int32)
 	// GetAppCompatibility Crash and install counts per platform, OS version, architecture and device class
 	// (GET /api/private/sites/{site}/app/compatibility)
 	GetAppCompatibility(w http.ResponseWriter, r *http.Request, site int32, params GetAppCompatibilityParams)
@@ -6674,9 +6851,24 @@ type ServerInterface interface {
 	// GetAppIssue One issue with its daily series, breakdowns and latest events
 	// (GET /api/private/sites/{site}/app/issues/{issue})
 	GetAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64, params GetAppIssueParams)
-	// UpdateAppIssueStatus Resolve, ignore or reopen an issue
+	// UpdateAppIssue Change an issue's status, assignee, priority, snooze, archive state or GitHub link
 	// (PATCH /api/private/sites/{site}/app/issues/{issue})
-	UpdateAppIssueStatus(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	UpdateAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// ListAppIssueActivity The issue's activity timeline, newest first
+	// (GET /api/private/sites/{site}/app/issues/{issue}/activity)
+	ListAppIssueActivity(w http.ResponseWriter, r *http.Request, site int32, issue int64, params ListAppIssueActivityParams)
+	// ListAppIssueComments The issue's comments, oldest first (at most 500)
+	// (GET /api/private/sites/{site}/app/issues/{issue}/comments)
+	ListAppIssueComments(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// CreateAppIssueComment Comment on an issue
+	// (POST /api/private/sites/{site}/app/issues/{issue}/comments)
+	CreateAppIssueComment(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// DeleteAppIssueComment Delete a comment
+	// (DELETE /api/private/sites/{site}/app/issues/{issue}/comments/{comment})
+	DeleteAppIssueComment(w http.ResponseWriter, r *http.Request, site int32, issue int64, comment int64)
+	// EditAppIssueComment Edit a comment
+	// (PATCH /api/private/sites/{site}/app/issues/{issue}/comments/{comment})
+	EditAppIssueComment(w http.ResponseWriter, r *http.Request, site int32, issue int64, comment int64)
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
@@ -9922,6 +10114,32 @@ func (siw *ServerInterfaceWrapper) UpdateAppSettings(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListAppAssignees operation middleware
+func (siw *ServerInterfaceWrapper) ListAppAssignees(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppAssignees(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppCompatibility operation middleware
 func (siw *ServerInterfaceWrapper) GetAppCompatibility(w http.ResponseWriter, r *http.Request) {
 
@@ -10413,8 +10631,8 @@ func (siw *ServerInterfaceWrapper) GetAppIssue(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
-// UpdateAppIssueStatus operation middleware
-func (siw *ServerInterfaceWrapper) UpdateAppIssueStatus(w http.ResponseWriter, r *http.Request) {
+// UpdateAppIssue operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppIssue(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -10438,7 +10656,229 @@ func (siw *ServerInterfaceWrapper) UpdateAppIssueStatus(w http.ResponseWriter, r
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateAppIssueStatus(w, r, site, issue)
+		siw.Handler.UpdateAppIssue(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppIssueActivity operation middleware
+func (siw *ServerInterfaceWrapper) ListAppIssueActivity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAppIssueActivityParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppIssueActivity(w, r, site, issue, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppIssueComments operation middleware
+func (siw *ServerInterfaceWrapper) ListAppIssueComments(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppIssueComments(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAppIssueComment operation middleware
+func (siw *ServerInterfaceWrapper) CreateAppIssueComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAppIssueComment(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppIssueComment operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppIssueComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "comment" -------------
+	var comment int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "comment", r.PathValue("comment"), &comment, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "comment", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppIssueComment(w, r, site, issue, comment)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EditAppIssueComment operation middleware
+func (siw *ServerInterfaceWrapper) EditAppIssueComment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "issue" -------------
+	var issue int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "issue", r.PathValue("issue"), &issue, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "issue", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "comment" -------------
+	var comment int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "comment", r.PathValue("comment"), &comment, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "comment", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EditAppIssueComment(w, r, site, issue, comment)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14816,7 +15256,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.GetAppIssue)
-	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.UpdateAppIssueStatus)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.UpdateAppIssue)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments", wrapper.ListAppIssueComments)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments", wrapper.CreateAppIssueComment)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.DeleteAppIssueComment)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments/{comment}", wrapper.EditAppIssueComment)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/activity", wrapper.ListAppIssueActivity)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/assignees", wrapper.ListAppAssignees)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/compatibility", wrapper.GetAppCompatibility)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases", wrapper.GetAppReleases)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)
