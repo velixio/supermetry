@@ -1047,6 +1047,14 @@ func (m *compatibilityMode) ByPublicID(id string) (sites.Site, bool) {
 	return m.database.ByPublicID(id)
 }
 
+// ByDSNKey resolves DSN keys from the database registry; file mode has none.
+func (m *compatibilityMode) ByDSNKey(publicKey string) (sites.Site, sites.DSNKey, bool) {
+	if m.active.Load() {
+		return sites.Site{}, sites.DSNKey{}, false
+	}
+	return m.database.ByDSNKey(publicKey)
+}
+
 func (m *compatibilityMode) Site(id int32) (sites.Site, bool) {
 	if m.active.Load() {
 		return m.file.Site(id)

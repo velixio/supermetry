@@ -14,6 +14,7 @@ import (
 type registrySnapshot struct {
 	byPublic map[string]coresites.Site
 	byID     map[int32]coresites.Site
+	byDSN    map[string]int32 // DSN public key -> site id
 }
 
 // Registry is a periodically refreshed, DB-backed implementation of
@@ -29,7 +30,7 @@ type Registry struct {
 func NewRegistry(data *store.Store, refresh time.Duration) *Registry {
 	ctx, cancel := context.WithCancel(context.Background())
 	registry := &Registry{store: data, cancel: cancel, done: make(chan struct{})}
-	registry.value.Store(&registrySnapshot{byPublic: map[string]coresites.Site{}, byID: map[int32]coresites.Site{}})
+	registry.value.Store(&registrySnapshot{byPublic: map[string]coresites.Site{}, byID: map[int32]coresites.Site{}, byDSN: map[string]int32{}})
 	_ = registry.refresh(ctx)
 	go registry.run(ctx, refresh)
 	return registry
@@ -38,6 +39,26 @@ func NewRegistry(data *store.Store, refresh time.Duration) *Registry {
 func (r *Registry) ByPublicID(id string) (coresites.Site, bool) {
 	site, ok := r.value.Load().byPublic[id]
 	return cloneSite(site), ok
+}
+
+// ByDSNKey resolves a DSN public key to its app site and key. Revoked keys are
+// not loaded; the caller checks expiry against its own clock.
+func (r *Registry) ByDSNKey(publicKey string) (coresites.Site, coresites.DSNKey, bool) {
+	snapshot := r.value.Load()
+	id, ok := snapshot.byDSN[publicKey]
+	if !ok {
+		return coresites.Site{}, coresites.DSNKey{}, false
+	}
+	site, ok := snapshot.byID[id]
+	if !ok || site.App == nil {
+		return coresites.Site{}, coresites.DSNKey{}, false
+	}
+	for _, key := range site.App.DSNKeys {
+		if key.PublicKey == publicKey {
+			return cloneSite(site), key, true
+		}
+	}
+	return coresites.Site{}, coresites.DSNKey{}, false
 }
 
 func (r *Registry) Site(id int32) (coresites.Site, bool) {
@@ -97,6 +118,10 @@ func (r *Registry) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	dsnRows, err := r.store.ActiveDSNKeys(ctx)
+	if err != nil {
+		return err
+	}
 	appSettings, err := r.store.AppSettingsBySite(ctx)
 	if err != nil {
 		return err
@@ -117,9 +142,20 @@ func (r *Registry) refresh(ctx context.Context) error {
 		}
 		keysBySite[key.SiteID] = append(keysBySite[key.SiteID], entry)
 	}
+	dsnBySite := make(map[int32][]coresites.DSNKey)
+	for _, key := range dsnRows {
+		entry := coresites.DSNKey{
+			PublicKey: key.PublicKey, AllowedOrigins: key.AllowedOrigins, ExpiresAt: key.ExpiresAt,
+		}
+		if key.RatePerMin != nil {
+			entry.RatePerMin = int(*key.RatePerMin)
+		}
+		dsnBySite[key.SiteID] = append(dsnBySite[key.SiteID], entry)
+	}
 	next := &registrySnapshot{
 		byPublic: make(map[string]coresites.Site, len(stored)),
 		byID:     make(map[int32]coresites.Site, len(stored)),
+		byDSN:    make(map[string]int32),
 	}
 	for _, row := range stored {
 		site, err := coreSite(row)
@@ -134,9 +170,12 @@ func (r *Registry) refresh(ctx context.Context) error {
 				return fmt.Errorf("site %d: %w", site.ID, err)
 			}
 			site.App = &coresites.AppConfig{
-				Keys: keysBySite[site.ID], TagAllowlist: parsed.TagAllowlist,
+				Keys: keysBySite[site.ID], DSNKeys: dsnBySite[site.ID], TagAllowlist: parsed.TagAllowlist,
 				MaxReportAgeDays: parsed.MaxReportAgeDays, Environments: parsed.Environments,
 				HashSecret: hashSecrets[site.ID],
+			}
+			for _, key := range dsnBySite[site.ID] {
+				next.byDSN[key.PublicKey] = site.ID
 			}
 		}
 		next.byPublic[site.PublicID] = site
@@ -186,6 +225,10 @@ func cloneSite(site coresites.Site) coresites.Site {
 	if site.App != nil {
 		app := *site.App
 		app.Keys = append([]coresites.AppKey(nil), app.Keys...)
+		app.DSNKeys = append([]coresites.DSNKey(nil), app.DSNKeys...)
+		for i := range app.DSNKeys {
+			app.DSNKeys[i].AllowedOrigins = append([]string(nil), app.DSNKeys[i].AllowedOrigins...)
+		}
 		app.TagAllowlist = append([]string(nil), app.TagAllowlist...)
 		app.Environments = append([]string(nil), app.Environments...)
 		site.App = &app
@@ -250,4 +293,4 @@ func cloneTrackerSettings(settings coresites.TrackerSettingsInput) coresites.Tra
 	}
 }
 
-var _ coresites.Registry = (*Registry)(nil)
+var _ coresites.DSNRegistry = (*Registry)(nil)

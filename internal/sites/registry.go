@@ -21,9 +21,24 @@ type AppKey struct {
 	ExpiresAt time.Time
 }
 
+// DSNKey is a Sentry-style DSN public key of an app project. It is public by
+// design (it ships in client bundles), so it is kept in plain text.
+type DSNKey struct {
+	PublicKey      string
+	AllowedOrigins []string
+	ExpiresAt      *time.Time
+	RatePerMin     int // 0 means the site default
+}
+
+// Expired reports whether the key has expired at now.
+func (k DSNKey) Expired(now time.Time) bool {
+	return k.ExpiresAt != nil && !now.Before(*k.ExpiresAt)
+}
+
 // AppConfig is the ingest configuration of an app project.
 type AppConfig struct {
 	Keys             []AppKey
+	DSNKeys          []DSNKey // unrevoked DSN keys; expiry is checked at lookup
 	TagAllowlist     []string
 	MaxReportAgeDays int
 	Environments     []string
@@ -78,6 +93,15 @@ type Registry interface {
 	ByPublicID(id string) (Site, bool)
 	Site(id int32) (Site, bool)
 	All() []Site
+}
+
+// DSNRegistry is a Registry that can also resolve DSN public keys. Registries
+// that never hold DSN keys (file mode, test fakes) need not implement it.
+type DSNRegistry interface {
+	Registry
+	// ByDSNKey returns the app site and key for a public key. Revoked keys are
+	// never loaded; the caller checks DSNKey.Expired.
+	ByDSNKey(publicKey string) (Site, DSNKey, bool)
 }
 
 // Allows reports whether host exactly matches an allowed host or matches a
