@@ -13,6 +13,7 @@ import (
 	"supermetry/internal/appingest"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
+	"supermetry/internal/salts"
 	"supermetry/internal/sites"
 )
 
@@ -27,6 +28,12 @@ type BodyQueue interface {
 	Enqueue(appingest.Body) bool
 }
 
+// ClientReportSink takes the discarded-event counts of client reports; Add
+// must not block (the aggregator buffers in memory).
+type ClientReportSink interface {
+	Add(siteID int32, day time.Time, reason, category string, quantity int64)
+}
+
 // GeoLookup resolves a country code for an address; the address is not kept.
 type GeoLookup interface {
 	Country(netip.Addr) string
@@ -37,6 +44,7 @@ type Handler struct {
 	sites     sites.DSNRegistry
 	intake    *appingest.Intake
 	bodies    BodyQueue
+	reports   ClientReportSink
 	geo       GeoLookup
 	trusted   []netip.Prefix
 	now       func() time.Time
@@ -58,6 +66,9 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 		spike: newSpikeGuard(DefaultSpikePerMinute), stats: &Stats{}, normalise: Normalise,
 		ips: newIPLimiter(DefaultIPPerMinute), inflight: make(chan struct{}, DefaultMaxInflight)}
 }
+
+// WithClientReports sets where client-report counts go; nil discards them.
+func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r; return h }
 
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
 // function makes event items counted and dropped.
@@ -408,11 +419,13 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				count(h.intake.Accept(site, budgetKey, now, ev))
 			}
 		case "client_report":
-			// Stored by a later change; counted here.
 			if counts, err := ParseClientReport(it.Payload); err == nil {
 				var total int64
 				for _, c := range counts {
 					total += c.Quantity
+					if h.reports != nil {
+						h.reports.Add(site.ID, salts.LocalDay(now, site.TZ), c.Reason, c.Category, c.Quantity)
+					}
 				}
 				h.stats.Add("client_report_discarded", uint64(max(total, 0)))
 			}
