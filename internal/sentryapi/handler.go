@@ -275,7 +275,7 @@ func (h *Handler) chunkOptions(w http.ResponseWriter, r *http.Request, c *call) 
 		"url":              h.origin(r) + "/api/0/organizations/" + c.orgSlug + "/chunk-upload/",
 		"chunkSize":        chunkSize,
 		"chunksPerRequest": chunksPerRequest,
-		"maxFileSize":      maxFileSize,
+		"maxFileSize":      int64(maxFileSize),
 		"maxRequestSize":   maxRequestSize,
 		"concurrency":      concurrency,
 		"hashAlgorithm":    "sha1",
