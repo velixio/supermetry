@@ -48,9 +48,11 @@ insert into app_releases(id,org_id,version,site_ids,url,date_created,date_releas
  (1,1,'1.1.0','{}','https://example.test/r','2026-10-02T08:00:00Z','2026-10-02T09:00:00Z'),
  (2,1,'only-web','{8}','','2026-10-02T08:00:00Z',null),
  (3,2,'other-org','{}','','2026-10-02T08:00:00Z',null);
-insert into app_deploys(id,release_id,environment,name,url,date_started,date_finished,date_created) overriding system value values
- (1,1,'prod','ship','','2026-10-02T08:30:00Z','2026-10-02T08:40:00Z','2026-10-02T08:31:00Z'),
- (2,2,'prod','','','2026-10-02T08:30:00Z',null,'2026-10-02T08:31:00Z');
+insert into app_deploys(id,release_id,org_id,site_ids,environment,name,url,date_started,date_finished,date_created) overriding system value values
+ (1,1,1,'{}','prod','ship','','2026-10-02T08:30:00Z','2026-10-02T08:40:00Z','2026-10-02T08:31:00Z'),
+ (2,2,1,'{}','prod','','','2026-10-02T08:30:00Z',null,'2026-10-02T08:31:00Z'),
+ (3,1,1,'{8}','prod','other-project','','2026-10-02T08:30:00Z',null,'2026-10-02T08:31:00Z'),
+ (4,1,1,'{7}','prod','this-project','','2026-10-02T08:30:00Z',null,'2026-10-02T08:32:00Z');
 insert into app_artifact_bundles(id,org_id,site_ids,release,dist,checksum,state,size,created_at) overriding system value values
  (1,1,'{}','1.1.0','d1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','ok',2048,'2026-10-02T07:00:00Z'),
  (2,2,'{}','x','','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','ok',1,'2026-10-02T07:00:00Z');
@@ -141,6 +143,7 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 	check("app_deploys.csv", [][]string{
 		{"deploy_id", "release", "environment", "name", "url", "started", "finished", "created"},
 		{"1", "1.1.0", "prod", "ship", "", "2026-10-02T08:30:00.000Z", "2026-10-02T08:40:00.000Z", "2026-10-02T08:31:00.000Z"},
+		{"4", "1.1.0", "prod", "this-project", "", "2026-10-02T08:30:00.000Z", "", "2026-10-02T08:32:00.000Z"},
 	})
 	check("app_client_reports.csv", [][]string{
 		{"day", "reason", "category", "quantity"},

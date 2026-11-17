@@ -103,7 +103,7 @@ order by r.id`
 	deploys := `
 select d.id,r.version,d.environment,d.name,d.url,` + utc("d.date_started") + `,` + utc("d.date_finished") + `,` + utc("d.date_created") + `
 from app_deploys d join app_releases r on r.id=d.release_id
-where r.org_id=$5 and (r.site_ids='{}' or $1=any(r.site_ids)) and ` + inWindow("d.date_created") + `
+where d.org_id=$5 and (case when cardinality(d.site_ids)>0 then $1=any(d.site_ids) else (r.site_ids='{}' or $1=any(r.site_ids)) end) and ` + inWindow("d.date_created") + `
 order by d.id`
 	if err := e.writeRows(ctx, archive, "app_deploys.csv",
 		[]string{"deploy_id", "release", "environment", "name", "url", "started", "finished", "created"},
