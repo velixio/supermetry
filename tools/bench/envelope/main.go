@@ -34,16 +34,19 @@ type fixture struct {
 	name   string
 	header []byte // first envelope line, with the DSN as a placeholder
 	rest   []byte // everything after the first newline
-	events int    // items of type "event"
+	events int    // items of type "event", "transaction" or "span" (all count as accepted events)
 	items  int
+	tx     bool // from the transactions directory: timestamps are refreshed per request
 }
 
 var eventID = regexp.MustCompile(`"event_id":"[0-9a-f]{32}"`)
+var tsNum = regexp.MustCompile(`"(start_timestamp|timestamp|end_timestamp)":[0-9.]+`)
+var tsStr = regexp.MustCompile(`"(start_timestamp|timestamp|sent_at)":"[^"]*"`)
 var dsnRe = regexp.MustCompile(`"dsn":"[^"]*"`)
 
 func loadFixtures(dir string) ([]fixture, error) {
 	var out []fixture
-	for _, sdk := range []string{"node", "browser", "python", "go"} {
+	for _, sdk := range []string{"node", "browser", "python", "go", "transactions"} {
 		files, _ := filepath.Glob(filepath.Join(dir, sdk, "*.envelope"))
 		for _, f := range files {
 			if strings.HasSuffix(f, "-br.envelope") {
@@ -68,6 +71,7 @@ func loadFixtures(dir string) ([]fixture, error) {
 			}
 			fx := fixture{name: sdk + "/" + strings.TrimSuffix(filepath.Base(f), ".envelope"), header: head, rest: rest}
 			fx.events, fx.items = countItems(rest)
+			fx.tx = sdk == "transactions"
 			out = append(out, fx)
 		}
 	}
@@ -89,7 +93,7 @@ func countItems(rest []byte) (events, items int) {
 			return
 		}
 		items++
-		if h.Type == "event" {
+		if h.Type == "event" || h.Type == "transaction" || h.Type == "span" {
 			events++
 		}
 		if h.Length != nil {
@@ -138,6 +142,7 @@ func main() {
 	minutes := flag.Float64("minutes", 5, "duration")
 	workers := flag.Int("workers", 24, "concurrent clients (the server caps concurrent body reads at 32 by default)")
 	gz := flag.Float64("gzip", 0.5, "share of requests sent gzip-compressed")
+	txShare := flag.Float64("tx", 0.25, "share of requests that carry a transaction or span fixture")
 	flag.Parse()
 	if *keysFile == "" {
 		fmt.Fprintln(os.Stderr, "-keys is required")
@@ -154,6 +159,17 @@ func main() {
 		os.Exit(2)
 	}
 
+	var plain, txs []fixture
+	for _, f := range fixtures {
+		if f.tx {
+			txs = append(txs, f)
+		} else {
+			plain = append(plain, f)
+		}
+	}
+	if len(plain) == 0 {
+		plain, txs = txs, nil
+	}
 	var (
 		accEvents, accItems, reqs, ok200, r429, r503, other, netErr atomic.Int64
 		mu                                                          sync.Mutex
@@ -171,10 +187,33 @@ func main() {
 			r := mrand.New(mrand.NewPCG(uint64(w), 7))
 			var local []time.Duration
 			for time.Now().Before(deadline) {
-				fx := fixtures[r.IntN(len(fixtures))]
+				fx := plain[r.IntN(len(plain))]
+				if len(txs) > 0 && r.Float64() < *txShare {
+					fx = txs[r.IntN(len(txs))]
+				}
 				k := keys[r.IntN(len(keys))]
 				head := dsnRe.ReplaceAll(fx.header, []byte(fmt.Sprintf(`"dsn":"http://%s@%s/%s"`, k.key, strings.TrimPrefix(*base, "http://"), k.site)))
 				body := append(append(append([]byte{}, head...), '\n'), fx.rest...)
+				if fx.tx {
+					now := time.Now().UTC()
+					body = tsNum.ReplaceAllFunc(body, func(m []byte) []byte {
+						off := 500 * time.Millisecond
+						if bytes.HasPrefix(m, []byte(`"start_timestamp"`)) {
+							off = time.Second
+						}
+						return []byte(fmt.Sprintf(`"%s":%.3f`, m[1:bytes.IndexByte(m[1:], '"')+1], float64(now.Add(-off).UnixMilli())/1000))
+					})
+					body = tsStr.ReplaceAllFunc(body, func(m []byte) []byte {
+						off := 500 * time.Millisecond
+						if bytes.HasPrefix(m, []byte(`"start_timestamp"`)) {
+							off = time.Second
+						}
+						if bytes.HasPrefix(m, []byte(`"sent_at"`)) {
+							off = 0
+						}
+						return []byte(fmt.Sprintf(`"%s":"%s"`, m[1:bytes.IndexByte(m[1:], '"')+1], now.Add(-off).Format(time.RFC3339Nano)))
+					})
+				}
 				id := newID()
 				body = eventID.ReplaceAll(body, []byte(`"event_id":"`+id+`"`))
 				req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/%s/envelope/", *base, k.site), nil)

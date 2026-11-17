@@ -1,7 +1,7 @@
 """Usage: python app.py <case>
 Generator for sentry-sdk fixtures. Only init plus real behaviour; no manual
 capture calls. Cases: unhandled-exception, logging-error, wsgi-sessions,
-client-report. Set SENTRY_FIXTURE_COMPRESSION=br to send brotli bodies
+client-report, transaction. Set SENTRY_FIXTURE_COMPRESSION=br to send brotli bodies
 (requires the brotli package; default is gzip).
 """
 import logging
@@ -17,7 +17,7 @@ kwargs = dict(
     release="fixture@1.0.0",
     environment="fixture",
     server_name="fixture-host",
-    traces_sample_rate=0,
+    traces_sample_rate=1.0 if case == "transaction" else 0,
     include_local_variables=False,  # locals embed this machine's stdlib paths
 )
 # brotli is installed in this venv (the SDK would pick it by default); force the
@@ -49,6 +49,12 @@ elif case == "wsgi-sessions":
         env = {}
         setup_testing_defaults(env)
         b"".join(wrapped(env, lambda *a: None))
+elif case == "transaction":
+    with sentry_sdk.start_transaction(name="GET /api/items", op="http.server", source="route"):
+        with sentry_sdk.start_span(op="db.query", name="select * from items where owner = 'fixture' and id = 42"):
+            pass
+        with sentry_sdk.start_span(op="http.client", name="GET https://api.example.com/v1/items/12345?token=fixture"):
+            pass
 elif case == "client-report":
     raise RuntimeError("fixture dropped")  # unhandled; before_send drops it
 else:
