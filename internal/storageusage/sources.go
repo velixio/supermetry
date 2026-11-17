@@ -62,6 +62,7 @@ var sourceRegistry = []Source{
 	{Table: "app_client_reports", Category: CategoryRetained},
 	{Table: "app_artifact_files", Category: CategoryAuxiliary},
 	{Table: "app_erasure_requests", Category: CategoryAuxiliary},
+	{Table: "app_event_attachments", Category: CategoryAuxiliary, Partitioned: true},
 	{Table: "app_event_bodies", Category: CategoryAuxiliary, Partitioned: true},
 	{Table: "app_events", Category: CategoryAuxiliary, Partitioned: true},
 	{Table: "app_hash_secrets", Category: CategoryAuxiliary},
