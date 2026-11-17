@@ -601,6 +601,30 @@ func (e AppIssueRowPriority) Valid() bool {
 	}
 }
 
+// Defines values for AppUserErasureStatus.
+const (
+	AppUserErasureStatusDone    AppUserErasureStatus = "done"
+	AppUserErasureStatusFailed  AppUserErasureStatus = "failed"
+	AppUserErasureStatusPending AppUserErasureStatus = "pending"
+	AppUserErasureStatusRunning AppUserErasureStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the AppUserErasureStatus enum.
+func (e AppUserErasureStatus) Valid() bool {
+	switch e {
+	case AppUserErasureStatusDone:
+		return true
+	case AppUserErasureStatusFailed:
+		return true
+	case AppUserErasureStatusPending:
+		return true
+	case AppUserErasureStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateSiteRequestKind.
 const (
 	CreateSiteRequestKindApp   CreateSiteRequestKind = "app"
@@ -3092,11 +3116,23 @@ type AppUserErase struct {
 	UserId string `json:"user_id"`
 }
 
-// AppUserEraseResult defines model for AppUserEraseResult.
-type AppUserEraseResult struct {
-	BodiesDeleted    int64 `json:"bodies_deleted"`
-	EventsAnonymized int64 `json:"events_anonymized"`
+// AppUserErasure defines model for AppUserErasure.
+type AppUserErasure struct {
+	Attempts         int                  `json:"attempts"`
+	BodiesDeleted    int64                `json:"bodies_deleted"`
+	CompletedAt      time.Time            `json:"completed_at"`
+	CreatedAt        time.Time            `json:"created_at"`
+	EventsAnonymized int64                `json:"events_anonymized"`
+	Id               int64                `json:"id"`
+	LastError        string               `json:"last_error"`
+	Status           AppUserErasureStatus `json:"status"`
+
+	// StatusUrl Present on the 202 response.
+	StatusUrl *string `json:"status_url,omitempty"`
 }
+
+// AppUserErasureStatus defines model for AppUserErasure.Status.
+type AppUserErasureStatus string
 
 // ChangeShareExpiryRequest defines model for ChangeShareExpiryRequest.
 type ChangeShareExpiryRequest struct {
@@ -3718,7 +3754,7 @@ type GitHubStarsRepo struct {
 	// HistoryComplete False while the history import of a large repository is unfinished.
 	HistoryComplete bool       `json:"history_complete"`
 	Id              int64      `json:"id"`
-	LastError       *string    `json:"last_error"`
+	LastError       string     `json:"last_error"`
 	LastReconcileAt *time.Time `json:"last_reconcile_at"`
 	LastWebhookAt   *time.Time `json:"last_webhook_at"`
 
@@ -6875,6 +6911,9 @@ type ServerInterface interface {
 	// EraseAppUser Erase what an app project stores about one end user
 	// (POST /api/private/sites/{site}/app/users/erase)
 	EraseAppUser(w http.ResponseWriter, r *http.Request, site int32)
+	// GetAppUserErasure Get the status and counts of an app user erasure
+	// (GET /api/private/sites/{site}/app/users/erasures/{erasure})
+	GetAppUserErasure(w http.ResponseWriter, r *http.Request, site int32, erasure int64)
 	// ListCohorts List saved cohorts
 	// (GET /api/private/sites/{site}/cohorts)
 	ListCohorts(w http.ResponseWriter, r *http.Request, site int32)
@@ -11136,6 +11175,41 @@ func (siw *ServerInterfaceWrapper) EraseAppUser(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// GetAppUserErasure operation middleware
+func (siw *ServerInterfaceWrapper) GetAppUserErasure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "erasure" -------------
+	var erasure int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "erasure", r.PathValue("erasure"), &erasure, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "erasure", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppUserErasure(w, r, site, erasure)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListCohorts operation middleware
 func (siw *ServerInterfaceWrapper) ListCohorts(w http.ResponseWriter, r *http.Request) {
 
@@ -15252,6 +15326,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys", wrapper.CreateAppDSNKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys/{prefix}", wrapper.RevokeAppDSNKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erase", wrapper.EraseAppUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
