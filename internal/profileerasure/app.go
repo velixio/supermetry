@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/appproduct"
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/scheduler"
 )
@@ -291,6 +292,36 @@ func (w *AppWorker) auditTx(ctx context.Context, tx pgx.Tx, r AppRequest, action
 	return audit.Write(ctx, tx, principal, action, "site", int64(r.SiteID), map[string]any{
 		"bodies": r.BodiesDeleted, "events": r.EventsAnonymized,
 	})
+}
+
+// EraseAppInstall removes what an app project keeps about one install beyond
+// raw events: its app_active_day rows (found by the keyed visitor id) and, when
+// the install has a profile (external id "i:" + keyed hash), a queued profile
+// erasure that the profile worker carries out. It returns the number of
+// active-day rows deleted. The caller owns the transaction. The raw install id
+// is only hashed here, never stored.
+func EraseAppInstall(ctx context.Context, tx pgx.Tx, profiles *Store, siteID int32, installID string, secret []byte, requestedBy string) (int64, error) {
+	if installID == "" || len(secret) == 0 {
+		return 0, errors.New("install id and hash secret are required")
+	}
+	tag, err := tx.Exec(ctx, `delete from app_active_day where site_id = $1 and visitor_id = $2`,
+		siteID, appproduct.VisitorID(secret, installID))
+	if err != nil {
+		return 0, fmt.Errorf("delete app active days: %w", err)
+	}
+	external := appproduct.ProfileExternalID(secret, installID)
+	var profileID int64
+	err = tx.QueryRow(ctx, `select id from profiles where site_id = $1 and external_id = $2`, siteID, external).Scan(&profileID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return tag.RowsAffected(), nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("find install profile: %w", err)
+	}
+	if _, err := profiles.CreateOrGetTx(ctx, tx, siteID, profileID, external, requestedBy); err != nil {
+		return 0, fmt.Errorf("queue install profile erasure: %w", err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 // prune drops finished requests after a month.
