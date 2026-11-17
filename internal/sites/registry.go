@@ -42,6 +42,9 @@ type AppConfig struct {
 	TagAllowlist     []string
 	MaxReportAgeDays int
 	Environments     []string
+	FilterExtensions *bool  // nil means on
+	FilterCrawlers   *bool  // nil means on
+	FilterLocalhost  *bool  // nil means the server-wide default
 	HashSecret       []byte // per-app HMAC secret for install and session ids; nil until the first event creates it
 }
 
@@ -124,4 +127,24 @@ func (s Site) Allows(host string) bool {
 		}
 	}
 	return false
+}
+
+// Filters resolves the inbound filter switches; localhostDefault is the
+// server-wide setting used when the project has not chosen one. A nil config
+// gets the defaults.
+func (c *AppConfig) Filters(localhostDefault bool) (extensions, crawlers, localhost bool) {
+	extensions, crawlers, localhost = true, true, localhostDefault
+	if c == nil {
+		return
+	}
+	if c.FilterExtensions != nil {
+		extensions = *c.FilterExtensions
+	}
+	if c.FilterCrawlers != nil {
+		crawlers = *c.FilterCrawlers
+	}
+	if c.FilterLocalhost != nil {
+		localhost = *c.FilterLocalhost
+	}
+	return
 }

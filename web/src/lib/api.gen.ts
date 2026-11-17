@@ -3135,6 +3135,14 @@ export interface components {
             /** @description 0 means the default of 7. */
             max_report_age_days?: number;
             environments?: string[];
+            /** @description Drop events raised inside browser extensions. Omitted or null means on. */
+            filter_extensions?: boolean | null;
+            /** @description Drop events sent by crawlers. Omitted or null means on. */
+            filter_crawlers?: boolean | null;
+            /** @description Drop events raised on localhost. Null means the server default (filter_localhost_default). */
+            filter_localhost?: boolean | null;
+            /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
+            readonly filter_localhost_default?: boolean;
         };
         AppUserErase: {
             /** @description The user id the app's SDK reports. */

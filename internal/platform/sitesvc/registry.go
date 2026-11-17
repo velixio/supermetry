@@ -172,7 +172,8 @@ func (r *Registry) refresh(ctx context.Context) error {
 			site.App = &coresites.AppConfig{
 				Keys: keysBySite[site.ID], DSNKeys: dsnBySite[site.ID], TagAllowlist: parsed.TagAllowlist,
 				MaxReportAgeDays: parsed.MaxReportAgeDays, Environments: parsed.Environments,
-				HashSecret: hashSecrets[site.ID],
+				HashSecret: hashSecrets[site.ID], FilterExtensions: parsed.FilterExtensions,
+				FilterCrawlers: parsed.FilterCrawlers, FilterLocalhost: parsed.FilterLocalhost,
 			}
 			for _, key := range dsnBySite[site.ID] {
 				next.byDSN[key.PublicKey] = site.ID
