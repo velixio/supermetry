@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"supermetry/internal/db"
+	"supermetry/internal/profileerasure"
 )
 
 func TestEraseAppUser(t *testing.T) {
@@ -58,11 +60,61 @@ values ($1,'2026-10-12T10:00:00Z','2026-10-12T10:00:00Z',$2,'error','1.0',$3)`, 
 		t.Fatalf("rejected calls changed data: bodies=%d err=%v", untouched, err)
 	}
 
-	for round, want := range []string{`"bodies_deleted":2,"events_anonymized":2`, `"bodies_deleted":0,"events_anonymized":0`} {
-		res := f.request(t, "owner", http.MethodPost, path, body)
-		if res.Code != http.StatusOK || !strings.Contains(strings.ReplaceAll(res.Body.String(), " ", ""), want) {
-			t.Fatalf("round %d = %d %s", round, res.Code, res.Body)
-		}
+	res := f.request(t, "owner", http.MethodPost, path, body)
+	if res.Code != http.StatusAccepted {
+		t.Fatalf("erase = %d %s", res.Code, res.Body)
+	}
+	var accepted struct {
+		ID        int64  `json:"id"`
+		Status    string `json:"status"`
+		StatusURL string `json:"status_url"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &accepted); err != nil {
+		t.Fatal(err)
+	}
+	wantURL := fmt.Sprintf("/api/private/sites/%d/app/users/erasures/%d", f.siteID, accepted.ID)
+	if accepted.ID == 0 || accepted.Status != "pending" || accepted.StatusURL != wantURL || res.Header().Get("Location") != wantURL {
+		t.Fatalf("accepted = %+v location=%q", accepted, res.Header().Get("Location"))
+	}
+	if again := f.request(t, "owner", http.MethodPost, path, body); again.Code != http.StatusAccepted || !strings.Contains(again.Body.String(), fmt.Sprintf(`"id":%d`, accepted.ID)) {
+		t.Fatalf("repeat = %d %s, want the same request", again.Code, again.Body)
+	}
+	if err := f.pool.QueryRow(ctx, `select (select count(*) from app_event_bodies), (select count(*) from app_events where user_hash is not null)`).Scan(&untouched, new(int)); err != nil || untouched != 3 {
+		t.Fatalf("request alone must not touch data: bodies=%d err=%v", untouched, err)
+	}
+	var stored string
+	if err := f.pool.QueryRow(ctx, `select r::text from app_erasure_requests r where id=$1`, accepted.ID).Scan(&stored); err != nil || strings.Contains(stored, "alice") {
+		t.Fatalf("stored row = %q err=%v", stored, err)
+	}
+
+	// Status: owner sees it, other roles and other orgs do not.
+	if got := f.request(t, "owner", http.MethodGet, wantURL, ""); got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"status":"pending"`) {
+		t.Fatalf("status = %d %s", got.Code, got.Body)
+	}
+	if got := f.request(t, "viewer", http.MethodGet, wantURL, ""); got.Code != http.StatusForbidden {
+		t.Fatalf("viewer status = %d", got.Code)
+	}
+	if got := f.request(t, "foreign-owner", http.MethodGet, wantURL, ""); got.Code != http.StatusNotFound {
+		t.Fatalf("foreign status = %d", got.Code)
+	}
+	otherSitePath := fmt.Sprintf("/api/private/sites/%d/app/users/erasures/%d", f.otherSite, accepted.ID)
+	if got := f.request(t, "owner", http.MethodGet, otherSitePath, ""); got.Code != http.StatusNotFound {
+		t.Fatalf("request id under another site = %d", got.Code)
+	}
+	if got := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/app/users/erasures/abc", f.siteID), ""); got.Code != http.StatusNotFound {
+		t.Fatalf("bad id = %d", got.Code)
+	}
+
+	// The worker finishes it: bodies gone, hash cleared, counts on the status, audit without the id.
+	if err := profileerasure.NewAppWorker(f.pool, profileerasure.NewAppStore(f.pool)).RunOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	got := f.request(t, "owner", http.MethodGet, wantURL, "")
+	if got.Code != http.StatusOK || !strings.Contains(got.Body.String(), `"bodies_deleted":2`) {
+		t.Fatalf("done status = %d %s", got.Code, got.Body)
+	}
+	if !strings.Contains(got.Body.String(), `"events_anonymized":2`) || !strings.Contains(got.Body.String(), `"status":"done"`) {
+		t.Fatalf("done status = %s", got.Body)
 	}
 	var bodies, hashed int
 	if err := f.pool.QueryRow(ctx, `select (select count(*) from app_event_bodies), (select count(*) from app_events where user_hash is not null)`).Scan(&bodies, &hashed); err != nil {
@@ -73,7 +125,7 @@ values ($1,'2026-10-12T10:00:00Z','2026-10-12T10:00:00Z',$2,'error','1.0',$3)`, 
 	}
 	var audits int
 	var leaked bool
-	if err := f.pool.QueryRow(ctx, `select count(*), coalesce(bool_or(metadata::text like '%alice%'),false) from audit_log where action='app.user_erased'`).Scan(&audits, &leaked); err != nil || audits != 2 || leaked {
+	if err := f.pool.QueryRow(ctx, `select count(*), coalesce(bool_or(metadata::text like '%alice%'),false) from audit_log where action='app.user_erased'`).Scan(&audits, &leaked); err != nil || audits != 1 || leaked {
 		t.Fatalf("audits=%d leaked=%v err=%v", audits, leaked, err)
 	}
 }

@@ -2090,12 +2090,37 @@ export interface paths {
         put?: never;
         /**
          * Erase what an app project stores about one end user
-         * @description Deletes the stored event bodies of the user's events and clears the user hash from their event rows, which
-         *     stay as anonymous counts. The user is matched by the HMAC of `user_id` under the project's hash secret, so
-         *     the id is never stored. Runs synchronously in batches and is safe to repeat (a repeat reports zeros).
-         *     Owner or admin only. Audited as app.user_erased with counts only.
+         * @description Queues the erasure of the user's stored event bodies and of the user hash on their event rows, which stay
+         *     as anonymous counts. A worker does the batched deletion, so this returns 202 at once with a status URL; poll
+         *     it for the counts. The user is matched by the HMAC of `user_id` under the project's hash secret, and the
+         *     request stores only that hash, never the id. A repeat call for a user whose erasure is still queued or
+         *     running returns the same request; after it is done a repeat is a new request that reports zeros.
+         *     Owner or admin only. Audited as app.user_erased with counts only, once the erasure finishes.
          */
         post: operations["eraseAppUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/users/erasures/{erasure}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                erasure: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get the status and counts of an app user erasure
+         * @description Owner or admin only. The counts grow while the worker runs and are final once the status is done.
+         */
+        get: operations["getAppUserErasure"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3291,11 +3316,23 @@ export interface components {
             /** @description The user id the app's SDK reports. */
             user_id: string;
         };
-        AppUserEraseResult: {
+        AppUserErasure: {
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            status: "pending" | "running" | "done" | "failed";
+            /** @description Present on the 202 response. */
+            status_url?: string;
             /** Format: int64 */
             bodies_deleted: number;
             /** Format: int64 */
             events_anonymized: number;
+            attempts: number;
+            last_error: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
         };
         AppDSNKeyCreate: {
             label?: string;
@@ -10509,16 +10546,43 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Erased */
+            /** @description Erasure queued */
+            202: {
+                headers: {
+                    /** @description The status URL */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUserErasure"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppUserErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                erasure: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Erasure status */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AppUserEraseResult"];
+                    "application/json": components["schemas"]["AppUserErasure"];
                 };
             };
-            400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };

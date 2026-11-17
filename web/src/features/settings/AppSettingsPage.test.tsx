@@ -79,9 +79,18 @@ describe('AppSettingsPage', () => {
     })))
   })
 
-  it('erases a user after confirmation and shows the counts', async () => {
+  it('queues an erasure after confirmation, then shows pending progress and the final counts', async () => {
+    let polls = 0
     privateRequest.mockImplementation((method: string, path: string) => {
-      if (path.endsWith('/app/users/erase')) return Promise.resolve({ bodies_deleted: 3, events_anonymized: 1 })
+      if (method === 'POST' && path.endsWith('/app/users/erase')) {
+        return Promise.resolve({ id: 41, status: 'pending', bodies_deleted: 0, events_anonymized: 0, last_error: null })
+      }
+      if (path.endsWith('/app/users/erasures/41')) {
+        polls += 1
+        return Promise.resolve(polls < 2
+          ? { id: 41, status: 'running', bodies_deleted: 1, events_anonymized: 0, last_error: null }
+          : { id: 41, status: 'done', bodies_deleted: 3, events_anonymized: 1, last_error: null })
+      }
       if (path.endsWith('/app-settings')) return Promise.resolve(base)
       return Promise.resolve({ keys: [] })
     })
@@ -93,7 +102,26 @@ describe('AppSettingsPage', () => {
     expect(privateRequest).not.toHaveBeenCalledWith('POST', expect.anything(), expect.anything())
     fireEvent.click(await screen.findByRole('button', { name: 'Erase' }))
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('POST', '/api/private/sites/7/app/users/erase', { orgId: 3, body: { user_id: 'user-9' } }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Erased 3 stored event bodies and anonymized 1 event.')
+    expect(await screen.findByRole('status')).toHaveTextContent('Erasing in the background.')
+    expect(screen.getByRole('button', { name: 'Erase data' })).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Erased 3 stored event bodies and anonymized 1 event.'), { timeout: 6000 })
+    expect(privateRequest).toHaveBeenCalledWith('GET', '/api/private/sites/7/app/users/erasures/41', { orgId: 3 })
+    expect(screen.getByRole('button', { name: 'Erase data' })).toBeEnabled()
+  })
+
+  it('reports a failed erasure', async () => {
+    privateRequest.mockImplementation((method: string, path: string) => {
+      if (method === 'POST' && path.endsWith('/app/users/erase')) {
+        return Promise.resolve({ id: 42, status: 'failed', bodies_deleted: 0, events_anonymized: 0, last_error: 'boom' })
+      }
+      if (path.endsWith('/app-settings')) return Promise.resolve(base)
+      return Promise.resolve({ keys: [] })
+    })
+    renderPage()
+    fireEvent.change(await screen.findByLabelText('User id'), { target: { value: 'u' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Erase data' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Erase' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Erasure failed: boom')
   })
 
   it('hides erasure from viewers', async () => {
