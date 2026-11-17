@@ -50,3 +50,6 @@ tools/**/node_modules/
 
 # TypeScript incremental build state
 *.tsbuildinfo
+
+# Internal specs and plans (agent working docs, kept local)
+docs/superpowers/
