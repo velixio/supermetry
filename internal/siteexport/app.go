@@ -89,6 +89,18 @@ order by d.id`
 		return err
 	}
 
+	// Daily counts of events the SDKs report they discarded; no event data.
+	reports := `
+select c.day::text,c.reason,c.category,c.quantity
+from app_client_reports c
+where c.site_id=$1 and c.day between $2::date and $3::date
+order by c.day,c.reason,c.category`
+	if err := e.writeRows(ctx, archive, "app_client_reports.csv",
+		[]string{"day", "reason", "category", "quantity"},
+		reports, siteID, f, t); err != nil {
+		return err
+	}
+
 	// Metadata only: never blob keys, file URLs or contents.
 	artifacts := `
 select b.id,b.release,b.dist,b.state,
