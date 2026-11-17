@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "Content-Encoding": "gzip",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.cocoa/9.35.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.cocoa/9.35.0"
+  },
+  "sdk": "cocoa",
+  "sdk_version": "sentry.cocoa@9.35.0",
+  "synthetic": true,
+  "notes": "SYNTHETIC. sentry-cocoa@fedc5e3 Sources/Swift/Integrations/WatchdogTerminations/SentryWatchdogTerminationConstants.swift:5-7 (type, value, mechanism type), SentryWatchdogTerminationTracker.swift:64-83 (level fatal, handled=false, no stack, breadcrumbs, user, dist and environment restored from the previous run). Reported on the next launch, so the event timestamp is older than sent_at. Breadcrumb shape is inference."
+}

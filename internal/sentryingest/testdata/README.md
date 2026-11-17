@@ -21,6 +21,7 @@ Notes on how they differ from a plain `init`:
 - Python: run from `/tmp/fixture-app`, `include_local_variables=False`, `server_name=fixture-host`; the default gzip body is forced (the venv has `brotli`, which the SDK would otherwise pick); the `-br` case sets `transport_compression_algo=br`.
 - Go: built with `-trimpath`; `TZ=UTC`.
 - Electron `native-crash`: the minidump's stack memory held this machine's environment, so printable runs containing paths, the user name, hostname or emails were overwritten with `x` of the same length by `tools/sentry-fixtures/scrub-binary.py`, and the body was re-gzipped. Everything else is as sent.
+- android/cocoa: built by `tools/sentry-fixtures/synthetic/build.py` (`python3 -I build.py internal/sentryingest/testdata`); every sidecar cites the SDK source lines (sentry-java 4fc0b1e, sentry-cocoa fedc5e3) and marks inferred fields.
 - Cases that are not unhandled-error shaped use the SDK's own mechanism (`beforeSend` returning null for client reports, an HTTP request for session aggregates).
 
 Re-recording: each SDK directory under `tools/sentry-fixtures/` has its lockfile and generator.
