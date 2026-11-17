@@ -14,9 +14,10 @@ df -h / | tail -1; free -h | sed -n 2p
 sm_start "$work/supermetry" SUPERMETRY_SENTRY_IP_PER_MIN=100000 SUPERMETRY_APP_SPIKE_PER_MIN=1000000 || exit 1
 python3 -I "$root/tools/sentry-fixtures/live/check.py" sites "$base" "$state" "${ENVELOPE_BENCH_SITES:-300}" >"$work/keys.txt" || exit 1
 "$work/envelope-bench" -base "$base" -keys "$work/keys.txt" -fixtures "$root/internal/sentryingest/testdata" \
-  -minutes "${ENVELOPE_BENCH_MINUTES:-5}" -workers "${ENVELOPE_BENCH_WORKERS:-24}"
+  -minutes "${ENVELOPE_BENCH_MINUTES:-5}" -workers "${ENVELOPE_BENCH_WORKERS:-24}" ${ENVELOPE_BENCH_OTLP:+-otlp}
 rc=$?
 sleep 3
 echo "server errors in log: $(grep -ci 'level=error' "$work/server.log")"
 psql "$db_url" -Atc "select 'app_events rows: '||count(*) from app_events" 2>/dev/null
+psql "$db_url" -Atc "select 'spans rows: '||count(*) from spans" 2>/dev/null
 exit $rc
