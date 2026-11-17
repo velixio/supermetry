@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { en } from '@/messages/en'
 import type { Site } from '@/lib/me'
 import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
 import { APP_NAV_SUFFIXES, navigationHref, replaysAvailable, navigationIsActive, settingsDestinations, settingsIsActive, visibleNavigation } from './Sidebar'
 import { accountDestinationIsActive, accountDestinations } from './AccountSidebar'
 
 describe('primary sidebar navigation', () => {
+  it('names the analysis section App Monitoring for app projects', () => {
+    expect(en.a11y2.sidebarSections.appMonitoring).toBe('App Monitoring')
+  })
+
   it('adds the organization-level GitHub stars item for every member', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
       expect(visibleNavigation(role, false).map((item) => item.suffix)).toContain('/github-stars')

@@ -245,6 +245,10 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 			if len(detail.LatestEvents) > mcpAppMaxLatest {
 				detail.LatestEvents = detail.LatestEvents[:mcpAppMaxLatest]
 			}
+			// Event ids are for the dashboard's event detail; tools never see them.
+			for i := range detail.LatestEvents {
+				detail.LatestEvents[i].EventID = ""
+			}
 			out = detail
 		}
 	case "get_app_compatibility":

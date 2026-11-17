@@ -225,3 +225,47 @@ func TestAppHealthStatusChangeAuditsAndResolvesNext(t *testing.T) {
 		}
 	}
 }
+
+func TestAppHealthEventBodyMatrix(t *testing.T) {
+	h := newAppHealthFixture(t)
+	ctx := context.Background()
+	if err := db.EnsureAppEventPartitions(ctx, h.pool, time.Now().AddDate(0, -1, 0), time.Now().AddDate(0, 1, 0)); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"message":"boom","exceptions":[{"type":"Error","value":"boom","frames":[{"filename":"a.js","in_app":true}]}]}`
+	for _, row := range []struct {
+		site int32
+		id   string
+	}{{h.siteID, "evt-own"}, {h.otherSite, "evt-foreign"}} {
+		if _, err := h.pool.Exec(ctx, `insert into app_event_bodies(site_id,ts,event_id,body,size) values($1,now(),$2,$3::jsonb,10)`, row.site, row.id, body); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, actor := range []string{"owner", "editor", "viewer"} {
+		code, got, raw := h.get(t, actor, "events/evt-own")
+		if code != http.StatusOK || got["event_id"] != "evt-own" || got["body"].(map[string]any)["message"] != "boom" {
+			t.Fatalf("%s = %d %s", actor, code, raw)
+		}
+	}
+	if code, _, _ := h.get(t, "foreign-owner", "events/evt-own"); code != http.StatusNotFound {
+		t.Fatalf("another org = %d, want 404", code)
+	}
+	if res := h.request(t, "", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/app/events/evt-own", h.siteID), ``); res.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous = %d", res.Code)
+	}
+	// An event of another site is not reachable through this site's path, and unknown ids are 404.
+	for _, id := range []string{"evt-foreign", "missing"} {
+		if code, _, _ := h.get(t, "owner", "events/"+id); code != http.StatusNotFound {
+			t.Fatalf("%s = %d, want 404", id, code)
+		}
+	}
+	if _, err := h.pool.Exec(ctx, `update sites set kind='web' where id=$1`, h.siteID); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.registry.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, _ := h.get(t, "owner", "events/evt-own"); code != http.StatusNotFound {
+		t.Fatalf("web project = %d", code)
+	}
+}

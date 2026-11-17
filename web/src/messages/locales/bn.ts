@@ -140,7 +140,7 @@ const messages: MessageTree = {
   },
   a11y2: {
     skipToMain: 'মূল কনটেন্টে যান', mainContent: 'মূল কনটেন্ট', applicationHeader: 'অ্যাপ্লিকেশন হেডার', applicationSidebar: 'অ্যাপ্লিকেশন সাইডবার',
-    sidebarSections: { analyze: 'বিশ্লেষণ', behaviour: 'আচরণ', conversion: 'রূপান্তর', manage: 'পরিচালনা' },
+    sidebarSections: { analyze: 'বিশ্লেষণ', appMonitoring: 'App Monitoring', behaviour: 'আচরণ', conversion: 'রূপান্তর', manage: 'পরিচালনা' },
     dataSummary: '{from} থেকে {to} পর্যন্ত {title}। মোট {total}। সর্বোচ্চ {peak}। সর্বনিম্ন {low}।',
     selectedDataSummary: '{title} {range}। মোট {total}। সর্বোচ্চ {peak}। সর্বনিম্ন {low}।', peakOn: '{time}-এ {value}',
     countryValue: '{country}-এ {value}', whereLeader: '{country} এগিয়ে, {value} {metric}।', weeklyValue: '{weekday} {hour}-এ {value}',
