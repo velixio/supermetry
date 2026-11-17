@@ -132,7 +132,11 @@ func NewMCPHandler(deps MCPDeps) http.Handler {
 	if deps.TrackingMode != privacy.Identified && deps.Query != nil {
 		deps.Query = anonymousQueries{queryService: deps.Query, paths: deps.TrackingPaths}
 	}
-	return &mcpHandler{deps: deps, tools: mcpTools()}
+	tools := mcpTools()
+	if deps.AppHealth != nil {
+		tools = append(tools, mcpAppTools()...)
+	}
+	return &mcpHandler{deps: deps, tools: tools}
 }
 
 func (h *mcpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -234,6 +238,15 @@ func (h *mcpHandler) callTool(w http.ResponseWriter, r *http.Request, request mc
 }
 
 func (h *mcpHandler) runTool(ctx context.Context, r *http.Request, name string, arguments json.RawMessage) (any, error) {
+	if mcpAppToolNames[name] && h.deps.AppHealth != nil {
+		// App tools hold no visitor history, so every tracking mode serves them.
+		return h.runAppTool(ctx, r, name, arguments)
+	}
+	if mcpWebToolNames[name] {
+		if err := rejectAppSiteForWebTool(r, arguments); err != nil {
+			return nil, err
+		}
+	}
 	if h.deps.TrackingMode != privacy.Identified && name != "get_summary" && name != "get_timeseries" && name != "get_breakdown" && name != "list_sites" {
 		return nil, ErrAnonymousHistory
 	}
