@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory bench bench-full bench-compare
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat envelope-bench bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -16,6 +16,15 @@ accuracy-ab: build-go
 	python3 tools/bench/accuracy/ab/run.py
 
 ACCURACY_CREDS ?= /tmp/claude-1000/-home-user-code-supermetry/a367a7b0-447b-4879-9004-f5690263327e/scratchpad/cmp-creds.env
+# Live Sentry SDK acceptance (Node, browser, Python, Go; only the DSN changes).
+# Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat
+sdk-compat:
+	bash tools/sentry-fixtures/live/run.sh
+
+# Sentry envelope endpoint load test: ENVELOPE_BENCH_MINUTES=5 make envelope-bench
+envelope-bench:
+	bash tools/bench/envelope/run.sh
+
 accuracy-live:
 	python3 tools/bench/accuracy/compare_live.py --live --creds "$(ACCURACY_CREDS)"
 

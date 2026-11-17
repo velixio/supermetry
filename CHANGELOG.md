@@ -12,6 +12,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Added
 
+- Sentry SDK compatibility: point an existing Sentry SDK at Supermetry by changing the DSN.
 - **Email (SMTP) in the app.** Instance admins can set up outgoing email under Instance admin, Email (SMTP) (host, port, connection security, username, password, from, HELO name) and send a test email that reports the failing step. The settings live in the database with the password encrypted, apply without a restart, and the password is never shown again (`GET/PUT/DELETE /api/private/admin/email`, `POST /api/private/admin/email/test`). When `SUPERMETRY_SMTP_HOST` is set, the environment wins entirely and the screen is read-only. Not available on managed instances.
 - **Implicit TLS (SMTPS, port 465)** and the `SUPERMETRY_SMTP_TLS` variable (`starttls`, `implicit`, `none`). Without it, `SUPERMETRY_SMTP_STARTTLS` still applies, and port 465 with neither set uses implicit TLS. Certificates are always verified. A username without TLS is now rejected at startup instead of at the first send.
 
