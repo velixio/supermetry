@@ -41,6 +41,7 @@ type Handler struct {
 	trusted   []netip.Prefix
 	now       func() time.Time
 	normalise NormaliseFunc
+	symb      *Symbolicator
 	spike     *spikeGuard
 	stats     *Stats
 	ips       *ipLimiter
@@ -60,6 +61,11 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
 // function makes event items counted and dropped.
 func (h *Handler) WithNormaliser(n NormaliseFunc) *Handler { h.normalise = n; return h }
+
+// WithSymbolicator routes events with minified script frames through the
+// symbolication stage before intake; nil (the default) skips the stage. The
+// handler never waits for it: a full queue sends the event on unresolved.
+func (h *Handler) WithSymbolicator(s *Symbolicator) *Handler { h.symb = s; return h }
 
 // WithSpikeLimit sets the per-site events-per-minute cap.
 func (h *Handler) WithSpikeLimit(perMinute int) *Handler {
@@ -359,6 +365,17 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				out.eventID = ev.ID
 			}
 			applyRow(&ev, body.Row)
+			if h.symb != nil {
+				body.Attachments = attachments
+				site, now := site, now
+				if h.symb.SubmitWith(ev, body, body.Row.SDKFingerprint, func(ev appingest.Event, body appingest.Body) {
+					if h.intake.Accept(site, budgetKey, now, ev).Reason == "" && h.bodies != nil && !h.bodies.Enqueue(body) {
+						h.stats.Add("body_queue_full", 1)
+					}
+				}) {
+					continue
+				}
+			}
 			if count(h.intake.Accept(site, budgetKey, now, ev)) && h.bodies != nil {
 				body.Attachments = attachments
 				if !h.bodies.Enqueue(body) {
