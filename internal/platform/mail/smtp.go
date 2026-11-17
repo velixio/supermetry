@@ -142,16 +142,29 @@ func (s *smtpSender) tlsConfig() *tls.Config {
 	return &tls.Config{ServerName: s.config.Host, MinVersion: tls.VersionTLS12, RootCAs: s.rootCAs}
 }
 
+// sendSteps are the prefixes smtp.go puts on its errors, one per step.
+var sendSteps = []string{
+	"SMTP is not configured", "SMTP authentication requires", "parse SMTP from address", "parse SMTP recipient",
+	"connect SMTP", "start SMTP TLS", "set SMTP deadline", "create SMTP client", "SMTP greeting",
+	"SMTP server does not support STARTTLS", "authenticate SMTP", "set SMTP sender", "set SMTP recipient",
+	"open SMTP message", "write SMTP message", "finish SMTP message", "quit SMTP", "load SMTP settings",
+}
+
 // ErrorStep returns the step an SMTP send error names ("connect SMTP",
-// "authenticate SMTP", ...), without the detail after it. Server replies can
-// echo a recipient address, so callers that avoid personal data in logs use
-// the step rather than the whole error.
+// "authenticate SMTP", ...) without the detail after it, or "unknown step".
+// Server replies can echo a recipient address, so callers that keep personal
+// data out of logs record the step instead of the whole error.
 func ErrorStep(err error) string {
 	if err == nil {
 		return ""
 	}
-	step, _, _ := strings.Cut(err.Error(), ": ")
-	return step
+	message := err.Error()
+	for _, step := range sendSteps {
+		if strings.HasPrefix(message, step) {
+			return step
+		}
+	}
+	return "unknown step"
 }
 
 func renderMessage(from, hello string, message Message, now time.Time) []byte {

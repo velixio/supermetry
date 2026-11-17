@@ -246,7 +246,7 @@ func TestSMTPPlaintextWithoutAuthWorks(t *testing.T) {
 }
 
 func TestErrorStep(t *testing.T) {
-	if got := ErrorStep(context.DeadlineExceeded); got != "context deadline exceeded" {
+	if got := ErrorStep(context.DeadlineExceeded); got != "unknown step" {
 		t.Fatalf("got %q", got)
 	}
 	if got := ErrorStep(&stepErr{"authenticate SMTP: 535 bad user@example.com"}); got != "authenticate SMTP" {

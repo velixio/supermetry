@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -133,7 +134,9 @@ func (a *Auth) ConfirmEmailChange(ctx context.Context, userID int64, token strin
 	}
 	if a.mail != nil && a.mail.Enabled() {
 		// The change is committed; a failed notice must not report failure.
-		_ = a.mail.Send(ctx, mail.EmailChanged(a.baseURL, newEmail, now).Message(oldEmail))
+		if err := a.mail.Send(ctx, mail.EmailChanged(a.baseURL, newEmail, now).Message(oldEmail)); err != nil {
+			slog.Warn("send email-changed notice", "step", mail.ErrorStep(err))
+		}
 	}
 	return nil
 }
