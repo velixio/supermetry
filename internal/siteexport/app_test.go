@@ -51,6 +51,12 @@ insert into app_releases(id,org_id,version,site_ids,url,date_created,date_releas
 insert into app_deploys(id,release_id,environment,name,url,date_started,date_finished,date_created) overriding system value values
  (1,1,'prod','ship','','2026-10-02T08:30:00Z','2026-10-02T08:40:00Z','2026-10-02T08:31:00Z'),
  (2,2,'prod','','','2026-10-02T08:30:00Z',null,'2026-10-02T08:31:00Z');
+insert into app_repositories(id,org_id,name) overriding system value values (1,1,'acme/app'),(2,2,'other/app');
+insert into app_commits(id,org_id,repository_id,sha,message,author_name,author_email,committed_at) overriding system value values
+ (1,1,1,'abcd0001','Fix =pay','Dev One','dev1@example.com','2026-10-02T07:00:00Z'),
+ (2,1,1,'abcd0002','web only','Dev Two','dev2@example.com',null),
+ (3,2,2,'abcd0003','theirs','Dev Three','dev3@example.com',null);
+insert into app_release_commits(release_id,commit_id,position) values (1,1,0),(2,2,0),(3,3,0);
 insert into app_artifact_bundles(id,org_id,site_ids,release,dist,checksum,state,size,created_at) overriding system value values
  (1,1,'{}','1.1.0','d1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','ok',2048,'2026-10-02T07:00:00Z'),
  (2,2,'{}','x','','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','ok',1,'2026-10-02T07:00:00Z');
@@ -105,7 +111,7 @@ func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site
 func TestAppSiteExportsExactCSVs(t *testing.T) {
 	e, ctx := newAppExport(t)
 	files, names, _ := exportFiles(t, e, ctx, 7)
-	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv"} {
+	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv", "app_commits.csv"} {
 		if !slices.Contains(names, want) {
 			t.Fatalf("missing %s in %v", want, names)
 		}
@@ -142,6 +148,10 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 		{"deploy_id", "release", "environment", "name", "url", "started", "finished", "created"},
 		{"1", "1.1.0", "prod", "ship", "", "2026-10-02T08:30:00.000Z", "2026-10-02T08:40:00.000Z", "2026-10-02T08:31:00.000Z"},
 	})
+	check("app_commits.csv", [][]string{
+		{"release", "repository", "sha", "message", "author_name", "author_email", "committed_at"},
+		{"1.1.0", "acme/app", "abcd0001", "Fix =pay", "Dev One", "dev1@example.com", "2026-10-02T07:00:00.000Z"},
+	})
 	check("app_client_reports.csv", [][]string{
 		{"day", "reason", "category", "quantity"},
 		{"2026-10-02", "ratelimit_backoff", "error", "5"},
@@ -162,6 +172,9 @@ func TestAppExportLeaksNoPersonalData(t *testing.T) {
 		for _, col := range rows[0] {
 			lc := strings.ToLower(col)
 			for _, bad := range []string{"user", "email", "ip", "hash", "body", "blob", "url_path"} {
+				if name == "app_commits.csv" && lc == "author_email" {
+					continue // developer metadata the customer sent; exported by design
+				}
 				if lc == bad || strings.Contains(lc, bad) && lc != "url" {
 					t.Fatalf("%s has sensitive column %q", name, col)
 				}
