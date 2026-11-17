@@ -20,9 +20,10 @@ var extensionSchemes = []string{"chrome-extension://", "moz-extension://", "safa
 // filterEvent decides from the raw event JSON (before scrubbing drops the
 // request host) whether an event is noise: raised on a developer machine,
 // raised inside a browser extension, or sent by a crawler. Anything it cannot
-// parse is kept; the normaliser rejects bad payloads. httpUA is the user agent
-// of the HTTP request; an empty one never counts as a crawler.
-func filterEvent(raw []byte, httpUA string) string {
+// parse is kept; the normaliser rejects bad payloads. The localhost filter
+// applies only when localhost is true. httpUA is the user agent of the HTTP
+// request; an empty one never counts as a crawler.
+func filterEvent(raw []byte, httpUA string, localhost bool) string {
 	if enrich.IsCrawlerUA(httpUA) {
 		return filterCrawler
 	}
@@ -31,7 +32,7 @@ func filterEvent(raw []byte, httpUA string) string {
 		return ""
 	}
 	req := asMap(m["request"])
-	if isLocalURL(str(req["url"])) {
+	if localhost && isLocalURL(str(req["url"])) {
 		return filterLocalhost
 	}
 	if enrich.IsCrawlerUA(requestUserAgent(req["headers"])) {

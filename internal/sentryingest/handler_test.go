@@ -156,11 +156,15 @@ var wantEvents = map[string]int{
 // per status of an aggregate); updates of a running session add nothing.
 var wantSessionRows = map[string]int{"browser/session": 1, "node/session-aggregates": 1, "python/wsgi-sessions": 1}
 
-// filteredFixtures were recorded against a local server (127.0.0.1), so the
-// inbound localhost filter drops their events.
+// filteredFixtures were recorded against a local server (127.0.0.1); with the
+// opt-in localhost filter on, their events are dropped.
 var filteredFixtures = map[string]bool{"browser/breadcrumbs": true, "browser/onerror": true, "browser/unhandledrejection": true}
 
-func TestFixturesAccepted(t *testing.T) {
+func TestFixturesAccepted(t *testing.T) { testFixturesAccepted(t, false) }
+
+func TestFixturesWithLocalhostFilterOn(t *testing.T) { testFixturesAccepted(t, true) }
+
+func testFixturesAccepted(t *testing.T, localhostFilter bool) {
 	files := fixtureFiles(t)
 	seen := map[string]bool{}
 	for _, file := range files {
@@ -180,6 +184,7 @@ func TestFixturesAccepted(t *testing.T) {
 				t.Fatal(err)
 			}
 			e := newEnv(t)
+			e.h.WithLocalhostFilter(localhostFilter)
 			*e.now = time.Date(2026, 11, 17, 14, 0, 0, 0, time.UTC)
 			req := httptest.NewRequest(sc.Method, sc.Path+"?"+sc.Query, bytes.NewReader(raw))
 			for k, v := range sc.Headers {
@@ -202,7 +207,7 @@ func TestFixturesAccepted(t *testing.T) {
 				t.Errorf("rate limits header = %q", got)
 			}
 			want := wantEvents[name] + wantSessionRows[name]
-			if filteredFixtures[name] {
+			if localhostFilter && filteredFixtures[name] {
 				want = 0
 				if got := e.h.Stats().Snapshot()["filtered"]; got != 1 {
 					t.Errorf("filtered = %d, want 1", got)

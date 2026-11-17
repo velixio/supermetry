@@ -219,9 +219,10 @@ var (
 
 // IsCrawlerUA reports whether a user agent matches the crawler list. Unlike
 // Bot it needs no Enricher and treats an empty user agent as not a crawler,
-// because SDKs outside browsers may send none.
+// because SDKs outside browsers may send none, and a headless browser is not
+// one either (automated test runs report their own errors).
 func IsCrawlerUA(ua string) bool {
-	if ua == "" {
+	if ua == "" || headlessPattern.MatchString(ua) {
 		return false
 	}
 	crawlerOnce.Do(func() {

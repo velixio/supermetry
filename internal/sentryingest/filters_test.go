@@ -33,14 +33,26 @@ func TestFilterEvent(t *testing.T) {
 		{"wrong types keep event", `{"request":5,"exception":"x"}`, browserUA, ""},
 	}
 	for _, c := range cases {
-		if got := filterEvent([]byte(c.payload), c.ua); got != c.want {
+		if got := filterEvent([]byte(c.payload), c.ua, true); got != c.want {
 			t.Errorf("%s: filterEvent = %q, want %q", c.name, got, c.want)
 		}
 	}
 }
 
+func TestLocalhostFilterIsOffUnlessEnabled(t *testing.T) {
+	payload := []byte(`{"request":{"url":"http://localhost:3000/a"}}`)
+	if got := filterEvent(payload, "", false); got != "" {
+		t.Errorf("localhost filtered while off: %q", got)
+	}
+	ext := []byte(`{"exception":{"values":[{"stacktrace":{"frames":[{"filename":"chrome-extension://a/b.js"}]}}]}}`)
+	if got := filterEvent(ext, "", false); got != filterExtension {
+		t.Errorf("extension filter must stay on: %q", got)
+	}
+}
+
 func TestFilteredEventIsDroppedCountedAndAnswered200(t *testing.T) {
 	e := newEnv(t)
+	e.h.WithLocalhostFilter(true)
 	env := `{"event_id":"11111111111111111111111111111111"}` + "\n" + `{"type":"event"}` + "\n" +
 		`{"message":"hi","request":{"url":"http://localhost:3000/x"}}` + "\n"
 	w := e.do(post("/api/42/envelope/", fdQuery, env, nil))
