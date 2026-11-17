@@ -23,6 +23,8 @@ var eraseTables = []string{
 	"app_issue_daily",
 	"app_issue_hourly",
 	"app_release_daily",
+	"app_issue_activity",
+	"app_issue_comments",
 	"app_issues",
 	"app_hash_secrets",
 	"app_erasure_requests",

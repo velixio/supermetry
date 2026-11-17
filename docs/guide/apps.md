@@ -273,19 +273,35 @@ The **Data health** page lists every dropped event by reason: bot user agent, ho
 not allowed, too old, clock skew, rate limited, and so on. If reports go
 missing, look there first.
 
+## Working on an issue
+
+Open an issue to triage it. Owners, admins and editors can change an issue; viewers read it.
+
+- **Assignee:** pick any member of your organisation who has access to the project, or unassign. Assignment is to people; teams are not supported.
+- **Priority:** high, medium (the default) or low.
+- **Status:** resolve, resolve in the next release, ignore or reopen, as before. New events from a later release regress a resolved issue.
+- **Snooze:** ignores the issue until a time passes, or until it has had a number of more events or affected users. Reopening an issue ends the snooze.
+- **Archive until escalating:** removes the issue from the open list and keeps it out of the way. Unarchive it to return it to open.
+- **GitHub link:** the API can link an existing GitHub issue (`https://github.com/<owner>/<repo>/issues/<number>`). Supermetry only stores the link and never calls GitHub.
+- **Comments:** up to 10,000 characters each. You can edit or delete your own comments; owners and admins can edit or delete anyone's. Comments are visible to everyone in the project, so keep secrets and personal data out of them.
+- **Activity:** a timeline of every change (status, assignee, priority, snooze, archive, comments) plus system rows for the first sighting and for regressions. It records the member who acted, or "System".
+
+Through the private API, `PATCH /api/private/sites/{site}/app/issues/{issue}` takes any of `status`, `resolved_in_release`, `assignee` (a user id, `0` to unassign), `priority`, `snooze` (`until`, `events`, `users`), `archive` and `github_url`. Comments live under `.../issues/{issue}/comments` and the timeline at `.../issues/{issue}/activity`. A change that alters nothing writes no activity row.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.
 
 | File | Contents |
 |---|---|
-| `app_issues.csv` | Issues active in the range: id, title, culprit, level, status, kind, error type, first and last seen, occurrences, first and last release, resolved-in release |
+| `app_issues.csv` | Issues active in the range: id, title, culprit, level, status, kind, error type, first and last seen, occurrences, first and last release, resolved-in release, priority, assignee id, GitHub link |
 | `app_events.csv` | Stored events in the range: event id, timestamp, issue id, kind, level, release, dist, environment, platform, SDK name and version, OS version, architecture, device class, runtime, symbolication status, occurrences |
 | `app_releases.csv`, `app_deploys.csv` | Releases and deploys created in the range that apply to the project |
 | `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
+| `app_issue_activity.csv`, `app_issue_comments.csv` | The issue timeline and the comments written in the range (deleted comments are left out). Authors and actors appear as organisation member ids |
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
-The export never includes user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
+The export never includes end-user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
 
 ## Ask your AI assistant
 

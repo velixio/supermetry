@@ -513,3 +513,49 @@ func TestWriterRecordsIssueHashesPerFingerprintAndVersion(t *testing.T) {
 		t.Fatalf("rows = %d, err %v", n, err)
 	}
 }
+
+func TestWriterRecordsFirstSeenAndRegressionOnTheTimeline(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	ctx := context.Background()
+	if err := w.flush(ctx, []Queued{queued("1", "tl", "1.0.0", testNow.Add(-time.Hour), 1)}); err != nil {
+		t.Fatal(err)
+	}
+	kinds := func() string {
+		var s string
+		if err := pool.QueryRow(ctx, `select coalesce(string_agg(a.kind, ',' order by a.id), '') from app_issue_activity a join app_issues i on i.id = a.issue_id where i.fingerprint = 'tl'`).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	if got := kinds(); got != "first_seen" {
+		t.Fatalf("after the first event: %q", got)
+	}
+	// More events for a known issue add no first_seen row.
+	if err := w.flush(ctx, []Queued{queued("2", "tl", "1.0.0", testNow.Add(-50*time.Minute), 1)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := kinds(); got != "first_seen" {
+		t.Fatalf("after a repeat event: %q", got)
+	}
+	if _, err := pool.Exec(ctx, `update app_issues set status='resolved', resolved_in_release='1.0.0' where fingerprint='tl'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.flush(ctx, []Queued{queued("3", "tl", "1.1.0", testNow.Add(-time.Minute), 1)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := kinds(); got != "first_seen,regressed" {
+		t.Fatalf("after the regression: %q", got)
+	}
+	var actor *int64
+	var data string
+	if err := pool.QueryRow(ctx, `select actor_user_id, data->>'release' from app_issue_activity where kind='regressed'`).Scan(&actor, &data); err != nil || actor != nil || data != "1.1.0" {
+		t.Fatalf("regressed row = %v %q %v", actor, data, err)
+	}
+	// An event that does not regress leaves the timeline alone.
+	if err := w.flush(ctx, []Queued{queued("4", "tl", "1.1.0", testNow, 1)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := kinds(); got != "first_seen,regressed" {
+		t.Fatalf("after a post-regression event: %q", got)
+	}
+}
