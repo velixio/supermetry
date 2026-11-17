@@ -32,8 +32,11 @@ belongs to one app project.
 
 An issue lists its latest events. **Full event detail** shows the exception
 chain with in-app frames highlighted, breadcrumbs, contexts (OS, device, app,
-runtime, browser), tags and attachment names. Event detail is kept for 30 days;
-the issue and its counts are kept longer. Messages, emails, tokens, IP addresses,
+runtime, browser), tags and attachments. Screenshots (PNG, JPEG, WebP) show as
+thumbnails and text or JSON files open in a viewer, both with a download link;
+text is scrubbed like the rest of the event. Files over 1 MiB, anything past 5 MiB
+per event and other file types keep their name and size only. Event detail and
+attachments are kept for 30 days; the issue and its counts are kept longer. Messages, emails, tokens, IP addresses,
 cookies and query strings are scrubbed before storage. See
 [Migrate from Sentry](migrate-from-sentry.md) for what is and is not supported.
 

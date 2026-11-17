@@ -65,6 +65,9 @@ values ($1,'2026-11-17T10:00:00Z','2026-11-17T10:00:00Z',$2,'error','1.0',$3)`, 
 		if _, err := pool.Exec(ctx, `insert into app_event_bodies(site_id,ts,event_id,body,size) values ($1,'2026-11-17T10:00:00Z',$2,'{}',2)`, e.site, e.id); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := pool.Exec(ctx, `insert into app_event_attachments(site_id,ts,event_id,idx,name,content_type,size,data) values ($1,'2026-11-17T10:00:00Z',$2,0,'log.txt','text/plain',2,'\x6869')`, e.site, e.id); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return appFixture{pool: pool, store: NewAppStore(pool)}
 }
@@ -148,9 +151,13 @@ func TestAppWorkerErasesBodiesAndHashAndAuditsCountsOnly(t *testing.T) {
 	if bodies, hashed := f.counts(t); bodies != 1 || hashed != 1 {
 		t.Fatalf("bodies=%d hashed=%d, want only bob's left", bodies, hashed)
 	}
-	var other, total int
-	if err := f.pool.QueryRow(ctx, `select (select count(*) from app_event_bodies where site_id=8),(select count(*) from app_events)`).Scan(&other, &total); err != nil || other != 1 || total != 5 {
+	var other, total, attachments int
+	if err := f.pool.QueryRow(ctx, `select (select count(*) from app_event_bodies where site_id=8),(select count(*) from app_events),
+ (select count(*) from app_event_attachments where site_id=7)`).Scan(&other, &total, &attachments); err != nil || other != 1 || total != 5 {
 		t.Fatalf("other site bodies=%d events=%d err=%v", other, total, err)
+	}
+	if attachments != 1 {
+		t.Fatalf("attachments left on site 7 = %d, want only bob's", attachments)
 	}
 	var n int
 	var meta string

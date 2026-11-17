@@ -188,17 +188,23 @@ func ensureAppSessionPartitions(ctx context.Context, tx pgx.Tx, from, to time.Ti
 	return ensureMonthlyTimestampPartitions(ctx, tx, "app_sessions", from, to)
 }
 
-// ensureAppEventBodyPartitions creates app_event_bodies partitions when the
-// table exists (migration tests build older schemas).
+// ensureAppEventBodyPartitions creates the partitions of app_event_bodies and
+// app_event_attachments when the tables exist (migration tests build older
+// schemas).
 func ensureAppEventBodyPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
-	var has bool
-	if err := tx.QueryRow(ctx, `select to_regclass('app_event_bodies') is not null`).Scan(&has); err != nil {
-		return fmt.Errorf("check app_event_bodies: %w", err)
+	for _, table := range []string{"app_event_bodies", "app_event_attachments"} {
+		var has bool
+		if err := tx.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&has); err != nil {
+			return fmt.Errorf("check %s: %w", table, err)
+		}
+		if !has {
+			continue
+		}
+		if err := ensureMonthlyTimestampPartitions(ctx, tx, table, from, to); err != nil {
+			return err
+		}
 	}
-	if !has {
-		return nil
-	}
-	return ensureMonthlyTimestampPartitions(ctx, tx, "app_event_bodies", from, to)
+	return nil
 }
 
 // ensureMonthlyTimestampPartitions creates UTC-month partitions of a table

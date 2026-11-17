@@ -363,12 +363,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			ctx.HasMinidump = true
 		}
 	}
-	var attachments []appingest.AttachmentMeta
-	for _, it := range env.Items {
-		if it.Type == "attachment" && len(it.Payload) <= MaxAttachment {
-			attachments = append(attachments, appingest.AttachmentMeta{Name: it.Filename, Type: it.AttachmentType, Size: len(it.Payload)})
-		}
-	}
+	prep := h.prepareAttachments(env.Items)
 	for _, it := range env.Items {
 		switch it.Type {
 		case "event":
@@ -410,7 +405,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 					count(res)
 					continue
 				}
-				body.Attachments = attachments
+				body.Attachments, body.Files = h.symbolicationAttachments(prep)
 				site, now := site, now
 				if h.symb.SubmitWith(ev, body, body.Row.SDKFingerprint, func(ev appingest.Event, body appingest.Body) {
 					if h.intake.Accept(site, budgetKey, now, ev).Reason == "" && h.bodies != nil && !h.bodies.Enqueue(body) {
@@ -421,7 +416,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				}
 			}
 			if count(h.intake.Accept(site, budgetKey, now, ev)) && h.bodies != nil {
-				body.Attachments = attachments
+				body.Attachments, body.Files = prep.Metas, prep.Files
 				if !h.bodies.Enqueue(body) {
 					h.stats.Add("body_queue_full", 1)
 				}

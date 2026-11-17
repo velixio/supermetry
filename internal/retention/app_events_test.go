@@ -133,6 +133,9 @@ insert into sites(id,org_id,public_id,name,timezone,retention_class,kind) overri
 	if !containsPrefix(dropped, "app_event_bodies_202607") || !containsPrefix(dropped, "app_event_bodies_202608") {
 		t.Fatalf("expected July and August bodies dropped, got %v", dropped)
 	}
+	if !containsPrefix(dropped, "app_event_attachments_202607") || !containsPrefix(dropped, "app_event_attachments_202608") || containsPrefix(dropped, "app_event_attachments_202610") {
+		t.Fatalf("attachments must follow the body retention, got %v", dropped)
+	}
 	if containsPrefix(dropped, "app_event_bodies_202609") || containsPrefix(dropped, "app_event_bodies_202610") || containsPrefix(dropped, "app_events_") {
 		t.Fatalf("dropped too much: %v", dropped)
 	}

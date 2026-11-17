@@ -9,6 +9,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 ### Added
 
 - App issues can be merged into one another and split apart again by fingerprint. Events, daily and hourly counts move with the merge, new events with a merged fingerprint land on the kept issue, and unmerging recomputes both issues from their events.
+- App event detail now shows attachments sent by Sentry SDKs: screenshots as thumbnails, text and JSON files in a viewer, each with a download. Text is scrubbed of personal data; files are capped at 1 MiB (5 MiB per event) and kept for 30 days. Downloads are never rendered as pages.
 - App issues can be assigned to a project member, given a priority (high, medium, low), snoozed, archived until they escalate, and linked to a GitHub issue. Team members can comment, and every change, regression and first sighting appears on the issue's activity timeline. The site export gains `app_issue_activity.csv` and `app_issue_comments.csv`.
 - App projects have ownership rules, which assign new issues to a member by file path, module or tag, and grouping rules, which force a fingerprint for matching events so different stacks share one issue. Rules are ordered globs, managed in project settings, and reach ingestion without a database lookup per event. The site export gains `app_ownership_rules.csv` and `app_grouping_rules.csv`.
 
