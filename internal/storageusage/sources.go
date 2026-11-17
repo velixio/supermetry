@@ -67,6 +67,8 @@ var sourceRegistry = []Source{
 	{Table: "app_events", Category: CategoryAuxiliary, Partitioned: true},
 	{Table: "app_hash_secrets", Category: CategoryAuxiliary},
 	{Table: "app_ingest_keys", Category: CategoryAuxiliary},
+	{Table: "app_issue_activity", Category: CategoryAuxiliary},
+	{Table: "app_issue_comments", Category: CategoryAuxiliary},
 	{Table: "app_issue_daily", Category: CategoryRetained},
 	{Table: "app_issue_hourly", Category: CategoryRetained},
 	{Table: "app_issue_hashes", Category: CategoryAuxiliary},

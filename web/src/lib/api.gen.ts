@@ -2260,12 +2260,110 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Resolve, ignore or reopen an issue
-         * @description `resolved_in_release` is only allowed with `resolved`. `next` stores the newest release seen so far: events
-         *     from that release or an older build keep the issue resolved, and only a strictly later release marks it regressed.
-         *     An explicit release R regresses on events from R or a later release. Owner, admin or editor only.
+         * Change an issue's status, assignee, priority, snooze, archive state or GitHub link
+         * @description Every changed field adds a row to the issue's activity. Status changes keep their earlier meaning:
+         *     `resolved_in_release` is only allowed with `resolved`; `next` stores the newest release seen so far, so events
+         *     from that release or an older build keep the issue resolved and only a strictly later release marks it regressed;
+         *     an explicit release R regresses on events from R or a later release. Owner, admin or editor only.
          */
-        patch: operations["updateAppIssueStatus"];
+        patch: operations["updateAppIssue"];
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        /** The issue's comments, oldest first (at most 500) */
+        get: operations["listAppIssueComments"];
+        put?: never;
+        /**
+         * Comment on an issue
+         * @description Owner, admin or editor only.
+         */
+        post: operations["createAppIssueComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/comments/{comment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+                comment: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a comment
+         * @description The author, an owner or an admin only; others get 403.
+         */
+        delete: operations["deleteAppIssueComment"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit a comment
+         * @description The author, an owner or an admin only; others get 403.
+         */
+        patch: operations["editAppIssueComment"];
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The issue's activity timeline, newest first
+         * @description Continue a page with `before` set to the last row's `at` (URL-encoded).
+         */
+        get: operations["listAppIssueActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/assignees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Organisation members who can be assigned issues of the project
+         * @description Members with access to the project; names only.
+         */
+        get: operations["listAppAssignees"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/private/sites/{site}/app/compatibility": {
@@ -4345,7 +4443,7 @@ export interface components {
             title: string;
             kind: string;
             error_type: string;
-            /** @description open, resolved, ignored or regressed. */
+            /** @description open, resolved, ignored, regressed or archived. */
             status: string;
             /** Format: date-time */
             first_seen: string;
@@ -4359,6 +4457,12 @@ export interface components {
             users: number;
             /** @description Daily events over the range */
             sparkline: number[];
+            /** Format: int64 */
+            assignee_user_id: number | null;
+            /** @description Empty when unassigned. */
+            assignee_name: string;
+            /** @enum {string} */
+            priority: "high" | "medium" | "low";
         };
         AppIssueList: {
             issues: components["schemas"]["AppIssueRow"][];
@@ -4407,7 +4511,7 @@ export interface components {
             title: string;
             kind: string;
             error_type: string;
-            /** @description open, resolved, ignored or regressed. */
+            /** @description open, resolved, ignored, regressed or archived. */
             status: string;
             /** Format: date-time */
             first_seen: string;
@@ -4419,6 +4523,20 @@ export interface components {
             resolved_next: boolean;
             /** Format: int64 */
             event_count: number;
+            /** Format: int64 */
+            assignee_user_id: number | null;
+            /** @description Empty when unassigned. */
+            assignee_name: string;
+            /** @enum {string} */
+            priority: "high" | "medium" | "low";
+            /** Format: date-time */
+            snooze_until: string | null;
+            /** Format: int64 */
+            snooze_events: number | null;
+            /** Format: int64 */
+            snooze_users: number | null;
+            archived_until_escalating: boolean;
+            github_url: string | null;
             series: {
                 /** Format: date */
                 day: string;
@@ -4433,19 +4551,80 @@ export interface components {
             };
             latest_events: components["schemas"]["AppEventSample"][];
         };
-        AppIssueStatusInput: {
-            /** @description open, resolved or ignored. */
-            status: string;
+        /** @description A partial update; at least one field is required. Omitted fields are left alone. */
+        AppIssueChange: {
+            /**
+             * @description Leaving ignored or archived ends the snooze or archive.
+             * @enum {string}
+             */
+            status?: "open" | "resolved" | "ignored";
             /** @description A release, or "next". Only with status resolved. */
             resolved_in_release?: string;
+            /**
+             * Format: int64
+             * @description An organisation member with access to the project; 0 unassigns.
+             */
+            assignee?: number;
+            /** @enum {string} */
+            priority?: "high" | "medium" | "low";
+            /** @description Ignores the issue until a time passes or it has had that many more events or users. At least one limit is required; not combinable with status. */
+            snooze?: {
+                /** Format: date-time */
+                until?: string | null;
+                /** Format: int64 */
+                events?: number | null;
+                /** Format: int64 */
+                users?: number | null;
+            };
+            /** @description true archives until the issue escalates, false unarchives to open. Not combinable with status or snooze. */
+            archive?: boolean;
+            /** @description A link to an existing GitHub issue, https://github.com/<owner>/<repo>/issues/<number>; "" unlinks. */
+            github_url?: string;
         };
         AppIssueStatus: {
             /** Format: int64 */
             id: number;
-            /** @description open, resolved or ignored. */
+            /** @description open, resolved, ignored or archived. */
             status: string;
             resolved_in_release: string | null;
             resolved_next: boolean;
+            updated: number[];
+            skipped: number[];
+        };
+        AppIssueComment: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            issue_id: number;
+            /** Format: int64 */
+            author_user_id: number | null;
+            author_name: string;
+            body: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            edited_at: string | null;
+        };
+        AppIssueCommentInput: {
+            body: string;
+        };
+        AppIssueActivity: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            at: string;
+            /** @description status, assigned, unassigned, priority, snoozed, archived, escalated, commented, merged, unmerged, github_linked, regressed or first_seen. */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Null for the system.
+             */
+            actor_user_id: number | null;
+            actor_name: string;
+            /** @description Kind-specific details, for example {"from","to"} for status and priority. */
+            data: {
+                [key: string]: unknown;
+            };
         };
         AppCompatibility: {
             rows: {
@@ -10557,7 +10736,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    updateAppIssueStatus: {
+    updateAppIssue: {
         parameters: {
             query?: never;
             header?: never;
@@ -10569,7 +10748,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AppIssueStatusInput"];
+                "application/json": components["schemas"]["AppIssueChange"];
             };
         };
         responses: {
@@ -10583,6 +10762,179 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppIssueComments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        comments: components["schemas"]["AppIssueComment"][];
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createAppIssueComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueCommentInput"];
+            };
+        };
+        responses: {
+            /** @description The comment */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueComment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAppIssueComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+                comment: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    editAppIssueComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+                comment: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueCommentInput"];
+            };
+        };
+        responses: {
+            /** @description The comment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueComment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppIssueActivity: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        activity: components["schemas"]["AppIssueActivity"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppAssignees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Members */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        members: {
+                            /** Format: int64 */
+                            user_id: number;
+                            name: string;
+                        }[];
+                    };
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };

@@ -31,6 +31,10 @@ type IssueRow struct {
 	Events       int64     `json:"events"`
 	Users        int64     `json:"users"`
 	Sparkline    []int64   `json:"sparkline"`
+	// Workflow state (appissues).
+	AssigneeUserID *int64 `json:"assignee_user_id"`
+	AssigneeName   string `json:"assignee_name"`
+	Priority       string `json:"priority"`
 }
 
 // IssueList is one page of issues.
@@ -45,7 +49,7 @@ const (
 	maxLimit     = 100
 )
 
-var issueStatuses = map[string]bool{"open": true, "resolved": true, "ignored": true, "regressed": true}
+var issueStatuses = map[string]bool{"open": true, "resolved": true, "ignored": true, "regressed": true, "archived": true}
 
 // likeEscaper makes a user string a literal LIKE pattern body.
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
@@ -72,7 +76,7 @@ func (q *Querier) Issues(ctx context.Context, scope Scope, in IssueQuery) (Issue
 		in.Status = "" // "all" means no status filter
 	}
 	if in.Status != "" && !issueStatuses[in.Status] {
-		return out, invalid("status must be open, resolved, ignored or regressed")
+		return out, invalid("status must be open, resolved, ignored, regressed or archived")
 	}
 	var order string
 	switch in.Sort {
@@ -94,8 +98,8 @@ with agg as (
   group by issue_id
 )
 select i.id, i.title, i.kind, i.error_type, i.status, i.first_seen, i.last_seen, i.first_release, i.last_release,
-       a.events, a.users, count(*) over ()
-from app_issues i join agg a on a.issue_id = i.id
+       a.events, a.users, i.assignee_user_id, coalesce(u.name, ''), i.priority, count(*) over ()
+from app_issues i join agg a on a.issue_id = i.id left join users u on u.id = i.assignee_user_id
 where i.site_id = $1 and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8)
   and ($9 = '' or i.title ilike $10 escape '\' or i.error_type ilike $10 escape '\')
 order by `+order+`
@@ -108,7 +112,7 @@ limit $11 offset $12`, args...)
 	for rows.Next() {
 		var r IssueRow
 		var total int
-		if err := rows.Scan(&r.ID, &r.Title, &r.Kind, &r.ErrorType, &r.Status, &r.FirstSeen, &r.LastSeen, &r.FirstRelease, &r.LastRelease, &r.Events, &r.Users, &total); err != nil {
+		if err := rows.Scan(&r.ID, &r.Title, &r.Kind, &r.ErrorType, &r.Status, &r.FirstSeen, &r.LastSeen, &r.FirstRelease, &r.LastRelease, &r.Events, &r.Users, &r.AssigneeUserID, &r.AssigneeName, &r.Priority, &total); err != nil {
 			return out, err
 		}
 		out.Total = total
@@ -202,21 +206,30 @@ type EventSample struct {
 // Breakdowns, latest events and the per-value counts follow the range and the
 // filters; the series ignores the release, environment and platform filters.
 type IssueDetail struct {
-	ID                int64                  `json:"id"`
-	Title             string                 `json:"title"`
-	Kind              string                 `json:"kind"`
-	ErrorType         string                 `json:"error_type"`
-	Status            string                 `json:"status"`
-	FirstSeen         time.Time              `json:"first_seen"`
-	LastSeen          time.Time              `json:"last_seen"`
-	FirstRelease      string                 `json:"first_release"`
-	LastRelease       string                 `json:"last_release"`
-	ResolvedInRelease *string                `json:"resolved_in_release"`
-	ResolvedNext      bool                   `json:"resolved_next"`
-	EventCount        int64                  `json:"event_count"`
-	Series            []IssueDay             `json:"series"`
-	Breakdowns        map[string][]Breakdown `json:"breakdowns"`
-	LatestEvents      []EventSample          `json:"latest_events"`
+	ID                int64     `json:"id"`
+	Title             string    `json:"title"`
+	Kind              string    `json:"kind"`
+	ErrorType         string    `json:"error_type"`
+	Status            string    `json:"status"`
+	FirstSeen         time.Time `json:"first_seen"`
+	LastSeen          time.Time `json:"last_seen"`
+	FirstRelease      string    `json:"first_release"`
+	LastRelease       string    `json:"last_release"`
+	ResolvedInRelease *string   `json:"resolved_in_release"`
+	ResolvedNext      bool      `json:"resolved_next"`
+	EventCount        int64     `json:"event_count"`
+	// Workflow state (appissues).
+	AssigneeUserID          *int64                 `json:"assignee_user_id"`
+	AssigneeName            string                 `json:"assignee_name"`
+	Priority                string                 `json:"priority"`
+	SnoozeUntil             *time.Time             `json:"snooze_until"`
+	SnoozeEvents            *int64                 `json:"snooze_events"`
+	SnoozeUsers             *int64                 `json:"snooze_users"`
+	ArchivedUntilEscalating bool                   `json:"archived_until_escalating"`
+	GitHubURL               *string                `json:"github_url"`
+	Series                  []IssueDay             `json:"series"`
+	Breakdowns              map[string][]Breakdown `json:"breakdowns"`
+	LatestEvents            []EventSample          `json:"latest_events"`
 }
 
 // breakdownDims maps a breakdown name to its fixed column.
@@ -236,9 +249,11 @@ func (q *Querier) Issue(ctx context.Context, scope Scope, id int64, f Filter) (I
 	}
 	var d IssueDetail
 	err = q.pool.QueryRow(ctx, `
-select id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count
-from app_issues where id = $1 and site_id = $2`, id, scope.SiteID).
-		Scan(&d.ID, &d.Title, &d.Kind, &d.ErrorType, &d.Status, &d.FirstSeen, &d.LastSeen, &d.FirstRelease, &d.LastRelease, &d.ResolvedInRelease, &d.ResolvedNext, &d.EventCount)
+select i.id, i.title, i.kind, i.error_type, i.status, i.first_seen, i.last_seen, i.first_release, i.last_release, i.resolved_in_release, i.resolved_next, i.event_count,
+       i.assignee_user_id, coalesce(u.name, ''), i.priority, i.snooze_until, i.snooze_events, i.snooze_users, i.archived_until_escalating, i.github_url
+from app_issues i left join users u on u.id = i.assignee_user_id where i.id = $1 and i.site_id = $2`, id, scope.SiteID).
+		Scan(&d.ID, &d.Title, &d.Kind, &d.ErrorType, &d.Status, &d.FirstSeen, &d.LastSeen, &d.FirstRelease, &d.LastRelease, &d.ResolvedInRelease, &d.ResolvedNext, &d.EventCount,
+			&d.AssigneeUserID, &d.AssigneeName, &d.Priority, &d.SnoozeUntil, &d.SnoozeEvents, &d.SnoozeUsers, &d.ArchivedUntilEscalating, &d.GitHubURL)
 	if err != nil {
 		if isNoRows(err) {
 			return IssueDetail{}, ErrNotFound

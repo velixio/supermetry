@@ -3046,17 +3046,95 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     patch:
-      operationId: updateAppIssueStatus
+      operationId: updateAppIssue
       tags: [Apps]
-      summary: Resolve, ignore or reopen an issue
+      summary: Change an issue's status, assignee, priority, snooze, archive state or GitHub link
       description: |
-        `resolved_in_release` is only allowed with `resolved`. `next` stores the newest release seen so far: events
-        from that release or an older build keep the issue resolved, and only a strictly later release marks it regressed.
-        An explicit release R regresses on events from R or a later release. Owner, admin or editor only.
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueStatusInput' } } } }
+        Every changed field adds a row to the issue's activity. Status changes keep their earlier meaning:
+        `resolved_in_release` is only allowed with `resolved`; `next` stores the newest release seen so far, so events
+        from that release or an older build keep the issue resolved and only a strictly later release marks it regressed;
+        an explicit release R regresses on events from R or a later release. Owner, admin or editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueChange' } } } }
       responses:
         '200': { description: The new state, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueStatus' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/comments:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listAppIssueComments
+      tags: [Apps]
+      summary: The issue's comments, oldest first (at most 500)
+      responses:
+        '200': { description: Comments, content: { application/json: { schema: { type: object, required: [comments], properties: { comments: { type: array, items: { $ref: '#/components/schemas/AppIssueComment' } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createAppIssueComment
+      tags: [Apps]
+      summary: Comment on an issue
+      description: Owner, admin or editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueCommentInput' } } } }
+      responses:
+        '201': { description: The comment, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueComment' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/comments/{comment}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      - { name: comment, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    patch:
+      operationId: editAppIssueComment
+      tags: [Apps]
+      summary: Edit a comment
+      description: The author, an owner or an admin only; others get 403.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueCommentInput' } } } }
+      responses:
+        '200': { description: The comment, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueComment' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteAppIssueComment
+      tags: [Apps]
+      summary: Delete a comment
+      description: The author, an owner or an admin only; others get 403.
+      responses:
+        '204': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/activity:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listAppIssueActivity
+      tags: [Apps]
+      summary: The issue's activity timeline, newest first
+      description: Continue a page with `before` set to the last row's `at` (URL-encoded).
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Activity, content: { application/json: { schema: { type: object, required: [activity], properties: { activity: { type: array, items: { $ref: '#/components/schemas/AppIssueActivity' } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/assignees:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppAssignees
+      tags: [Apps]
+      summary: Organisation members who can be assigned issues of the project
+      description: Members with access to the project; names only.
+      responses:
+        '200': { description: Members, content: { application/json: { schema: { type: object, required: [members], properties: { members: { type: array, items: { type: object, required: [user_id, name], properties: { user_id: { type: integer, format: int64 }, name: { type: string } } } } } } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/compatibility:
@@ -5556,13 +5634,13 @@ components:
               crash_free_users: { $ref: '#/components/schemas/AppRate' }
     AppIssueRow:
       type: object
-      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, events, users, sparkline]
+      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, events, users, sparkline, assignee_user_id, assignee_name, priority]
       properties:
         id: { type: integer, format: int64 }
         title: { type: string }
         kind: { type: string }
         error_type: { type: string }
-        status: { type: string, description: 'open, resolved, ignored or regressed.' }
+        status: { type: string, description: 'open, resolved, ignored, regressed or archived.' }
         first_seen: { type: string, format: date-time }
         last_seen: { type: string, format: date-time }
         first_release: { type: string }
@@ -5570,6 +5648,9 @@ components:
         events: { type: integer, format: int64 }
         users: { type: integer, format: int64 }
         sparkline: { type: array, items: { type: integer, format: int64 }, description: Daily events over the range, one entry per day. }
+        assignee_user_id: { type: integer, format: int64, nullable: true }
+        assignee_name: { type: string, description: Empty when unassigned. }
+        priority: { type: string, enum: [high, medium, low] }
     AppIssueList:
       type: object
       required: [issues, total, next_offset]
@@ -5610,13 +5691,13 @@ components:
         body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.' }
     AppIssueDetail:
       type: object
-      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, series, breakdowns, latest_events]
+      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, assignee_user_id, assignee_name, priority, snooze_until, snooze_events, snooze_users, archived_until_escalating, github_url, series, breakdowns, latest_events]
       properties:
         id: { type: integer, format: int64 }
         title: { type: string }
         kind: { type: string }
         error_type: { type: string }
-        status: { type: string, description: 'open, resolved, ignored or regressed.' }
+        status: { type: string, description: 'open, resolved, ignored, regressed or archived.' }
         first_seen: { type: string, format: date-time }
         last_seen: { type: string, format: date-time }
         first_release: { type: string }
@@ -5624,6 +5705,14 @@ components:
         resolved_in_release: { type: string, nullable: true }
         resolved_next: { type: boolean }
         event_count: { type: integer, format: int64 }
+        assignee_user_id: { type: integer, format: int64, nullable: true }
+        assignee_name: { type: string, description: Empty when unassigned. }
+        priority: { type: string, enum: [high, medium, low] }
+        snooze_until: { type: string, format: date-time, nullable: true }
+        snooze_events: { type: integer, format: int64, nullable: true }
+        snooze_users: { type: integer, format: int64, nullable: true }
+        archived_until_escalating: { type: boolean }
+        github_url: { type: string, nullable: true }
         series:
           type: array
           items:
@@ -5638,21 +5727,62 @@ components:
           description: Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`.
           additionalProperties: { type: array, items: { $ref: '#/components/schemas/AppBreakdown' } }
         latest_events: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/AppEventSample' } }
-    AppIssueStatusInput:
+    AppIssueChange:
       type: object
-      required: [status]
       additionalProperties: false
+      description: A partial update; at least one field is required. Omitted fields are left alone.
       properties:
-        status: { type: string, description: 'open, resolved or ignored.' }
+        status: { type: string, enum: [open, resolved, ignored], description: 'Leaving ignored or archived ends the snooze or archive.' }
         resolved_in_release: { type: string, maxLength: 64, description: 'A release, or "next". Only with status resolved.' }
+        assignee: { type: integer, format: int64, minimum: 0, description: 'An organisation member with access to the project; 0 unassigns.' }
+        priority: { type: string, enum: [high, medium, low] }
+        snooze:
+          type: object
+          additionalProperties: false
+          description: Ignores the issue until a time passes or it has had that many more events or users. At least one limit is required; not combinable with status.
+          properties:
+            until: { type: string, format: date-time, nullable: true }
+            events: { type: integer, format: int64, minimum: 1, nullable: true }
+            users: { type: integer, format: int64, minimum: 1, nullable: true }
+        archive: { type: boolean, description: 'true archives until the issue escalates, false unarchives to open. Not combinable with status or snooze.' }
+        github_url: { type: string, maxLength: 300, description: 'A link to an existing GitHub issue, https://github.com/<owner>/<repo>/issues/<number>; "" unlinks.' }
     AppIssueStatus:
       type: object
-      required: [id, status, resolved_in_release, resolved_next]
+      required: [id, status, resolved_in_release, resolved_next, updated, skipped]
       properties:
         id: { type: integer, format: int64 }
-        status: { type: string, description: 'open, resolved or ignored.' }
+        status: { type: string, description: 'open, resolved, ignored or archived.' }
         resolved_in_release: { type: string, nullable: true }
         resolved_next: { type: boolean }
+        updated: { type: array, items: { type: integer, format: int64 } }
+        skipped: { type: array, items: { type: integer, format: int64 } }
+    AppIssueComment:
+      type: object
+      required: [id, issue_id, author_user_id, author_name, body, created_at, edited_at]
+      properties:
+        id: { type: integer, format: int64 }
+        issue_id: { type: integer, format: int64 }
+        author_user_id: { type: integer, format: int64, nullable: true }
+        author_name: { type: string }
+        body: { type: string, minLength: 1, maxLength: 10000 }
+        created_at: { type: string, format: date-time }
+        edited_at: { type: string, format: date-time, nullable: true }
+    AppIssueCommentInput:
+      type: object
+      required: [body]
+      additionalProperties: false
+      properties:
+        body: { type: string, minLength: 1, maxLength: 10000 }
+    AppIssueActivity:
+      type: object
+      required: [id, at, kind, actor_user_id, actor_name, data]
+      properties:
+        id: { type: integer, format: int64 }
+        at: { type: string, format: date-time }
+        kind: { type: string, description: 'status, assigned, unassigned, priority, snoozed, archived, escalated, commented, merged, unmerged, github_linked, regressed or first_seen.' }
+        actor_user_id: { type: integer, format: int64, nullable: true, description: Null for the system. }
+        actor_name: { type: string }
+        data: { type: object, additionalProperties: true, description: 'Kind-specific details, for example {"from","to"} for status and priority.' }
     AppCompatibility:
       type: object
       required: [rows]

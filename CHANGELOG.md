@@ -6,6 +6,11 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Added
+
+- App event detail now shows attachments sent by Sentry SDKs: screenshots as thumbnails, text and JSON files in a viewer, each with a download. Text is scrubbed of personal data; files are capped at 1 MiB (5 MiB per event) and kept for 30 days. Downloads are never rendered as pages.
+- App issues can be assigned to a project member, given a priority (high, medium, low), snoozed, archived until they escalate, and linked to a GitHub issue. Team members can comment, and every change, regression and first sighting appears on the issue's activity timeline. The site export gains `app_issue_activity.csv` and `app_issue_comments.csv`.
+
 ## v0.1.26 (2026-11-18)
 
 ### Fixed

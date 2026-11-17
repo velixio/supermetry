@@ -8,11 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"supermetry/internal/appattach"
 	"supermetry/internal/appquery"
-	"supermetry/internal/platform/audit"
 	"supermetry/internal/platform/authz"
 	coresites "supermetry/internal/sites"
 )
@@ -280,43 +277,4 @@ func (h *handler) getAppReleases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"releases": rows})
-}
-
-type appIssueStatusBody struct {
-	Status            string  `json:"status"`
-	ResolvedInRelease *string `json:"resolved_in_release"`
-}
-
-func (h *handler) updateAppIssueStatus(w http.ResponseWriter, r *http.Request) {
-	principal, site, ok := h.appHealthSite(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
-	if !ok {
-		return
-	}
-	id, err := parseInt64(r.PathValue("issue"))
-	if err != nil {
-		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
-		return
-	}
-	var in appIssueStatusBody
-	if !decodeJSON(w, r, &in) {
-		return
-	}
-	var result appquery.StatusResult
-	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
-		var err error
-		result, err = h.appQuerier().SetStatus(r.Context(), tx, appScope(site), id, appquery.StatusInput{Status: in.Status, ResolvedInRelease: in.ResolvedInRelease})
-		if err != nil {
-			return err
-		}
-		meta := map[string]any{"site_id": site.ID, "from": result.Previous, "to": result.Status, "resolved_next": result.ResolvedNext}
-		if result.ResolvedInRelease != nil {
-			meta["resolved_in_release"] = *result.ResolvedInRelease
-		}
-		return audit.Write(r.Context(), tx, principal, "app.issue_status_changed", "app_issue", id, meta)
-	})
-	if err != nil {
-		appQueryError(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, result)
 }
