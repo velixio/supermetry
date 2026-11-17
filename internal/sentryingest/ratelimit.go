@@ -120,14 +120,20 @@ const (
 	ipBurst            = 120
 	DefaultMaxInflight = 32
 	maxTrackedIPs      = 100_000
+	// ipSweepEvery bounds how often a full table is scanned for evictable
+	// buckets, so a flood of new addresses costs one scan per interval, not
+	// one per request.
+	ipSweepEvery = time.Second
 )
 
 // ipLimiter is an in-memory token bucket per client address, checked before
 // any body is read. Addresses are keys of a bounded map and are never stored.
 type ipLimiter struct {
-	mu      sync.Mutex
-	perSec  float64
-	buckets map[string]*ipBucket
+	mu        sync.Mutex
+	perSec    float64
+	buckets   map[string]*ipBucket
+	lastSweep time.Time
+	sweeps    int // for tests
 }
 
 type ipBucket struct {
@@ -154,10 +160,8 @@ func (l *ipLimiter) allow(key string, now time.Time) bool {
 	b := l.buckets[key]
 	if b == nil {
 		if len(l.buckets) >= maxTrackedIPs {
-			for k, v := range l.buckets {
-				if now.Sub(v.last) > 5*time.Minute {
-					delete(l.buckets, k)
-				}
+			if l.sweeps == 0 || now.Sub(l.lastSweep) >= ipSweepEvery {
+				l.sweep(now)
 			}
 			if len(l.buckets) >= maxTrackedIPs {
 				return true // fail open rather than grow without bound
@@ -175,4 +179,17 @@ func (l *ipLimiter) allow(key string, now time.Time) bool {
 	}
 	b.tokens--
 	return true
+}
+
+// sweep drops buckets idle long enough to have refilled completely: such a
+// bucket behaves exactly like a new one, so dropping it changes no decision.
+func (l *ipLimiter) sweep(now time.Time) {
+	l.lastSweep = now
+	l.sweeps++
+	refill := time.Duration(float64(ipBurst) / l.perSec * float64(time.Second))
+	for k, v := range l.buckets {
+		if now.Sub(v.last) >= refill {
+			delete(l.buckets, k)
+		}
+	}
 }
