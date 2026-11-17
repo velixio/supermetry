@@ -496,7 +496,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		// Bodies have no writer yet, so the body queue is nil and scrubbed bodies are discarded.
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, nil, enricher, cfg.TrustedProxies, settings.clock.Now).
-			WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight)
+			WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
 		})

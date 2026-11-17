@@ -241,6 +241,9 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 			if err := results.Close(); err != nil {
 				return err
 			}
+			if err := recordIssueHashes(ctx, tx, order); err != nil {
+				return err
+			}
 		}
 		rows := make([][]any, 0, len(live))
 		for _, q := range live {
@@ -275,6 +278,27 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 		clear(w.partitions) // a partition may have been dropped by retention
 		w.mu.Unlock()
 		return err
+	}
+	return nil
+}
+
+// recordIssueHashes stores each (version, fingerprint hash) to issue pair of
+// the batch in one statement. Existing pairs are kept, so a pair that was
+// pointed at another issue (a merge) is never overwritten by ingestion.
+func recordIssueHashes(ctx context.Context, tx pgx.Tx, groups []*issueGroup) error {
+	sites := make([]int32, len(groups))
+	hashes := make([][]byte, len(groups))
+	versions := make([]int16, len(groups))
+	ids := make([]int64, len(groups))
+	for i, g := range groups {
+		sum := sha256.Sum256([]byte(g.fingerprint))
+		sites[i], hashes[i], versions[i], ids[i] = g.siteID, sum[:], g.groupingVersion, g.id
+	}
+	_, err := tx.Exec(ctx, `insert into app_issue_hashes (site_id, hash, grouping_version, issue_id)
+select * from unnest($1::int[], $2::bytea[], $3::smallint[], $4::bigint[])
+on conflict (site_id, grouping_version, hash) do nothing`, sites, hashes, versions, ids)
+	if err != nil {
+		return fmt.Errorf("record issue hashes: %w", err)
 	}
 	return nil
 }
