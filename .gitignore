@@ -53,3 +53,4 @@ tools/**/node_modules/
 
 # Internal specs and plans (agent working docs, kept local)
 docs/superpowers/
+tools/sentry-fixtures/**/.venv/
