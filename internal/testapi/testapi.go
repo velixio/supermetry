@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/api"
+	"supermetry/internal/appquery"
 	"supermetry/internal/config"
 	"supermetry/internal/db"
 	"supermetry/internal/dict"
@@ -140,7 +141,7 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 	})
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js", Tracking: config.TrackingMode{Mode: privacy.Identified}},
-		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry),
+		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry), AppQuery: appquery.New(pool, func() time.Time { return now }),
 		PublicAuth: analyticsAuthenticator, PrivateAuth: analyticsAuthenticator, Sites: registry,
 		Platform: platform, Sessions: live, MinuteSource: minutes.NewStore(pool), Dictionary: dictionary,
 		Now: func() time.Time { return now }, RateLimitNow: func() time.Time { return now },

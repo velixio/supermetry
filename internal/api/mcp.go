@@ -37,6 +37,7 @@ type MCPDeps struct {
 	Sessions      session.Store
 	MinuteSource  realtime.MinuteSource
 	Dictionary    dictionaryResolver
+	AppHealth     appHealthReader // nil omits the App Health tools
 	Now           func() time.Time
 }
 
