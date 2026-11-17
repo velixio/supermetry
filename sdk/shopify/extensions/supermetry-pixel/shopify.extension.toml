@@ -1,0 +1,40 @@
+# Web pixel app extension (format of Shopify's web-pixel-extension template).
+name = "Supermetry pixel"
+handle = "supermetry-pixel"
+type = "web_pixel_extension"
+
+runtime_context = "strict"
+
+# Supermetry is cookie-free and stores no identifiers on the device. Shopify
+# still loads the pixel only when the visitor allows analytics.
+[customer_privacy]
+analytics = true
+marketing = false
+preferences = false
+sale_of_data = "disabled"
+
+# Values are set when the pixel is connected (webPixelCreate / webPixelUpdate).
+[settings]
+type = "object"
+
+[settings.fields.host]
+name = "Supermetry URL"
+description = "https://app.supermetry.com for Supermetry Cloud, or your self-hosted Supermetry URL."
+type = "single_line_text_field"
+validations = [
+  { name = "min", value = "8" }
+]
+
+[settings.fields.site]
+name = "Site ID"
+description = "The 12-character site ID from Settings → Installation in Supermetry."
+type = "single_line_text_field"
+validations = [
+  { name = "min", value = "12" },
+  { name = "max", value = "12" }
+]
+
+[settings.fields.pageviews]
+name = "Page views"
+description = "checkout (default): only checkout pages, because the theme app embed counts the storefront. all: every page (when the theme app embed is off). none: no page views."
+type = "single_line_text_field"

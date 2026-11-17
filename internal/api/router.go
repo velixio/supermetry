@@ -79,7 +79,11 @@ type Deps struct {
 	// GitHubWebhook receives repository star webhooks, one URL per tracked repository. Nil leaves the route off.
 	GitHubWebhook http.Handler
 	// GitHubStarCount serves the public star count of a tracked repository. Nil leaves the route off.
-	GitHubStarCount     http.Handler
+	GitHubStarCount http.Handler
+	// StripeWebhook receives signed Stripe deliveries, one URL per connected site. Nil leaves the route off.
+	StripeWebhook http.Handler
+	// StripeAttribution issues short-lived checkout attribution ids to the tracked page. Nil leaves the route off.
+	StripeAttribution   http.Handler
 	OpenCounters        *opencounters.Handler
 	OpenCountersEnabled bool
 	Replay              http.Handler
@@ -206,6 +210,13 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.GitHubWebhook != nil {
 		mux.Handle("POST /api/github/webhook/{public_id}", deps.GitHubWebhook)
+	}
+	if deps.StripeWebhook != nil {
+		mux.Handle("POST "+publicPrefix+"/integrations/stripe/webhook/{endpoint}", deps.StripeWebhook)
+	}
+	if deps.StripeAttribution != nil {
+		mux.Handle("POST "+publicPrefix+"/attribution", deps.StripeAttribution)
+		mux.Handle("OPTIONS "+publicPrefix+"/attribution", deps.StripeAttribution)
 	}
 	if deps.GitHubStarCount != nil {
 		mux.Handle("GET /api/github/stars/{owner}/{name}", deps.GitHubStarCount)
@@ -448,6 +459,10 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/sites/{site}/integrations/{provider}/backfill",
 		"DELETE " + privatePrefix + "/sites/{site}/integrations/{provider}",
 		"GET " + privatePrefix + "/integrations/{provider}/callback",
+		"GET " + privatePrefix + "/sites/{site}/integrations/stripe",
+		"POST " + privatePrefix + "/sites/{site}/integrations/stripe",
+		"PATCH " + privatePrefix + "/sites/{site}/integrations/stripe",
+		"DELETE " + privatePrefix + "/sites/{site}/integrations/stripe",
 		"GET " + privatePrefix + "/sites/{site}/search-console/top",
 		"GET " + privatePrefix + "/invitations/{token}",
 		"POST " + privatePrefix + "/invitations/{token}/accept",

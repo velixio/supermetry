@@ -211,6 +211,13 @@ type Joiner interface {
 	Join(Hit) Result
 }
 
+// SnapshotJoiner resolves an existing live session like Joiner and returns a
+// copy of its dimensions. It is used to attribute server-side events, such as
+// payments, to the session that led to them.
+type SnapshotJoiner interface {
+	JoinSnapshot(Hit) (Snapshot, bool)
+}
+
 // ProfileLinker optionally records a hash-only association between a live
 // session and an external profile identity.
 type ProfileLinker interface {

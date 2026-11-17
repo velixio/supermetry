@@ -1,0 +1,23 @@
+{
+  "name": "Supermetry",
+  "settings": {
+    "site": {
+      "label": "Site ID",
+      "info": "The 12-character site ID from Settings → Installation in Supermetry."
+    },
+    "host": {
+      "label": "Supermetry URL",
+      "info": "https://app.supermetry.com for Supermetry Cloud, or your self-hosted Supermetry URL."
+    },
+    "outbound": {
+      "label": "Track outbound link clicks (when on in Supermetry)"
+    },
+    "downloads": {
+      "label": "Track file downloads (when on in Supermetry)"
+    },
+    "consent": {
+      "label": "Wait for cookie banner consent",
+      "info": "Supermetry sets no cookies. Turn this on only if you want it to follow Shopify's customer privacy banner anyway."
+    }
+  }
+}

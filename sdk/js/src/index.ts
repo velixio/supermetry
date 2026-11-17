@@ -168,6 +168,39 @@ export function eventsEndpoint(options: InitOptions): string | undefined {
   return `${trimSlash(host)}/api/public/v1/events`;
 }
 
+export function attributionEndpoint(options: InitOptions): string {
+  if (options.host !== undefined || !options.api) return `${trimSlash(resolvedHost(options) ?? "")}/api/public/v1/attribution`;
+  return options.api.replace(/\/events\/?$/, "/attribution");
+}
+
+let attributionOptions: InitOptions | undefined;
+
+/**
+ * Returns a short-lived Stripe attribution id for the current visit, to pass as
+ * `client_reference_id` (or `metadata.supermetry_id`) when creating a Stripe
+ * Checkout Session. Resolves to null when attribution is unavailable: outside
+ * a browser, before `init` without explicit options, for an unknown site, when
+ * no visit has been recorded today, or when the site does not keep profiles.
+ */
+export async function attributionId(options?: InitOptions): Promise<string | null> {
+  const resolved = options ?? attributionOptions;
+  if (typeof fetch !== "function" || typeof document === "undefined" || !resolved?.site) return null;
+  try {
+    const response = await fetch(attributionEndpoint(resolved), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ site: resolved.site }),
+      credentials: "omit",
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const result = (await response.json()) as { id?: unknown };
+    return typeof result.id === "string" ? result.id : null;
+  } catch {
+    return null;
+  }
+}
+
 function trimSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
@@ -177,6 +210,7 @@ export function init(options: InitOptions): Tracker {
   if (!current) return tracker;
   if (current.initialized) return tracker;
   if (!options?.site) throw new TypeError("@supermetry/tracker init requires site");
+  attributionOptions = options;
 
   const script = document.createElement("script");
   script.async = true;

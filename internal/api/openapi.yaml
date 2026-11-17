@@ -3748,6 +3748,107 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/sites/{site}/integrations/stripe:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getStripeIntegration
+      security: [{ cookieAuth: [] }]
+      summary: Stripe revenue connection status of a site
+      responses:
+        '200': { description: Connection status; enabled is false when Stripe is not set up., content: { application/json: { schema: { $ref: '#/components/schemas/StripeIntegration' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: enableStripeIntegration
+      security: [{ cookieAuth: [] }]
+      summary: Create the site's Stripe webhook endpoint (idempotent)
+      responses:
+        '200': { description: Connection status with the webhook URL to add in Stripe., content: { application/json: { schema: { $ref: '#/components/schemas/StripeIntegration' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: configureStripeIntegration
+      security: [{ cookieAuth: [] }]
+      summary: Save the webhook signing secret or change options
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StripeIntegrationUpdate' } } } }
+      responses:
+        '200': { description: Updated connection status., content: { application/json: { schema: { $ref: '#/components/schemas/StripeIntegration' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: disconnectStripeIntegration
+      security: [{ cookieAuth: [] }]
+      summary: Disconnect Stripe, deleting the secret, endpoint, customer channels and refund ledger
+      responses:
+        '204': { description: Disconnected. Revenue events already recorded stay. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/integrations/stripe/webhook/{endpoint}:
+    parameters:
+      - { name: endpoint, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' } }
+    post:
+      operationId: receiveStripeWebhook
+      security: []
+      summary: Receive a signed Stripe webhook delivery
+      description: |
+        Stripe calls this URL; it is not meant for other clients. The body (at
+        most 256 KiB) must carry a valid `Stripe-Signature` made with the
+        site's signing secret. Unknown endpoints and bad signatures both
+        answer 400.
+      parameters:
+        - { name: Stripe-Signature, in: header, required: true, schema: { type: string, maxLength: 4096 } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses:
+        '200':
+          description: Delivery handled or deliberately skipped.
+          content: { application/json: { schema: { type: object, required: [received], properties: { received: { type: boolean } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '413': { description: Body larger than 256 KiB. }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { description: The event writer is saturated; Stripe retries the delivery. }
+  /api/public/v1/attribution:
+    options:
+      operationId: preflightAttribution
+      security: []
+      summary: Negotiate cross-origin attribution requests
+      responses:
+        '204': { description: Cross-origin requests are permitted from the site's allowed hosts. }
+    post:
+      operationId: createAttributionId
+      security: []
+      summary: Issue a short-lived checkout attribution id for the caller's live session
+      description: |
+        Called from the tracked page before redirecting to Stripe Checkout.
+        Pass the returned id as `client_reference_id` (or
+        `metadata.supermetry_id`). The id is sealed, valid for 24 hours and
+        bound to the site. It is `null` in anonymous tracking mode, when
+        profiles are off, when a privacy signal is honored, or when the
+        caller has no live session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [site]
+              properties: { site: { type: string, minLength: 1, maxLength: 64 } }
+      responses:
+        '200':
+          description: Attribution id or null.
+          content:
+            application/json:
+              schema: { type: object, required: [id], properties: { id: { type: string, nullable: true, maxLength: 200 } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: The Origin is not one of the site's allowed hosts. }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/sites/{site}/search-console/top:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -4096,6 +4197,33 @@ components:
       required: [authorization_url]
       properties:
         authorization_url: { type: string, format: uri }
+    StripeIntegration:
+      type: object
+      required: [enabled, secret_configured, record_payment_intents, events, optional_events, events_received, revenue_events, refunds_30d, refunded_micros_30d]
+      properties:
+        enabled: { type: boolean }
+        webhook_url: { type: string, description: Endpoint URL to add in Stripe; a path when no public base URL is configured. }
+        secret_configured: { type: boolean }
+        record_payment_intents: { type: boolean }
+        events: { type: array, items: { type: string }, description: Stripe event types to select for the endpoint. }
+        optional_events: { type: array, items: { type: string } }
+        revenue_currency: { type: string, minLength: 3, maxLength: 3 }
+        events_received: { type: integer, format: int64 }
+        revenue_events: { type: integer, format: int64 }
+        refunds_30d: { type: integer, format: int64 }
+        refunded_micros_30d: { type: integer, format: int64 }
+        last_event_at: { type: string, format: date-time }
+        last_event_type: { type: string }
+        last_event_livemode: { type: boolean }
+        last_error: { type: string }
+        last_error_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    StripeIntegrationUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        signing_secret: { type: string, minLength: 1, maxLength: 256, description: The whsec_ signing secret of the Stripe webhook endpoint. Write-only. }
+        record_payment_intents: { type: boolean }
     SearchConsoleTopRow:
       type: object
       required: [key, clicks, impressions, ctr, position]

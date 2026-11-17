@@ -21,6 +21,9 @@ event contract, described in [SPEC.md](SPEC.md).
 | Ruby | `supermetry` (RubyGems) | [ruby](ruby) |
 | iOS (Swift) | `Supermetry` (Swift Package) | [ios](ios) |
 | Android (Kotlin) | `com.supermetry:supermetry-android` | [android](android) |
+| WordPress (+ WooCommerce) | `supermetry` plugin (GPL-2.0-or-later, in its own repository) | [supermetry-wordpress](https://github.com/velixio/supermetry-wordpress) |
+| Shopify | theme app embed + web pixel (Shopify CLI app), or paste-in snippets | [shopify](shopify) |
+| Ghost | code injection snippet, theme partial | [ghost](ghost) |
 
 ## HTML / Script
 

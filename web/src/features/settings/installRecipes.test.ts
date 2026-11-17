@@ -28,6 +28,12 @@ describe('install recipes', () => {
     ])
   })
 
+  it('points WordPress and Shopify to their platform plugins', () => {
+    const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]))
+    expect(byId.get('wordpress')?.note?.match(/https:\/\/\S+/)?.[0]).toBe('https://github.com/velixio/supermetry-wordpress')
+    expect(byId.get('shopify')?.note).toContain('https://github.com/velixio/supermetry/tree/main/sdk/shopify')
+  })
+
   it('embeds the real script URL and site id in every recipe', () => {
     for (const recipe of recipes) {
       expect(recipe.code, recipe.id).toContain('abc123def456')

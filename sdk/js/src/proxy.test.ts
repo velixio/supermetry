@@ -59,6 +59,31 @@ describe("createProxyHandler", () => {
     expect(headers.get("cookie")).toBeNull();
   });
 
+  test("forwards Stripe attribution requests from a prefixed path with the client IP", async () => {
+    const { sent, fetch } = upstream(() => Response.json({ id: "sm1_x" }));
+    const handler = createProxyHandler({ host: "https://analytics.supermetry.com", fetch });
+    const body = JSON.stringify({ site: "site-id" });
+
+    const response = await handler(
+      new Request("https://shop.supermetry.com/stats/api/public/v1/attribution", {
+        method: "POST",
+        body,
+        headers: { "content-type": "application/json", "user-agent": "Mozilla/5.0 Test", "x-forwarded-for": "203.0.113.7" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(sent[0]!.url).toBe("https://analytics.supermetry.com/api/public/v1/attribution");
+    expect(sent[0]!.init.body).toBe(body);
+    const headers = sent[0]!.init.headers as Headers;
+    expect(headers.get("x-forwarded-for")).toBe("203.0.113.7");
+    expect(headers.get("user-agent")).toBe("Mozilla/5.0 Test");
+
+    const get = await handler(new Request("https://shop.supermetry.com/api/public/v1/attribution"));
+    expect(get.status).toBe(404);
+  });
+
   test("passes Retry-After through on rate limits", async () => {
     const { fetch } = upstream(() => new Response("slow down", { status: 429, headers: { "retry-after": "30" } }));
     const handler = createProxyHandler({ host: "https://analytics.supermetry.com", fetch, getClientIp: () => "198.51.100.1" });

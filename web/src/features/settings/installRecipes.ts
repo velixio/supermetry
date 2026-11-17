@@ -161,13 +161,14 @@ export default function App() {
     { id: 'angular', label: 'Angular', group: 'browser', where: 'src/index.html', language: 'html', note: headNote, code: tag },
     {
       id: 'wordpress', label: 'WordPress', group: 'browser', where: "Your theme's functions.php (or a header-injection plugin)", language: 'php',
+      note: 'Prefer a plugin? The Supermetry WordPress plugin adds a settings page, role exclusions, WooCommerce purchases and an ad blocker proxy: https://github.com/velixio/supermetry-wordpress',
       code: `add_action('wp_head', function () {
     echo '<script defer data-site="${publicId}" src="${scriptUrl}"></script>';
 });`,
     },
     {
       id: 'shopify', label: 'Shopify', group: 'browser', where: 'Online Store → Themes → Edit code → layout/theme.liquid', language: 'liquid',
-      note: 'Paste it just before </head>.', code: tag,
+      note: 'Paste it just before </head>. To also track checkout and purchases with revenue, add the Supermetry web pixel or app: https://github.com/velixio/supermetry/tree/main/sdk/shopify', code: tag,
     },
     {
       id: 'gtm', label: 'Google Tag Manager', group: 'browser', where: 'New tag → Custom HTML, trigger: All Pages', language: 'html',

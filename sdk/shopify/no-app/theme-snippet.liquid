@@ -1,0 +1,8 @@
+{%- comment -%}
+  Supermetry tracker for themes without the app. Paste just before </head> in
+  layout/theme.liquid (Online Store → Themes → Edit code). Replace YOUR_SITE_ID
+  (twice) and, when self-hosting, https://app.supermetry.com with your Supermetry URL.
+{%- endcomment -%}
+{%- unless request.design_mode -%}
+  <script defer data-site="YOUR_SITE_ID" src="https://app.supermetry.com/js/YOUR_SITE_ID.js"></script>
+{%- endunless -%}

@@ -19,6 +19,7 @@ import {
   type IntegrationConnection, type IntegrationEntry,
 } from './api'
 import { SearchConsoleReport } from './SearchConsoleReport'
+import { StripeCard } from './StripeCard'
 
 const t = en.integrationsUi
 
@@ -245,6 +246,8 @@ export function IntegrationsPage({
           ))}
         </section>
       )}
+
+      {role !== 'viewer' ? <StripeCard canManage={canManage} orgId={orgId} siteId={siteId} /> : null}
 
       {searchConsole?.connection ? <SearchConsoleReport orgId={orgId} siteId={siteId} /> : null}
     </PageContainer>
