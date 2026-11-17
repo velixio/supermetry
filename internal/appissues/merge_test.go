@@ -3,6 +3,7 @@ package appissues_test
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"testing"
@@ -363,16 +364,41 @@ func TestMergeKeepsHistoryOlderThanStoredEvents(t *testing.T) {
 	}
 }
 
-func TestMergeGuardsMissingTagTable(t *testing.T) {
+func TestMergeAndUnmergeRebuildIssueTags(t *testing.T) {
 	f := newMergeFixture(t)
-	var exists bool
-	if err := f.pool.QueryRow(context.Background(), `select to_regclass('app_issue_tags') is not null`).Scan(&exists); err != nil {
+	ctx := context.Background()
+	tagEvents := func(issue int64) int64 {
+		var n int64
+		if err := f.pool.QueryRow(ctx, `select coalesce(sum(events),0) from app_issue_tags where issue_id=$1 and key='release'`, issue).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	// The fixture's events carry no tag values; give them a release.
+	if _, err := f.pool.Exec(ctx, `update app_events set release='1.0.0' where site_id=7`); err != nil {
 		t.Fatal(err)
 	}
-	if exists {
-		t.Skip("app_issue_tags exists; its merge re-sum belongs to the tag rollup change")
-	}
-	if err := f.svc.Merge(context.Background(), 7, f.b, []int64{f.a}, f.actor); err != nil {
+	if err := f.svc.Merge(ctx, 7, f.b, []int64{f.a}, f.actor); err != nil {
 		t.Fatal(err)
+	}
+	if got, want := tagEvents(f.b), eventsOf(t, f.fixture, f.b); got != want {
+		t.Fatalf("target release tag events = %d, want %d", got, want)
+	}
+	if got := tagEvents(f.a); got != 0 {
+		t.Fatalf("merged source still has %d tag events", got)
+	}
+	merged, err := f.svc.Merged(ctx, 7, f.b)
+	if err != nil || len(merged) != 1 {
+		t.Fatalf("merged = %v err=%v", merged, err)
+	}
+	hash, _ := hex.DecodeString(merged[0].Hash)
+	if _, err := f.svc.Unmerge(ctx, 7, f.b, [][]byte{hash}, f.actor); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := tagEvents(f.a), eventsOf(t, f.fixture, f.a); got != want {
+		t.Fatalf("reinstated source release tag events = %d, want %d", got, want)
+	}
+	if got, want := tagEvents(f.b), eventsOf(t, f.fixture, f.b); got != want {
+		t.Fatalf("target release tag events after unmerge = %d, want %d", got, want)
 	}
 }

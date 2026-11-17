@@ -169,6 +169,9 @@ func (s *Service) MergeTx(ctx context.Context, tx pgx.Tx, siteID int32, targetID
 where id = $2`, siteID, targetID, first, last, history); err != nil {
 		return fmt.Errorf("recount target: %w", err)
 	}
+	if err := rebuildTags(ctx, tx, siteID, append([]int64{targetID}, srcs...)); err != nil {
+		return err
+	}
 	now := s.now()
 	if err := record(ctx, tx, siteID, targetID, now, actor.id(), KindMerged, map[string]any{"sources": srcs}); err != nil {
 		return err
@@ -262,6 +265,9 @@ where id = $2`, siteID, targetID, remainder[targetID]); err != nil {
 	if err := s.rebuildRollups(ctx, tx, siteID, ids); err != nil {
 		return 0, err
 	}
+	if err := rebuildTags(ctx, tx, siteID, ids); err != nil {
+		return 0, err
+	}
 	now := s.now()
 	back := make([]int64, 0, len(sources))
 	for _, sc := range sources {
@@ -311,4 +317,25 @@ from app_issues i where i.site_id = $1 and i.merged_into = $2 order by i.last_se
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+// rebuildTags recomputes the search tag rows of the given issues from their
+// retained events, with the same columns as the daily rollup. Issues left
+// with no events (merged sources) end up with no tag rows.
+func rebuildTags(ctx context.Context, tx pgx.Tx, siteID int32, ids []int64) error {
+	if _, err := tx.Exec(ctx, `delete from app_issue_tags where site_id = $1 and issue_id = any($2)`, siteID, ids); err != nil {
+		return fmt.Errorf("clear issue tags: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+insert into app_issue_tags (site_id, issue_id, key, value, events, last_seen)
+select e.site_id, e.issue_id, k.key, left(k.value, 200), sum(e.occurrences), max(e.ts)
+from app_events e
+cross join lateral (values ('release', e.release), ('environment', e.environment), ('platform', e.platform),
+  ('level', e.level), ('os', e.os_version), ('device_class', e.device_class),
+  ('browser', case when e.platform = 'web' then e.runtime else '' end)) as k(key, value)
+where e.site_id = $1 and e.issue_id = any($2) and e.kind <> 'session' and k.value <> ''
+group by e.site_id, e.issue_id, k.key, left(k.value, 200)`, siteID, ids); err != nil {
+		return fmt.Errorf("rebuild issue tags: %w", err)
+	}
+	return nil
 }
