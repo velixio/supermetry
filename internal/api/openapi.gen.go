@@ -4658,6 +4658,39 @@ type SitesOverviewResponse struct {
 // StatsBreakdownDimension defines model for StatsBreakdownDimension.
 type StatsBreakdownDimension string
 
+// StripeIntegration defines model for StripeIntegration.
+type StripeIntegration struct {
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	Enabled   bool       `json:"enabled"`
+
+	// Events Stripe event types to select for the endpoint.
+	Events               []string   `json:"events"`
+	EventsReceived       int64      `json:"events_received"`
+	LastError            *string    `json:"last_error,omitempty"`
+	LastErrorAt          *time.Time `json:"last_error_at,omitempty"`
+	LastEventAt          *time.Time `json:"last_event_at,omitempty"`
+	LastEventLivemode    *bool      `json:"last_event_livemode,omitempty"`
+	LastEventType        *string    `json:"last_event_type,omitempty"`
+	OptionalEvents       []string   `json:"optional_events"`
+	RecordPaymentIntents bool       `json:"record_payment_intents"`
+	RefundedMicros30d    int64      `json:"refunded_micros_30d"`
+	Refunds30d           int64      `json:"refunds_30d"`
+	RevenueCurrency      *string    `json:"revenue_currency,omitempty"`
+	RevenueEvents        int64      `json:"revenue_events"`
+	SecretConfigured     bool       `json:"secret_configured"`
+
+	// WebhookUrl Endpoint URL to add in Stripe; a path when no public base URL is configured.
+	WebhookUrl *string `json:"webhook_url,omitempty"`
+}
+
+// StripeIntegrationUpdate defines model for StripeIntegrationUpdate.
+type StripeIntegrationUpdate struct {
+	RecordPaymentIntents *bool `json:"record_payment_intents,omitempty"`
+
+	// SigningSecret The whsec_ signing secret of the Stripe webhook endpoint. Write-only.
+	SigningSecret *string `json:"signing_secret,omitempty"`
+}
+
 // Suggestion defines model for Suggestion.
 type Suggestion struct {
 	Count int64  `json:"count"`
@@ -5223,6 +5256,11 @@ type SubmitAppEventsParams struct {
 	XSupermetryKey string `json:"X-Supermetry-Key"`
 }
 
+// CreateAttributionIdJSONBody defines parameters for CreateAttributionId.
+type CreateAttributionIdJSONBody struct {
+	Site string `json:"site"`
+}
+
 // PreflightEventParams defines parameters for PreflightEvent.
 type PreflightEventParams struct {
 	Origin                      *string                                         `json:"Origin,omitempty"`
@@ -5232,6 +5270,14 @@ type PreflightEventParams struct {
 
 // PreflightEventParamsAccessControlRequestMethod defines parameters for PreflightEvent.
 type PreflightEventParamsAccessControlRequestMethod string
+
+// ReceiveStripeWebhookJSONBody defines parameters for ReceiveStripeWebhook.
+type ReceiveStripeWebhookJSONBody = map[string]interface{}
+
+// ReceiveStripeWebhookParams defines parameters for ReceiveStripeWebhook.
+type ReceiveStripeWebhookParams struct {
+	StripeSignature string `json:"Stripe-Signature"`
+}
 
 // McpParams defines parameters for Mcp.
 type McpParams struct {
@@ -5547,6 +5593,9 @@ type CreateDashboardJSONRequestBody = DashboardInput
 // UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
 type UpdateDashboardJSONRequestBody = DashboardUpdate
 
+// ConfigureStripeIntegrationJSONRequestBody defines body for ConfigureStripeIntegration for application/json ContentType.
+type ConfigureStripeIntegrationJSONRequestBody = StripeIntegrationUpdate
+
 // BackfillSiteIntegrationJSONRequestBody defines body for BackfillSiteIntegration for application/json ContentType.
 type BackfillSiteIntegrationJSONRequestBody = IntegrationBackfillRequest
 
@@ -5577,6 +5626,9 @@ type SubmitAppEventsJSONRequestBody = AppEventsRequest
 // SubmitAppEventsTextRequestBody defines body for SubmitAppEvents for text/plain ContentType.
 type SubmitAppEventsTextRequestBody = AppEventsRequest
 
+// CreateAttributionIdJSONRequestBody defines body for CreateAttributionId for application/json ContentType.
+type CreateAttributionIdJSONRequestBody CreateAttributionIdJSONBody
+
 // SubmitEventJSONRequestBody defines body for SubmitEvent for application/json ContentType.
 type SubmitEventJSONRequestBody = EventPayload
 
@@ -5594,6 +5646,9 @@ type UpdateGoalJSONRequestBody = GoalInput
 
 // HeatmapQueryJSONRequestBody defines body for HeatmapQuery for application/json ContentType.
 type HeatmapQueryJSONRequestBody = HeatmapRequest
+
+// ReceiveStripeWebhookJSONRequestBody defines body for ReceiveStripeWebhook for application/json ContentType.
+type ReceiveStripeWebhookJSONRequestBody = ReceiveStripeWebhookJSONBody
 
 // JourneyQueryJSONRequestBody defines body for JourneyQuery for application/json ContentType.
 type JourneyQueryJSONRequestBody = JourneyRequest
@@ -6427,6 +6482,18 @@ type ServerInterface interface {
 	// ListSiteIntegrations List the integration catalog of a site with each connection state
 	// (GET /api/private/sites/{site}/integrations)
 	ListSiteIntegrations(w http.ResponseWriter, r *http.Request, site int32)
+	// DisconnectStripeIntegration Disconnect Stripe, deleting the secret, endpoint, customer channels and refund ledger
+	// (DELETE /api/private/sites/{site}/integrations/stripe)
+	DisconnectStripeIntegration(w http.ResponseWriter, r *http.Request, site int32)
+	// GetStripeIntegration Stripe revenue connection status of a site
+	// (GET /api/private/sites/{site}/integrations/stripe)
+	GetStripeIntegration(w http.ResponseWriter, r *http.Request, site int32)
+	// ConfigureStripeIntegration Save the webhook signing secret or change options
+	// (PATCH /api/private/sites/{site}/integrations/stripe)
+	ConfigureStripeIntegration(w http.ResponseWriter, r *http.Request, site int32)
+	// EnableStripeIntegration Create the site's Stripe webhook endpoint (idempotent)
+	// (POST /api/private/sites/{site}/integrations/stripe)
+	EnableStripeIntegration(w http.ResponseWriter, r *http.Request, site int32)
 	// DisconnectSiteIntegration Disconnect, deleting stored tokens and all imported data
 	// (DELETE /api/private/sites/{site}/integrations/{provider})
 	DisconnectSiteIntegration(w http.ResponseWriter, r *http.Request, site int32, provider string)
@@ -6505,6 +6572,12 @@ type ServerInterface interface {
 	// SubmitAppEvents Submit app health reports
 	// (POST /api/public/v1/app-events)
 	SubmitAppEvents(w http.ResponseWriter, r *http.Request, params SubmitAppEventsParams)
+	// PreflightAttribution Negotiate cross-origin attribution requests
+	// (OPTIONS /api/public/v1/attribution)
+	PreflightAttribution(w http.ResponseWriter, r *http.Request)
+	// CreateAttributionId Issue a short-lived checkout attribution id for the caller's live session
+	// (POST /api/public/v1/attribution)
+	CreateAttributionId(w http.ResponseWriter, r *http.Request)
 	// GetProfileErasure Get profile erasure status
 	// (GET /api/public/v1/erasures/{erasure_id})
 	GetProfileErasure(w http.ResponseWriter, r *http.Request, erasureId int64)
@@ -6532,6 +6605,9 @@ type ServerInterface interface {
 	// HeatmapQuery Query an aggregated click heatmap and scroll map
 	// (POST /api/public/v1/heatmaps/query)
 	HeatmapQuery(w http.ResponseWriter, r *http.Request)
+	// ReceiveStripeWebhook Receive a signed Stripe webhook delivery
+	// (POST /api/public/v1/integrations/stripe/webhook/{endpoint})
+	ReceiveStripeWebhook(w http.ResponseWriter, r *http.Request, endpoint string, params ReceiveStripeWebhookParams)
 	// JourneyQuery Run a page journey query
 	// (POST /api/public/v1/journeys/query)
 	JourneyQuery(w http.ResponseWriter, r *http.Request)
@@ -10588,6 +10664,110 @@ func (siw *ServerInterfaceWrapper) ListSiteIntegrations(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// DisconnectStripeIntegration operation middleware
+func (siw *ServerInterfaceWrapper) DisconnectStripeIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisconnectStripeIntegration(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetStripeIntegration operation middleware
+func (siw *ServerInterfaceWrapper) GetStripeIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetStripeIntegration(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureStripeIntegration operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureStripeIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureStripeIntegration(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableStripeIntegration operation middleware
+func (siw *ServerInterfaceWrapper) EnableStripeIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableStripeIntegration(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DisconnectSiteIntegration operation middleware
 func (siw *ServerInterfaceWrapper) DisconnectSiteIntegration(w http.ResponseWriter, r *http.Request) {
 
@@ -11657,6 +11837,34 @@ func (siw *ServerInterfaceWrapper) SubmitAppEvents(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// PreflightAttribution operation middleware
+func (siw *ServerInterfaceWrapper) PreflightAttribution(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreflightAttribution(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAttributionId operation middleware
+func (siw *ServerInterfaceWrapper) CreateAttributionId(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAttributionId(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetProfileErasure operation middleware
 func (siw *ServerInterfaceWrapper) GetProfileErasure(w http.ResponseWriter, r *http.Request) {
 
@@ -11899,6 +12107,60 @@ func (siw *ServerInterfaceWrapper) HeatmapQuery(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.HeatmapQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReceiveStripeWebhook operation middleware
+func (siw *ServerInterfaceWrapper) ReceiveStripeWebhook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "endpoint" -------------
+	var endpoint string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "endpoint", r.PathValue("endpoint"), &endpoint, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "endpoint", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReceiveStripeWebhookParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Stripe-Signature" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Stripe-Signature")]; found {
+		var StripeSignature string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Stripe-Signature", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Stripe-Signature", valueList[0], &StripeSignature, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Stripe-Signature", Err: err})
+			return
+		}
+
+		params.StripeSignature = StripeSignature
+
+	} else {
+		err := fmt.Errorf("Header parameter Stripe-Signature is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Stripe-Signature", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReceiveStripeWebhook(w, r, endpoint, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14102,6 +14364,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/integrations/{provider}/backfill", wrapper.BackfillSiteIntegration)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/integrations/{provider}", wrapper.DisconnectSiteIntegration)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/integrations/{provider}/callback", wrapper.IntegrationOAuthCallback)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/integrations/stripe", wrapper.DisconnectStripeIntegration)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/integrations/stripe", wrapper.GetStripeIntegration)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/integrations/stripe", wrapper.ConfigureStripeIntegration)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/integrations/stripe", wrapper.EnableStripeIntegration)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/integrations/stripe/webhook/{endpoint}", wrapper.ReceiveStripeWebhook)
+	m.HandleFunc(http.MethodOptions+" "+options.BaseURL+"/api/public/v1/attribution", wrapper.PreflightAttribution)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/attribution", wrapper.CreateAttributionId)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/search-console/top", wrapper.GetSearchConsoleTop)
 
 	return m
