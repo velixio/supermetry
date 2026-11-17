@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "sentry_version=7&sentry_key=0123456789abcdef0123456789abcdef&sentry_client=sentry.javascript.electron%2F8.4.0",
+  "headers": {
+    "Content-Encoding": "gzip",
+    "Content-Type": "application/x-sentry-envelope",
+    "User-Agent": "sentry.javascript.electron/8.4.0"
+  },
+  "sdk": "electron",
+  "sdk_version": "sentry.javascript.electron@8.4.0",
+  "notes": "@sentry/electron 8.4.0 native crash: envelope as sent on next start (electron 40.10.6, xvfb). The minidump attachment payload is SYNTHETIC (32-byte MDMP header, no streams): the recorded dump captured the recording machine's environment. Re-record with an empty environment (env -i) when Phase 2d needs a real dump.",
+  "synthetic_attachment": true
+}

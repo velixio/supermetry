@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "sentry_version=7&sentry_key=0123456789abcdef0123456789abcdef&sentry_client=sentry.javascript.electron%2F8.4.0",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "User-Agent": "sentry.javascript.electron/8.4.0"
+  },
+  "sdk": "electron",
+  "sdk_version": "sentry.javascript.electron@8.4.0",
+  "notes": "@sentry/electron 8.4.0 main-process exception (electron 40.10.6, xvfb)"
+}
