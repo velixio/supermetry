@@ -73,9 +73,13 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 10, 7, 3, 0, 0, 0, time.UTC)
+	if err := db.EnsureAppActiveDayPartitions(ctx, pool, time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
 	for _, site := range []int{1, 2} {
 		for _, day := range []string{"2026-08-01", "2026-10-06"} {
 			for _, q := range []string{
+				`insert into app_active_day(site_id,day,visitor_id,events,screens,sessions,engagement_ms) values($1::int,$2::date,9,0,1,1,0)`,
 				`insert into app_issue_daily(site_id,issue_id,day,events) values($1::int,$1::int,$2::date,1)`,
 				`insert into app_release_daily(site_id,day,release,platform,events) values($1::int,$2::date,'1.0','linux',1)`,
 				`insert into app_issue_hourly(site_id,issue_id,hour,events) values($1::int,$1::int,$2::date + time '05:00',1)`,
@@ -90,7 +94,7 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 	if _, err := retention.Run(ctx, pool, now); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly", "app_client_reports"} {
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly", "app_client_reports", "app_active_day"} {
 		var s1, s2 int
 		if err := pool.QueryRow(ctx, `select count(*) filter (where site_id=1), count(*) filter (where site_id=2) from `+table).Scan(&s1, &s2); err != nil {
 			t.Fatal(err)
@@ -102,7 +106,7 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 	if err := retention.Erase(ctx, pool, 1, 10, 0); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly", "app_client_reports"} {
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_issue_hourly", "app_client_reports", "app_active_day"} {
 		var n int
 		if err := pool.QueryRow(ctx, `select count(*) from `+table+` where site_id=1`).Scan(&n); err != nil || n != 0 {
 			t.Fatalf("%s rows left after erase: %d %v", table, n, err)
