@@ -49,11 +49,11 @@ var allowedMaxMindEditions = map[string]bool{
 }
 
 type SMTP struct {
-	Host     string
-	Port     int
-	User     string
-	Pass     string
-	From     string
+	Host string
+	Port int
+	User string
+	Pass string
+	From string
 	// StartTLS upgrades a plaintext connection with STARTTLS (port 587).
 	StartTLS bool
 	// ImplicitTLS wraps the connection in TLS from the first byte (SMTPS,
