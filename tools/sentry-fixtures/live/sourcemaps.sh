@@ -54,7 +54,7 @@ assess() { # tool dir site key release
   clean_env SENTRY_FIXTURE_DSN="http://$key@127.0.0.1:$port/$site" SM_RELEASE="$rel" PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}" \
     node "$app/app.mjs" "$dir/dist" >"$work/run-$tool.log" 2>&1 || { record "$tool app run" FAIL "$(tail -3 "$work/run-$tool.log")"; return; }
   check "$tool issue" python3 -I "$here/check.py" issues "$base" "$state" "$site" 25
-  check "$tool top frame is src/cart.js:12" python3 -I "$here/check.py" frame "$base" "$state" "$site" 15 src/cart.js 12
+  check "$tool top frame is checkout in src/cart.js:12" python3 -I "$here/check.py" frame "$base" "$state" "$site" 15 src/cart.js 12 checkout
 }
 newsite() { # name -> sets site key token
   local out; out="$(python3 -I "$here/check.py" uploadtoken "$base" "$state" "$1")" || { echo "site setup: $out"; return 1; }

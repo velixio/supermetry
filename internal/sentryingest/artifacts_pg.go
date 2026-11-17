@@ -69,6 +69,39 @@ func (s *PGArtifactStore) MapByURL(ctx context.Context, siteID int32, release, d
 	return s.mapInBundle(ctx, siteID, bundle, ref, url)
 }
 
+// MinifiedByDebugID returns the newest minified script with the debug id.
+func (s *PGArtifactStore) MinifiedByDebugID(ctx context.Context, siteID int32, debugID string) (string, bool, error) {
+	id := sourcemap.NormalizeDebugID(debugID)
+	if id == "" {
+		return "", false, nil
+	}
+	return s.minified(ctx, `select f.blob_key from app_artifact_files f
+		where `+visible+` and f.debug_id = $2::uuid and f.type = 'minified_source'
+		order by f.bundle_id desc limit 1`, siteID, id)
+}
+
+// MinifiedByURL returns the newest minified script for the release, dist and
+// script name (a URL or "~/path").
+func (s *PGArtifactStore) MinifiedByURL(ctx context.Context, siteID int32, release, dist, name string) (string, bool, error) {
+	return s.minified(ctx, `select f.blob_key from app_artifact_files f
+		where `+visible+` and f.release = $2 and f.dist = $3 and f.url = $4 and f.type = 'minified_source'
+		order by f.bundle_id desc limit 1`, siteID, release, dist, name)
+}
+
+func (s *PGArtifactStore) minified(ctx context.Context, q string, args ...any) (string, bool, error) {
+	var key string
+	err := s.pool.QueryRow(ctx, q, args...).Scan(&key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return key, true, nil
+}
+
+var _ ScopeSource = (*PGArtifactStore)(nil)
+
 // mapInBundle finds the source_map file of a bundle that a script's
 // sourceMappingURL reference (or "<url>.map") names.
 func (s *PGArtifactStore) mapInBundle(ctx context.Context, siteID int32, bundle int64, ref, scriptURL string) (string, bool, error) {
