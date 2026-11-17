@@ -1567,6 +1567,7 @@ func (e RetentionRequestInterval) Valid() bool {
 // Defines values for RetentionResponseIdentityWindow.
 const (
 	DailyIdentityWindow   RetentionResponseIdentityWindow = "day"
+	InstallIdentityWindow RetentionResponseIdentityWindow = "install"
 	ProfileIdentityWindow RetentionResponseIdentityWindow = "profile"
 )
 
@@ -1574,6 +1575,8 @@ const (
 func (e RetentionResponseIdentityWindow) Valid() bool {
 	switch e {
 	case DailyIdentityWindow:
+		return true
+	case InstallIdentityWindow:
 		return true
 	case ProfileIdentityWindow:
 		return true
@@ -1585,6 +1588,7 @@ func (e RetentionResponseIdentityWindow) Valid() bool {
 // Defines values for RetentionResponseRetentionMode.
 const (
 	ClassicProfileReturn   RetentionResponseRetentionMode = "classic_profile_return"
+	InstallReturn          RetentionResponseRetentionMode = "install_return"
 	WithinDaySessionReturn RetentionResponseRetentionMode = "within_day_session_return"
 )
 
@@ -1592,6 +1596,8 @@ const (
 func (e RetentionResponseRetentionMode) Valid() bool {
 	switch e {
 	case ClassicProfileReturn:
+		return true
+	case InstallReturn:
 		return true
 	case WithinDaySessionReturn:
 		return true
@@ -4690,17 +4696,17 @@ type RetentionResponse struct {
 	// Cohorts Week and month intervals group daily cohorts without cross-day identity linkage.
 	Cohorts []RetentionCohort `json:"cohorts"`
 
-	// IdentityWindow Anonymous identities last one local day; opted-in profiles link activity across days.
+	// IdentityWindow Anonymous identities last one local day; opted-in profiles link activity across days; app projects link activity by install.
 	IdentityWindow RetentionResponseIdentityWindow `json:"identity_window"`
 
-	// RetentionMode Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
+	// RetentionMode Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets. Install mode (app projects) counts installs returning in later buckets.
 	RetentionMode RetentionResponseRetentionMode `json:"retention_mode"`
 }
 
-// RetentionResponseIdentityWindow Anonymous identities last one local day; opted-in profiles link activity across days.
+// RetentionResponseIdentityWindow Anonymous identities last one local day; opted-in profiles link activity across days; app projects link activity by install.
 type RetentionResponseIdentityWindow string
 
-// RetentionResponseRetentionMode Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
+// RetentionResponseRetentionMode Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets. Install mode (app projects) counts installs returning in later buckets.
 type RetentionResponseRetentionMode string
 
 // RevenueCustomer defines model for RevenueCustomer.

@@ -7082,14 +7082,14 @@ components:
       properties:
         identity_window:
           type: string
-          enum: [day, profile]
-          x-enum-varnames: [DailyIdentityWindow, ProfileIdentityWindow]
-          description: Anonymous identities last one local day; opted-in profiles link activity across days.
+          enum: [day, profile, install]
+          x-enum-varnames: [DailyIdentityWindow, ProfileIdentityWindow, InstallIdentityWindow]
+          description: Anonymous identities last one local day; opted-in profiles link activity across days; app projects link activity by install.
         retention_mode:
           type: string
-          enum: [within_day_session_return, classic_profile_return]
-          x-enum-varnames: [WithinDaySessionReturn, ClassicProfileReturn]
-          description: Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
+          enum: [within_day_session_return, classic_profile_return, install_return]
+          x-enum-varnames: [WithinDaySessionReturn, ClassicProfileReturn, InstallReturn]
+          description: Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets. Install mode (app projects) counts installs returning in later buckets.
         cohorts:
           type: array
           description: Week and month intervals group daily cohorts without cross-day identity linkage.
