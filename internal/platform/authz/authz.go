@@ -34,9 +34,11 @@ type Principal struct {
 type Action string
 
 const (
-	ActionProfilesRead    Action = "profiles.read"
-	ActionReplayRead      Action = "replay.read"
-	ActionDataExport      Action = "data.export"
+	ActionProfilesRead Action = "profiles.read"
+	ActionReplayRead   Action = "replay.read"
+	ActionDataExport   Action = "data.export"
+	// ActionReleasesWrite uploads source maps and creates releases and deploys.
+	ActionReleasesWrite   Action = "releases.write"
 	ActionBillingManage   Action = "billing.manage"
 	ActionStatsRead       Action = "stats.read"
 	ActionSiteEdit        Action = "site.edit"
@@ -65,7 +67,7 @@ const (
 
 var roleActions = map[Role]map[Action]bool{
 	RoleOwner: {
-		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true, ActionBillingManage: true,
+		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true, ActionReleasesWrite: true, ActionBillingManage: true,
 		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionLinksManage: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
@@ -74,7 +76,7 @@ var roleActions = map[Role]map[Action]bool{
 		ActionGitHubStarsRead: true, ActionGitHubStarsManage: true,
 	},
 	RoleAdmin: {
-		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true,
+		ActionProfilesRead: true, ActionReplayRead: true, ActionDataExport: true, ActionReleasesWrite: true,
 		ActionStatsRead: true, ActionSiteEdit: true, ActionGoalsEdit: true, ActionSegmentsEdit: true, ActionAnnotationsEdit: true, ActionLinksManage: true, ActionSiteCreate: true,
 		ActionSiteDelete: true, ActionMembersManage: true, ActionKeysManage: true,
 		ActionSharesManage: true, ActionReportsManage: true, ActionAuditRead: true,
@@ -96,6 +98,7 @@ var keyScopes = map[Action][]string{
 	ActionProfilesRead:    {"profiles:read"},
 	ActionReplayRead:      {"replay:read"},
 	ActionDataExport:      {"data:export"},
+	ActionReleasesWrite:   {"releases:write"},
 	ActionStatsRead:       {"stats:read"},
 	ActionSiteEdit:        {"sites:write"},
 	ActionGoalsEdit:       {"goals:write"},
@@ -149,7 +152,7 @@ func Can(p Principal, action Action, siteID int32) bool {
 
 func isSiteAction(action Action) bool {
 	switch action {
-	case ActionProfilesRead, ActionReplayRead, ActionDataExport, ActionSiteDelete, ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSegmentsEdit, ActionAnnotationsEdit, ActionLinksManage, ActionSharesManage, ActionReportsManage, ActionAlertsManage:
+	case ActionProfilesRead, ActionReplayRead, ActionDataExport, ActionReleasesWrite, ActionSiteDelete, ActionStatsRead, ActionSiteEdit, ActionGoalsEdit, ActionSegmentsEdit, ActionAnnotationsEdit, ActionLinksManage, ActionSharesManage, ActionReportsManage, ActionAlertsManage:
 		return true
 	default:
 		return false

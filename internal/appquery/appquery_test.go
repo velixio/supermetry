@@ -476,3 +476,70 @@ func TestResolveNextWithoutAnyReleaseSeenStoresNone(t *testing.T) {
 		t.Fatalf("got %+v %v", got, err)
 	}
 }
+
+// insertSession writes a session row the way the Sentry front door does:
+// an init row carries a session hash, an aggregate row carries none and
+// stands for occ sessions.
+func insertSession(t *testing.T, e env, id, release, exit string, hash []byte, occ int) {
+	t.Helper()
+	at := time.Date(2026, 11, 14, 10, 0, 0, 0, time.UTC)
+	if _, err := e.f.Pool.Exec(context.Background(), `insert into app_events(site_id,ts,received_at,event_id,kind,level,release,environment,platform,occurrences,session_hash,exit_reason)
+values($1,$2,$2,$3,'session','error',$4,'production','web',$5,$6,$7)`, e.f.SiteID, at, id, release, occ, hash, exit); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCrashFreeSessionsSumsOccurrencesOfSessionRows(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	// 9.8.0: aggregates only, exited 3, errored 1, crashed 1 -> 4 of 5 healthy.
+	insertSession(t, e, "agg-exited", "9.8.0", "", nil, 3)
+	insertSession(t, e, "agg-errored", "9.8.0", "", nil, 1)
+	insertSession(t, e, "agg-crashed", "9.8.0", "crashed", nil, 1)
+	// 9.9.0 mixes everything: v1 pings s1 (crashes) and s2, one session init
+	// row s3 (also sent twice: a retry), and the same aggregates as above
+	// (8 sessions, 2 crashed -> 75%).
+	e.f.Insert(t, appfixture.Event{ID: "v1-s1", Kind: "session", Release: "9.9.0", Platform: "web", At: time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC), Session: "s1", Install: "i1"})
+	e.f.Insert(t, appfixture.Event{ID: "v1-s2", Kind: "session", Release: "9.9.0", Platform: "web", At: time.Date(2026, 11, 14, 9, 1, 0, 0, time.UTC), Session: "s2", Install: "i2"})
+	e.f.Insert(t, appfixture.Event{ID: "v1-crash", Kind: "crash", Release: "9.9.0", Platform: "web", At: time.Date(2026, 11, 14, 9, 2, 0, 0, time.UTC), Session: "s1", Install: "i1"})
+	insertSession(t, e, "init-s3", "9.9.0", "", appfixture.Hash("s3"), 1)
+	insertSession(t, e, "init-s3-retry", "9.9.0", "", appfixture.Hash("s3"), 1)
+	insertSession(t, e, "agg9-exited", "9.9.0", "", nil, 3)
+	insertSession(t, e, "agg9-errored", "9.9.0", "", nil, 1)
+	insertSession(t, e, "agg9-crashed", "9.9.0", "crashed", nil, 1)
+
+	for release, want := range map[string]float64{"9.8.0": 0.8, "9.9.0": 0.75} {
+		f := full()
+		f.Release = release
+		ov, err := e.q.Overview(ctx, e.scope, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		near(t, release+" crash-free sessions", ov.CrashFreeSessions, want)
+		rel, err := e.q.Releases(ctx, e.scope, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, r := range rel {
+			if r.Release == release {
+				near(t, release+" release row", r.CrashFreeSessions, want)
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("release %s missing from %+v", release, rel)
+		}
+	}
+	// The rollup must agree with the query.
+	if err := approllup.RecomputeDay(ctx, e.f.Pool, e.f.SiteID, d("2026-11-14")); err != nil {
+		t.Fatal(err)
+	}
+	var sessions, crashed int64
+	if err := e.f.Pool.QueryRow(ctx, `select sum(sessions), sum(crashed_sessions) from app_release_daily where release = '9.9.0'`).Scan(&sessions, &crashed); err != nil {
+		t.Fatal(err)
+	}
+	if sessions != 8 || crashed != 2 {
+		t.Errorf("rollup sessions=%d crashed=%d, want 8 and 2", sessions, crashed)
+	}
+}

@@ -34,6 +34,7 @@ A key can do only what its scopes allow.
 | `profiles:read` | Read profiles and profile identity fields within allowed sites |
 | `replay:read` | Read replay lists, recordings and replay metadata within allowed sites |
 | `data:export` | Download analytics CSV/ZIP, in addition to the relevant read scope |
+| `releases:write` | Upload source maps and create releases and deploys through the Sentry-compatible API under `/api/0/` (for `sentry-cli` and the bundler plugins). A key with only this scope is an upload token and can be shown as a `sntrys_` token |
 | `sites:write` | Update/delete allowed sites; creating a site requires an unrestricted organization key |
 | `goals:write` | Create, update and delete goals and funnels |
 | `annotations:write` | Create, update and delete chart annotations |
