@@ -4,7 +4,7 @@
   check.py site BASE STATE NAME                  create an app site and a DSN key; prints "<id> <key>"
   check.py sites BASE STATE N                    N app sites with one DSN key each; "<id> <key>" lines
   check.py uploadtoken BASE STATE NAME           app site, DSN key and an upload token (sntrys_ format); prints "<id> <key> <token>"
-  check.py frame BASE STATE SITE WAIT_S EXPECT_FILE EXPECT_LINE  top in-app frame of the newest event is the original file and line
+  check.py frame BASE STATE SITE WAIT_S EXPECT_FILE EXPECT_LINE [EXPECT_FUNC]  top in-app frame of the newest event is the original file and line (and function)
   check.py issues BASE STATE SITE [WAIT_S]       wait for issues; prints "<n> <titles...>"; exit 1 if none
   check.py sessions BASE STATE SITE WAIT_S DB_URL  wait for session rows (crash-free rate, else rows in app_events)
   check.py breadcrumbs BASE STATE SITE DB_URL    PASS/SKIP check that stored bodies carry breadcrumbs
@@ -124,6 +124,7 @@ def main(argv):
             time.sleep(1)
     if cmd == "frame":
         want_file, want_line = argv[6], int(argv[7])
+        want_func = argv[8] if len(argv) > 8 else ""
         last = "no event yet"
         while True:
             r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")
@@ -144,7 +145,11 @@ def main(argv):
                     top = frames[-1]  # frames are oldest call first
                     fn, ln = top.get("filename", ""), top.get("lineno")
                     if fn.endswith(want_file) and ln == want_line:
-                        print(f"top in-app frame {fn}:{ln} function={top.get('function')}")
+                        func = top.get("function")
+                        print(f"top in-app frame {fn}:{ln} function={func}")
+                        if want_func and func != want_func:
+                            print(f"FAIL: expected function {want_func}, got {func}")
+                            return 1
                         return 0
                     last = f"top in-app frame is {fn}:{ln}"
                     if re.search(r"(^|/)assets/app\.js$", fn):

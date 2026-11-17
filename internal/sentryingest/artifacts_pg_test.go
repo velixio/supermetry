@@ -69,6 +69,22 @@ insert into app_artifact_files(bundle_id,org_id,site_id,release,url,type,blob_ke
 	if k := got(st.MapByURL(ctx, 1, "1.0", "", "~/assets/app.js")); k != "b4/app.js.map" {
 		t.Fatalf("newest bundle must win (map found by url + .map): %q", k)
 	}
+	// The minified script goes with the same scoping rules.
+	if k := got(st.MinifiedByDebugID(ctx, 1, dbg)); k != "b1/app.js" {
+		t.Fatalf("minified by debug id: %q", k)
+	}
+	if k := got(st.MinifiedByDebugID(ctx, 2, dbg)); k != "" {
+		t.Fatalf("site 2 must not see the minified script: %q", k)
+	}
+	if k := got(st.MinifiedByURL(ctx, 2, "1.0", "", "~/assets/org.js")); k != "b2/org.js" {
+		t.Fatalf("org-wide minified for site 2: %q", k)
+	}
+	if k := got(st.MinifiedByURL(ctx, 3, "1.0", "", "~/assets/org.js")); k != "" {
+		t.Fatalf("minified leaked to org B: %q", k)
+	}
+	if k := got(st.MinifiedByURL(ctx, 1, "1.0", "", "~/assets/app.js")); k != "b4/app.js" {
+		t.Fatalf("newest minified must win: %q", k)
+	}
 }
 
 func rep(c string) string {

@@ -37,6 +37,9 @@ const (
 	mapOverhead = 4
 )
 
+// minifiedFn finds the blob key of the minified script that goes with a map.
+type minifiedFn func(ctx context.Context) (key string, found bool, err error)
+
 // ArtifactStore finds the source map blob for a script. Both lookups are
 // scoped to the site's organization and to bundles that cover the site, and
 // return the newest matching upload.
@@ -46,6 +49,16 @@ type ArtifactStore interface {
 	// MapByURL returns the blob key of the map for a script URL of a release
 	// and dist. url is either a full URL path or "~/path".
 	MapByURL(ctx context.Context, siteID int32, release, dist, url string) (blobKey string, found bool, err error)
+}
+
+// ScopeSource is an optional ArtifactStore capability: the minified script
+// behind a map, which lets frames report the original name of the enclosing
+// function instead of the name mapped at the exact frame position.
+type ScopeSource interface {
+	// MinifiedByDebugID returns the blob key of the minified script with the debug id.
+	MinifiedByDebugID(ctx context.Context, siteID int32, debugID string) (blobKey string, found bool, err error)
+	// MinifiedByURL returns the blob key of the minified script of a release and dist.
+	MinifiedByURL(ctx context.Context, siteID int32, release, dist, url string) (blobKey string, found bool, err error)
 }
 
 // SymbolicatorConfig tunes a Symbolicator. Zero values use the defaults.
@@ -318,7 +331,9 @@ func resolveFrame(m *sourcemap.Map, f appingest.Frame) (appingest.Frame, bool) {
 	out.Filename = scrubFilename(src)
 	out.Lineno = mp.Line
 	out.Colno = mp.Col + 1
-	if mp.HasName && mp.Name != "" {
+	if name, ok := m.ScopeName(max(f.Lineno-1, 0), max(f.Colno-1, 0)); ok {
+		out.Function = clip(name, 200)
+	} else if mp.HasName && mp.Name != "" {
 		out.Function = clip(mp.Name, 200)
 	}
 	out.InApp = inAppSource(src)
@@ -359,6 +374,7 @@ func inAppSource(src string) bool {
 // mapFor finds and loads the map for one frame: debug id first, then the
 // release, dist and URL. nil means there is none.
 func (s *Symbolicator) mapFor(ctx context.Context, siteID int32, ev appingest.Event, body appingest.Body, f appingest.Frame) *sourcemap.Map {
+	ss, _ := s.store.(ScopeSource)
 	for _, im := range body.DebugImages {
 		if !strings.EqualFold(im.Type, "sourcemap") || im.CodeFile == "" || !sameScript(im.CodeFile, f.AbsURL) {
 			continue
@@ -371,7 +387,11 @@ func (s *Symbolicator) mapFor(ctx context.Context, siteID int32, ev appingest.Ev
 			return s.store.MapByDebugID(ctx, siteID, id)
 		})
 		if found {
-			if m := s.load(ctx, key); m != nil {
+			var mf minifiedFn
+			if ss != nil {
+				mf = func(ctx context.Context) (string, bool, error) { return ss.MinifiedByDebugID(ctx, siteID, id) }
+			}
+			if m := s.load(ctx, key, mf); m != nil {
 				return m
 			}
 		}
@@ -381,7 +401,13 @@ func (s *Symbolicator) mapFor(ctx context.Context, siteID int32, ev appingest.Ev
 			return s.store.MapByURL(ctx, siteID, ev.Release, ev.Dist, name)
 		})
 		if found {
-			if m := s.load(ctx, key); m != nil {
+			var mf minifiedFn
+			if ss != nil {
+				mf = func(ctx context.Context) (string, bool, error) {
+					return ss.MinifiedByURL(ctx, siteID, ev.Release, ev.Dist, name)
+				}
+			}
+			if m := s.load(ctx, key, mf); m != nil {
 				return m
 			}
 		}
@@ -426,8 +452,9 @@ func (s *Symbolicator) lookup(ctx context.Context, cacheKey string, fn func() (s
 }
 
 // load returns the parsed map for a blob key, from the cache or the blob
-// store. Concurrent loads of one key share one read.
-func (s *Symbolicator) load(ctx context.Context, key string) *sourcemap.Map {
+// store, with its scope index when the minified script is available.
+// Concurrent loads of one key share one read.
+func (s *Symbolicator) load(ctx context.Context, key string, minified minifiedFn) *sourcemap.Map {
 	if m := s.cache.get(key); m != nil {
 		return m
 	}
@@ -442,7 +469,7 @@ func (s *Symbolicator) load(ctx context.Context, key string) *sourcemap.Map {
 	s.lmu.Unlock()
 
 	var cost int64
-	c.m, cost, c.err = s.read(ctx, key)
+	c.m, cost, c.err = s.read(ctx, key, minified)
 	if c.err != nil {
 		slog.Warn("sentryingest: load source map", "key", key, "err", c.err)
 		s.cfg.Stats.Add("symbolication_error", 1)
@@ -456,7 +483,7 @@ func (s *Symbolicator) load(ctx context.Context, key string) *sourcemap.Map {
 	return c.m
 }
 
-func (s *Symbolicator) read(ctx context.Context, key string) (*sourcemap.Map, int64, error) {
+func (s *Symbolicator) read(ctx context.Context, key string, minified minifiedFn) (*sourcemap.Map, int64, error) {
 	rc, err := s.blobs.Open(ctx, key)
 	if err != nil {
 		return nil, 0, err
@@ -473,7 +500,36 @@ func (s *Symbolicator) read(ctx context.Context, key string) (*sourcemap.Map, in
 	if err != nil {
 		return nil, 0, err
 	}
-	return m, int64(len(raw)) * mapOverhead, nil
+	cost := int64(len(raw)) * mapOverhead
+	if minified != nil {
+		sc := s.scopesFor(ctx, minified)
+		m.SetScopes(sc)
+		cost += sc.Bytes()
+	}
+	return m, cost, nil
+}
+
+// scopesFor builds the scope index of the minified script. Any failure leaves
+// frames on the exact-position name: scopes only ever improve a result.
+func (s *Symbolicator) scopesFor(ctx context.Context, minified minifiedFn) *sourcemap.Scopes {
+	key, found, err := minified(ctx)
+	if err != nil || !found {
+		return nil
+	}
+	rc, err := s.blobs.Open(ctx, key)
+	if err != nil {
+		return nil
+	}
+	defer rc.Close()
+	src, err := io.ReadAll(io.LimitReader(rc, sourcemap.MaxScopeSource+1))
+	if err != nil || len(src) > sourcemap.MaxScopeSource {
+		return nil
+	}
+	sc, err := sourcemap.BuildScopes(ctx, src)
+	if err != nil {
+		return nil
+	}
+	return sc
 }
 
 // mapCache is a byte-budgeted LRU of parsed maps keyed by blob key. A map

@@ -22,6 +22,7 @@ type WorkUnit struct {
 	Relation   string   `json:"relation,omitempty"`
 	Category   Category `json:"category,omitempty"`
 	SiteID     int32    `json:"site_id,omitempty"`
+	OrgID      int64    `json:"org_id,omitempty"`
 	FromSiteID int64    `json:"from_site_id,omitempty"`
 	ToSiteID   int64    `json:"to_site_id,omitempty"`
 	// FromBlock/ToBlock bound a heap block range [from,to) of a large leaf

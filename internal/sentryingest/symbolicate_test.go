@@ -54,11 +54,27 @@ type fakeArtifacts struct {
 	mu      sync.Mutex
 	byDebug map[string]string // "site|debugID" -> blob key
 	byURL   map[string]string // "site|release|dist|url" -> blob key
+	minDbg  map[string]string // "site|debugID" -> minified blob key
+	minURL  map[string]string // "site|release|dist|url" -> minified blob key
 	lookups int
 }
 
+func (f *fakeArtifacts) MinifiedByDebugID(_ context.Context, siteID int32, debugID string) (string, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	k, ok := f.minDbg[fmt.Sprintf("%d|%s", siteID, debugID)]
+	return k, ok, nil
+}
+
+func (f *fakeArtifacts) MinifiedByURL(_ context.Context, siteID int32, release, dist, url string) (string, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	k, ok := f.minURL[fmt.Sprintf("%d|%s|%s|%s", siteID, release, dist, url)]
+	return k, ok, nil
+}
+
 func newFakeArtifacts() *fakeArtifacts {
-	return &fakeArtifacts{byDebug: map[string]string{}, byURL: map[string]string{}}
+	return &fakeArtifacts{byDebug: map[string]string{}, byURL: map[string]string{}, minDbg: map[string]string{}, minURL: map[string]string{}}
 }
 
 func (f *fakeArtifacts) MapByDebugID(_ context.Context, siteID int32, debugID string) (string, bool, error) {
@@ -505,4 +521,96 @@ func TestResolveFrameConvertsOneBasedPositions(t *testing.T) {
 			t.Errorf("frame (%d,%d) = %d:%d ok=%v, want %d:%d ok=%v", c.line, c.col, got.Lineno, got.Colno, ok, c.wantLine, c.wantCol, c.ok)
 		}
 	}
+}
+
+// With the minified script available, the frame carries the original name of
+// the enclosing function (the map has no name at the throw position itself).
+func TestSymbolicateScopeFunctionName(t *testing.T) {
+	v := loadVite(t)
+	minified, err := os.ReadFile(viteDir + "app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, via := range []string{"debug", "url"} {
+		t.Run(via, func(t *testing.T) {
+			store, blobs := newFakeArtifacts(), newMemBlobs()
+			blobs.files["m"] = v.mapBytes
+			blobs.files["js"] = minified
+			dbg := ""
+			if via == "debug" {
+				dbg = v.debugID
+				store.addDebug(42, v.debugID, "m")
+				store.minDbg[fmt.Sprintf("42|%s", v.debugID)] = "js"
+			} else {
+				store.addURL(42, "1.0.0", "", "~/assets/app.js", "m")
+				store.minURL["42|1.0.0||~/assets/app.js"] = "js"
+			}
+			s, col := newSymb(t, store, blobs)
+			ev, body := jsEvent(t, v, "https://shop.example.com/assets/app.js", "1.0.0", dbg)
+			s.Submit(ev, body, nil)
+			_, gb := col.wait(t)
+			if f := topFrame(gb); f.Function != "checkout" || f.Filename != "src/cart.js" {
+				t.Fatalf("frame = %+v", f)
+			}
+			if s.CacheBytes() <= int64(len(v.mapBytes))*mapOverhead {
+				t.Errorf("cache cost %d does not include the scope index", s.CacheBytes())
+			}
+		})
+	}
+}
+
+// Without the minified script (or with a map that has no names) the frame is
+// resolved as before.
+func TestSymbolicateScopeFallbacks(t *testing.T) {
+	v := loadVite(t)
+	minified, err := os.ReadFile(viteDir + "app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("no minified file", func(t *testing.T) {
+		store, blobs := newFakeArtifacts(), newMemBlobs()
+		blobs.files["m"] = v.mapBytes
+		store.addURL(42, "1.0.0", "", "~/assets/app.js", "m")
+		s, col := newSymb(t, store, blobs)
+		ev, body := jsEvent(t, v, "https://shop.example.com/assets/app.js", "1.0.0", "")
+		s.Submit(ev, body, nil)
+		_, gb := col.wait(t)
+		if f := topFrame(gb); f.Function != "?" || f.Filename != "src/cart.js" {
+			t.Fatalf("frame = %+v", f)
+		}
+	})
+	t.Run("minified blob missing", func(t *testing.T) {
+		store, blobs := newFakeArtifacts(), newMemBlobs()
+		blobs.files["m"] = v.mapBytes
+		store.addURL(42, "1.0.0", "", "~/assets/app.js", "m")
+		store.minURL["42|1.0.0||~/assets/app.js"] = "gone"
+		s, col := newSymb(t, store, blobs)
+		ev, body := jsEvent(t, v, "https://shop.example.com/assets/app.js", "1.0.0", "")
+		s.Submit(ev, body, nil)
+		_, gb := col.wait(t)
+		if f := topFrame(gb); f.Function != "?" || f.Filename != "src/cart.js" {
+			t.Fatalf("frame = %+v", f)
+		}
+	})
+	t.Run("map without names", func(t *testing.T) {
+		var raw map[string]any
+		if err := json.Unmarshal(v.mapBytes, &raw); err != nil {
+			t.Fatal(err)
+		}
+		raw["names"] = []string{}
+		// one unnamed mapping at the start of the line
+		raw["mappings"] = "AAAA"
+		nb, _ := json.Marshal(raw)
+		store, blobs := newFakeArtifacts(), newMemBlobs()
+		blobs.files["m"], blobs.files["js"] = nb, minified
+		store.addURL(42, "1.0.0", "", "~/assets/app.js", "m")
+		store.minURL["42|1.0.0||~/assets/app.js"] = "js"
+		s, col := newSymb(t, store, blobs)
+		ev, body := jsEvent(t, v, "https://shop.example.com/assets/app.js", "1.0.0", "")
+		s.Submit(ev, body, nil)
+		_, gb := col.wait(t)
+		if f := topFrame(gb); f.Function != "?" {
+			t.Fatalf("function = %q, want the unchanged %q", f.Function, "?")
+		}
+	})
 }
