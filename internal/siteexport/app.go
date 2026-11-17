@@ -87,6 +87,18 @@ order by v.ts,v.event_id`
 		return err
 	}
 
+	// Daily release-health counts; distinct-user counts only, never hashes.
+	sessionsDaily := `
+select d.day::text,d.release,d.environment,d.platform,d.sessions,d.errored,d.crashed,d.abnormal,d.users,d.crashed_users
+from app_session_daily d
+where d.site_id=$1 and d.day between $2::date and $3::date
+order by d.day,d.release,d.environment,d.platform`
+	if err := e.writeRows(ctx, archive, "app_sessions_daily.csv", []string{
+		"day", "release", "environment", "platform", "sessions", "errored", "crashed", "abnormal", "users", "crashed_users",
+	}, sessionsDaily, siteID, f, t); err != nil {
+		return err
+	}
+
 	// Releases and deploys belong to the organisation; an empty site_ids list
 	// means every app project of it.
 	releases := `
