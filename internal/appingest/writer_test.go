@@ -486,3 +486,30 @@ func TestWriterUsesTheNormalisersIssueTitle(t *testing.T) {
 		t.Fatalf("title = %q", got)
 	}
 }
+
+func TestWriterRecordsIssueHashesPerFingerprintAndVersion(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	ctx := context.Background()
+	v1 := queued("h1", "fp-hash-v1", "1.0.0", testNow.Add(-time.Hour), 1)
+	v2 := queued("h2", "fp-hash-v2", "1.0.0", testNow.Add(-time.Hour), 1)
+	v2.Event.GroupingVersion = 2
+	for range 2 { // a second flush must not duplicate or fail
+		if err := w.flush(ctx, []Queued{v1, v2}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for fp, version := range map[string]int16{"fp-hash-v1": 1, "fp-hash-v2": 2} {
+		sum := sha256.Sum256([]byte(fp))
+		var issueID int64
+		if err := pool.QueryRow(ctx, `select issue_id from app_issue_hashes where site_id = 7 and grouping_version = $1 and hash = $2`, version, sum[:]).Scan(&issueID); err != nil {
+			t.Fatalf("%s: %v", fp, err)
+		}
+		if want := readIssue(t, pool, fp).ID; issueID != want {
+			t.Errorf("%s maps to issue %d, want %d", fp, issueID, want)
+		}
+	}
+	var n int
+	if err := pool.QueryRow(ctx, `select count(*) from app_issue_hashes`).Scan(&n); err != nil || n != 2 {
+		t.Fatalf("rows = %d, err %v", n, err)
+	}
+}

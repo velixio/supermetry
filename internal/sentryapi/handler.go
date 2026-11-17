@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -58,6 +59,12 @@ type Deps struct {
 	TempDir string
 	// OrgCapBytes limits the stored bundle bytes per organization; zero means 5 GiB.
 	OrgCapBytes int64
+	// IPPerMin and TokenPerMin cap requests per client address and per API
+	// token; zero selects the defaults, a negative value disables the limit.
+	IPPerMin, TokenPerMin int
+	// TrustedProxies are the proxies whose forwarding headers are believed
+	// when finding the client address.
+	TrustedProxies []netip.Prefix
 	// Caps bounds a bundle; the zero value means sourcemap.DefaultCaps.
 	Caps sourcemap.Caps
 }
@@ -65,6 +72,7 @@ type Deps struct {
 // Handler serves /api/0/.
 type Handler struct {
 	deps  Deps
+	lim   *limits
 	mux   *http.ServeMux
 	queue chan int64
 	done  chan struct{}
@@ -83,7 +91,7 @@ func New(deps Deps) *Handler {
 	if deps.Caps == (sourcemap.Caps{}) {
 		deps.Caps = sourcemap.DefaultCaps()
 	}
-	h := &Handler{deps: deps, mux: http.NewServeMux(), queue: make(chan int64, assembleQueue), done: make(chan struct{})}
+	h := &Handler{deps: deps, lim: newLimits(deps.IPPerMin, deps.TokenPerMin, deps.TrustedProxies), mux: http.NewServeMux(), queue: make(chan int64, assembleQueue), done: make(chan struct{})}
 	h.routes()
 	return h
 }
@@ -108,6 +116,10 @@ func (h *Handler) routes() {
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	if retry, limited := h.lim.check(r); limited {
+		tooManyRequests(w, retry)
+		return
+	}
 	h.mux.ServeHTTP(w, r)
 }
 

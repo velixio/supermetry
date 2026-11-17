@@ -422,7 +422,37 @@ func TestAssembleErrors(t *testing.T) {
 		b2 := append(append([]byte{}, b...), 0) // trailing byte: a different checksum
 		e.upload(t, token, "file", sha(b2), b2)
 		resp = e.waitState(t, token, map[string]any{"checksum": sha(b2), "chunks": []string{sha(b2)}})
-		if resp["state"] != "error" || !strings.Contains(resp["detail"].(string), "limit") {
+		if resp["state"] != "error" || !strings.Contains(resp["detail"].(string), "storage limit reached") || !strings.Contains(resp["detail"].(string), "SUPERMETRY_SENTRY_ORG_CAP") {
+			t.Fatalf("resp = %v", resp)
+		}
+	})
+	t.Run("org storage cap is per organization", func(t *testing.T) {
+		b := fixtureBundle(t)
+		e := newEnv(t, func(d *Deps) { d.OrgCapBytes = int64(len(b)) + 10 })
+		token := e.svc(t, e.owner, []string{Scope}, nil)
+		e.upload(t, token, "file", sha(b), b)
+		if resp := e.waitState(t, token, map[string]any{"checksum": sha(b), "chunks": []string{sha(b)}}); resp["state"] != "ok" {
+			t.Fatalf("owner bundle: %v", resp)
+		}
+		// The other organization has its own budget, and a failed bundle uses none.
+		otherToken := e.svc(t, e.other, []string{Scope}, nil)
+		e.upload(t, otherToken, "file", sha(b), b)
+		_, resp := e.json(t, "POST", "/api/0/organizations/other/artifactbundle/assemble/", otherToken, map[string]any{"checksum": sha(b), "chunks": []string{sha(b)}})
+		for i := 0; i < 100 && resp["state"] != "ok"; i++ {
+			time.Sleep(50 * time.Millisecond)
+			_, resp = e.json(t, "POST", "/api/0/organizations/other/artifactbundle/assemble/", otherToken, map[string]any{"checksum": sha(b), "chunks": []string{sha(b)}})
+		}
+		if resp["state"] != "ok" {
+			t.Fatalf("other organization bundle: %v", resp)
+		}
+	})
+	t.Run("bundle larger than the cap", func(t *testing.T) {
+		b := fixtureBundle(t)
+		e := newEnv(t, func(d *Deps) { d.OrgCapBytes = int64(len(b)) - 1 })
+		token := e.svc(t, e.owner, []string{Scope}, nil)
+		e.upload(t, token, "file", sha(b), b)
+		resp := e.waitState(t, token, map[string]any{"checksum": sha(b), "chunks": []string{sha(b)}})
+		if resp["state"] != "error" || !strings.Contains(resp["detail"].(string), "storage limit reached") {
 			t.Fatalf("resp = %v", resp)
 		}
 	})

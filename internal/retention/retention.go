@@ -25,6 +25,8 @@ var eraseTables = []string{
 	"app_release_daily",
 	"app_issues",
 	"app_hash_secrets",
+	"app_artifact_files",
+	"app_client_reports",
 	"events",
 	"sessions",
 	"profiles",
@@ -272,6 +274,7 @@ func deleteExpiredAppRollups(ctx context.Context, pool *pgxpool.Pool, now time.T
 		}{
 			{"app_issue_daily", "day", day},
 			{"app_release_daily", "day", day},
+			{"app_client_reports", "day", day},
 			{"app_issue_hourly", "hour", hour},
 		} {
 			if _, err := pool.Exec(ctx, "delete from "+q.table+" where site_id = $1 and "+q.column+" < $2", site.id, q.cutoff); err != nil {

@@ -151,7 +151,9 @@ type healthRow struct {
 // row). Definitions: events and crashes sum occurrences and leave out session
 // pings; a crash is kind crash or level fatal; installs count distinct
 // install hashes with any event; sessions count distinct session hashes with a
-// session ping, and a crashed session is one of those with a crash event.
+// session ping plus the occurrences of hash-less session rows (Sentry
+// aggregates); a crashed session is one with a crash event, or a session row
+// with exit_reason crashed.
 // cols must be fixed column names, never user input.
 func (q *Querier) healthBy(ctx context.Context, w window, extraWhere string, cols ...string) ([]healthRow, error) {
 	qualified := make([]string, len(cols))
@@ -167,7 +169,7 @@ func (q *Querier) healthBy(ctx context.Context, w window, extraWhere string, col
 	crash := approllup.CrashPredicate("e.")
 	query := `
 with ev as (
-  select kind, level, occurrences, install_hash, session_hash` + withCols + ` from app_events where ` + eventWhere + extraWhere + `
+  select kind, level, occurrences, install_hash, session_hash, exit_reason` + withCols + ` from app_events where ` + eventWhere + extraWhere + `
 ), pings as (
   select distinct session_hash from ev where kind = 'session' and session_hash is not null
 )
@@ -176,8 +178,8 @@ select ` + selectKeys + `
   coalesce(sum(e.occurrences) filter (where ` + crash + `), 0),
   count(distinct e.install_hash),
   count(distinct e.install_hash) filter (where ` + crash + `),
-  count(distinct e.session_hash) filter (where e.kind = 'session'),
-  count(distinct e.session_hash) filter (where ` + crash + ` and p.session_hash is not null)
+  ` + approllup.SessionsExpr("e.") + `,
+  ` + approllup.CrashedSessionsExpr("e.") + `
 from ev e left join pings p on p.session_hash = e.session_hash ` + groupBy
 	rows, err := q.pool.Query(ctx, query, w.evArgs()...)
 	if err != nil {
