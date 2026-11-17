@@ -258,3 +258,52 @@ func FuzzParseSession(f *testing.F) {
 		_, _ = ParseClientReport(raw)
 	})
 }
+
+func TestParseSessionSkewedClockSameKey(t *testing.T) {
+	// A device whose clock is hours ahead: started is far in the future, and
+	// each envelope's sent_at skew differs by a few seconds.
+	payload := []byte(`{"sid":"s1","started":"2026-11-17T20:10:05Z","status":"ok"}`)
+	site := testSite()
+	var got [2]time.Time
+	for i, skew := range []time.Duration{2 * time.Hour, 2*time.Hour + 3*time.Second} {
+		_, ups, err := ParseSession(payload, EventContext{SentAt: testNow.Add(-skew)}, site, testNow)
+		if err != nil || len(ups) != 1 {
+			t.Fatalf("%v %+v", err, ups)
+		}
+		got[i] = ups[0].Started
+	}
+	if !got[0].Equal(got[1]) {
+		t.Fatalf("started differs: %s vs %s", got[0], got[1])
+	}
+	if got[0].Second() != 0 {
+		t.Fatalf("corrected start not truncated to the minute: %s", got[0])
+	}
+}
+
+func TestParseSessionPlausibleStartedUsedRaw(t *testing.T) {
+	_, ups, _ := ParseSession([]byte(`{"sid":"s1","started":"2026-11-17T13:11:41.685Z","status":"ok"}`), EventContext{SentAt: testNow.Add(-time.Hour)}, testSite(), testNow)
+	if len(ups) != 1 || !ups[0].Started.Equal(time.Date(2026, 11, 17, 13, 11, 41, 685000000, time.UTC)) {
+		t.Fatalf("%+v", ups)
+	}
+}
+
+func TestParseSessionMissingStartedNoUpdate(t *testing.T) {
+	stats := &Stats{}
+	for _, p := range []string{
+		`{"sid":"s1","init":false,"timestamp":"2026-11-17T13:20:00Z","status":"exited"}`,
+		`{"sid":"s1","init":false,"started":"garbage","status":"exited"}`,
+	} {
+		rows, ups, err := ParseSession([]byte(p), EventContext{Stats: stats}, testSite(), testNow)
+		if err != nil || len(ups) != 0 || len(rows) != 0 {
+			t.Fatalf("%s: %v %+v %+v", p, err, rows, ups)
+		}
+	}
+	if stats.Snapshot()["session_no_started"] != 2 {
+		t.Fatalf("%v", stats.Snapshot())
+	}
+	// The v1 init row is unchanged.
+	rows, ups, _ := ParseSession([]byte(`{"sid":"s1","init":true,"timestamp":"2026-11-17T13:20:00Z","status":"ok"}`), EventContext{Stats: stats}, testSite(), testNow)
+	if len(rows) != 1 || len(ups) != 0 {
+		t.Fatalf("%+v %+v", rows, ups)
+	}
+}

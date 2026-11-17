@@ -356,7 +356,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 	}
 	ctx := EventContext{
 		EventID: env.Header.EventID, SentAt: env.Header.SentAt, SDKName: env.Header.SDK.Name, SDKVersion: env.Header.SDK.Version,
-		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country,
+		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country, Stats: h.stats,
 	}
 	for _, it := range env.Items {
 		if it.Type == "attachment" && it.AttachmentType == "event.minidump" {

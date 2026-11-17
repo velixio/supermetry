@@ -110,8 +110,15 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 	if sessionHash == nil {
 		return events, nil, nil
 	}
+	rawStarted, ok := parseTime(m["started"])
+	if !ok {
+		// Without `started` the key would fall back to `timestamp`, which changes
+		// on every update and would split one session into several rows.
+		ctx.Stats.Add("session_no_started", 1)
+		return events, nil, nil
+	}
 	u := appsessions.Update{
-		SiteID: site.ID, SessionHash: sessionHash, InstallHash: HashUser(secret, did), Started: started,
+		SiteID: site.ID, SessionHash: sessionHash, InstallHash: HashUser(secret, did), Started: sessionKeyTime(rawStarted, started, now),
 		Release: base.Release, Environment: base.Environment, Platform: base.Platform,
 		Status: sessionStatus(str(m["status"])), Errors: min(max(asInt(m["errors"]), 0), 1_000_000), Init: init,
 	}
@@ -120,6 +127,20 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 		u.DurationMS = &ms
 	}
 	return events, []appsessions.Update{u}, nil
+}
+
+// sessionKeyTime is the start time used in the app_sessions key, so every
+// update of one session must produce the same value. The raw `started` is used
+// when it is plausible (within 31 days back and futureSkew ahead). A device
+// with a wildly wrong clock gets the skew-corrected time instead, truncated to
+// the minute so updates from the same clock agree despite sent_at jitter of a
+// few seconds (a correction landing across a minute boundary can still split a
+// session; that needs a broken clock and is accepted).
+func sessionKeyTime(raw, corrected, now time.Time) time.Time {
+	if !raw.Before(now.Add(-31*24*time.Hour)) && !raw.After(now.Add(futureSkew)) {
+		return raw
+	}
+	return corrected.Truncate(time.Minute)
 }
 
 func seconds(v any) (float64, bool) {
