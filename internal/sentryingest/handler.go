@@ -53,6 +53,7 @@ type Handler struct {
 	stats     *Stats
 	ips       *ipLimiter
 	inflight  chan struct{}
+	localhost bool // drop events raised on localhost (off by default)
 }
 
 // NewHandler builds the front door. bodies, geo and now may be nil.
@@ -88,6 +89,10 @@ func (h *Handler) WithMaxInflight(n int) *Handler {
 	h.inflight = make(chan struct{}, max(n, 1))
 	return h
 }
+
+// WithLocalhostFilter turns the localhost inbound filter on or off (off by
+// default, so a local trial of Supermetry shows its events).
+func (h *Handler) WithLocalhostFilter(on bool) *Handler { h.localhost = on; return h }
 
 // Stats returns the in-memory drop and ignore counters.
 func (h *Handler) Stats() *Stats { return h.stats }
@@ -353,6 +358,10 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			}
 			if h.normalise == nil {
 				h.stats.Add("event_unsupported", 1)
+				continue
+			}
+			if reason := filterEvent(it.Payload, req.UserAgent, h.localhost); reason != "" {
+				h.stats.Add("filtered", 1)
 				continue
 			}
 			ev, body, err := h.normalise(it.Payload, ctx, site, now)

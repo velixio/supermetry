@@ -492,7 +492,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var sentryIngest api.SentryIngest
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryIngest = sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
-			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight)
+			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
