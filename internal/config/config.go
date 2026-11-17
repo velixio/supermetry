@@ -776,3 +776,37 @@ func SMTPHelloName(explicit, baseURL, from string) string {
 	}
 	return "localhost"
 }
+
+// ValidateSMTP applies the same rules as Load to SMTP settings that come from
+// somewhere else (the instance admin screen). It returns every problem found,
+// one message per line.
+func ValidateSMTP(s SMTP) error {
+	var errs []error
+	host := strings.TrimSpace(s.Host)
+	if host == "" || strings.ContainsAny(host, " \t\r\n/@") {
+		errs = append(errs, errors.New("SMTP host must be a host name or IP address"))
+	}
+	if s.Port < 1 || s.Port > 65535 {
+		errs = append(errs, errors.New("SMTP port must be an integer from 1 to 65535"))
+	}
+	if strings.TrimSpace(s.From) == "" {
+		errs = append(errs, errors.New("SMTP from address is required"))
+	} else if strings.ContainsAny(s.From, "\r\n") {
+		errs = append(errs, errors.New("SMTP from address must not contain line breaks"))
+	} else if _, err := stdmail.ParseAddress(s.From); err != nil {
+		errs = append(errs, errors.New("SMTP from address must be an email address, optionally with a display name"))
+	}
+	if s.Hello != "" && !validHelloName(s.Hello) {
+		errs = append(errs, errors.New("SMTP HELO name must be a host name"))
+	}
+	if s.StartTLS && s.ImplicitTLS {
+		errs = append(errs, errors.New("SMTP TLS mode must be one of starttls, implicit or none"))
+	}
+	if s.User != "" && !s.StartTLS && !s.ImplicitTLS {
+		errs = append(errs, errors.New("SMTP username requires TLS: choose starttls or implicit"))
+	}
+	if strings.ContainsAny(s.User, "\r\n") || strings.ContainsAny(s.Pass, "\r\n") {
+		errs = append(errs, errors.New("SMTP username and password must not contain line breaks"))
+	}
+	return errors.Join(errs...)
+}
