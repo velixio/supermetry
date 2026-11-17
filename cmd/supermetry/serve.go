@@ -491,11 +491,18 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
+	appBodies := appingest.NewBodyWriter(pool, appingest.BodyWriterConfig{})
+	appReports := appingest.NewClientReports(pool, 0)
 	var sentryIngest api.SentryIngest
+	var symbolicator *sentryingest.Symbolicator
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
-		// Bodies have no writer yet, so the body queue is nil and scrubbed bodies are discarded.
-		sentryIngest = sentryingest.NewHandler(dsnRegistry, appIntake, nil, enricher, cfg.TrustedProxies, settings.clock.Now).
-			WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
+			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
+			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
+		})
+		sentryHandler.WithSymbolicator(symbolicator)
+		sentryIngest = sentryHandler
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -581,6 +588,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appWriterCtx, cancelAppWriter := context.WithCancel(context.Background())
 	appWriterDone := make(chan error, 1)
 	go func() { appWriterDone <- appWriter.Run(appWriterCtx) }()
+	appBodiesDone := make(chan error, 1)
+	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
+	appReportsDone := make(chan error, 1)
+	go func() { appReportsDone <- appReports.Run(appWriterCtx) }()
 	dropStatsCtx, cancelDropStats := context.WithCancel(context.Background())
 	dropStatsDone := make(chan error, 1)
 	go func() { dropStatsDone <- dropRecorder.Run(dropStatsCtx) }()
@@ -731,10 +742,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if writerDone != nil {
 		cause = errors.Join(cause, <-writerDone)
 	}
+	// Drain the symbolication queue into the intake before the writer stops.
+	if symbolicator != nil {
+		symbolicator.Close()
+	}
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
 	}
+	cause = errors.Join(cause, <-appBodiesDone, <-appReportsDone)
 	cancelDropStats()
 	if dropStatsDone != nil {
 		cause = errors.Join(cause, <-dropStatsDone)

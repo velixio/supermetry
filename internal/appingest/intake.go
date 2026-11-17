@@ -119,6 +119,21 @@ func (in *Intake) Drop(site sites.Site, now time.Time, reason dropstats.Reason) 
 	in.dropStats.Record(site.ID, salts.LocalDay(now, site.TZ), reason, "")
 }
 
+// Admit reports, without consuming budget, whether the ingest key still has
+// budget for one event. Callers that finish an event later (after an async
+// stage) use it to answer a rate-limited sender at request time; the later
+// Accept does the real take. A rate-limited result is recorded as a drop.
+func (in *Intake) Admit(site sites.Site, budgetKey string, now time.Time) Outcome {
+	if site.App == nil {
+		return Outcome{Reason: ReasonInvalid}
+	}
+	if !in.budgets.has(budgetKey, now) {
+		in.Drop(site, now, dropstats.AppRateLimited)
+		return Outcome{Reason: ReasonRateLimited}
+	}
+	return Outcome{}
+}
+
 // Accept applies the per-event checks to one parsed event for an app site.
 // budgetKey identifies the ingest key (or the app, for mapped events).
 func (in *Intake) Accept(site sites.Site, budgetKey string, now time.Time, ev Event) Outcome {
@@ -288,6 +303,21 @@ type budgetMap struct {
 
 func newBudgetMap(capacity float64, per time.Duration) *budgetMap {
 	return &budgetMap{capacity: capacity, perSec: capacity / per.Seconds(), buckets: map[string]*bucket{}}
+}
+
+// has reports whether a take would succeed now, without changing the bucket.
+func (b *budgetMap) has(key string, now time.Time) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	cell, ok := b.buckets[key]
+	if !ok {
+		return true
+	}
+	tokens := cell.tokens
+	if elapsed := now.Sub(cell.last).Seconds(); elapsed > 0 {
+		tokens = min(b.capacity, tokens+elapsed*b.perSec)
+	}
+	return tokens >= 1
 }
 
 func (b *budgetMap) take(key string, now time.Time) bool {

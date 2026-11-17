@@ -413,15 +413,46 @@ func TestBackupRestoreIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer pool.Exec(context.Background(), "drop schema if exists "+identifier+" cascade")
+	// App Monitoring tables must survive a backup and restore: the dump is of the
+	// whole database, so this guards against a table or partition falling out.
+	if err := db.EnsureAppEventPartitions(context.Background(), pool, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	var appOrg int64
+	var appSite int32
+	if err := pool.QueryRow(context.Background(), `insert into orgs(name,slug) values ('Backup','`+schema+`') returning id`).Scan(&appOrg); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(context.Background(), `insert into sites(org_id,public_id,name,timezone,retention_class,kind) values ($1,left('`+schema+`',12),'App','UTC',30,'app') returning id`, appOrg).Scan(&appSite); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`insert into app_events(site_id,ts,received_at,event_id,kind,release) values ($1,'2026-11-17T10:00:00Z','2026-11-17T10:00:00Z','bk1','error','1.0')`,
+		`insert into app_event_bodies(site_id,ts,event_id,body,size) values ($1,'2026-11-17T10:00:00Z','bk1','{"message":"scrubbed"}',22)`,
+		`insert into app_client_reports(site_id,day,reason,category,quantity) values ($1,'2026-11-17','queue_overflow','error',7)`,
+	} {
+		if _, err := pool.Exec(context.Background(), q, appSite); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer pool.Exec(context.Background(), `delete from orgs where id=$1`, appOrg)
 	out := filepath.Join(t.TempDir(), "integration.tar.gz")
 	if err := backupCommand(context.Background(), []string{"--out", out}, io.Discard, os.Getenv); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(context.Background(), "drop schema "+identifier+" cascade"); err != nil {
+	if _, err := pool.Exec(context.Background(), "drop schema "+identifier+" cascade; delete from app_event_bodies; delete from app_client_reports"); err != nil {
 		t.Fatal(err)
 	}
 	if err := restoreCommand(context.Background(), []string{out, "--yes"}, io.Discard, os.Getenv); err != nil {
 		t.Fatal(err)
+	}
+	var body string
+	var quantity int64
+	if err := pool.QueryRow(context.Background(), `select (select body->>'message' from app_event_bodies where site_id=$1 and event_id='bk1'), (select quantity from app_client_reports where site_id=$1)`, appSite).Scan(&body, &quantity); err != nil {
+		t.Fatalf("app tables after restore: %v", err)
+	}
+	if body != "scrubbed" || quantity != 7 {
+		t.Fatalf("restored app rows: body=%q quantity=%d", body, quantity)
 	}
 	var value string
 	if err := pool.QueryRow(context.Background(), "select value from "+identifier+".marker").Scan(&value); err != nil {
