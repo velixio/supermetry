@@ -83,3 +83,70 @@ func TestAppIngestKeyRoutesGuardKindAndRole(t *testing.T) {
 		t.Fatalf("web site list = %d", res.Code)
 	}
 }
+
+func TestAppDSNKeyLifecycle(t *testing.T) {
+	f := newAppKeyFixture(t)
+	path := fmt.Sprintf("/api/private/sites/%d/app/dsn-keys", f.siteID)
+	for _, actor := range []string{"viewer", "editor"} {
+		if res := f.request(t, actor, http.MethodPost, path, ``); res.Code != http.StatusForbidden {
+			t.Fatalf("%s create = %d", actor, res.Code)
+		}
+	}
+	if res := f.request(t, "owner", http.MethodPost, path, `{"allowed_origins":["https://x.example.test/path"]}`); res.Code != http.StatusBadRequest {
+		t.Fatalf("bad origin = %d", res.Code)
+	}
+	res := f.request(t, "owner", http.MethodPost, path, `{"label":"web","allowed_origins":["HTTPS://App.Example.test"]}`)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("create = %d %s", res.Code, res.Body)
+	}
+	var created struct {
+		PublicKey      string   `json:"public_key"`
+		Prefix         string   `json:"prefix"`
+		DSN            string   `json:"dsn"`
+		AllowedOrigins []string `json:"allowed_origins"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if !appkeys.ValidDSNKey(created.PublicKey) || created.Prefix != created.PublicKey[:8] ||
+		len(created.AllowedOrigins) != 1 || created.AllowedOrigins[0] != "https://app.example.test" {
+		t.Fatalf("created = %+v", created)
+	}
+	if want := fmt.Sprintf("https://%s@sm.example.test/%d", created.PublicKey, f.siteID); created.DSN != want {
+		t.Fatalf("dsn = %q, want %q", created.DSN, want)
+	}
+	site, key, ok := f.registry.ByDSNKey(created.PublicKey)
+	if !ok || site.ID != f.siteID || len(key.AllowedOrigins) != 1 {
+		t.Fatal("registry did not pick up the DSN key")
+	}
+	// A native key rotation must leave the DSN key alone.
+	if res := f.request(t, "owner", http.MethodPost, fmt.Sprintf("/api/private/sites/%d/ingest-keys", f.siteID), ``); res.Code != http.StatusCreated {
+		t.Fatalf("rotate = %d", res.Code)
+	}
+	if res := f.request(t, "owner", http.MethodPost, fmt.Sprintf("/api/private/sites/%d/ingest-keys", f.siteID), ``); res.Code != http.StatusCreated {
+		t.Fatalf("rotate = %d", res.Code)
+	}
+	if _, _, ok := f.registry.ByDSNKey(created.PublicKey); !ok {
+		t.Fatal("native key rotation affected the DSN key")
+	}
+	if list := f.request(t, "owner", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/ingest-keys", f.siteID), ``); strings.Contains(list.Body.String(), created.Prefix) {
+		t.Fatalf("native list shows a DSN key: %s", list.Body)
+	}
+	list := f.request(t, "owner", http.MethodGet, path, ``)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), created.PublicKey) {
+		t.Fatalf("list = %d %s", list.Code, list.Body)
+	}
+	if res := f.request(t, "owner", http.MethodDelete, path+"/"+created.Prefix, ``); res.Code != http.StatusNoContent {
+		t.Fatalf("revoke = %d %s", res.Code, res.Body)
+	}
+	if res := f.request(t, "owner", http.MethodDelete, path+"/"+created.Prefix, ``); res.Code != http.StatusNotFound {
+		t.Fatalf("second revoke = %d", res.Code)
+	}
+	if _, _, ok := f.registry.ByDSNKey(created.PublicKey); ok {
+		t.Fatal("revoked key still resolves")
+	}
+	var audits int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from audit_log where action in ('site.dsn_key_created','site.dsn_key_revoked')`).Scan(&audits); err != nil || audits != 2 {
+		t.Fatalf("audit rows = %d err=%v", audits, err)
+	}
+}
