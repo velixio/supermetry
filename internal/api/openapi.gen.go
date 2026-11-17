@@ -601,6 +601,42 @@ func (e AppIssueRowPriority) Valid() bool {
 	}
 }
 
+// Defines values for AppOverviewHealthSource.
+const (
+	AppOverviewHealthSourceEvents   AppOverviewHealthSource = "events"
+	AppOverviewHealthSourceSessions AppOverviewHealthSource = "sessions"
+)
+
+// Valid indicates whether the value is a known member of the AppOverviewHealthSource enum.
+func (e AppOverviewHealthSource) Valid() bool {
+	switch e {
+	case AppOverviewHealthSourceEvents:
+		return true
+	case AppOverviewHealthSourceSessions:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppReleasesReleasesHealthSource.
+const (
+	AppReleasesReleasesHealthSourceEvents   AppReleasesReleasesHealthSource = "events"
+	AppReleasesReleasesHealthSourceSessions AppReleasesReleasesHealthSource = "sessions"
+)
+
+// Valid indicates whether the value is a known member of the AppReleasesReleasesHealthSource enum.
+func (e AppReleasesReleasesHealthSource) Valid() bool {
+	switch e {
+	case AppReleasesReleasesHealthSourceEvents:
+		return true
+	case AppReleasesReleasesHealthSourceSessions:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppUserErasureStatus.
 const (
 	AppUserErasureStatusDone    AppUserErasureStatus = "done"
@@ -1194,55 +1230,55 @@ func (e MCPResponseJsonrpc) Valid() bool {
 
 // Defines values for Metric.
 const (
-	AverageRevenue Metric = "average_revenue"
-	BounceRate     Metric = "bounce_rate"
-	ConversionRate Metric = "conversion_rate"
-	Conversions    Metric = "conversions"
-	EngagementTime Metric = "engagement_time"
-	Events         Metric = "events"
-	ExitRate       Metric = "exit_rate"
-	Pageviews      Metric = "pageviews"
-	ScrollDepth    Metric = "scroll_depth"
-	TimeOnPage     Metric = "time_on_page"
-	TotalRevenue   Metric = "total_revenue"
-	ViewsPerVisit  Metric = "views_per_visit"
-	VisitDuration  Metric = "visit_duration"
-	Visitors       Metric = "visitors"
-	Visits         Metric = "visits"
+	MetricAverageRevenue Metric = "average_revenue"
+	MetricBounceRate     Metric = "bounce_rate"
+	MetricConversionRate Metric = "conversion_rate"
+	MetricConversions    Metric = "conversions"
+	MetricEngagementTime Metric = "engagement_time"
+	MetricEvents         Metric = "events"
+	MetricExitRate       Metric = "exit_rate"
+	MetricPageviews      Metric = "pageviews"
+	MetricScrollDepth    Metric = "scroll_depth"
+	MetricTimeOnPage     Metric = "time_on_page"
+	MetricTotalRevenue   Metric = "total_revenue"
+	MetricViewsPerVisit  Metric = "views_per_visit"
+	MetricVisitDuration  Metric = "visit_duration"
+	MetricVisitors       Metric = "visitors"
+	MetricVisits         Metric = "visits"
 )
 
 // Valid indicates whether the value is a known member of the Metric enum.
 func (e Metric) Valid() bool {
 	switch e {
-	case AverageRevenue:
+	case MetricAverageRevenue:
 		return true
-	case BounceRate:
+	case MetricBounceRate:
 		return true
-	case ConversionRate:
+	case MetricConversionRate:
 		return true
-	case Conversions:
+	case MetricConversions:
 		return true
-	case EngagementTime:
+	case MetricEngagementTime:
 		return true
-	case Events:
+	case MetricEvents:
 		return true
-	case ExitRate:
+	case MetricExitRate:
 		return true
-	case Pageviews:
+	case MetricPageviews:
 		return true
-	case ScrollDepth:
+	case MetricScrollDepth:
 		return true
-	case TimeOnPage:
+	case MetricTimeOnPage:
 		return true
-	case TotalRevenue:
+	case MetricTotalRevenue:
 		return true
-	case ViewsPerVisit:
+	case MetricViewsPerVisit:
 		return true
-	case VisitDuration:
+	case MetricVisitDuration:
 		return true
-	case Visitors:
+	case MetricVisitors:
 		return true
-	case Visits:
+	case MetricVisits:
 		return true
 	default:
 		return false
@@ -3034,19 +3070,30 @@ type AppLink struct {
 
 // AppOverview defines model for AppOverview.
 type AppOverview struct {
-	CrashFreeSessions AppRate `json:"crash_free_sessions"`
-	CrashFreeUsers    AppRate `json:"crash_free_users"`
-	Crashes           int64   `json:"crashes"`
-	Events            int64   `json:"events"`
-	NewIssues         int64   `json:"new_issues"`
-	RegressedIssues   int64   `json:"regressed_issues"`
+	AbnormalSessions  int64                   `json:"abnormal_sessions"`
+	CrashFreeSessions AppRate                 `json:"crash_free_sessions"`
+	CrashFreeUsers    AppRate                 `json:"crash_free_users"`
+	Crashes           int64                   `json:"crashes"`
+	ErroredSessions   int64                   `json:"errored_sessions"`
+	Events            int64                   `json:"events"`
+	HandledErrors     int64                   `json:"handled_errors"`
+	HealthSource      AppOverviewHealthSource `json:"health_source"`
+	NewIssues         int64                   `json:"new_issues"`
+	RegressedIssues   int64                   `json:"regressed_issues"`
 	Series            []struct {
-		CrashFreeUsers AppRate            `json:"crash_free_users"`
-		Crashes        int64              `json:"crashes"`
-		Day            openapi_types.Date `json:"day"`
-		Events         int64              `json:"events"`
+		CrashFreeSessions AppRate            `json:"crash_free_sessions"`
+		CrashFreeUsers    AppRate            `json:"crash_free_users"`
+		Crashes           int64              `json:"crashes"`
+		Day               openapi_types.Date `json:"day"`
+		Events            int64              `json:"events"`
 	} `json:"series"`
+	Sessions        int64 `json:"sessions"`
+	UnhandledErrors int64 `json:"unhandled_errors"`
+	Users           int64 `json:"users"`
 }
+
+// AppOverviewHealthSource defines model for AppOverview.HealthSource.
+type AppOverviewHealthSource string
 
 // AppRate defines model for AppRate.
 type AppRate = float64
@@ -3054,16 +3101,27 @@ type AppRate = float64
 // AppReleases defines model for AppReleases.
 type AppReleases struct {
 	Releases []struct {
-		CrashFreeSessions AppRate   `json:"crash_free_sessions"`
-		CrashFreeUsers    AppRate   `json:"crash_free_users"`
-		FirstSeen         time.Time `json:"first_seen"`
-		Installs          int64     `json:"installs"`
-		LastSeen          time.Time `json:"last_seen"`
-		NewIssues         int64     `json:"new_issues"`
-		RegressedIssues   int64     `json:"regressed_issues"`
-		Release           string    `json:"release"`
+		AbnormalSessions  int64                           `json:"abnormal_sessions"`
+		Adoption          AppRate                         `json:"adoption"`
+		CrashFreeSessions AppRate                         `json:"crash_free_sessions"`
+		CrashFreeUsers    AppRate                         `json:"crash_free_users"`
+		ErroredSessions   int64                           `json:"errored_sessions"`
+		FirstSeen         time.Time                       `json:"first_seen"`
+		HandledErrors     int64                           `json:"handled_errors"`
+		HealthSource      AppReleasesReleasesHealthSource `json:"health_source"`
+		Installs          int64                           `json:"installs"`
+		LastSeen          time.Time                       `json:"last_seen"`
+		NewIssues         int64                           `json:"new_issues"`
+		RegressedIssues   int64                           `json:"regressed_issues"`
+		Release           string                          `json:"release"`
+		Sessions          int64                           `json:"sessions"`
+		UnhandledErrors   int64                           `json:"unhandled_errors"`
+		Users             int64                           `json:"users"`
 	} `json:"releases"`
 }
+
+// AppReleasesReleasesHealthSource defines model for AppReleases.Releases.HealthSource.
+type AppReleasesReleasesHealthSource string
 
 // AppSettings defines model for AppSettings.
 type AppSettings struct {
