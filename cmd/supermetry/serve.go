@@ -494,9 +494,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appBodies := appingest.NewBodyWriter(pool, appingest.BodyWriterConfig{})
 	appReports := appingest.NewClientReports(pool, 0)
 	var sentryIngest api.SentryIngest
+	var symbolicator *sentryingest.Symbolicator
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
-		sentryIngest = sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
+		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
+			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
+		})
+		sentryHandler.WithSymbolicator(symbolicator)
+		sentryIngest = sentryHandler
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -735,6 +741,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelWriter()
 	if writerDone != nil {
 		cause = errors.Join(cause, <-writerDone)
+	}
+	// Drain the symbolication queue into the intake before the writer stops.
+	if symbolicator != nil {
+		symbolicator.Close()
 	}
 	cancelAppWriter()
 	if appWriterDone != nil {

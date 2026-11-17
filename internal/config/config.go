@@ -115,6 +115,8 @@ type Config struct {
 	SentryMaxInflight     int  // Sentry-compatible intake: bodies read and parsed at once
 	SentryFilterLocalhost bool // drop Sentry events whose request URL is localhost; off by default so local trials show events
 	AppSpikePerMin        int  // Sentry-compatible intake: events per minute per app site
+	SymbolicateWorkers    int  // source map symbolication workers
+	SymbolicateCacheMB    int  // parsed source map cache budget, MiB
 	IngestRateSite        int
 	IngestRateGlobal      int
 	HTTPReadTimeout       time.Duration
@@ -230,6 +232,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		AppSpikePerMin:       600,
 		SentryIPPerMin:       600,
 		SentryMaxInflight:    32,
+		SymbolicateWorkers:   2,
+		SymbolicateCacheMB:   256,
 		IngestRateSite:       defaultIngestRateSite,
 		IngestRateGlobal:     defaultIngestRateGlobal,
 		HTTPReadTimeout:      defaultHTTPReadTimeout,
@@ -471,6 +475,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_IP_PER_MIN"), "SUPERMETRY_SENTRY_IP_PER_MIN", &c.SentryIPPerMin, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_SENTRY_FILTER_LOCALHOST"), "SUPERMETRY_SENTRY_FILTER_LOCALHOST", &c.SentryFilterLocalhost, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_MAX_INFLIGHT"), "SUPERMETRY_SENTRY_MAX_INFLIGHT", &c.SentryMaxInflight, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SYMBOLICATE_WORKERS"), "SUPERMETRY_SYMBOLICATE_WORKERS", &c.SymbolicateWorkers, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SYMBOLICATE_CACHE_MB"), "SUPERMETRY_SYMBOLICATE_CACHE_MB", &c.SymbolicateCacheMB, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_APP_SPIKE_PER_MIN"), "SUPERMETRY_APP_SPIKE_PER_MIN", &c.AppSpikePerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_IP"), "SUPERMETRY_INGEST_RATE_IP", &c.IngestRateIP, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_SITE"), "SUPERMETRY_INGEST_RATE_SITE", &c.IngestRateSite, &errs)

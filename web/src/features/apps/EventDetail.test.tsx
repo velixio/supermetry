@@ -49,6 +49,22 @@ describe('EventBodyView', () => {
     expect(screen.getByText(/sentry\.javascript\.browser 8\.0\.0/)).toBeInTheDocument()
   })
 
+  it('warns when source maps are missing for the release and links to the upload guide', () => {
+    render(<EventBodyView body={{ ...body, release: '1.4.2', symbolication: 'missing' }} />)
+    const banner = screen.getByRole('status', { name: 'Source maps' })
+    expect(banner).toHaveTextContent('Source maps missing for release 1.4.2')
+    expect(within(banner).getByRole('link', { name: /upload source maps/i })).toHaveAttribute('href', expect.stringContaining('docs/guide/source-maps.md'))
+    cleanup()
+    render(<EventBodyView body={{ ...body, release: '1.4.2', symbolication: 'partial' }} />)
+    expect(screen.getByRole('status', { name: 'Source maps' })).toHaveTextContent('Some frames could not be resolved')
+    cleanup()
+    render(<EventBodyView body={{ ...body, release: '1.4.2', symbolication: 'ok' }} />)
+    expect(screen.queryByRole('status', { name: 'Source maps' })).not.toBeInTheDocument()
+    cleanup()
+    render(<EventBodyView body={{ ...body, symbolication: 'missing' }} />)
+    expect(screen.getByRole('status', { name: 'Source maps' })).toHaveTextContent('Source maps missing for this release')
+  })
+
   it('tolerates missing fields', () => {
     render(<EventBodyView body={{ exceptions: [{ frames: [{}] }], breadcrumbs: 'bad', contexts: { os: null } }} />)
     expect(screen.getByText('Error')).toBeInTheDocument()
