@@ -3103,8 +3103,14 @@ type AppSettings struct {
 	FilterLocalhostDefault *bool `json:"filter_localhost_default,omitempty"`
 
 	// MaxReportAgeDays 0 means the default of 7.
-	MaxReportAgeDays *int      `json:"max_report_age_days,omitempty"`
-	TagAllowlist     *[]string `json:"tag_allowlist,omitempty"`
+	MaxReportAgeDays *int `json:"max_report_age_days,omitempty"`
+
+	// PerformanceEnabled Accept transactions and spans. Omitted or null means on.
+	PerformanceEnabled *bool `json:"performance_enabled,omitempty"`
+
+	// SpanRetentionDays Raw span retention in days. 0 means the default of 14.
+	SpanRetentionDays *int      `json:"span_retention_days,omitempty"`
+	TagAllowlist      *[]string `json:"tag_allowlist,omitempty"`
 }
 
 // AppUserErase defines model for AppUserErase.
@@ -6000,6 +6006,9 @@ type EditAppIssueCommentJSONRequestBody = AppIssueCommentInput
 
 // ReplaceAppRulesJSONRequestBody defines body for ReplaceAppRules for application/json ContentType.
 type ReplaceAppRulesJSONRequestBody = AppRules
+
+// EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
+type EraseAppUserJSONRequestBody = AppUserErase
 
 // CreateCohortJSONRequestBody defines body for CreateCohort for application/json ContentType.
 type CreateCohortJSONRequestBody = CohortInput

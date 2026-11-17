@@ -184,6 +184,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 				MaxReportAgeDays: parsed.MaxReportAgeDays, Environments: parsed.Environments,
 				HashSecret: hashSecrets[site.ID], FilterExtensions: parsed.FilterExtensions,
 				FilterCrawlers: parsed.FilterCrawlers, FilterLocalhost: parsed.FilterLocalhost,
+				PerformanceEnabled: parsed.PerformanceEnabled, SpanRetentionDays: parsed.SpanRetentionDays,
 			}
 			site.App.Rules = compileSiteRules(site.ID, ownership[site.ID], grouping[site.ID])
 			for _, key := range dsnBySite[site.ID] {

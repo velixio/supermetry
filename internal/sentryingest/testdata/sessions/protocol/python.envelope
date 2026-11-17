@@ -1,0 +1,3 @@
+{"event_id":"00000000000000000000000000000d03","sent_at":"2026-11-17T10:00:05.000Z","sdk":{"name":"sentry.python","version":"2.0.0"}}
+{"type":"sessions","length":153}
+{"aggregates":[{"started":"2026-11-17T09:58:00.000Z","exited":4,"errored":1,"abnormal":1}],"attrs":{"release":"worker@2.0.0","environment":"production"}}

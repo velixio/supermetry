@@ -38,16 +38,18 @@ func (k DSNKey) Expired(now time.Time) bool {
 
 // AppConfig is the ingest configuration of an app project.
 type AppConfig struct {
-	Keys             []AppKey
-	DSNKeys          []DSNKey // unrevoked DSN keys; expiry is checked at lookup
-	TagAllowlist     []string
-	MaxReportAgeDays int
-	Environments     []string
-	FilterExtensions *bool         // nil means on
-	FilterCrawlers   *bool         // nil means on
-	FilterLocalhost  *bool         // nil means the server-wide default
-	Rules            *apprules.Set // compiled ownership and grouping rules; nil when the project has none
-	HashSecret       []byte        // per-app HMAC secret for install and session ids; nil until the first event creates it
+	Keys               []AppKey
+	DSNKeys            []DSNKey // unrevoked DSN keys; expiry is checked at lookup
+	TagAllowlist       []string
+	MaxReportAgeDays   int
+	Environments       []string
+	FilterExtensions   *bool         // nil means on
+	FilterCrawlers     *bool         // nil means on
+	FilterLocalhost    *bool         // nil means the server-wide default
+	PerformanceEnabled *bool         // nil means on
+	SpanRetentionDays  int           // 1..14; 0 means 14
+	Rules              *apprules.Set // compiled ownership and grouping rules; nil when the project has none
+	HashSecret         []byte        // per-app HMAC secret for install and session ids; nil until the first event creates it
 }
 
 // KeyValid reports whether hash matches a key that has not expired at now.
