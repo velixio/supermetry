@@ -19,7 +19,10 @@ const (
 	MaxItems         = 500
 	MaxEnvelopeBytes = 20 << 20
 	MaxEventBytes    = 1 << 20
-	MaxAttachment    = 1 << 20
+	// MaxUnauthenticatedBytes caps the compressed body of a request that
+	// carries no key in a header or the query.
+	MaxUnauthenticatedBytes = 2 << 20
+	MaxAttachment           = 1 << 20
 )
 
 // Errors a caller maps to HTTP statuses.

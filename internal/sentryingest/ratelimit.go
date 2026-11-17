@@ -16,6 +16,7 @@ const (
 	// spikeLimits and budgetLimits accompany a 429.
 	spikeLimits  = "60:error;default:project:spike_protection"
 	budgetLimits = "60:error;default:project:rate_limit"
+	ipLimits     = "60:error;default:ip:rate_limit"
 )
 
 // spikeGuard caps events per site per minute with a fixed window. It is
@@ -111,4 +112,67 @@ func (s *Stats) Snapshot() map[string]uint64 {
 		out[k] = c.Load()
 	}
 	return out
+}
+
+// Defaults for the per-client-IP request limit and the in-flight body cap.
+const (
+	DefaultIPPerMinute = 600
+	ipBurst            = 120
+	DefaultMaxInflight = 32
+	maxTrackedIPs      = 100_000
+)
+
+// ipLimiter is an in-memory token bucket per client address, checked before
+// any body is read. Addresses are keys of a bounded map and are never stored.
+type ipLimiter struct {
+	mu      sync.Mutex
+	perSec  float64
+	buckets map[string]*ipBucket
+}
+
+type ipBucket struct {
+	tokens float64
+	last   time.Time
+}
+
+func newIPLimiter(perMinute int) *ipLimiter {
+	if perMinute == 0 {
+		perMinute = DefaultIPPerMinute
+	}
+	if perMinute < 0 {
+		return nil // disabled
+	}
+	return &ipLimiter{perSec: float64(perMinute) / 60, buckets: map[string]*ipBucket{}}
+}
+
+func (l *ipLimiter) allow(key string, now time.Time) bool {
+	if l == nil {
+		return true
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	b := l.buckets[key]
+	if b == nil {
+		if len(l.buckets) >= maxTrackedIPs {
+			for k, v := range l.buckets {
+				if now.Sub(v.last) > 5*time.Minute {
+					delete(l.buckets, k)
+				}
+			}
+			if len(l.buckets) >= maxTrackedIPs {
+				return true // fail open rather than grow without bound
+			}
+		}
+		b = &ipBucket{tokens: ipBurst, last: now}
+		l.buckets[key] = b
+	}
+	if el := now.Sub(b.last).Seconds(); el > 0 {
+		b.tokens = min(ipBurst, b.tokens+el*l.perSec)
+		b.last = now
+	}
+	if b.tokens < 1 {
+		return false
+	}
+	b.tokens--
+	return true
 }

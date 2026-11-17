@@ -43,6 +43,8 @@ type Handler struct {
 	normalise NormaliseFunc
 	spike     *spikeGuard
 	stats     *Stats
+	ips       *ipLimiter
+	inflight  chan struct{}
 }
 
 // NewHandler builds the front door. bodies, geo and now may be nil.
@@ -51,7 +53,8 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 		now = time.Now
 	}
 	return &Handler{sites: reg, intake: intake, bodies: bodies, geo: geo, trusted: trusted, now: now,
-		spike: newSpikeGuard(DefaultSpikePerMinute), stats: &Stats{}, normalise: Normalise}
+		spike: newSpikeGuard(DefaultSpikePerMinute), stats: &Stats{}, normalise: Normalise,
+		ips: newIPLimiter(DefaultIPPerMinute), inflight: make(chan struct{}, DefaultMaxInflight)}
 }
 
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
@@ -61,6 +64,17 @@ func (h *Handler) WithNormaliser(n NormaliseFunc) *Handler { h.normalise = n; re
 // WithSpikeLimit sets the per-site events-per-minute cap.
 func (h *Handler) WithSpikeLimit(perMinute int) *Handler {
 	h.spike = newSpikeGuard(perMinute)
+	return h
+}
+
+// WithIPLimit sets the per-client-IP requests per minute (burst 120); a
+// negative value disables the limit.
+func (h *Handler) WithIPLimit(perMinute int) *Handler { h.ips = newIPLimiter(perMinute); return h }
+
+// WithMaxInflight caps the requests whose bodies are being read and parsed at
+// once; at least 1.
+func (h *Handler) WithMaxInflight(n int) *Handler {
+	h.inflight = make(chan struct{}, max(n, 1))
 	return h
 }
 
@@ -143,17 +157,50 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Per-client limit and the global cap on concurrent body reads come first,
+	// so a flood costs neither memory nor a decompression.
+	if !h.ips.allow(h.clientKey(r), now) {
+		h.stats.Add("ip_rate_limited", 1)
+		hdr.Set("Retry-After", "60")
+		hdr.Set("X-Sentry-Rate-Limits", ipLimits)
+		h.fail(w, http.StatusTooManyRequests, "rate limited")
+		return
+	}
+	select {
+	case h.inflight <- struct{}{}:
+	default:
+		h.stats.Add("inflight_full", 1)
+		hdr.Set("Retry-After", "5")
+		h.fail(w, http.StatusServiceUnavailable, "too many requests in flight")
+		return
+	}
+	released := false
+	release := func() {
+		if !released {
+			released = true
+			<-h.inflight
+		}
+	}
+	defer release()
+
 	// Authenticate early when a header or query parameter carries a key (or a
 	// bad version), so unauthenticated senders cost no body read. A request
 	// whose only carrier is the envelope header's dsn is checked after parsing.
-	if p := collectAuth(r, EnvelopeHeader{}); len(p.keys) > 0 || p.version != "" {
+	p := collectAuth(r, EnvelopeHeader{})
+	if len(p.keys) > 0 || p.version != "" {
 		if _, _, err := authenticate(p, rt.siteID, h.sites, now); err != nil && (len(p.keys) > 0 || errors.Is(err, ErrVersion)) {
 			h.authFailure(w, err)
 			return
 		}
 	}
 
-	body, err := decodeBody(r, MaxEnvelopeBytes)
+	// A request whose only key travels in the envelope header is unauthenticated
+	// until the header is parsed, so it gets a small compressed-size cap.
+	maxCompressed := int64(MaxEnvelopeBytes)
+	if len(p.keys) == 0 {
+		maxCompressed = MaxUnauthenticatedBytes
+	}
+	body, err := decodeBodyCaps(r, maxCompressed, MaxEnvelopeBytes)
 	if err != nil {
 		h.bodyFailure(w, err)
 		return
@@ -176,6 +223,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		env = Envelope{Items: []Item{{Type: "csp", Payload: body}}}
 	}
 
+	release() // the body is parsed; the rest of the work holds no big buffers
 	// Re-check with the envelope header's dsn: a second, different key is an error.
 	site, key, err := Authenticate(r, env.Header, rt.siteID, h.sites, now)
 	if err != nil {
@@ -373,6 +421,14 @@ func safeCategory(t string) string {
 		}
 	}
 	return t
+}
+
+// clientKey is the in-memory limiter key; the address is never stored.
+func (h *Handler) clientKey(r *http.Request) string {
+	if ip, ok := clientip.Resolve(r, h.trusted); ok {
+		return ip.String()
+	}
+	return "unknown"
 }
 
 func authParamsFromQuery(r *http.Request) authParams {

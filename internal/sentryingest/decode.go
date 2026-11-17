@@ -25,7 +25,13 @@ const zstdMaxWindow = 32 << 20
 // decompression stops as soon as the cap is passed, so a bomb costs about max
 // bytes of memory.
 func decodeBody(r *http.Request, max int64) ([]byte, error) {
-	raw, err := readLimited(r.Body, max)
+	return decodeBodyCaps(r, max, max)
+}
+
+// decodeBodyCaps is decodeBody with separate caps on the compressed and the
+// decompressed size.
+func decodeBodyCaps(r *http.Request, maxCompressed, max int64) ([]byte, error) {
+	raw, err := readLimited(r.Body, maxCompressed)
 	if err != nil {
 		return nil, err
 	}

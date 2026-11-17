@@ -2,9 +2,11 @@ package sentryingest
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -96,6 +98,7 @@ func newEnvWith(t testing.TB, stub bool, keys ...sites.DSNKey) *env {
 	now := fdNow
 	e := &env{intake: appingest.NewIntake(appingest.Config{}), norm: &stubNormaliser{}, bodies: &bodySink{}, reg: reg, now: &now}
 	e.h = NewHandler(reg, e.intake, e.bodies, fixedGeo("DE"), nil, func() time.Time { return *e.now })
+	e.h.WithIPLimit(-1) // tests send hundreds of requests from one address
 	if stub {
 		e.h.WithNormaliser(e.norm.Normalise)
 	}
@@ -632,5 +635,95 @@ func TestFixtureBodiesCarryNoPII(t *testing.T) {
 	}
 	if stored < 15 {
 		t.Errorf("only %d bodies scanned", stored)
+	}
+}
+
+func fromIP(r *http.Request, addr string) *http.Request { r.RemoteAddr = addr + ":4000"; return r }
+
+func TestPerIPRequestLimit(t *testing.T) {
+	e := newEnv(t)
+	e.h.WithIPLimit(600) // burst 120
+	codes := map[int]int{}
+	var last *httptest.ResponseRecorder
+	for i := 0; i < 125; i++ {
+		last = e.do(fromIP(post(fdPath, fdQuery, eventEnvelope(fmt.Sprintf("%032d", i)), nil), "198.51.100.1"))
+		codes[last.Code]++
+		if i%50 == 49 {
+			e.queued()
+		}
+	}
+	if codes[200] != 120 || codes[429] != 5 {
+		t.Fatalf("codes = %v", codes)
+	}
+	if last.Header().Get("Retry-After") == "" || !strings.Contains(last.Header().Get("X-Sentry-Rate-Limits"), "rate_limit") {
+		t.Errorf("429 headers = %v", last.Header())
+	}
+	if w := e.do(fromIP(post(fdPath, fdQuery, eventEnvelope(fmt.Sprintf("%032d", 999)), nil), "198.51.100.2")); w.Code != 200 {
+		t.Errorf("another IP = %d", w.Code)
+	}
+	// Tokens refill with time.
+	*e.now = e.now.Add(time.Minute)
+	if w := e.do(fromIP(post(fdPath, fdQuery, eventEnvelope(fmt.Sprintf("%032d", 998)), nil), "198.51.100.1")); w.Code != 200 {
+		t.Errorf("after a minute = %d", w.Code)
+	}
+}
+
+// blockingBody blocks the first Read until released, holding an in-flight slot.
+type blockingBody struct {
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (b *blockingBody) Read(p []byte) (int, error) {
+	b.once.Do(func() { close(b.started) })
+	<-b.release
+	return 0, io.EOF
+}
+
+func TestInflightCapAnswers503(t *testing.T) {
+	e := newEnv(t)
+	e.h.WithMaxInflight(1)
+	body := &blockingBody{started: make(chan struct{}), release: make(chan struct{})}
+	req := httptest.NewRequest(http.MethodPost, fdPath+fdQuery, body)
+	done := make(chan int)
+	go func() { done <- e.do(req).Code }()
+	<-body.started
+	w := e.do(post(fdPath, fdQuery, simpleEnvelope, nil))
+	if w.Code != http.StatusServiceUnavailable || w.Header().Get("Retry-After") != "5" {
+		t.Fatalf("second request = %d %v", w.Code, w.Header())
+	}
+	close(body.release)
+	<-done
+	// The slot is free again.
+	if w := e.do(post(fdPath, fdQuery, simpleEnvelope, nil)); w.Code != 200 {
+		t.Fatalf("after release = %d", w.Code)
+	}
+}
+
+func TestUnauthenticatedBodyIsCappedSmall(t *testing.T) {
+	e := newEnv(t)
+	big := `{"dsn":"https://` + fdKey + `@h/42"}` + "\n{\"type\":\"attachment\",\"length\":3000000}\n" + strings.Repeat("a", 3000000) + "\n"
+	if w := e.do(post(fdPath, "", big, nil)); w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("3 MB dsn-only body = %d", w.Code)
+	}
+	// The same body with the key in the query is within the authenticated cap.
+	if w := e.do(post(fdPath, fdQuery, big, nil)); w.Code != 200 {
+		t.Errorf("3 MB keyed body = %d", w.Code)
+	}
+	// A small dsn-only request still works.
+	ok := `{"event_id":"55555555555555555555555555555555","dsn":"https://` + fdKey + `@h/42"}` + "\n{\"type\":\"event\"}\n{}\n"
+	if w := e.do(post(fdPath, "", ok, nil)); w.Code != 200 {
+		t.Errorf("small dsn-only = %d", w.Code)
+	}
+	// The cap applies to the compressed size.
+	noise := make([]byte, 3<<20)
+	_, _ = rand.Read(noise)
+	gz := compress(t, "gzip", append([]byte(`{"dsn":"https://`+fdKey+`@h/42"}`+"\n{\"type\":\"attachment\",\"length\":3145728}\n"), noise...))
+	if len(gz) <= 2<<20 {
+		t.Skip("test noise compressed too well")
+	}
+	if w := e.do(post(fdPath, "", string(gz), map[string]string{"Content-Encoding": "gzip"})); w.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("large compressed dsn-only body = %d", w.Code)
 	}
 }

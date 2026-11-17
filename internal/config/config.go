@@ -106,6 +106,8 @@ type Config struct {
 	SessionFlush         time.Duration
 	QueryTimeout         time.Duration
 	IngestRateIP         int
+	SentryIPPerMin       int // Sentry-compatible intake: requests per minute per client IP
+	SentryMaxInflight    int // Sentry-compatible intake: bodies read and parsed at once
 	AppSpikePerMin       int // Sentry-compatible intake: events per minute per app site
 	IngestRateSite       int
 	IngestRateGlobal     int
@@ -220,6 +222,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		QueryTimeout:         defaultQueryTimeout,
 		IngestRateIP:         defaultIngestRateIP,
 		AppSpikePerMin:       600,
+		SentryIPPerMin:       600,
+		SentryMaxInflight:    32,
 		IngestRateSite:       defaultIngestRateSite,
 		IngestRateGlobal:     defaultIngestRateGlobal,
 		HTTPReadTimeout:      defaultHTTPReadTimeout,
@@ -435,6 +439,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveDuration(getenv("SUPERMETRY_FLUSH_EVERY"), "SUPERMETRY_FLUSH_EVERY", &c.FlushEvery, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_SESSION_FLUSH"), "SUPERMETRY_SESSION_FLUSH", &c.SessionFlush, &errs)
 	parseDurationRange(getenv("SUPERMETRY_QUERY_TIMEOUT"), "SUPERMETRY_QUERY_TIMEOUT", time.Second, 5*time.Minute, &c.QueryTimeout, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SENTRY_IP_PER_MIN"), "SUPERMETRY_SENTRY_IP_PER_MIN", &c.SentryIPPerMin, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_SENTRY_MAX_INFLIGHT"), "SUPERMETRY_SENTRY_MAX_INFLIGHT", &c.SentryMaxInflight, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_APP_SPIKE_PER_MIN"), "SUPERMETRY_APP_SPIKE_PER_MIN", &c.AppSpikePerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_IP"), "SUPERMETRY_INGEST_RATE_IP", &c.IngestRateIP, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_SITE"), "SUPERMETRY_INGEST_RATE_SITE", &c.IngestRateSite, &errs)
