@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Encoding": "br",
+    "Content-Type": "application/x-sentry-envelope",
+    "User-Agent": "sentry.python/2.75.0",
+    "X-Sentry-Auth": "Sentry sentry_key=0123456789abcdef0123456789abcdef, sentry_version=7, sentry_client=sentry.python/2.75.0"
+  },
+  "sdk": "python",
+  "sdk_version": "",
+  "notes": "sentry-sdk 2.75.0 unhandled exception, brotli body (Content-Encoding: br)"
+}
