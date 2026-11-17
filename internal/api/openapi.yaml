@@ -3329,6 +3329,23 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/deploys:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+    get:
+      operationId: getAppDeploys
+      tags: [Apps]
+      summary: Deploy markers of the project in the range, newest first
+      description: Deploys that name the project, or whose release does (an org-wide release applies to every project). At most 500, placed by their finish time, else start time, else the time they were recorded. The release parameter is an exact match.
+      responses:
+        '200': { description: Deploys, content: { application/json: { schema: { $ref: '#/components/schemas/AppDeploys' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/pixels:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -6059,6 +6076,22 @@ components:
                     id: { type: integer, format: int64 }
                     title: { type: string }
                     events: { type: integer, format: int64 }
+    AppDeploys:
+      type: object
+      required: [deploys]
+      properties:
+        deploys:
+          type: array
+          items:
+            type: object
+            required: [id, release, environment, name, url, at]
+            properties:
+              id: { type: integer, format: int64 }
+              release: { type: string }
+              environment: { type: string }
+              name: { type: string }
+              url: { type: string }
+              at: { type: string, format: date-time }
     AppReleases:
       type: object
       required: [releases]

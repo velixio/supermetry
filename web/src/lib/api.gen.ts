@@ -2607,6 +2607,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/deploys": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Deploy markers of the project in the range, newest first
+         * @description Deploys that name the project, or whose release does (an org-wide release applies to every project). At most 500, placed by their finish time, else start time, else the time they were recorded. The release parameter is an exact match.
+         */
+        get: operations["getAppDeploys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/pixels": {
         parameters: {
             query?: never;
@@ -4908,6 +4937,18 @@ export interface components {
                     /** Format: int64 */
                     events: number;
                 }[];
+            }[];
+        };
+        AppDeploys: {
+            deploys: {
+                /** Format: int64 */
+                id: number;
+                release: string;
+                environment: string;
+                name: string;
+                url: string;
+                /** Format: date-time */
+                at: string;
             }[];
         };
         AppReleases: {
@@ -11578,6 +11619,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppReleases"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppDeploys: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deploys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDeploys"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -364,6 +364,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/app/events/{event_id}/attachments/{idx}", h.getAppEventAttachment)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/compatibility", h.getAppCompatibility)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/releases", h.getAppReleases)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/deploys", h.getAppDeploys)
 	mux.HandleFunc("GET /api/private/sites/{site}/ingest-keys", h.listAppIngestKeys)
 	mux.HandleFunc("POST /api/private/sites/{site}/ingest-keys", h.rotateAppIngestKey)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/dsn-keys", h.listAppDSNKeys)

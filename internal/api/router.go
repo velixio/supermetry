@@ -557,6 +557,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"GET " + privatePrefix + "/sites/{site}/app/events/{event_id}/attachments/{idx}",
 		"GET " + privatePrefix + "/sites/{site}/app/compatibility",
 		"GET " + privatePrefix + "/sites/{site}/app/releases",
+		"GET " + privatePrefix + "/sites/{site}/app/deploys",
 		"GET " + privatePrefix + "/sites/{site}/ingest-keys",
 		"POST " + privatePrefix + "/sites/{site}/ingest-keys",
 		"GET " + privatePrefix + "/sites/{site}/app/dsn-keys",
