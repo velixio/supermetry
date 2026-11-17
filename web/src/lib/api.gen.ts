@@ -2161,6 +2161,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/issues/bulk": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change many issues at once
+         * @description Give `ids` (1 to 1,000) or a `query`; with a query the change applies to the issues the search matches, using
+         *     the range, filters and the `status`, `kind` and `q` parameters of the issue list (at most 1,000 matches, else
+         *     400). Ids that are not issues of this project are left alone and returned in `skipped`. The whole change is
+         *     one transaction and adds one activity row per changed field and issue. Owner, admin or editor only.
+         */
+        post: operations["bulkUpdateAppIssues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Saved issue searches visible to you
+         * @description Your private views and every shared view of the project.
+         */
+        get: operations["listAppSavedViews"];
+        put?: never;
+        /**
+         * Save an issue search
+         * @description Owner, admin or editor only. A name is unique per owner; a duplicate is a 409.
+         */
+        post: operations["createAppSavedView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/views/{view}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                view: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a view
+         * @description Same rules as editing.
+         */
+        delete: operations["deleteAppSavedView"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename, edit or share a view
+         * @description The owner, or an owner or admin of the organisation for a shared view. Another member's private view is a 404.
+         */
+        patch: operations["updateAppSavedView"];
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/events/{event_id}": {
         parameters: {
             query?: never;
@@ -4516,6 +4602,40 @@ export interface components {
             /** @description A link to an existing GitHub issue, https://github.com/<owner>/<repo>/issues/<number>; "" unlinks. */
             github_url?: string;
         };
+        /** @description Exactly one of `ids` and `query`. */
+        AppIssueBulk: {
+            ids?: number[];
+            /** @description The issue search syntax (see the `query` parameter of the issue list). */
+            query?: string;
+            change: components["schemas"]["AppIssueChange"];
+        };
+        AppIssueBulkResult: {
+            updated: number[];
+            /** @description Ids that are not issues of this project. */
+            skipped: number[];
+        };
+        AppSavedView: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            query: string;
+            shared: boolean;
+            mine: boolean;
+            owner_name: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AppSavedViewInput: {
+            name: string;
+            query: string;
+            /** @default false */
+            shared: boolean;
+        };
+        AppSavedViewPatch: {
+            name?: string;
+            query?: string;
+            shared?: boolean;
+        };
         AppIssueStatus: {
             /** Format: int64 */
             id: number;
@@ -6000,6 +6120,8 @@ export interface components {
             title: string;
             status: number;
             detail?: string;
+            /** @description For a rejected search, the character offset of the problem. */
+            position?: number;
             /** Format: uri-reference */
             instance?: string;
             errors?: components["schemas"]["ValidationError"][];
@@ -10521,11 +10643,21 @@ export interface operations {
                 release?: components["parameters"]["AppRelease"];
                 environment?: components["parameters"]["AppEnvironment"];
                 platform?: components["parameters"]["AppPlatform"];
-                /** @description open, resolved, ignored or regressed. */
+                /** @description open, resolved, ignored, regressed or archived. */
                 status?: string;
                 kind?: string;
                 /** @description Case-insensitive prefix of the title or error type. */
                 q?: string;
+                /**
+                 * @description Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
+                 *     `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
+                 *     (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
+                 *     email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+                 *     `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
+                 *     `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
+                 *     A syntax error is a 400 whose `position` is the character offset of the problem.
+                 */
+                query?: string;
                 /** @description last_seen (default), events or users. */
                 sort?: string;
                 limit?: number;
@@ -10551,6 +10683,169 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    bulkUpdateAppIssues: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueBulk"];
+            };
+        };
+        responses: {
+            /** @description What changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueBulkResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppSavedViews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Views */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        views: components["schemas"]["AppSavedView"][];
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createAppSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppSavedViewInput"];
+            };
+        };
+        responses: {
+            /** @description The view */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSavedView"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description You already have a view with this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteAppSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                view: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                view: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppSavedViewPatch"];
+            };
+        };
+        responses: {
+            /** @description The view */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSavedView"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description You already have a view with this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getAppEvent: {
