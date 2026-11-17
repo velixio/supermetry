@@ -6,15 +6,26 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.26 (2026-11-18)
+
 ### Fixed
 
+- The Sentry intake's per-IP limiter no longer rescans its whole table for every new client address once it is full; envelope throughput rose about fivefold in the load test.
+- A project over its event budget now answers 429 with `X-Sentry-Rate-Limits` for errors awaiting symbolication too, so SDKs back off.
 - A failed "email address changed" notice is now logged, and the deletion-notice log names the SMTP step that failed (never the recipient address).
+- Umami imports accept PostgreSQL's default timestamp text (`2026-01-31 14:05:09.123+00`), which is what `psql \copy` writes. Such rows were previously skipped as invalid.
 
 ### Added
 
 - **App Monitoring data in the site export.** The ZIP export of an app project now also contains `app_issues.csv`, `app_events.csv`, `app_releases.csv`, `app_deploys.csv`, `app_artifacts.csv` and `app_client_reports.csv` (source map bundle metadata only), within the chosen date range. User identifiers, install and session hashes, IP data, event bodies and file contents are never exported. Web and pixel project exports are unchanged.
 - **Source map upload tested against the real tools.** `make sdk-compat-sourcemaps` builds a Vite app and uploads its source maps with `sentry-cli`, `@sentry/vite-plugin` and the TypeScript `sentry` CLI against a fresh server. Upload tokens now always end in a character the Rust `sentry-cli` accepts (about three in four earlier tokens were rejected). Guide: [Upload source maps](docs/guide/source-maps.md).
 - Sentry SDK compatibility: point an existing Sentry SDK at Supermetry by changing the DSN.
+- **Source maps for JavaScript errors.** A Sentry-compatible upload API at `/api/0/` (chunk upload, artifact bundles, releases, deploys) works with unmodified `sentry-cli`, `@sentry/vite-plugin` and the `sentry` CLI using only `SENTRY_AUTH_TOKEN` and `SENTRY_PROJECT`. Minified stack frames are resolved to the original file, line and context by debug id, or by release and URL. New **upload tokens** (Installation page) carry only the `releases:write` scope. See [Source maps](docs/guide/source-maps.md).
+- **Stored error details.** Each error keeps its scrubbed event body (stack frames, breadcrumbs, context) for 30 days for the event detail view; emails, IPs, cookies, auth headers and home paths are removed before storage. SDK client reports are kept as daily counts of discarded events.
+- **Inbound filters** drop errors from browser extensions and crawlers (on by default) and from localhost (off by default, `SUPERMETRY_SENTRY_FILTER_LOCALHOST`), with per-project switches in app settings.
+- **Erase an app user's data** from app settings or `POST /api/private/sites/{site}/app/users/erase`: removes their stored event bodies and the user hash on their events.
+- Crash-free sessions count aggregated session pings by their occurrences, and every distinct grouping hash of an issue is recorded.
+- Limits for the Sentry endpoints: per-IP and per-token rate limits on `/api/0/` (`SUPERMETRY_SENTRY_API_IP_PER_MIN`, `SUPERMETRY_SENTRY_API_TOKEN_PER_MIN`), a per-organization source map storage cap (`SUPERMETRY_SENTRY_ORG_CAP`, default 5 GB) and a daily sweep of unused upload chunks. Symbolication runs off the request path (`SUPERMETRY_SYMBOLICATE_WORKERS`, `SUPERMETRY_SYMBOLICATE_CACHE_MB`).
 - **App Monitoring setup screen.** An app project's Installation page now shows the project DSN with a copy button and ready-to-paste snippets for the Sentry SDKs for JavaScript (browser), Node, Electron, Python, Go, Android and Cocoa; only `dsn` and `release` are set. DSN keys can be created with allowed origins and revoked there, and the TypeScript and Python kits move under "Legacy kits". Issues link to a full event detail view (exception chain with in-app frames, breadcrumbs, contexts, tags), served by `GET /api/private/sites/{site}/app/events/{event_id}`. The sidebar section for app projects is named "App Monitoring". Guides: [App Monitoring](docs/guide/apps.md) and [Migrate from Sentry](docs/guide/migrate-from-sentry.md).
 - **Email (SMTP) in the app.** Instance admins can set up outgoing email under Instance admin, Email (SMTP) (host, port, connection security, username, password, from, HELO name) and send a test email that reports the failing step. The settings live in the database with the password encrypted, apply without a restart, and the password is never shown again (`GET/PUT/DELETE /api/private/admin/email`, `POST /api/private/admin/email/test`). When `SUPERMETRY_SMTP_HOST` is set, the environment wins entirely and the screen is read-only. Not available on managed instances.
 - **Implicit TLS (SMTPS, port 465)** and the `SUPERMETRY_SMTP_TLS` variable (`starttls`, `implicit`, `none`). Without it, `SUPERMETRY_SMTP_STARTTLS` still applies, and port 465 with neither set uses implicit TLS. Certificates are always verified. A username without TLS is now rejected at startup instead of at the first send.
@@ -29,9 +40,9 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
   - [Ghost](sdk/ghost): a code injection snippet and a theme partial that also send `Signup` and `Subscription` events after Portal signups and Stripe checkouts.
 - Stripe revenue. Enable Stripe for a site in Settings → Integrations, add the shown webhook URL in Stripe and paste its signing secret. Checkout purchases and subscription renewals are recorded as revenue (`Stripe: Purchase`, `Stripe: Renewal`), attributed to the visit's source and campaign when the Checkout Session carries the id from the new `attributionId()` of `@supermetry/tracker` as `client_reference_id`. Refunds are listed on the Stripe card. No Stripe API key and no cookies; no customer names, emails or addresses are stored. See [the Stripe guide](docs/guide/stripe.md).
 
-### Fixed
+### Security
 
-- Umami imports accept PostgreSQL's default timestamp text (`2026-01-31 14:05:09.123+00`), which is what `psql \copy` writes. Such rows were previously skipped as invalid.
+- Updated `github.com/andybalholm/brotli` to v1.2.7 (GO-2026-6888).
 
 ## v0.1.25 (2026-11-16)
 
