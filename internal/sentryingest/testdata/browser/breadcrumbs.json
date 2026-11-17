@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "sentry_version=7&sentry_key=0123456789abcdef0123456789abcdef&sentry_client=sentry.javascript.browser%2F11.13.0",
+  "headers": {
+    "Content-Type": "text/plain;charset=UTF-8",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36"
+  },
+  "sdk": "browser",
+  "sdk_version": "sentry.javascript.browser@11.13.0",
+  "notes": "@sentry/browser 11.13.0 breadcrumbs (headless chromium via playwright-core 1.63.0)"
+}
