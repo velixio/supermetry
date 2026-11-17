@@ -16,7 +16,7 @@ func TestAppSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("defaults = %d %s", res.Code, res.Body)
 	}
 	put := f.request(t, "owner", http.MethodPut, path, `{"tag_allowlist":["Source","source"],"max_report_age_days":14,"environments":["Beta","beta"]}`)
-	want := `{"tag_allowlist":["source"],"max_report_age_days":14,"environments":["beta"],"filter_extensions":true,"filter_crawlers":true,"filter_localhost":null,"filter_localhost_default":false}`
+	want := `{"tag_allowlist":["source"],"max_report_age_days":14,"environments":["beta"],"filter_extensions":true,"filter_crawlers":true,"filter_localhost":null,"performance_enabled":true,"span_retention_days":14,"filter_localhost_default":false}`
 	if put.Code != http.StatusOK || strings.TrimSpace(put.Body.String()) != want {
 		t.Fatalf("put = %d %s", put.Code, put.Body)
 	}
