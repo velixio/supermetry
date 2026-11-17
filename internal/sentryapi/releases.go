@@ -9,13 +9,29 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"supermetry/internal/sites"
 )
 
 type releaseBody struct {
 	Version      string     `json:"version"`
 	Projects     []string   `json:"projects"`
 	URL          *string    `json:"url"`
+	Ref          *string    `json:"ref"`
 	DateReleased *time.Time `json:"dateReleased"`
+	DateStarted  *time.Time `json:"dateStarted"`
+	Status       *string    `json:"status"`
+}
+
+// validate checks the optional fields shared by create and update.
+func (b releaseBody) validate() string {
+	if b.Status != nil && *b.Status != "open" && *b.Status != "archived" {
+		return "status must be open or archived"
+	}
+	if b.Ref != nil && len(*b.Ref) > 200 {
+		return "ref is too long"
+	}
+	return ""
 }
 
 type releaseRow struct {
@@ -23,29 +39,91 @@ type releaseRow struct {
 	version      string
 	siteIDs      []int32
 	url          string
+	ref          string
+	status       string
 	dateCreated  time.Time
 	dateReleased *time.Time
+	dateStarted  *time.Time
+}
+
+const releaseColumns = `id, version, site_ids, url, ref, status, date_created, date_released, date_started`
+
+func (r *releaseRow) scan(row pgx.Row) error {
+	return row.Scan(&r.id, &r.version, &r.siteIDs, &r.url, &r.ref, &r.status, &r.dateCreated, &r.dateReleased, &r.dateStarted)
+}
+
+func formatTime(t *time.Time) any {
+	if t == nil {
+		return nil
+	}
+	return t.UTC().Format(time.RFC3339Nano)
+}
+
+// visibleSites is the release's own sites, or every app site of the org when
+// it is org-wide, narrowed to the key's site restriction.
+func (h *Handler) visibleSites(c *call, rel releaseRow) []int32 {
+	ids := slices.Clone(rel.siteIDs)
+	if len(ids) == 0 && h.deps.Sites != nil {
+		for _, s := range h.deps.Sites.All() {
+			if s.OrgID == c.orgID && s.Kind == sites.KindApp {
+				ids = append(ids, s.ID)
+			}
+		}
+	}
+	if c.principal.SiteIDs != nil {
+		ids = slices.DeleteFunc(ids, func(id int32) bool { return !slices.Contains(c.principal.SiteIDs, id) })
+	}
+	return ids
+}
+
+// commitJSON is one commit in a release summary (filled by the commits task).
+type commitJSON struct {
+	ID      string `json:"id"`
+	Message string `json:"message"`
+}
+
+// releaseCommitSummary returns the commit count and newest commit of a release.
+func (h *Handler) releaseCommitSummary(_ context.Context, _ int64) (count int, last *commitJSON, err error) {
+	return 0, nil, nil
 }
 
 func (h *Handler) releaseJSON(ctx context.Context, c *call, rel releaseRow) map[string]any {
 	var deploys int
+	var lastDeploy any
 	_ = h.deps.Pool.QueryRow(ctx, `select count(*) from app_deploys where release_id=$1`, rel.id).Scan(&deploys)
+	if deploys > 0 {
+		var id int64
+		var env, name string
+		var started, finished *time.Time
+		err := h.deps.Pool.QueryRow(ctx, `select id, environment, name, date_started, date_finished from app_deploys where release_id=$1 order by id desc limit 1`, rel.id).Scan(&id, &env, &name, &started, &finished)
+		if err == nil {
+			lastDeploy = map[string]any{"id": strconv.FormatInt(id, 10), "environment": env, "name": nilIfEmpty(name), "dateStarted": formatTime(started), "dateFinished": formatTime(finished)}
+		}
+	}
+	// One aggregate over the release's visible sites; the (site_id, first_release) index backs it.
+	var newGroups int
+	var firstEvent, lastEvent *time.Time
+	if visible := h.visibleSites(c, rel); len(visible) > 0 {
+		_ = h.deps.Pool.QueryRow(ctx, `select count(*), min(first_seen), max(last_seen) from app_issues where first_release=$1 and site_id = any($2)`, rel.version, visible).Scan(&newGroups, &firstEvent, &lastEvent)
+	}
+	commitCount, lastCommit, _ := h.releaseCommitSummary(ctx, rel.id)
 	projects := []map[string]any{}
 	for _, id := range rel.siteIDs {
 		if s, ok := h.deps.Sites.Site(id); ok && s.OrgID == c.orgID {
 			projects = append(projects, map[string]any{"id": id, "slug": s.PublicID, "name": s.PublicID})
 		}
 	}
-	var released any
-	if rel.dateReleased != nil {
-		released = rel.dateReleased.UTC().Format(time.RFC3339Nano)
-	}
-	return map[string]any{
-		"version": rel.version, "shortVersion": rel.version, "ref": nil, "url": nilIfEmpty(rel.url),
-		"dateCreated": rel.dateCreated.UTC().Format(time.RFC3339Nano), "dateReleased": released,
-		"status": "open", "commitCount": 0, "deployCount": deploys, "newGroups": 0,
+	out := map[string]any{
+		"version": rel.version, "shortVersion": rel.version, "ref": nilIfEmpty(rel.ref), "url": nilIfEmpty(rel.url),
+		"dateCreated": rel.dateCreated.UTC().Format(time.RFC3339Nano), "dateReleased": formatTime(rel.dateReleased), "dateStarted": formatTime(rel.dateStarted),
+		"status": rel.status, "commitCount": commitCount, "deployCount": deploys, "newGroups": newGroups,
+		"firstEvent": formatTime(firstEvent), "lastEvent": formatTime(lastEvent), "lastDeploy": lastDeploy,
 		"authors": []any{}, "projects": projects,
 	}
+	if lastCommit != nil {
+		out["lastCommit"] = lastCommit
+	}
+	return out
 }
 
 func nilIfEmpty(s string) any {
@@ -61,8 +139,7 @@ func (h *Handler) canUseRelease(c *call, rel releaseRow) bool { return c.canUseS
 
 func (h *Handler) loadRelease(ctx context.Context, orgID int64, version string) (releaseRow, error) {
 	var rel releaseRow
-	err := h.deps.Pool.QueryRow(ctx, `select id, version, site_ids, url, date_created, date_released from app_releases where org_id=$1 and version=$2`, orgID, version).
-		Scan(&rel.id, &rel.version, &rel.siteIDs, &rel.url, &rel.dateCreated, &rel.dateReleased)
+	err := rel.scan(h.deps.Pool.QueryRow(ctx, `select `+releaseColumns+` from app_releases where org_id=$1 and version=$2`, orgID, version))
 	return rel, err
 }
 
@@ -73,6 +150,10 @@ func (h *Handler) createRelease(w http.ResponseWriter, r *http.Request, c *call)
 	}
 	if body.Version == "" || len(body.Version) > 200 {
 		writeDetail(w, http.StatusBadRequest, "version is required")
+		return
+	}
+	if msg := body.validate(); msg != "" {
+		writeDetail(w, http.StatusBadRequest, msg)
 		return
 	}
 	siteIDs, perr := h.resolveProjects(c, body.Projects)
@@ -87,12 +168,19 @@ func (h *Handler) createRelease(w http.ResponseWriter, r *http.Request, c *call)
 	if body.URL != nil {
 		url = *body.URL
 	}
+	ref, relStatus := "", "open"
+	if body.Ref != nil {
+		ref = *body.Ref
+	}
+	if body.Status != nil {
+		relStatus = *body.Status
+	}
 	status := http.StatusCreated
 	var inserted bool
 	err := h.deps.Pool.QueryRow(r.Context(), `
-		insert into app_releases(org_id, version, site_ids, url, date_released) values ($1,$2,$3,$4,$5)
+		insert into app_releases(org_id, version, site_ids, url, ref, status, date_released, date_started) values ($1,$2,$3,$4,$5,$6,$7,$8)
 		on conflict (org_id, version) do update set version = app_releases.version
-		returning (xmax = 0)`, c.orgID, body.Version, siteIDs, url, body.DateReleased).Scan(&inserted)
+		returning (xmax = 0)`, c.orgID, body.Version, siteIDs, url, ref, relStatus, body.DateReleased, body.DateStarted).Scan(&inserted)
 	if err != nil {
 		serverError(w)
 		return
@@ -134,6 +222,10 @@ func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call)
 	if !readJSON(w, r, &body) {
 		return
 	}
+	if msg := body.validate(); msg != "" {
+		writeDetail(w, http.StatusBadRequest, msg)
+		return
+	}
 	version := r.PathValue("version")
 	rel, err := h.loadRelease(r.Context(), c.orgID, version)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -166,7 +258,16 @@ func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call)
 	if body.DateReleased != nil {
 		rel.dateReleased = body.DateReleased
 	}
-	if _, err := h.deps.Pool.Exec(r.Context(), `update app_releases set site_ids=$2, url=$3, date_released=$4 where id=$1`, rel.id, rel.siteIDs, rel.url, rel.dateReleased); err != nil {
+	if body.DateStarted != nil {
+		rel.dateStarted = body.DateStarted
+	}
+	if body.Ref != nil {
+		rel.ref = *body.Ref
+	}
+	if body.Status != nil {
+		rel.status = *body.Status
+	}
+	if _, err := h.deps.Pool.Exec(r.Context(), `update app_releases set site_ids=$2, url=$3, date_released=$4, date_started=$5, ref=$6, status=$7 where id=$1`, rel.id, rel.siteIDs, rel.url, rel.dateReleased, rel.dateStarted, rel.ref, rel.status); err != nil {
 		serverError(w)
 		return
 	}
