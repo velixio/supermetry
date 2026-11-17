@@ -64,6 +64,19 @@ type Event struct {
 	InstallID   string
 	SessionID   string
 	Tags        map[string]string
+
+	// Sentry-shaped events only; the zero values are the column defaults.
+	Culprit         string
+	Transaction     string
+	MessageHash     []byte // hash of the scrubbed message, nil when none
+	TraceID         []byte
+	SpanID          []byte
+	UserHash        []byte // already HMACed by the normaliser, never a raw id
+	SDKName         string
+	SDKVersion      string
+	Dist            string
+	Symbolication   string // "", "ok", "missing" or "partial"
+	GroupingVersion int16  // 0 means 1
 }
 
 var errInvalid = errors.New("invalid app event")

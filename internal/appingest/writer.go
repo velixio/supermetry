@@ -154,6 +154,8 @@ type issueGroup struct {
 	status                     string
 	resolvedIn                 *string
 	resolvedNext               bool
+	level, culprit             string
+	groupingVersion            int16
 }
 
 func (w *Writer) flush(ctx context.Context, batch []Queued) error {
@@ -200,6 +202,7 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 				siteID: q.SiteID, fingerprint: e.Fingerprint, kind: e.Kind, errType: e.ErrorType,
 				title: IssueTitle(e.Kind, e.ErrorType, e.Frames), firstSeen: e.TS, lastSeen: e.TS,
 				firstRelease: e.Release, lastRelease: e.Release, releases: map[string]struct{}{},
+				level: e.Level, culprit: e.Culprit, groupingVersion: groupingVersion(e),
 			}
 			groups[key] = g
 			order = append(order, g)
@@ -209,6 +212,12 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 		}
 		if e.TS.After(g.lastSeen) {
 			g.lastSeen, g.lastRelease = e.TS, e.Release
+			if e.Level != "" {
+				g.level = e.Level
+			}
+			if e.Culprit != "" {
+				g.culprit = e.Culprit
+			}
 		}
 		g.count += int64(e.Occurrences)
 		g.releases[e.Release] = struct{}{}
@@ -220,7 +229,7 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 			pgBatch := &pgx.Batch{}
 			for _, g := range order {
 				pgBatch.Queue(upsertIssueSQL, g.siteID, g.fingerprint, g.kind, g.errType, g.title,
-					g.firstSeen, g.lastSeen, g.firstRelease, g.lastRelease, g.count)
+					g.firstSeen, g.lastSeen, g.firstRelease, g.lastRelease, g.count, g.level, g.culprit, g.groupingVersion)
 			}
 			results := tx.SendBatch(ctx, pgBatch)
 			for _, g := range order {
@@ -246,6 +255,7 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 				e.Release, e.Build, e.Environment, e.Platform, e.OSVersion, e.Arch, e.DeviceClass, e.Runtime,
 				e.ErrorType, e.ExitReason, e.Signal, e.ExitCode, e.Frames, e.Fingerprint, int32(e.Occurrences),
 				mac(secret, e.InstallID), mac(secret, e.SessionID), e.Tags,
+				e.MessageHash, e.Culprit, e.Transaction, e.TraceID, e.SpanID, e.UserHash, e.SDKName, e.SDKVersion, e.Dist, e.Symbolication, groupingVersion(e),
 			})
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"app_events"}, eventColumns, pgx.CopyFromRows(rows)); err != nil {
@@ -274,19 +284,30 @@ var eventColumns = []string{
 	"release", "build", "environment", "platform", "os_version", "arch", "device_class", "runtime",
 	"error_type", "exit_reason", "signal", "exit_code", "frames", "fingerprint", "occurrences",
 	"install_hash", "session_hash", "tags",
+	"message_hash", "culprit", "transaction", "trace_id", "span_id", "user_hash", "sdk_name", "sdk_version", "dist", "symbolication", "grouping_version",
+}
+
+// groupingVersion is the event's grouping version, defaulting to 1.
+func groupingVersion(e Event) int16 {
+	if e.GroupingVersion == 0 {
+		return 1
+	}
+	return e.GroupingVersion
 }
 
 // upsertIssueSQL creates or updates an issue. Timestamps only widen, so late
 // events keep first_seen and last_seen right. It never changes the status:
 // regress decides that with the release ordering, which SQL cannot do.
 const upsertIssueSQL = `
-insert into app_issues (site_id, fingerprint, kind, error_type, title, first_seen, last_seen, first_release, last_release, event_count)
-values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+insert into app_issues (site_id, fingerprint, kind, error_type, title, first_seen, last_seen, first_release, last_release, event_count, level, culprit, grouping_version)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 on conflict (site_id, fingerprint) do update set
   first_seen    = least(app_issues.first_seen, excluded.first_seen),
   last_seen     = greatest(app_issues.last_seen, excluded.last_seen),
   first_release = case when excluded.first_seen < app_issues.first_seen then excluded.first_release else app_issues.first_release end,
   last_release  = case when excluded.last_seen >= app_issues.last_seen then excluded.last_release else app_issues.last_release end,
+  level         = case when excluded.last_seen >= app_issues.last_seen and excluded.level <> '' then excluded.level else app_issues.level end,
+  culprit       = case when excluded.last_seen >= app_issues.last_seen and excluded.culprit <> '' then excluded.culprit else app_issues.culprit end,
   event_count   = app_issues.event_count + excluded.event_count
 returning id, status, resolved_in_release, resolved_next`
 
