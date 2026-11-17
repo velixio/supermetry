@@ -26,8 +26,14 @@ func TestUploadKeyFitsSentryTokenSecret(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !regexp.MustCompile(`^pnl_[a-z2-7]{8}_[A-Z2-7]{35}$`).MatchString(plain) {
+	if !regexp.MustCompile(`^pnl_[a-z2-7]{8}_[A-Z2-7]{34}[AEIMQUY4]$`).MatchString(plain) {
 		t.Fatalf("upload key format %q", plain)
+	}
+	for range 40 { // the Rust sentry-cli decodes the secret as base64: the last character must have no leftover bits
+		again, _, err := keys.Create(ctx, principal, "upload", []string{"releases:write"}, []int32{10}, nil)
+		if err != nil || !strings.ContainsRune("AEIMQUY4", rune(again[len(again)-1])) {
+			t.Fatalf("non-canonical final character: %q %v", again, err)
+		}
 	}
 	verified, ok := keys.Verify(ctx, plain)
 	if !ok || len(verified.Scopes) != 1 || verified.Scopes[0] != "releases:write" {

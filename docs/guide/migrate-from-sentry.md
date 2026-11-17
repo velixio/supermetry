@@ -40,13 +40,18 @@ screen if it is abused. You can keep one key per environment.
   and size; contents are not stored).
 - CSP violation reports sent to the `security` endpoint.
 
+## Source maps
+
+Keep using `sentry-cli`, `@sentry/vite-plugin` or another Sentry bundler plugin.
+Create an upload token under Settings, Installation, set `SENTRY_AUTH_TOKEN`
+(plugins: `authToken` and `url`) and upload as before. See
+[Upload source maps](source-maps.md).
+
 ## What is not supported yet
 
 - **Performance**: transactions, spans and traces.
 - **Session replay**, **profiles**, **cron monitors**, **user feedback**, logs and
   metrics.
-- **Source maps**: JavaScript stack traces show the minified frames until source
-  map upload arrives in a later release.
 - Native crash dumps (minidumps) are counted but not processed.
 
 ### Why the SDK stops sending performance data
