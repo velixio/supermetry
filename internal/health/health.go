@@ -287,6 +287,8 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "ingest_late_dropped_total", "counter")
 	writeFamily(w, snapshot, "app_ingest_queue_full_total", "counter")
 	writeFamily(w, snapshot, "app_ingest_write_failed_total", "counter")
+	writeFamily(w, snapshot, "app_body_queue_full_total", "counter")
+	writeFamily(w, snapshot, "app_body_write_failed_total", "counter")
 	writeFamily(w, snapshot, "ingest_clock_skew_total", "counter")
 	writeFamily(w, snapshot, "ingest_rate_limited_total", "counter")
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")
