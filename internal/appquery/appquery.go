@@ -204,10 +204,11 @@ from ev e left join pings p on p.session_hash = e.session_hash ` + groupBy
 
 // SeriesPoint is one day of the overview series.
 type SeriesPoint struct {
-	Day            string   `json:"day"`
-	Events         int64    `json:"events"`
-	Crashes        int64    `json:"crashes"`
-	CrashFreeUsers *float64 `json:"crash_free_users"`
+	Day               string   `json:"day"`
+	Events            int64    `json:"events"`
+	Crashes           int64    `json:"crashes"`
+	CrashFreeUsers    *float64 `json:"crash_free_users"`
+	CrashFreeSessions *float64 `json:"crash_free_sessions"`
 }
 
 // Overview is the app dashboard's headline numbers.
@@ -218,6 +219,13 @@ type Overview struct {
 	RegressedIssues   int64         `json:"regressed_issues"`
 	CrashFreeUsers    *float64      `json:"crash_free_users"`
 	CrashFreeSessions *float64      `json:"crash_free_sessions"`
+	Sessions          int64         `json:"sessions"`
+	Users             int64         `json:"users"`
+	AbnormalSessions  int64         `json:"abnormal_sessions"`
+	ErroredSessions   int64         `json:"errored_sessions"`
+	HandledErrors     int64         `json:"handled_errors"`
+	UnhandledErrors   int64         `json:"unhandled_errors"`
+	HealthSource      string        `json:"health_source"`
 	Series            []SeriesPoint `json:"series"`
 }
 
@@ -239,7 +247,21 @@ func (q *Querier) Overview(ctx context.Context, scope Scope, f Filter) (Overview
 		t := totals[0]
 		out.Events, out.Crashes = t.Events, t.Crashes
 		out.CrashFreeUsers, out.CrashFreeSessions = t.crashFreeUsers(), t.crashFreeSessions()
+		out.Sessions, out.Users = t.Sessions, t.Installs
 	}
+	out.HealthSource = HealthEvents
+	stats, err := q.sessionStatsBy(ctx, w, false)
+	if err != nil {
+		return out, err
+	}
+	if st := stats[""]; st != nil {
+		applySessionStats(&out.Sessions, &out.Users, &out.AbnormalSessions, &out.ErroredSessions, &out.CrashFreeSessions, &out.CrashFreeUsers, &out.HealthSource, st)
+	}
+	handled, err := q.handledBy(ctx, w, false)
+	if err != nil {
+		return out, err
+	}
+	out.HandledErrors, out.UnhandledErrors = handled[""][0], handled[""][1]
 	if err := q.pool.QueryRow(ctx, `
 select count(*) filter (where first_seen >= $2 and first_seen < $3 and ($4 = '' or first_release = $4)),
        count(*) filter (where status = 'regressed' and last_seen >= $2 and last_seen < $3 and ($4 = '' or last_release = $4))
@@ -262,7 +284,7 @@ from app_issues where site_id = $1 and (last_seen >= $2 or first_seen >= $2)`,
 // they are computed from raw events.
 func (q *Querier) seriesFromRollups(ctx context.Context, w window) ([]SeriesPoint, error) {
 	rows, err := q.pool.Query(ctx, `
-select day, sum(events), sum(crashes), sum(installs), sum(crashed_installs)
+select day, sum(events), sum(crashes), sum(installs), sum(crashed_installs), sum(sessions), sum(crashed_sessions)
 from app_release_daily
 where site_id = $1 and day >= $2 and day <= $3 and day >= $4 and ($5 = '' or release = $5) and ($6 = '' or platform = $6)
 group by day`, w.scope.SiteID, w.fromDay, w.toDay, w.cutoffDay, w.f.Release, w.f.Platform)
@@ -274,7 +296,7 @@ group by day`, w.scope.SiteID, w.fromDay, w.toDay, w.cutoffDay, w.f.Release, w.f
 	for rows.Next() {
 		var day time.Time
 		var h health
-		if err := rows.Scan(&day, &h.Events, &h.Crashes, &h.Installs, &h.CrashedInstalls); err != nil {
+		if err := rows.Scan(&day, &h.Events, &h.Crashes, &h.Installs, &h.CrashedInstalls, &h.Sessions, &h.CrashedSessions); err != nil {
 			return nil, err
 		}
 		byDay[day.Format(time.DateOnly)] = h
@@ -282,10 +304,18 @@ group by day`, w.scope.SiteID, w.fromDay, w.toDay, w.cutoffDay, w.f.Release, w.f
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	daily, err := q.sessionSeries(ctx, w)
+	if err != nil {
+		return nil, err
+	}
 	series := make([]SeriesPoint, 0, len(w.days))
 	for _, day := range w.days {
 		h := byDay[day]
-		series = append(series, SeriesPoint{Day: day, Events: h.Events, Crashes: h.Crashes, CrashFreeUsers: h.crashFreeUsers()})
+		cfs := h.crashFreeSessions()
+		if d, ok := daily[day]; ok {
+			cfs = ratio(d[1], d[0])
+		}
+		series = append(series, SeriesPoint{Day: day, Events: h.Events, Crashes: h.Crashes, CrashFreeUsers: h.crashFreeUsers(), CrashFreeSessions: cfs})
 	}
 	return series, nil
 }
@@ -306,9 +336,16 @@ group by bucket`, append(w.evArgs(), w.dayStarts)...)
 		return nil, fmt.Errorf("read event series: %w", err)
 	}
 	defer rows.Close()
+	daily, err := q.sessionSeries(ctx, w)
+	if err != nil {
+		return nil, err
+	}
 	series := make([]SeriesPoint, len(w.days))
 	for i, day := range w.days {
 		series[i].Day = day
+		if d, ok := daily[day]; ok {
+			series[i].CrashFreeSessions = ratio(d[1], d[0])
+		}
 	}
 	for rows.Next() {
 		var bucket int
@@ -317,8 +354,33 @@ group by bucket`, append(w.evArgs(), w.dayStarts)...)
 			return nil, err
 		}
 		if bucket >= 1 && bucket <= len(series) {
-			series[bucket-1] = SeriesPoint{Day: w.days[bucket-1], Events: h.Events, Crashes: h.Crashes, CrashFreeUsers: h.crashFreeUsers()}
+			p := &series[bucket-1]
+			p.Events, p.Crashes, p.CrashFreeUsers = h.Events, h.Crashes, h.crashFreeUsers()
 		}
 	}
 	return series, rows.Err()
+}
+
+// sessionSeries returns sessions and crashed sessions per local day from
+// app_session_daily, honouring all three filters. Days without a row are
+// absent.
+func (q *Querier) sessionSeries(ctx context.Context, w window) (map[string][2]int64, error) {
+	rows, err := q.pool.Query(ctx, `
+select day, sum(sessions), sum(crashed) from app_session_daily
+where site_id = $1 and day >= $2 and day <= $3 and day >= $4 and ($5 = '' or release = $5) and ($6 = '' or environment = $6) and ($7 = '' or platform = $7)
+group by day`, w.scope.SiteID, w.fromDay, w.toDay, w.cutoffDay, w.f.Release, w.f.Environment, w.f.Platform)
+	if err != nil {
+		return nil, fmt.Errorf("read session series: %w", err)
+	}
+	defer rows.Close()
+	out := map[string][2]int64{}
+	for rows.Next() {
+		var day time.Time
+		var v [2]int64
+		if err := rows.Scan(&day, &v[0], &v[1]); err != nil {
+			return nil, err
+		}
+		out[day.Format(time.DateOnly)] = v
+	}
+	return out, rows.Err()
 }

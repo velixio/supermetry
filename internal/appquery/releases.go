@@ -23,8 +23,18 @@ type ReleaseRow struct {
 	Installs          int64     `json:"installs"`
 	CrashFreeUsers    *float64  `json:"crash_free_users"`
 	CrashFreeSessions *float64  `json:"crash_free_sessions"`
-	NewIssues         int64     `json:"new_issues"`
-	RegressedIssues   int64     `json:"regressed_issues"`
+	Sessions          int64     `json:"sessions"`
+	Users             int64     `json:"users"`
+	AbnormalSessions  int64     `json:"abnormal_sessions"`
+	ErroredSessions   int64     `json:"errored_sessions"`
+	// Adoption is the release's share of the site's sessions in the last 24 h.
+	Adoption        *float64 `json:"adoption"`
+	HandledErrors   int64    `json:"handled_errors"`
+	UnhandledErrors int64    `json:"unhandled_errors"`
+	// HealthSource is "sessions" (tracked session lifecycles) or "events" (v1 pings).
+	HealthSource    string `json:"health_source"`
+	NewIssues       int64  `json:"new_issues"`
+	RegressedIssues int64  `json:"regressed_issues"`
 }
 
 // Releases lists the releases with events in the range, newest first
@@ -40,11 +50,33 @@ func (q *Querier) Releases(ctx context.Context, scope Scope, f Filter) ([]Releas
 	if err != nil {
 		return nil, err
 	}
+	stats, err := q.sessionStatsBy(ctx, w, true)
+	if err != nil {
+		return nil, err
+	}
+	handled, err := q.handledBy(ctx, w, true)
+	if err != nil {
+		return nil, err
+	}
+	adopt, err := q.adoption(ctx, w)
+	if err != nil {
+		return nil, err
+	}
 	rows := make([]ReleaseRow, 0, len(groups))
 	names := make([]string, 0, len(groups))
 	byName := map[string]*ReleaseRow{}
 	for _, g := range groups {
-		rows = append(rows, ReleaseRow{Release: g.keys[0], Installs: g.Installs, CrashFreeUsers: g.crashFreeUsers(), CrashFreeSessions: g.crashFreeSessions()})
+		row := ReleaseRow{Release: g.keys[0], Installs: g.Installs, Users: g.Installs, Sessions: g.Sessions,
+			CrashFreeUsers: g.crashFreeUsers(), CrashFreeSessions: g.crashFreeSessions(), HealthSource: HealthEvents}
+		if st := stats[g.keys[0]]; st != nil {
+			applySessionStats(&row.Sessions, &row.Users, &row.AbnormalSessions, &row.ErroredSessions, &row.CrashFreeSessions, &row.CrashFreeUsers, &row.HealthSource, st)
+		}
+		if a, ok := adopt[g.keys[0]]; ok {
+			row.Adoption = &a
+		}
+		h := handled[g.keys[0]]
+		row.HandledErrors, row.UnhandledErrors = h[0], h[1]
+		rows = append(rows, row)
 		names = append(names, g.keys[0])
 	}
 	for i := range rows {
@@ -125,4 +157,15 @@ func nullTime(t time.Time) any {
 		return nil
 	}
 	return t
+}
+
+// applySessionStats overwrites the v1 health numbers with the session-based
+// ones. Crash-free users keep the v1 value when no session carried an install.
+func applySessionStats(sessions, users, abnormal, errored *int64, cfs, cfu **float64, source *string, st *sessionStats) {
+	*sessions, *abnormal, *errored = st.Sessions, st.Abnormal, st.Errored
+	*cfs = st.crashFreeSessions()
+	if v := st.crashFreeUsers(); v != nil {
+		*users, *cfu = st.Users, v
+	}
+	*source = HealthSessions
 }
