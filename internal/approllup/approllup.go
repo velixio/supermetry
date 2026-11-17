@@ -125,6 +125,21 @@ select site_id, issue_id, to_timestamp(floor(extract(epoch from ts) / 3600) * 36
 from app_events
 where site_id = $1 and ts >= $2 and ts < $3 and issue_id is not null and kind <> 'session'
 group by site_id, issue_id, 3`, []any{siteID, hourFrom, hourTo}},
+			// Tags are keyed by issue, not by day: every issue that had events
+			// today gets its rows rebuilt from all its retained events.
+			{"clear issue tags", `
+delete from app_issue_tags where site_id = $1 and issue_id in (
+  select distinct issue_id from app_events where site_id = $1 and ts >= $2 and ts < $3 and issue_id is not null and kind <> 'session')`, []any{siteID, start, end}},
+			{"insert issue tags", `
+insert into app_issue_tags (site_id, issue_id, key, value, events, last_seen)
+select e.site_id, e.issue_id, k.key, left(k.value, 200), sum(e.occurrences), max(e.ts)
+from app_events e
+cross join lateral (values ('release', e.release), ('environment', e.environment), ('platform', e.platform),
+  ('level', e.level), ('os', e.os_version), ('device_class', e.device_class),
+  ('browser', case when e.platform = 'web' then e.runtime else '' end)) as k(key, value)
+where e.site_id = $1 and e.kind <> 'session' and k.value <> '' and e.issue_id in (
+  select distinct issue_id from app_events where site_id = $1 and ts >= $2 and ts < $3 and issue_id is not null and kind <> 'session')
+group by e.site_id, e.issue_id, k.key, left(k.value, 200)`, []any{siteID, start, end}},
 		}
 		for _, s := range statements {
 			if _, err := tx.Exec(ctx, s.sql, s.args...); err != nil {
