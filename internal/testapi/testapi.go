@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/api"
+	"supermetry/internal/appquery"
 	"supermetry/internal/config"
 	"supermetry/internal/db"
 	"supermetry/internal/dict"
@@ -140,7 +141,7 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 	})
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js", Tracking: config.TrackingMode{Mode: privacy.Identified}},
-		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry),
+		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry), AppQuery: appquery.New(pool, func() time.Time { return now }),
 		PublicAuth: analyticsAuthenticator, PrivateAuth: analyticsAuthenticator, Sites: registry,
 		Platform: platform, Sessions: live, MinuteSource: minutes.NewStore(pool), Dictionary: dictionary,
 		Now: func() time.Time { return now }, RateLimitNow: func() time.Time { return now },
@@ -210,6 +211,16 @@ func (e *Env) SiteInTimezone(t testing.TB, org Org, timezone string) Site {
 		t.Fatalf("seed site: %v", err)
 	}
 	return Site{ID: created.ID, PublicID: created.PublicID, OrgID: org.ID}
+}
+
+// APIKeyForSites creates an organization key restricted to the given sites.
+func (e *Env) APIKeyForSites(t testing.TB, org Org, siteIDs []int32, scopes ...string) string {
+	t.Helper()
+	plain, _, err := e.keys.Create(context.Background(), authz.Principal{UserID: org.Owner.ID, OrgID: org.ID, Role: authz.RoleOwner}, "API matrix restricted", scopes, siteIDs, nil)
+	if err != nil {
+		t.Fatalf("seed restricted API key: %v", err)
+	}
+	return plain
 }
 
 // APIKey creates an unrestricted organization key with scopes.

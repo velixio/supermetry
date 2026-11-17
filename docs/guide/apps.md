@@ -177,3 +177,10 @@ bytes and values of at most 2000 bytes.
 The **Data health** page lists every dropped event by reason: bot user agent, host
 not allowed, too old, clock skew, rate limited, and so on. If reports go
 missing, look there first.
+
+## Ask your AI assistant
+
+An AI assistant connected to the [MCP server](../api.md#mcp-for-ai-assistants) can read
+an app's health with an API key that has the `stats:read` scope: the overview, open
+issues, one issue with its latest events, the compatibility matrix and the releases.
+The tools are read-only, so an assistant cannot resolve or ignore issues.

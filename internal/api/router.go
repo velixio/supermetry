@@ -20,6 +20,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"supermetry/internal/appquery"
 	"supermetry/internal/clientip"
 	"supermetry/internal/config"
 	"supermetry/internal/dict"
@@ -85,8 +86,9 @@ type Deps struct {
 	ReplayCSS           http.Handler
 	PublicAuth          Authenticator
 	PrivateAuth         Authenticator
-	Sites               sites.Registry // resolves site ownership for every site-scoped request
-	UI                  http.Handler   // the embedded dashboard; serves every GET that no API route claims
+	AppQuery            *appquery.Querier // App Health reads for the MCP tools; nil disables them
+	Sites               sites.Registry    // resolves site ownership for every site-scoped request
+	UI                  http.Handler      // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter         ingest.RateLimiter
 	Sessions            session.Store
 	MinuteSource        realtime.MinuteSource
@@ -138,10 +140,14 @@ func NewRouter(deps Deps) http.Handler {
 		registerExplore(public, publicPrefix, explore)
 	}
 	registerSessionExplore(public, publicPrefix, h)
-	mcp := NewMCPHandler(MCPDeps{
+	mcpDeps := MCPDeps{
 		Query: queries, TrackingMode: deps.Config.Tracking.Mode, TrackingPaths: deps.Config.TrackingPaths, Resources: deps.Platform, Sessions: deps.Sessions, Now: deps.Now,
 		Dictionary: deps.Dictionary, MinuteSource: deps.MinuteSource,
-	})
+	}
+	if deps.AppQuery != nil {
+		mcpDeps.AppHealth = deps.AppQuery
+	}
+	mcp := NewMCPHandler(mcpDeps)
 	mux.Handle("POST "+publicPrefix+"/mcp", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, true, mcp))
 	public.HandleFunc("POST "+publicPrefix+"/query", h.queryRequest)
 	public.HandleFunc("POST "+publicPrefix+"/heatmaps/query", h.heatmapRequest)

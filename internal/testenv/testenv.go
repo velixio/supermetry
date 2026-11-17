@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/api"
+	"supermetry/internal/appquery"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
 	"supermetry/internal/db"
@@ -140,7 +141,7 @@ func Start(t *testing.T) *Env {
 	}
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{Tracking: config.TrackingMode{Mode: privacy.Identified}, EventPath: "/api/public/v1/events", AdminAPIKey: TestAPIKey},
-		Query:  engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, Now: clock.Now, RateLimitNow: rateLimitNow,
+		Query:  engine, SessionExplore: engine, Ingest: handler, Sessions: sessions, AppQuery: appquery.New(pool, clock.Now), Now: clock.Now, RateLimitNow: rateLimitNow,
 		RateLimiter: ingest.NewTokenBuckets(100_000, 100_000), Ready: func() bool { return true },
 	})
 	env := &Env{
