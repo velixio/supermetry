@@ -74,6 +74,7 @@ var sourceRegistry = []Source{
 	{Table: "app_issues", Category: CategoryAuxiliary},
 	{Table: "app_release_daily", Category: CategoryRetained},
 	{Table: "site_last_event", Category: CategoryAuxiliary},
+	{Table: "spans", Category: CategoryHot, Partitioned: true},
 	{Table: "stripe_connections", Category: CategoryAuxiliary},
 	{Table: "stripe_customers", Category: CategoryAuxiliary},
 	{Table: "stripe_refunds", Category: CategoryAuxiliary},

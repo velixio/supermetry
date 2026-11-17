@@ -298,6 +298,18 @@ An archived issue escalates back to open (activity "escalated", by System) when 
 
 Supermetry emails the person an issue is assigned to when someone else assigns it to them, when an issue assigned to them regresses, and (off by default) when someone else resolves it. You never get an email about your own change. Choose what you receive per project under Account, Notifications; assigned and regressed are on by default. Only members who can read the project are emailed. The emails are plain notices with one ordinary link to the issue: no tracking pixels and no tracked links. A notification that cannot be delivered is retried for up to 24 hours, then dropped. There is no weekly digest yet.
 
+### Merging and unmerging issues
+
+Two issues that are really the same bug can be merged. Open the issue you want to keep, type the ids of the others in "Merged issues" and choose Merge. Owners, admins and editors can merge; viewers can read the list.
+
+- The merged issues' events, fingerprints and daily and hourly counts move to the kept issue, whose counts are recomputed from its events. The merged issues disappear from the issue list, and their detail page says which issue they were merged into.
+- New events that arrive with a merged issue's fingerprint land on the kept issue; they never create the old issue again. Merging a kept issue into a third one moves everything to the third, so a merge is always one level deep.
+- All issues must belong to the same project. A merged issue cannot be merged again until it is unmerged.
+- **Unmerge** splits one merged issue back out by its fingerprint hash, shown beside it in the list. Its events, including those that arrived after the merge, return to it, it reappears in the list, and both issues' counts and rollups are recomputed from events. Counts older than your retention period cannot be attributed to a fingerprint and stay with the kept issue.
+- Both issues get a "merged" or "unmerged" row on their activity timeline.
+
+Through the private API: `POST .../issues/{issue}/merge` with `{"source_ids": [..]}`, `GET .../issues/{issue}/merged`, and `POST .../issues/{issue}/unmerge` with `{"hashes": ["<64 hex characters>"]}`.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.

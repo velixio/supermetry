@@ -31,6 +31,7 @@ var eraseTables = []string{
 	"app_erasure_requests",
 	"app_artifact_files",
 	"app_client_reports",
+	"spans",
 	"events",
 	"sessions",
 	"profiles",
@@ -121,6 +122,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		return nil, err
 	}
 	expired = append(expired, bodyPartitions...)
+	spanPartitions, err := expiredSpanPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, spanPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -418,6 +424,41 @@ func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now 
 		return nil, fmt.Errorf("list app event body partitions: %w", err)
 	}
 	cutoff := now.AddDate(0, 0, -appEventBodyRetentionDays-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
+// spanDefaultRetentionDays is the raw span life when no app project sets one.
+const spanDefaultRetentionDays = 14
+
+// expiredSpanPartitions returns the daily spans partitions that lie wholly
+// before the longest span_retention_days of any live app project (default 14),
+// plus one day of closing slack. Days are shared by all projects, so the
+// longest value decides.
+func expiredSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('spans') is not null`).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check spans: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+	var longest int
+	if err := pool.QueryRow(ctx, `
+		select coalesce(max(coalesce(nullif((settings->'app'->>'span_retention_days')::int, 0), $1)), $1)
+		from sites where kind = 'app' and deleted_at is null`, spanDefaultRetentionDays).Scan(&longest); err != nil {
+		return nil, fmt.Errorf("read span retention: %w", err)
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "spans")
+	if err != nil {
+		return nil, fmt.Errorf("list span partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -longest-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {

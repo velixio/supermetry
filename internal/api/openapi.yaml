@@ -3124,6 +3124,54 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/merge:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    post:
+      operationId: mergeAppIssues
+      tags: [Apps]
+      summary: Merge other issues into this one
+      description: |
+        Moves the source issues' events, fingerprint hashes and rollups into the issue in the path and recomputes its
+        counts. The sources are hidden; later events with their fingerprints land on this issue. A source or target
+        that is already merged, or an id that is not an issue of the project, is rejected as a whole. Owner, admin or
+        editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueMergeInput' } } } }
+      responses:
+        '200': { description: Merged, content: { application/json: { schema: { type: object, required: [merged], properties: { merged: { type: array, items: { type: integer, format: int64 } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/merged:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listMergedAppIssues
+      tags: [Apps]
+      summary: The issues merged into this one, each with the hash to unmerge it by
+      responses:
+        '200': { description: Merged issues, content: { application/json: { schema: { type: object, required: [merged], properties: { merged: { type: array, items: { $ref: '#/components/schemas/AppMergedIssue' } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/unmerge:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    post:
+      operationId: unmergeAppIssue
+      tags: [Apps]
+      summary: Split merged issues back out by fingerprint hash
+      description: |
+        Moves the events whose fingerprint hash is given back to the issue that was merged in, makes it visible again
+        and recomputes both issues' counts and rollups from events. Owner, admin or editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueUnmergeInput' } } } }
+      responses:
+        '200': { description: The reinstated issue, content: { application/json: { schema: { type: object, required: [issue_id], properties: { issue_id: { type: integer, format: int64 } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/assignees:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -4383,6 +4431,8 @@ components:
         filter_extensions: { type: boolean, nullable: true, description: "Drop events raised inside browser extensions. Omitted or null means on." }
         filter_crawlers: { type: boolean, nullable: true, description: "Drop events sent by crawlers. Omitted or null means on." }
         filter_localhost: { type: boolean, nullable: true, description: "Drop events raised on localhost. Null means the server default (filter_localhost_default)." }
+        performance_enabled: { type: boolean, nullable: true, description: "Accept transactions and spans. Omitted or null means on." }
+        span_retention_days: { type: integer, minimum: 0, maximum: 14, description: "Raw span retention in days. 0 means the default of 14." }
         filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
     AppUserErase:
       type: object
@@ -5650,6 +5700,26 @@ components:
         assignee_user_id: { type: integer, format: int64, nullable: true }
         assignee_name: { type: string, description: Empty when unassigned. }
         priority: { type: string, enum: [high, medium, low] }
+    AppIssueMergeInput:
+      type: object
+      required: [source_ids]
+      properties:
+        source_ids: { type: array, minItems: 1, maxItems: 100, items: { type: integer, format: int64, minimum: 1 } }
+    AppIssueUnmergeInput:
+      type: object
+      required: [hashes]
+      properties:
+        hashes: { type: array, minItems: 1, maxItems: 100, items: { type: string, pattern: '^[0-9a-f]{64}$' }, description: 'sha256 of the fingerprint, hex, as listed by the merged issues endpoint.' }
+    AppMergedIssue:
+      type: object
+      required: [issue_id, hash, title, kind, events, last_seen]
+      properties:
+        issue_id: { type: integer, format: int64 }
+        hash: { type: string }
+        title: { type: string }
+        kind: { type: string }
+        events: { type: integer, format: int64 }
+        last_seen: { type: string, format: date-time }
     AppIssueList:
       type: object
       required: [issues, total, next_offset]
@@ -5712,6 +5782,7 @@ components:
         snooze_users: { type: integer, format: int64, nullable: true }
         archived_until_escalating: { type: boolean }
         github_url: { type: string, nullable: true }
+        merged_into: { type: integer, format: int64, nullable: true, description: 'Set when this issue was merged into another; its events and counts now belong to that issue.' }
         series:
           type: array
           items:
