@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { privateRequest } from '@/features/settings/privateApi'
 import type { components } from '@/lib/api.gen'
@@ -10,6 +10,9 @@ export type AppIssueRow = components['schemas']['AppIssueRow']
 export type AppIssueList = components['schemas']['AppIssueList']
 export type AppIssueDetailData = components['schemas']['AppIssueDetail']
 export type AppIssueStatus = components['schemas']['AppIssueStatus']
+export type AppIssueChange = components['schemas']['AppIssueChange']
+export type AppIssueComment = components['schemas']['AppIssueComment']
+export type AppIssueActivity = components['schemas']['AppIssueActivity']
 export type AppCompatibilityData = components['schemas']['AppCompatibility']
 export type AppReleasesData = components['schemas']['AppReleases']
 
@@ -66,6 +69,63 @@ export function useSetIssueStatus(siteId: number, issueId: number) {
       client.invalidateQueries({ queryKey: detailKey }),
       client.invalidateQueries({ queryKey: ['app-issues', siteId] }),
       client.invalidateQueries({ queryKey: ['app-overview', siteId] }),
+      client.invalidateQueries({ queryKey: ['app-issue-activity', siteId, issueId] }),
     ]),
+  })
+}
+
+/** Assignee, priority, snooze, archive and GitHub link changes; every one adds a timeline row, so the activity refetches. */
+export function useUpdateIssue(siteId: number, issueId: number) {
+  const client = useQueryClient()
+  const detailKey = ['app-issue', siteId, issueId]
+  return useMutation({
+    mutationFn: (change: AppIssueChange) => privateRequest<AppIssueStatus>('PATCH', `${base(siteId)}/issues/${issueId}`, { body: change }),
+    onMutate: async (change) => {
+      await client.cancelQueries({ queryKey: detailKey })
+      const previous = client.getQueriesData<AppIssueDetailData>({ queryKey: detailKey })
+      if (change.priority) client.setQueriesData<AppIssueDetailData>({ queryKey: detailKey }, (data) => data && { ...data, priority: change.priority! })
+      return { previous }
+    },
+    onError: (_error, _change, context) => {
+      for (const [key, data] of context?.previous ?? []) client.setQueryData(key, data)
+    },
+    onSettled: () => Promise.all([
+      client.invalidateQueries({ queryKey: detailKey }),
+      client.invalidateQueries({ queryKey: ['app-issues', siteId] }),
+      client.invalidateQueries({ queryKey: ['app-issue-activity', siteId, issueId] }),
+    ]),
+  })
+}
+
+export function useAppAssignees(siteId: number) {
+  return useQuery({ queryKey: ['app-assignees', siteId], queryFn: () => privateRequest<{ members: { user_id: number; name: string }[] }>('GET', `${base(siteId)}/assignees`), staleTime: 60_000 })
+}
+
+export function useIssueComments(siteId: number, issueId: number) {
+  return useQuery({ queryKey: ['app-issue-comments', siteId, issueId], queryFn: () => privateRequest<{ comments: AppIssueComment[] }>('GET', `${base(siteId)}/issues/${issueId}/comments`) })
+}
+
+export function useCommentMutations(siteId: number, issueId: number) {
+  const client = useQueryClient()
+  const refresh = () => Promise.all([
+    client.invalidateQueries({ queryKey: ['app-issue-comments', siteId, issueId] }),
+    client.invalidateQueries({ queryKey: ['app-issue-activity', siteId, issueId] }),
+  ])
+  const path = `${base(siteId)}/issues/${issueId}/comments`
+  return {
+    post: useMutation({ mutationFn: (body: string) => privateRequest<AppIssueComment>('POST', path, { body: { body } }), onSuccess: refresh }),
+    remove: useMutation({ mutationFn: (id: number) => privateRequest<void>('DELETE', `${path}/${id}`), onSuccess: refresh }),
+  }
+}
+
+export const ACTIVITY_PAGE = 50
+
+/** The timeline, newest first; older pages continue from the last row's time. */
+export function useIssueActivity(siteId: number, issueId: number) {
+  return useInfiniteQuery({
+    queryKey: ['app-issue-activity', siteId, issueId],
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => privateRequest<{ activity: AppIssueActivity[] }>('GET', `${base(siteId)}/issues/${issueId}/activity?limit=${ACTIVITY_PAGE}${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ''}`),
+    getNextPageParam: (last) => (last.activity.length === ACTIVITY_PAGE ? last.activity[last.activity.length - 1].at : undefined),
   })
 }

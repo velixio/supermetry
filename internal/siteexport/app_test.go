@@ -23,6 +23,16 @@ insert into app_issues(id,site_id,fingerprint,kind,error_type,title,first_seen,l
  (1,7,'fp1','crash','TypeError','Boom: =cmd','2026-10-01T10:00:00Z','2026-10-02T11:00:00Z','1.0.0','1.1.0','open',3,'error','app.js'),
  (2,7,'fp-old','error','','Old','2026-01-01T00:00:00Z','2026-01-02T00:00:00Z','0.1','0.1','resolved',1,'warning',''),
  (3,9,'fp3','crash','','Other org issue','2026-10-01T10:00:00Z','2026-10-01T10:00:00Z','','','open',1,'error','');
+insert into users(id,email,name,password_hash) overriding system value values (50,'exporter@example.test','Exporter','h');
+insert into app_issue_activity(site_id,issue_id,at,actor_user_id,kind,data) values
+ (7,1,'2026-10-01T10:00:00Z',null,'first_seen','{"release":"1.0.0"}'),
+ (7,1,'2026-10-02T12:00:00Z',50,'priority','{"from":"medium","to":"high"}'),
+ (7,1,'2026-09-01T12:00:00Z',null,'first_seen','{}'),
+ (9,3,'2026-10-02T12:00:00Z',null,'first_seen','{}');
+insert into app_issue_comments(site_id,issue_id,author_user_id,body,created_at,deleted_at) values
+ (7,1,50,'Looks like the renderer','2026-10-02T13:00:00Z',null),
+ (7,1,50,'removed','2026-10-02T13:30:00Z','2026-10-02T14:00:00Z'),
+ (9,3,null,'theirs','2026-10-02T13:00:00Z',null);
 insert into app_events(site_id,ts,received_at,event_id,issue_id,kind,level,release,environment,platform,os_version,arch,device_class,runtime,occurrences,
   install_hash,session_hash,user_hash,sdk_name,sdk_version,dist,symbolication)
  values
@@ -95,7 +105,7 @@ func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site
 func TestAppSiteExportsExactCSVs(t *testing.T) {
 	e, ctx := newAppExport(t)
 	files, names, _ := exportFiles(t, e, ctx, 7)
-	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv"} {
+	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv"} {
 		if !slices.Contains(names, want) {
 			t.Fatalf("missing %s in %v", want, names)
 		}
@@ -107,8 +117,17 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 		}
 	}
 	check("app_issues.csv", [][]string{
-		{"issue_id", "title", "culprit", "level", "status", "kind", "error_type", "first_seen", "last_seen", "occurrences", "first_release", "last_release", "resolved_in_release"},
-		{"1", "Boom: =cmd", "app.js", "error", "open", "crash", "TypeError", "2026-10-01T10:00:00.000Z", "2026-10-02T11:00:00.000Z", "3", "1.0.0", "1.1.0", ""},
+		{"issue_id", "title", "culprit", "level", "status", "kind", "error_type", "first_seen", "last_seen", "occurrences", "first_release", "last_release", "resolved_in_release", "priority", "assignee_id", "github_url"},
+		{"1", "Boom: =cmd", "app.js", "error", "open", "crash", "TypeError", "2026-10-01T10:00:00.000Z", "2026-10-02T11:00:00.000Z", "3", "1.0.0", "1.1.0", "", "medium", "", ""},
+	})
+	check("app_issue_activity.csv", [][]string{
+		{"activity_id", "issue_id", "at", "kind", "actor_id", "data"},
+		{"1", "1", "2026-10-01T10:00:00.000Z", "first_seen", "", `{"release": "1.0.0"}`},
+		{"2", "1", "2026-10-02T12:00:00.000Z", "priority", "50", `{"to": "high", "from": "medium"}`},
+	})
+	check("app_issue_comments.csv", [][]string{
+		{"comment_id", "issue_id", "author_id", "created", "edited", "text"},
+		{"1", "1", "50", "2026-10-02T13:00:00.000Z", "", "Looks like the renderer"},
 	})
 	check("app_events.csv", [][]string{
 		{"event_id", "timestamp", "issue_id", "kind", "level", "release", "dist", "environment", "platform", "sdk_name", "sdk_version", "os_version", "arch", "device_class", "runtime", "symbolication", "occurrences"},
