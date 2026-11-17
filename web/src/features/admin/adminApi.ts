@@ -12,6 +12,9 @@ export type AdminOrganization = Schemas['AdminOrganization']
 export type AdminOrganizationDetail = Schemas['AdminOrganizationDetail']
 export type AdminSite = Schemas['AdminSite']
 export type AdminSettings = Schemas['AdminSettings']
+export type AdminEmailSettings = Schemas['AdminEmailSettings']
+export type AdminEmailSettingsInput = Schemas['AdminEmailSettingsInput']
+export type AdminEmailTestResult = Schemas['AdminEmailTestResult']
 export type AdminSettingsPatch = Schemas['AdminSettingsPatch']
 export type AdminTwoFactorPolicy = Schemas['AdminTwoFactorPolicy']
 export type AdminTwoFactorExemption = Schemas['AdminTwoFactorExemption']
@@ -31,6 +34,7 @@ export const adminKeys = {
   organization: (id: number) => ['admin', 'organization', id] as const,
   sites: (search: string) => ['admin', 'sites', search] as const,
   settings: ['admin', 'settings'] as const,
+  email: ['admin', 'email'] as const,
   policy: ['admin', 'policy'] as const,
   audit: ['admin', 'audit'] as const,
   update: ['admin', 'update'] as const,
@@ -195,5 +199,34 @@ export function useApplyUpdate() {
       void client.invalidateQueries({ queryKey: adminKeys.update, exact: true })
       void client.invalidateQueries({ queryKey: adminKeys.audit, exact: true })
     },
+  })
+}
+
+export function useAdminEmail() {
+  return useQuery({ queryKey: adminKeys.email, queryFn: () => privateRequest<AdminEmailSettings>('GET', `${base}/email`) })
+}
+
+export function useSaveAdminEmail() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: AdminEmailSettingsInput) => privateRequest<AdminEmailSettings>('PUT', `${base}/email`, { body }),
+    onSuccess: (settings) => {
+      client.setQueryData(adminKeys.email, settings)
+      void client.invalidateQueries({ queryKey: adminKeys.audit })
+    },
+  })
+}
+
+export function useRemoveAdminEmail() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () => privateRequest<AdminEmailSettings>('DELETE', `${base}/email`),
+    onSuccess: (settings) => client.setQueryData(adminKeys.email, settings),
+  })
+}
+
+export function useTestAdminEmail() {
+  return useMutation({
+    mutationFn: (to: string) => privateRequest<AdminEmailTestResult>('POST', `${base}/email/test`, { body: to.trim() ? { to: to.trim() } : {} }),
   })
 }
