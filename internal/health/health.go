@@ -65,6 +65,7 @@ var (
 	AppIngestWriteFailed     Counter
 	AppBodyQueueFull         Counter
 	AppBodyWriteFailed       Counter
+	AppAttachmentDropped     Counter
 	IngestClockSkew          Counter
 	IngestRateLimitedIP      Counter
 	IngestRateLimitedSite    Counter
@@ -216,6 +217,7 @@ func Snapshot() map[string]float64 {
 		"app_ingest_write_failed_total":              float64(AppIngestWriteFailed.Load()),
 		"app_body_queue_full_total":                  float64(AppBodyQueueFull.Load()),
 		"app_body_write_failed_total":                float64(AppBodyWriteFailed.Load()),
+		"app_attachment_dropped_total":               float64(AppAttachmentDropped.Load()),
 		"ingest_clock_skew_total":                    float64(IngestClockSkew.Load()),
 		`ingest_rate_limited_total{reason="ip"}`:     float64(IngestRateLimitedIP.Load()),
 		`ingest_rate_limited_total{reason="site"}`:   float64(IngestRateLimitedSite.Load()),
@@ -289,6 +291,7 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "app_ingest_write_failed_total", "counter")
 	writeFamily(w, snapshot, "app_body_queue_full_total", "counter")
 	writeFamily(w, snapshot, "app_body_write_failed_total", "counter")
+	writeFamily(w, snapshot, "app_attachment_dropped_total", "counter")
 	writeFamily(w, snapshot, "ingest_clock_skew_total", "counter")
 	writeFamily(w, snapshot, "ingest_rate_limited_total", "counter")
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")

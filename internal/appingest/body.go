@@ -1,6 +1,10 @@
 package appingest
 
-import "time"
+import (
+	"time"
+
+	"supermetry/internal/appattach"
+)
 
 // Body is the scrubbed detail of one Sentry-style event. It is serialised as
 // JSON into app_event_bodies.body. The key fields (SiteID, TS, EventID) are
@@ -24,6 +28,7 @@ type Body struct {
 	Request       *Request                  `json:"request,omitempty"`
 	Tags          map[string]string         `json:"tags,omitempty"`
 	Attachments   []AttachmentMeta          `json:"attachments,omitempty"`
+	Files         []appattach.File          `json:"-"` // scrubbed content, stored beside the body
 	SDK           SDKInfo                   `json:"sdk"`
 }
 
@@ -101,12 +106,9 @@ type Request struct {
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
-// AttachmentMeta describes an attachment; the content is not stored.
-type AttachmentMeta struct {
-	Name string `json:"name"`
-	Type string `json:"type,omitempty"`
-	Size int    `json:"size"`
-}
+// AttachmentMeta describes an attachment; Stored says whether its content was
+// kept (see package appattach).
+type AttachmentMeta = appattach.Meta
 
 // SDKInfo names the SDK that sent the event.
 type SDKInfo struct {
