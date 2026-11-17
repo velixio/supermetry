@@ -3041,6 +3041,27 @@ type AppReleases struct {
 	} `json:"releases"`
 }
 
+// AppRules defines model for AppRules.
+type AppRules struct {
+	Grouping []struct {
+		Fingerprint string `json:"fingerprint"`
+
+		// Matcher error_type, message, path, module or tag:<key>
+		Matcher string `json:"matcher"`
+
+		// Value Glob.
+		Value string `json:"value"`
+	} `json:"grouping"`
+	Ownership []struct {
+		// Matcher path, module or tag:<key>
+		Matcher     string `json:"matcher"`
+		OwnerUserId int64  `json:"owner_user_id"`
+
+		// Value Glob.
+		Value string `json:"value"`
+	} `json:"ownership"`
+}
+
 // AppSettings defines model for AppSettings.
 type AppSettings struct {
 	Environments *[]string `json:"environments,omitempty"`
@@ -5941,6 +5962,9 @@ type CreateAppIssueCommentJSONRequestBody = AppIssueCommentInput
 // EditAppIssueCommentJSONRequestBody defines body for EditAppIssueComment for application/json ContentType.
 type EditAppIssueCommentJSONRequestBody = AppIssueCommentInput
 
+// ReplaceAppRulesJSONRequestBody defines body for ReplaceAppRules for application/json ContentType.
+type ReplaceAppRulesJSONRequestBody = AppRules
+
 // EraseAppUserJSONRequestBody defines body for EraseAppUser for application/json ContentType.
 type EraseAppUserJSONRequestBody = AppUserErase
 
@@ -6839,6 +6863,12 @@ type ServerInterface interface {
 	// GetAppReleases Releases with events in the range, newest first, with crash-free rates
 	// (GET /api/private/sites/{site}/app/releases)
 	GetAppReleases(w http.ResponseWriter, r *http.Request, site int32, params GetAppReleasesParams)
+	// GetAppRules An app project's ownership and grouping rules, in evaluation order
+	// (GET /api/private/sites/{site}/app/rules)
+	GetAppRules(w http.ResponseWriter, r *http.Request, site int32)
+	// ReplaceAppRules Replace both rule lists of an app project
+	// (PUT /api/private/sites/{site}/app/rules)
+	ReplaceAppRules(w http.ResponseWriter, r *http.Request, site int32)
 	// EraseAppUser Erase what an app project stores about one end user
 	// (POST /api/private/sites/{site}/app/users/erase)
 	EraseAppUser(w http.ResponseWriter, r *http.Request, site int32)
@@ -11037,6 +11067,58 @@ func (siw *ServerInterfaceWrapper) GetAppReleases(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// GetAppRules operation middleware
+func (siw *ServerInterfaceWrapper) GetAppRules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppRules(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceAppRules operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceAppRules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceAppRules(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // EraseAppUser operation middleware
 func (siw *ServerInterfaceWrapper) EraseAppUser(w http.ResponseWriter, r *http.Request) {
 
@@ -15180,6 +15262,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.GetAppRules)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.ReplaceAppRules)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.GetAppIssue)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.UpdateAppIssue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/comments", wrapper.ListAppIssueComments)

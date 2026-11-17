@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"supermetry/internal/apprules"
 	"supermetry/internal/db"
 )
 
@@ -42,10 +43,11 @@ type AppConfig struct {
 	TagAllowlist     []string
 	MaxReportAgeDays int
 	Environments     []string
-	FilterExtensions *bool  // nil means on
-	FilterCrawlers   *bool  // nil means on
-	FilterLocalhost  *bool  // nil means the server-wide default
-	HashSecret       []byte // per-app HMAC secret for install and session ids; nil until the first event creates it
+	FilterExtensions *bool         // nil means on
+	FilterCrawlers   *bool         // nil means on
+	FilterLocalhost  *bool         // nil means the server-wide default
+	Rules            *apprules.Set // compiled ownership and grouping rules; nil when the project has none
+	HashSecret       []byte        // per-app HMAC secret for install and session ids; nil until the first event creates it
 }
 
 // KeyValid reports whether hash matches a key that has not expired at now.
