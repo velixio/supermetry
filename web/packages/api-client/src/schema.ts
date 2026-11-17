@@ -2100,6 +2100,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The scrubbed body of one stored event
+         * @description The body is the privacy-filtered Sentry-shaped event written at ingest (exception chain, frames,
+         *     breadcrumbs, contexts, tags, request path, attachment metadata). Bodies are kept for 30 days; an older or
+         *     unknown event is a 404. Fields can be missing: clients must tolerate that.
+         */
+        get: operations["getAppEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/issues/{issue}": {
         parameters: {
             query?: never;
@@ -4165,6 +4190,8 @@ export interface components {
             users: number;
         };
         AppEventSample: {
+            /** @description Present for the dashboard; absent in MCP tool output. */
+            event_id?: string;
             /** Format: date-time */
             ts: string;
             release: string;
@@ -4179,6 +4206,15 @@ export interface components {
             exit_code: number | null;
             frames: string;
             tags: {
+                [key: string]: unknown;
+            };
+        };
+        AppEventBody: {
+            event_id: string;
+            /** Format: date-time */
+            ts: string;
+            /** @description message, exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional. */
+            body: {
                 [key: string]: unknown;
             };
         };
@@ -10057,6 +10093,31 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppEventBody"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
