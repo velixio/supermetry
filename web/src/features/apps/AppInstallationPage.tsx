@@ -7,6 +7,7 @@ import { CopyButton } from '@/features/settings/InstallRecipes'
 import { privateRequest } from '@/features/settings/privateApi'
 
 import { TestReportCheck } from './TestReportCheck'
+import { UploadTokenSection } from './UploadTokenSection'
 
 type IngestKey = { prefix: string; created_at: string; expires_at: string | null }
 
@@ -161,6 +162,8 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
           ))}
         </Tabs>
       </section>
+
+      <UploadTokenSection org={org} orgId={orgId} siteId={siteId} />
 
       <section aria-labelledby="app-check-title" className="flex min-w-0 flex-col gap-3">
         <h2 id="app-check-title" className="text-lg font-semibold">Check it works</h2>
