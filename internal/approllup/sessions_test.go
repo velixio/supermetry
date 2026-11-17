@@ -109,3 +109,24 @@ func TestRollupSessionsAggregateOnly(t *testing.T) {
 		t.Fatalf("got %q want %q", got, want)
 	}
 }
+
+func TestRollupAggregateErrored(t *testing.T) {
+	f := appfixture.New(t)
+	at := time.Date(2026, 11, 14, 5, 0, 0, 0, time.UTC)
+	f.Insert(t, appfixture.Event{ID: "a1", Kind: "session", Release: "3.0.0", Platform: "linux", At: at, Occ: 5})
+	f.Insert(t, appfixture.Event{ID: "a2", Kind: "session", Release: "3.0.0", Platform: "linux", At: at, Occ: 2})
+	if _, err := f.Pool.Exec(context.Background(), `update app_events set exit_reason='errored' where event_id='a2'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := approllup.RecomputeDay(context.Background(), f.Pool, f.SiteID, day("2026-11-14")); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"2026-11-14 3.0.0 production linux 7 2 0 0 0 0 0"}
+	if got := dump(t, f, sessionDaily); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %q want %q", got, want)
+	}
+	// The v1 release rollup counts the errored aggregate as sessions, not crashes.
+	if got := dump(t, f, `select sessions, crashed_sessions from app_release_daily where release='3.0.0'`); !reflect.DeepEqual(got, []string{"7 0"}) {
+		t.Fatalf("release daily = %q", got)
+	}
+}

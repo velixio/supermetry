@@ -135,6 +135,7 @@ with s as (
 ), a as (
   select release, environment, platform,
          sum(occurrences) as sessions,
+         coalesce(sum(occurrences) filter (where exit_reason = 'errored'), 0) as errored,
          coalesce(sum(occurrences) filter (where exit_reason = 'crashed'), 0) as crashed,
          coalesce(sum(occurrences) filter (where exit_reason = 'abnormal'), 0) as abnormal
   from app_events
@@ -144,7 +145,7 @@ with s as (
 insert into app_session_daily (site_id, day, release, environment, platform, sessions, errored, crashed, abnormal, users, crashed_users, errored_users)
 select $1, $2::date, coalesce(s.release, a.release), coalesce(s.environment, a.environment), coalesce(s.platform, a.platform),
        coalesce(s.sessions, 0) + coalesce(a.sessions, 0),
-       coalesce(s.errored, 0),
+       coalesce(s.errored, 0) + coalesce(a.errored, 0),
        coalesce(s.crashed, 0) + coalesce(a.crashed, 0),
        coalesce(s.abnormal, 0) + coalesce(a.abnormal, 0),
        coalesce(s.users, 0), coalesce(s.crashed_users, 0), coalesce(s.errored_users, 0)

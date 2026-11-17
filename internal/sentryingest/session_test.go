@@ -29,7 +29,7 @@ func TestParseSessionAggregates(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("rows %+v", rows)
 	}
-	if rows[0].Occurrences != 3 || rows[0].ExitReason != "" || rows[1].Occurrences != 1 || rows[1].ExitReason != "" {
+	if rows[0].Occurrences != 3 || rows[0].ExitReason != "" || rows[1].Occurrences != 1 || rows[1].ExitReason != "errored" {
 		t.Fatalf("%+v", rows)
 	}
 	for _, r := range rows {
@@ -51,7 +51,7 @@ func TestParseSessionAggregateCrashedSetsExitReason(t *testing.T) {
 	for _, r := range rows {
 		got[r.ExitReason] += r.Occurrences
 	}
-	if got["crashed"] != 2 || got["abnormal"] != 1 || got[""] != 4 {
+	if got["crashed"] != 2 || got["abnormal"] != 1 || got["errored"] != 1 || got[""] != 3 {
 		t.Fatalf("%v", got)
 	}
 }
