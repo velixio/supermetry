@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
 	"supermetry/internal/scheduler"
 	"supermetry/internal/sites"
 )
@@ -48,6 +50,30 @@ func CrashedSessionsExpr(prefix string) string {
 		" + coalesce(sum(" + prefix + "occurrences) filter (where " + crashedRow + " and " + prefix + "session_hash is null), 0))"
 }
 
+// ActiveDaySelect is the SELECT that turns one site-local day of product
+// events into per-install rows: visitor_id, release, platform, country,
+// os_id, device, events (custom events), screens (screen views), sessions and
+// engagement_ms. Parameters: $1 site id, $3 and $4 the half-open UTC bounds
+// of the local day ($2 is the day itself and is not read here). release,
+// platform, country, os and device are the install's last non-empty values
+// that day. RecomputeDay stores it in app_active_day and the product queries
+// read it live for the open day, so both see identical numbers.
+var ActiveDaySelect = `
+select e.visitor_id,
+       coalesce((array_agg(e.props->>'$release' order by e.ts desc) filter (where coalesce(e.props->>'$release', '') <> ''))[1], '') as release,
+       coalesce((array_agg(h.value order by e.ts desc) filter (where e.hostname_id <> 0))[1], '') as platform,
+       coalesce((array_agg(e.country order by e.ts desc) filter (where e.country <> ''))[1], '') as country,
+       coalesce((array_agg(e.os_id order by e.ts desc) filter (where e.os_id <> 0))[1], 0) as os_id,
+       coalesce((array_agg(e.device order by e.ts desc) filter (where e.device <> 0))[1], 0)::smallint as device,
+       (count(*) filter (where e.kind = 1))::int as events,
+       (count(*) filter (where e.kind = 0))::int as screens,
+       count(distinct e.session_id)::int as sessions,
+       coalesce(sum(e.engagement_ms), 0)::bigint as engagement_ms
+from events e
+left join dict h on h.kind = ` + fmt.Sprint(int16(dict.Hostname)) + ` and h.id = e.hostname_id
+where e.site_id = $1 and e.ts >= $3 and e.ts < $4 and e.kind in (0, 1)
+group by e.visitor_id`
+
 func location(name string) *time.Location {
 	loc, err := time.LoadLocation(name)
 	if err != nil {
@@ -81,6 +107,9 @@ func RecomputeDay(ctx context.Context, pool *pgxpool.Pool, siteID int32, day tim
 		hourTo = hourTo.Add(time.Hour)
 	}
 	date := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+	if err := db.EnsureAppActiveDayPartitions(ctx, pool, date, date.AddDate(0, 0, 1)); err != nil {
+		return err
+	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1, $2)`, int32(lockClass), siteID); err != nil {
 			return fmt.Errorf("lock app rollups: %w", err)
@@ -118,6 +147,10 @@ from app_events e
 left join pings p on p.session_hash = e.session_hash
 where e.site_id = $1 and e.ts >= $3 and e.ts < $4
 group by e.site_id, e.release, e.platform`, []any{siteID, date, start, end}},
+			{"clear app active day", `delete from app_active_day where site_id = $1 and day = $2`, []any{siteID, date}},
+			{"insert app active day", `
+insert into app_active_day (site_id, day, visitor_id, release, platform, country, os_id, device, events, screens, sessions, engagement_ms)
+select $1, $2::date, a.* from (` + ActiveDaySelect + `) a`, []any{siteID, date, start, end}},
 			{"clear issue hourly", `delete from app_issue_hourly where site_id = $1 and hour >= $2 and hour < $3`, []any{siteID, hourFrom, hourTo}},
 			{"insert issue hourly", `
 insert into app_issue_hourly (site_id, issue_id, hour, events)

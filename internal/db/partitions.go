@@ -83,6 +83,15 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 			return err
 		}
 	}
+	var hasActiveDay bool
+	if err := tx.QueryRow(ctx, `select to_regclass('app_active_day') is not null`).Scan(&hasActiveDay); err != nil {
+		return fmt.Errorf("check app_active_day: %w", err)
+	}
+	if hasActiveDay {
+		if err := ensureMonthlyDayPartitions(ctx, tx, "app_active_day", from, to); err != nil {
+			return err
+		}
+	}
 	if err := ensureAppEventBodyPartitions(ctx, tx, from, to); err != nil {
 		return err
 	}
@@ -111,6 +120,27 @@ func EnsureAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, from, to 
 		return err
 	}
 	if err := ensureAppEventBodyPartitions(ctx, tx, from, to); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// EnsureAppActiveDayPartitions creates the monthly app_active_day partitions
+// covering the days in [from, to). The app rollup calls it before writing a
+// day, which can lie in a month the regular lookahead never covered.
+func EnsureAppActiveDayPartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Time) error {
+	if !from.Before(to) {
+		return nil
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin app active day partition creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
+		return fmt.Errorf("lock partition creation: %w", err)
+	}
+	if err := ensureMonthlyDayPartitions(ctx, tx, "app_active_day", from, to); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
