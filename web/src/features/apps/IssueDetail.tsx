@@ -39,7 +39,7 @@ function BarList({ title, rows }: { title: string; rows: AppIssueDetailData['bre
   )
 }
 
-function EventRow({ event }: { event: AppIssueDetailData['latest_events'][number] }) {
+function EventRow({ event, org, site, issueId }: { event: AppIssueDetailData['latest_events'][number]; org: string; site: string; issueId: number }) {
   const [open, setOpen] = useState(false)
   const label = `${event.ts.slice(0, 19).replace('T', ' ')} · ${event.release || 'no release'} · ${event.platform}${event.os_version ? ` ${event.os_version}` : ''}`
   return (
@@ -61,6 +61,9 @@ function EventRow({ event }: { event: AppIssueDetailData['latest_events'][number
               <div><Button type="button" size="sm" variant="outline" onClick={() => void copyText(event.frames)}>Copy frames</Button></div>
             </>
           ) : <p className="text-xs text-muted-foreground">No frames were reported.</p>}
+          {event.event_id ? (
+            <div><Link className="text-sm font-medium underline" to="/app/$org/$site/issues/$issue/events/$event" params={{ org, site, issue: String(issueId), event: event.event_id }}>Full event detail</Link></div>
+          ) : null}
         </div>
       ) : null}
     </li>
@@ -135,7 +138,7 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
       <Card>
         <CardHeader><CardTitle>Latest events</CardTitle><CardDescription>Scrubbed stack frames; no personal identifiers are stored.</CardDescription></CardHeader>
         <CardContent>
-          {data.latest_events.length === 0 ? <p className="text-sm text-muted-foreground">No events in this period.</p> : <ul>{data.latest_events.map((event) => <EventRow key={event.ts + event.release} event={event} />)}</ul>}
+          {data.latest_events.length === 0 ? <p className="text-sm text-muted-foreground">No events in this period.</p> : <ul>{data.latest_events.map((event) => <EventRow key={event.ts + event.release} event={event} org={org} site={site} issueId={issueId} />)}</ul>}
         </CardContent>
       </Card>
     </PageContainer>
