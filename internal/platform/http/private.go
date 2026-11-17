@@ -153,6 +153,7 @@ type Deps struct {
 		RememberTx(context.Context, pgx.Tx, int32, string) error
 	}
 	ProfileErasures *profileerasure.Store
+	AppErasures     *profileerasure.AppStore
 	ImportQueue     interface {
 		Queue(imports.Job) error
 	}
@@ -351,6 +352,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/app/dsn-keys", h.createAppDSNKey)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/app/dsn-keys/{prefix}", h.revokeAppDSNKey)
 	mux.HandleFunc("POST /api/private/sites/{site}/app/users/erase", h.eraseAppUser)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/users/erasures/{erasure}", h.getAppUserErasure)
 	mux.HandleFunc("GET /api/private/sites/{site}/pixels", h.listPixels)
 	mux.HandleFunc("POST /api/private/sites/{site}/pixels", h.createPixel)
 	mux.HandleFunc("GET /api/private/sites/{site}/pixels/stats", h.pixelProjectStats)
