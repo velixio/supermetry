@@ -1,5 +1,6 @@
 // Bundled into dist/client.js and loaded by the fixture page. Only init plus
-// real page behaviour; no manual capture calls.
+// real page behaviour; the recorded cases make no manual capture calls, the
+// "feedback" case (live check only) calls captureFeedback.
 import * as Sentry from "@sentry/browser";
 
 const which = location.hash.slice(1);
@@ -35,6 +36,18 @@ window.__run = async () => {
         throw new Error("fixture dropped");
       }, 20);
       break;
+    case "feedback": {
+      // User feedback sent by the SDK's own API, tied to a captured error.
+      const eventId = Sentry.captureException(new Error("fixture feedback target"));
+      Sentry.captureFeedback({
+        message: "The fixture page froze, write to fixture-user@example.test",
+        email: "fixture-user@example.test",
+        name: "Fixture User",
+        associatedEventId: eventId,
+        url: "http://127.0.0.1/checkout?token=abc",
+      });
+      break;
+    }
     case "session":
       break;
   }
