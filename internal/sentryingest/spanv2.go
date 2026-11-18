@@ -115,7 +115,13 @@ func parseSpanV2(raw []byte, ctx EventContext, site sites.Site, now time.Time, s
 		case p.isSeg:
 			s.IsSegment = true
 			s.SegmentID = s.SpanID
-			s.Name = spans.TransactionName(strings.TrimSpace(firstNonEmpty(str(p.attrs["sentry.segment.name"]), s.Name)), p.source)
+			name := strings.TrimSpace(firstNonEmpty(str(p.attrs["sentry.segment.name"]), s.Name))
+			// A browser pageload without a router is called "Pageload" and carries
+			// the page in url.path; one transaction per page beats one for all.
+			if path := str(p.attrs["url.path"]); p.source == "url" && path != "" && !strings.Contains(name, "/") {
+				name = path
+			}
+			s.Name = spans.TransactionName(name, p.source)
 			if s.Name == "" {
 				s.Name = otherTxName
 			}
@@ -175,7 +181,9 @@ func v2Span(it spanV2Item, site sites.Site, shift time.Duration, now time.Time, 
 	s.Attrs = spans.CleanAttrs(p.attrs)
 	s.HTTPStatus = httpStatus(p.attrs, nil)
 	p.isSeg = it.IsSegment
-	p.source = str(p.attrs["sentry.span.source"])
+	// The SDKs name the source of a segment name in sentry.segment.name.source
+	// (and sentry.source); sentry.span.source is kept for older shapes.
+	p.source = firstNonEmpty(str(p.attrs["sentry.segment.name.source"]), str(p.attrs["sentry.source"]), str(p.attrs["sentry.span.source"]))
 	desc := describe(s.Op, str(it.Name))
 	s.Description = desc
 	s.Name = clip(desc, spans.MaxNameBytes)

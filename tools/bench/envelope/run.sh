@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Envelope endpoint load test on a scratch database. Run under the heavy lock:
 #   ENVELOPE_BENCH_MINUTES=3 flock /tmp/claude-1000/supermetry-heavy.lock make envelope-bench
+# ENVELOPE_BENCH_RATE=N paces the load to N accepted events (OTLP: spans) a second.
 # ENVELOPE_BENCH_SITES (default 300) app sites with one DSN key each carry the
 # load, because the per-key budget is 600 events a minute.
 set -uo pipefail
@@ -31,9 +32,10 @@ SQL
   sleep 35
 fi
 "$work/envelope-bench" -base "$base" -keys "$work/keys.txt" -fixtures "$root/internal/sentryingest/testdata" \
-  -minutes "${ENVELOPE_BENCH_MINUTES:-5}" -workers "${ENVELOPE_BENCH_WORKERS:-24}" ${ENVELOPE_BENCH_OTLP:+-otlp} ${ENVELOPE_BENCH_OTLP_METRICS:+-otlp-metrics} ${ENVELOPE_BENCH_OTLP_LOGS:+-otlp-logs}
+  -minutes "${ENVELOPE_BENCH_MINUTES:-5}" -workers "${ENVELOPE_BENCH_WORKERS:-24}" ${ENVELOPE_BENCH_RATE:+-rate "$ENVELOPE_BENCH_RATE"} ${ENVELOPE_BENCH_OTLP:+-otlp} ${ENVELOPE_BENCH_OTLP_METRICS:+-otlp-metrics} ${ENVELOPE_BENCH_OTLP_LOGS:+-otlp-logs}
 rc=$?
 sleep 3
+echo "span counters: $(curl -fsS "$base/metrics" 2>/dev/null | grep -E '^[a-z_]*span_(queue_full|rate_limited|write_failed|no_partition)_total ' | tr '\n' ' ')"
 echo "server errors in log: $(grep -ci 'level=error' "$work/server.log")"
 psql "$db_url" -Atc "select 'app_events rows: '||count(*) from app_events" 2>/dev/null
 psql "$db_url" -Atc "select 'spans rows: '||count(*) from spans" 2>/dev/null

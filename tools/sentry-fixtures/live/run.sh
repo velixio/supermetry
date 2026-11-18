@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Live SDK acceptance: point the real Sentry SDK generators (Node, browser,
-# Python, Go) at a freshly started Supermetry by changing only the DSN, then
+# Python, Go; plus the OpenTelemetry Go and Python trace exporters) at a freshly started Supermetry by changing only the DSN, then
 # check the private API. Run under the heavy lock:
 #   flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat
 # The server runs on a scratch database (created on the dev Postgres, dropped
@@ -17,7 +17,7 @@ results=()
 
 cleanup() {
   sm_stop
-  rm -rf "$fx/node/node_modules" "$fx/browser/node_modules" "$fx/browser/dist" "$fx/python/.venv" "${work:?}" /tmp/fixture-app
+  rm -rf "$fx/node/node_modules" "$fx/browser/node_modules" "$fx/browser/dist" "$fx/python/.venv" "$fx/otel-python/.venv" "${work:?}" /tmp/fixture-app
 }
 trap cleanup EXIT
 
@@ -28,6 +28,8 @@ echo "== deps"
 (cd "$fx/browser" && bun install --frozen-lockfile >/dev/null && bun build client.mjs --outfile dist/client.js >/dev/null) || exit 1
 (cd "$fx/python" && uv venv -q .venv && uv pip install -q --python .venv/bin/python --require-hashes -r requirements.txt) || exit 1
 (cd "$fx/go" && go build -trimpath -o "$work/fixture-go" .) || exit 1
+(cd "$fx/otel-go" && go build -trimpath -o "$work/fixture-otel-go" .) || exit 1
+(cd "$fx/otel-python" && uv venv -q .venv && uv pip install -q --python .venv/bin/python --require-hashes -r requirements.txt) || exit 1
 (cd "$root" && go build -o "$work/supermetry" ./cmd/supermetry) || exit 1
 
 echo "== server"
@@ -50,6 +52,16 @@ check() { # name cmd...
   local name="$1" out rc; shift
   out="$("$@" 2>&1)"; rc=$?
   case $rc in 0) record "$name" PASS "$out";; 3) record "$name" SKIP "$out";; *) record "$name" FAIL "$out";; esac
+}
+
+# trace_case <sdk/case> <names> <forbidden> <dir> <cmd...>: a tracing scenario with only the DSN changed
+trace_case() {
+  local label="$1" names="$2" forbidden="$3" dir="$4"; shift 4
+  local out id key
+  out="$(python3 -I "$here/check.py" site "$base" "$state" "${label//\//-}")" || { record "$label" FAIL "site setup: $out"; return; }
+  read -r id key <<<"$out"
+  sdk "http://$key@127.0.0.1:$port/$id" "$dir" "$@"
+  check "$label transactions" python3 -I "$here/check.py" transactions "$base" "$state" "$id" 25 "$db_url" "$names" "$forbidden"
 }
 
 # run_case <sdk/case> <expect: issues|sessions|both|feedback|none> <breadcrumbs 0/1> <dir> <cmd...>
@@ -83,6 +95,16 @@ run_case python/logging-error       issues 0 "$fx/python" /bin/bash run.sh loggi
 run_case python/wsgi-sessions       sessions 0 "$fx/python" /bin/bash run.sh wsgi-sessions
 run_case go/captured-exception issues 0 "$fx/go" "$work/fixture-go" captured-exception
 run_case go/recovered-panic    issues 0 "$fx/go" "$work/fixture-go" recovered-panic
+
+echo "== tracing runs"
+FORBID="fixture-token,token=,owner = 'fixture'"
+trace_case node/transaction   "GET /api/items" "$FORBID" "$fx/node" "${NODE[@]}" transaction
+trace_case python/transaction "GET /api/items" "$FORBID" "$fx/python" /bin/bash run.sh transaction
+trace_case go/transaction     "GET /api/items" "$FORBID" "$fx/go" "$work/fixture-go" transaction
+trace_case browser/pageload   "/" "$FORBID" "$fx/browser" /usr/bin/node app.mjs pageload
+# OpenTelemetry exporters: only the endpoint (/api/<id>/otlp/v1/traces) and one header change.
+trace_case otel-go/traces     "GET /api/items" "$FORBID" "$fx/otel-go" "$work/fixture-otel-go"
+trace_case otel-python/traces "GET /api/items" "$FORBID" "$fx/otel-python" "$fx/otel-python/.venv/bin/python" app.py
 
 echo "== results"
 printf '%s\n' "${results[@]}"

@@ -155,6 +155,7 @@ func main() {
 	logsPerReq := flag.Int("logs-per-request", 100, "log records in each OTLP logs request (-otlp-logs only)")
 	pointsPerReq := flag.Int("points-per-request", 100, "data points in each OTLP metrics request (-otlp-metrics only)")
 	perReq := flag.Int("spans-per-request", 50, "spans in each OTLP request (-otlp only)")
+	rate := flag.Float64("rate", 0, "target accepted events (items for OTLP) per second across all workers; 0 sends as fast as the server answers")
 	txShare := flag.Float64("tx", 0.25, "share of requests that carry a transaction or span fixture")
 	flag.Parse()
 	if *keysFile == "" {
@@ -199,6 +200,7 @@ func main() {
 			defer wg.Done()
 			r := mrand.New(mrand.NewPCG(uint64(w), 7))
 			var local []time.Duration
+			next := time.Now()
 			for time.Now().Before(deadline) {
 				fx := plain[r.IntN(len(plain))]
 				if len(txs) > 0 && r.Float64() < *txShare {
@@ -213,6 +215,12 @@ func main() {
 				}
 				if *otlpLogs {
 					fx = fixture{events: *logsPerReq, items: *logsPerReq}
+				}
+				if *rate > 0 {
+					next = next.Add(time.Duration(float64(fx.events**workers) / *rate * float64(time.Second)))
+					if d := time.Until(next); d > 0 {
+						time.Sleep(d)
+					}
 				}
 				head := dsnRe.ReplaceAll(fx.header, []byte(fmt.Sprintf(`"dsn":"http://%s@%s/%s"`, k.key, strings.TrimPrefix(*base, "http://"), k.site)))
 				body := append(append(append([]byte{}, head...), '\n'), fx.rest...)

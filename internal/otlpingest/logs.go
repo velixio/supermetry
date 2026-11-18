@@ -414,9 +414,7 @@ func (f *logsFront) count(name string, n int) {
 // and the daily quota from memory.
 func (h *Handler) serveLogs(w http.ResponseWriter, r *http.Request, site sites.Site, ct string, now time.Time) {
 	f := h.logs
-	select {
-	case h.inflight <- struct{}{}:
-	default:
+	if !h.acquire(r) {
 		w.Header().Set("Retry-After", "5")
 		fail(w, http.StatusServiceUnavailable, "too many requests in flight")
 		return

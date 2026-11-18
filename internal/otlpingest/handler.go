@@ -25,6 +25,10 @@ const (
 	// maxInflight bounds concurrent body reads and decodes, so a burst of
 	// large requests cannot hold more than this many decoded bodies at once.
 	maxInflight = 8
+	// inflightWait is how long a request waits for a free slot before it is
+	// answered 503: a stall of a few milliseconds (garbage collection, a busy
+	// CPU) must not turn a burst of exporters into rejected batches.
+	inflightWait = 250 * time.Millisecond
 
 	ctProto = "application/x-protobuf"
 	ctJSON  = "application/json"
@@ -113,6 +117,26 @@ func (h *Handler) enabled(kind routeKind) bool {
 func (h *Handler) Matches(r *http.Request) bool {
 	_, kind, ok := parseRoute(r.URL.Path)
 	return ok && h.enabled(kind)
+}
+
+// acquire takes an in-flight slot, waiting up to inflightWait for one. It
+// reports false when none came free or the client went away.
+func (h *Handler) acquire(r *http.Request) bool {
+	select {
+	case h.inflight <- struct{}{}:
+		return true
+	default:
+	}
+	t := time.NewTimer(inflightWait)
+	defer t.Stop()
+	select {
+	case h.inflight <- struct{}{}:
+		return true
+	case <-t.C:
+		return false
+	case <-r.Context().Done():
+		return false
+	}
 }
 
 func (h *Handler) count(name string, n int) {
@@ -231,9 +255,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	select {
-	case h.inflight <- struct{}{}:
-	default:
+	if !h.acquire(r) {
 		hdr.Set("Retry-After", "5")
 		fail(w, http.StatusServiceUnavailable, "too many requests in flight")
 		return

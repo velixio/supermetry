@@ -298,9 +298,7 @@ func (h *Handler) respondMetrics(w http.ResponseWriter, ct string, rejected int,
 // serveMetrics handles an authenticated, content-type-checked metrics export.
 func (h *Handler) serveMetrics(w http.ResponseWriter, r *http.Request, site sites.Site, ct string, now time.Time) {
 	m := h.metrics
-	select {
-	case h.inflight <- struct{}{}:
-	default:
+	if !h.acquire(r) {
 		w.Header().Set("Retry-After", "5")
 		fail(w, http.StatusServiceUnavailable, "too many requests in flight")
 		return

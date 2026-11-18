@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.go/0.50.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry-go/0.50.0"
+  },
+  "sdk": "go",
+  "sdk_version": "0.50.0",
+  "notes": "RECORDED from sentry-go 0.50.0 (EnableTracing, one root span with a database and an HTTP child). Unlike the Python and JavaScript transactions its timestamps are RFC 3339 strings, not epoch numbers. Timestamps shifted to the test clock; the DSN, module list, device and OS contexts removed by hand.",
+  "synthetic": false
+}

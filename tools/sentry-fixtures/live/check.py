@@ -10,6 +10,9 @@
   check.py sessions BASE STATE SITE WAIT_S DB_URL  wait for session rows (crash-free rate, else rows in app_events)
   check.py feedback BASE STATE SITE WAIT_S DB_URL  wait for user feedback: stored, scrubbed, linked to an issue, no raw email
   check.py breadcrumbs BASE STATE SITE DB_URL    PASS/SKIP check that stored bodies carry breadcrumbs
+  check.py transactions BASE STATE SITE WAIT_S DB_URL NAMES FORBIDDEN  wait until the transaction list shows every name in NAMES
+                                                 (comma separated), a trace has child spans with parent links, and no stored span
+                                                 or rollup row contains a string of FORBIDDEN (comma separated)
 
 Exit codes: 0 pass, 1 fail, 3 skip (message on stdout).
 """
@@ -263,6 +266,44 @@ def main(argv):
                 print("no kind=session rows")
                 return 1
             time.sleep(1)
+    if cmd == "transactions":
+        db, names, forbidden = argv[6], [n for n in argv[7].split(",") if n], [f for f in argv[8].split(",") if f]
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        last = "no transactions yet"
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/transactions?from={day}&to={day}"), (200,), "list transactions")
+            have = {t["name"]: t for t in r["transactions"]}
+            missing = [n for n in names if n not in have]
+            if not missing:
+                break
+            last = f"missing {missing}; have {sorted(have)}"
+            if time.time() > deadline:
+                print("FAIL: " + last)
+                return 1
+            time.sleep(1)
+
+        def sql(q):
+            p = subprocess.run(["psql", db, "-Atc", q], capture_output=True, text=True)
+            return p.stdout.strip() if p.returncode == 0 else "ERR " + p.stderr.strip()
+
+        sid = int(site)
+        linked = sql(f"select count(*) from spans c join spans p on p.site_id=c.site_id and p.trace_id=c.trace_id and p.span_id=c.parent_span_id where c.site_id={sid} and not c.is_segment")
+        if not linked.isdigit() or int(linked) < 1:
+            print(f"FAIL: no child span links to a parent in the same trace ({linked})")
+            return 1
+        tid = sql(f"select encode(trace_id,'hex') from spans where site_id={sid} and not is_segment limit 1")
+        st, tr = c.call(f"/api/private/sites/{sid}/app/traces/{tid}")
+        if st != 200 or len(tr.get("spans", [])) < 2:
+            print(f"FAIL: trace {tid} read: HTTP {st}")
+            return 1
+        for f in forbidden:
+            lit = "'" + f.replace("'", "''") + "'"
+            hit = sql(f"select (select count(*) from spans t where position({lit} in t::text) > 0) + (select count(*) from span_hourly t where position({lit} in t::text) > 0)")
+            if hit != "0":
+                print(f"FAIL: stored spans contain {f!r} ({hit})")
+                return 1
+        print(f"{len(names)} transactions listed, {linked} parent links, trace of {len(tr['spans'])} spans, no forbidden strings")
+        return 0
     if cmd == "breadcrumbs":
         db = argv[5]
         r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")
