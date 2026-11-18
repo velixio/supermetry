@@ -70,6 +70,11 @@ describe('missing symbols banner', () => {
     expect(screen.queryByRole('status', { name: 'Source maps' })).not.toBeInTheDocument()
   })
 
+  it('links the banner to the Symbols settings page when the site is known', () => {
+    render(<EventBodyView settings={{ org: 'acme', site: 'app1' }} body={{ ...body, symbolication: 'missing', missing_debug: [{ kind: 'elf', debug_id: '7a3c9e10-55b2-4b8e-8a53-2f0c8d4e9a01', code_file: 'libfixture.so' }] }} />)
+    expect(screen.getByRole('link', { name: 'Symbols settings' })).toHaveAttribute('href', '/app/$org/$site/settings/symbols')
+  })
+
   it('keeps the source map banner for events without missing images and shows nothing when resolved', () => {
     render(<EventBodyView body={{ ...body, symbolication: 'missing' }} />)
     expect(screen.getByRole('status', { name: 'Source maps' })).toBeInTheDocument()

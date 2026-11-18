@@ -547,7 +547,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			if dump != nil {
 				body.Minidump, dump = dump, nil
 			}
-			if h.symb != nil && (needsSymbolication(body) || len(body.Minidump) > 0) {
+			if h.symb != nil && (h.symb.wants(body) || len(body.Minidump) > 0) {
 				// The queued event is accepted later, so answer an exhausted
 				// budget now: the sender must see 429, not a silent 200.
 				if res := h.intake.Admit(site, budgetKey, now); res.Reason != "" {

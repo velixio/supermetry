@@ -5,6 +5,7 @@
   check.py sites BASE STATE N                    N app sites with one DSN key each; "<id> <key>" lines
   check.py uploadtoken BASE STATE NAME           app site, DSN key and an upload token (sntrys_ format); prints "<id> <key> <token>"
   check.py frame BASE STATE SITE WAIT_S EXPECT_FILE EXPECT_LINE [EXPECT_FUNC]  top in-app frame of the newest event is the original file and line (and function)
+  check.py debugfiles BASE STATE SITE WAIT_S KIND:STATE...  wait until the project lists a debug file of each kind in that cache state (STATE "any" = any but error)
   check.py issues BASE STATE SITE [WAIT_S]       wait for issues; prints "<n> <titles...>"; exit 1 if none
   check.py sessions BASE STATE SITE WAIT_S DB_URL  wait for session rows (crash-free rate, else rows in app_events)
   check.py feedback BASE STATE SITE WAIT_S DB_URL  wait for user feedback: stored, scrubbed, linked to an issue, no raw email
@@ -112,6 +113,20 @@ def main(argv):
     site = argv[4]
     wait = float(argv[5]) if len(argv) > 5 and cmd != "breadcrumbs" else 25
     deadline = time.time() + wait
+    if cmd == "debugfiles":
+        want = [w.split(":", 1) for w in argv[6:]]
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/debug-files"), (200,), "list debug files")
+            have = [(f["kind"], f["cache_state"]) for f in r.get("files", [])]
+            missing = [f"{k}:{st}" for k, st in want
+                       if not any(hk == k and (hs == st or (st == "any" and hs != "error")) for hk, hs in have)]
+            if not missing:
+                print("debug files " + ", ".join(f"{k}={s}" for k, s in sorted(have)))
+                return 0
+            if time.time() > deadline:
+                print(f"missing {missing}; listed {sorted(have)}")
+                return 1
+            time.sleep(1)
     if cmd == "issues":
         while True:
             r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")

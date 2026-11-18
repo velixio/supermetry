@@ -54,12 +54,21 @@ and `deploys new` work unchanged with the same upload token. Commits are read fr
 local git checkout; Supermetry does not fetch them from GitHub. See
 [Releases and deploys](apps.md#releases-and-deploys).
 
+## Native and mobile symbols
+
+The Android Gradle plugin, the Xcode build phase and `sentry-cli debug-files upload`
+work against Supermetry with the same variables as for source maps. ProGuard/R8
+mappings, dSYM, Mach-O and ELF files are accepted and used to symbolicate crashes.
+See [Native and mobile symbols](apps.md#native-and-mobile-symbols) for what is
+supported and for the files that are only stored.
+
 ## What is not supported yet
 
 - **Performance**: transactions, spans and traces.
 - **Session replay**, **profiles**, **cron monitors**, **user feedback**, logs and
   metrics.
-- Native crash dumps (minidumps) are counted but not processed.
+- Native crash dumps (minidumps) are counted but not processed. Crashes sent as
+  events by the native SDKs are symbolicated from uploaded debug files.
 
 ### Why the SDK stops sending performance data
 
