@@ -117,6 +117,10 @@ var sourceRegistry = []Source{
 	{Table: "site_storage_usage", ExcludedReason: "published reconciliation metadata"},
 	{Table: "storage_usage_run_sites", ExcludedReason: "reconciliation metadata"},
 	{Table: "storage_usage_stage", ExcludedReason: "temporary reconciliation metadata"},
+	{Table: "export_schedules", ExcludedReason: "export configuration"},
+	{Table: "export_schedule_progress", ExcludedReason: "export scheduling metadata"},
+	{Table: "export_runs", ExcludedReason: "export run log"},
+	{Table: "import_ga4_states", ExcludedReason: "short-lived OAuth state for GA4 import"},
 }
 
 func SourceRegistry() []Source {
