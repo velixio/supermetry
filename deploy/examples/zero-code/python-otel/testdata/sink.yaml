@@ -1,0 +1,19 @@
+# Throwaway OTLP sink for check.sh: receives HTTP/protobuf, writes JSON lines.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:${env:SINK_PORT}
+exporters:
+  file/traces:
+    path: ${env:SINK_DIR}/traces.jsonl
+  file/logs:
+    path: ${env:SINK_DIR}/logs.jsonl
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file/traces]
+    logs:
+      receivers: [otlp]
+      exporters: [file/logs]

@@ -67,3 +67,44 @@ Notes:
 To test a changed config, run `deploy/examples/zero-code/check.sh`. It validates
 the file and replays a fixture (logfmt, JSON, a 12-line panic) through the same
 parsing.
+
+## Python apps in Docker (FastAPI, Flask, Django)
+
+`opentelemetry-instrument` starts the app with OpenTelemetry's auto
+instrumentation: HTTP requests become traces, exceptions are recorded on their
+span, and Python `logging` records go out as OTLP logs. You wrap the built image
+instead of editing the app.
+
+1. Copy the `deploy/examples/zero-code/python-otel/` directory next to your
+   compose file. Its Dockerfile installs `opentelemetry-distro` and the OTLP/HTTP exporter into the
+   base image and starts the same command behind `opentelemetry-instrument`.
+   Edit the last line if your image's entrypoint differs.
+2. Merge `compose.override.yml`: set the base image, `OTEL_SERVICE_NAME`, the
+   endpoint and the key (from an `.env` file, not committed), then
+   `docker compose -f docker-compose.yml -f compose.override.yml up -d --build`.
+3. Call a failing route and open **Issues**: an exception such as
+   `ValueError: bad id 7` appears within seconds, with its trace.
+
+What reaches Supermetry:
+
+- An exception that escapes a request is recorded on the request's span and
+  becomes an issue. Uvicorn writes its own error log to a logger that does not
+  propagate to the OTLP handler, so this is the path for uncaught errors. If you
+  sample traces (`OTEL_TRACES_SAMPLER_ARG` below 1.0), a sampled-out request
+  loses that issue. The example keeps every trace.
+- An exception your code catches and logs with `logging.exception(...)` (or any
+  `logging` call at ERROR and above) is sent as an ERROR log record and becomes
+  an issue. When a trace is active the log and the span exception share one
+  issue and one occurrence.
+- `OTEL_PYTHON_EXCLUDED_URLS=health` keeps health checks out of traces.
+
+Notes:
+
+- The wrapper installs only the HTTP exporter, so it adds no gRPC dependency to
+  your image. Package versions are pinned in the Dockerfile.
+- Rebuild the image to pick up a new base; to undo it, start the original image
+  again (drop the override).
+- `deploy/examples/zero-code/python-otel/check.sh` builds a small FastAPI
+  fixture with the wrapper, runs it against a throwaway OTLP receiver and checks
+  that both the span exception and the ERROR log arrive. Pointing it at your own
+  Supermetry project is a manual step.
