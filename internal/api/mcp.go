@@ -137,6 +137,9 @@ func NewMCPHandler(deps MCPDeps) http.Handler {
 	tools := mcpTools()
 	if deps.AppHealth != nil {
 		tools = append(tools, mcpAppTools()...)
+		if _, ok := deps.AppHealth.(appPerformanceReader); ok {
+			tools = append(tools, mcpPerformanceTools()...)
+		}
 	}
 	if deps.AppIssues != nil {
 		tools = append(tools, mcpIssueTools()...)
