@@ -1,0 +1,66 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_sessions_daily.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Release-health session counts per day.",
+  "properties": {
+    "abnormal": {
+      "type": "integer"
+    },
+    "crashed": {
+      "type": "integer"
+    },
+    "crashed_users": {
+      "type": "integer"
+    },
+    "day": {
+      "format": "date",
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "errored": {
+      "type": "integer"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "release": {
+      "type": "string"
+    },
+    "sessions": {
+      "type": "integer"
+    },
+    "users": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "day",
+    "release",
+    "environment",
+    "platform",
+    "sessions",
+    "errored",
+    "crashed",
+    "abnormal",
+    "users",
+    "crashed_users"
+  ],
+  "title": "app_sessions_daily.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "day",
+    "release",
+    "environment",
+    "platform",
+    "sessions",
+    "errored",
+    "crashed",
+    "abnormal",
+    "users",
+    "crashed_users"
+  ],
+  "x-supermetry-schema-version": 1
+}

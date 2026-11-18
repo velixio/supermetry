@@ -1,0 +1,55 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_issue_comments.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Comments on issues.",
+  "properties": {
+    "author_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "comment_id": {
+      "type": "integer"
+    },
+    "created": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "edited": {
+      "description": "An empty CSV cell is null.",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "issue_id": {
+      "type": "integer"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "comment_id",
+    "issue_id",
+    "author_id",
+    "created",
+    "edited",
+    "text"
+  ],
+  "title": "app_issue_comments.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "comment_id",
+    "issue_id",
+    "author_id",
+    "created",
+    "edited",
+    "text"
+  ],
+  "x-supermetry-schema-version": 1
+}

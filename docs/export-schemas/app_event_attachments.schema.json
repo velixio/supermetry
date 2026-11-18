@@ -1,0 +1,51 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_event_attachments.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Attachment listing; bytes are under app_attachments/.",
+  "properties": {
+    "content_type": {
+      "type": "string"
+    },
+    "created": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "file": {
+      "type": "string"
+    },
+    "index": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "event_id",
+    "index",
+    "name",
+    "content_type",
+    "size_bytes",
+    "created",
+    "file"
+  ],
+  "title": "app_event_attachments.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "event_id",
+    "index",
+    "name",
+    "content_type",
+    "size_bytes",
+    "created",
+    "file"
+  ],
+  "x-supermetry-schema-version": 1
+}

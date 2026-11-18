@@ -46,6 +46,7 @@ import (
 	"supermetry/internal/demo"
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
+	"supermetry/internal/exportschedule"
 	"supermetry/internal/geoupdate"
 	"supermetry/internal/ghstars"
 	"supermetry/internal/ghtrending"
@@ -61,6 +62,7 @@ import (
 	"supermetry/internal/obsmetrics"
 	"supermetry/internal/obsquota"
 	"supermetry/internal/opencounters"
+	"supermetry/internal/orgbundle"
 	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
@@ -407,6 +409,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	exporter := siteexport.New(pool)
 	exporter.SetTrackingMode(cfg.Tracking.Mode)
+	exportBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/export-schedules/v1")
+	if err != nil {
+		return fmt.Errorf("initialize export encryption: %w", err)
+	}
+	exportSchedules := exportschedule.New(pool, exportBox, exporter, exportschedule.Options{
+		Mailer: sender, BaseURL: cfg.BaseURL, AllowPrivate: cfg.AllowPrivateExportEndpoints, Now: settings.clock.Now,
+	})
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
@@ -415,6 +424,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	siteService.SetRequireDomain(cfg.Managed)
 	siteService.SetRetentionPolicy(cfg.DefaultRetentionDays, cfg.RetentionForever)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
+	orgBundle := orgbundle.New(pool, siteService, inviteService, settings.clock.Now)
+	orgBundle.Refresh = refreshRegistry
 	overviewService := sitesvc.NewOverview(platformStore, sessions)
 	overviewService.SetClock(settings.clock.Now)
 	linkRecorder := links.NewRecorder(pool, links.RecorderOptions{})
@@ -523,6 +534,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		AppErasures:        appErasures,
 		ReplayStore:        replayStore,
 		Exporter:           exporter,
+		ExportSchedules:    exportSchedules,
+		OrgBundle:          orgBundle,
 		ReplayEnv:          cfg.Replay,
 		DataDir:            cfg.DataDir,
 		SecretKey:          cfg.SecretKey,
@@ -785,7 +798,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	starService.AlertSender = alertDispatcher
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
-	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	jobs = append(jobs, exportSchedules.Job(), deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	ruleEvaluator := alerts.NewRuleEvaluator(alertService, alertService, appAlertStore, appAlertStore, alertDispatcher, registry, settings.clock.Now,
 		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
 			health.AlertDeliveryFailures.Add(1)

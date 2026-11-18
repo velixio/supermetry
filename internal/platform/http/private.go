@@ -22,10 +22,12 @@ import (
 
 	"supermetry/internal/api"
 	"supermetry/internal/config"
+	"supermetry/internal/exportschedule"
 	"supermetry/internal/ghstars"
 	"supermetry/internal/ghtrending"
 	"supermetry/internal/imports"
 	"supermetry/internal/links"
+	"supermetry/internal/orgbundle"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
@@ -195,6 +197,10 @@ type Deps struct {
 	Integrations IntegrationsService
 	// Stripe serves the per-site Stripe revenue connection. Optional.
 	Stripe StripeService
+	// ExportSchedules runs scheduled exports to S3-compatible storage. Nil answers 404.
+	ExportSchedules *exportschedule.Service
+	// OrgBundle exports and imports organization settings. Nil answers 404.
+	OrgBundle *orgbundle.Service
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -481,6 +487,15 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/imports/ga4/connections/{connection}/properties", h.listGA4Properties)
 	mux.HandleFunc("DELETE /api/private/imports/ga4/connections/{connection}", h.deleteGA4Connection)
 	mux.HandleFunc("GET /api/private/sites/{site}/export", h.exportSite)
+	mux.HandleFunc("GET /api/private/orgs/{org}/export-schedules", h.listExportSchedules)
+	mux.HandleFunc("POST /api/private/orgs/{org}/export-schedules", h.createExportSchedule)
+	mux.HandleFunc("PATCH /api/private/orgs/{org}/export-schedules/{schedule}", h.updateExportSchedule)
+	mux.HandleFunc("DELETE /api/private/orgs/{org}/export-schedules/{schedule}", h.deleteExportSchedule)
+	mux.HandleFunc("POST /api/private/orgs/{org}/export-schedules/{schedule}/run", h.runExportSchedule)
+	mux.HandleFunc("POST /api/private/orgs/{org}/export-schedules/{schedule}/test", h.testExportSchedule)
+	mux.HandleFunc("GET /api/private/orgs/{org}/export-schedules/{schedule}/runs", h.listExportRuns)
+	mux.HandleFunc("GET /api/private/orgs/{org}/settings-export", h.exportOrgSettings)
+	mux.HandleFunc("POST /api/private/orgs/{org}/settings-import", h.importOrgSettings)
 	mux.HandleFunc("GET /api/private/sites/{site}/profiles", h.listProfiles)
 	mux.HandleFunc("GET /api/private/profiles/{profile}", h.getProfile)
 	mux.HandleFunc("DELETE /api/private/profiles/{profile}", h.deleteProfile)

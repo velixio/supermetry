@@ -1,0 +1,61 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/logs.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Log records inside the range and the site's log retention.",
+  "properties": {
+    "attributes": {
+      "description": "A JSON document stored as text.",
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "release": {
+      "type": "string"
+    },
+    "service": {
+      "type": "string"
+    },
+    "severity": {
+      "type": "integer"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "trace_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "timestamp",
+    "severity",
+    "service",
+    "environment",
+    "release",
+    "trace_id",
+    "body",
+    "attributes"
+  ],
+  "title": "logs.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "timestamp",
+    "severity",
+    "service",
+    "environment",
+    "release",
+    "trace_id",
+    "body",
+    "attributes"
+  ],
+  "x-supermetry-schema-version": 1
+}

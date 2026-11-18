@@ -1,0 +1,46 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/daily_totals.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Site totals per day, native rollups plus imported history before the first native day.",
+  "properties": {
+    "bounces": {
+      "type": "integer"
+    },
+    "day": {
+      "format": "date",
+      "type": "string"
+    },
+    "pageviews": {
+      "type": "integer"
+    },
+    "visit_duration_s": {
+      "type": "integer"
+    },
+    "visitors": {
+      "type": "integer"
+    },
+    "visits": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "day",
+    "visitors",
+    "visits",
+    "pageviews",
+    "bounces",
+    "visit_duration_s"
+  ],
+  "title": "daily_totals.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "day",
+    "visitors",
+    "visits",
+    "pageviews",
+    "bounces",
+    "visit_duration_s"
+  ],
+  "x-supermetry-schema-version": 1
+}

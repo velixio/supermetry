@@ -1,0 +1,35 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_ownership_rules.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Ownership rules in evaluation order.",
+  "properties": {
+    "matcher": {
+      "type": "string"
+    },
+    "owner_id": {
+      "type": "integer"
+    },
+    "position": {
+      "type": "integer"
+    },
+    "value": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "position",
+    "matcher",
+    "value",
+    "owner_id"
+  ],
+  "title": "app_ownership_rules.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "position",
+    "matcher",
+    "value",
+    "owner_id"
+  ],
+  "x-supermetry-schema-version": 1
+}

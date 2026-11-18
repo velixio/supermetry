@@ -1,0 +1,66 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_deploys.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Deploys created in the range.",
+  "properties": {
+    "created": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "deploy_id": {
+      "type": "integer"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "finished": {
+      "description": "An empty CSV cell is null.",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "release": {
+      "type": "string"
+    },
+    "started": {
+      "description": "An empty CSV cell is null.",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "deploy_id",
+    "release",
+    "environment",
+    "name",
+    "url",
+    "started",
+    "finished",
+    "created"
+  ],
+  "title": "app_deploys.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "deploy_id",
+    "release",
+    "environment",
+    "name",
+    "url",
+    "started",
+    "finished",
+    "created"
+  ],
+  "x-supermetry-schema-version": 1
+}

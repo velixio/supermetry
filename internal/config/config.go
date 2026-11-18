@@ -139,7 +139,10 @@ type Config struct {
 	Signup                string
 	SMTP                  SMTP
 	AllowPrivateWebhooks  bool
-	Replay                ReplayEnv
+	// AllowPrivateExportEndpoints lets scheduled exports write to private or
+	// loopback S3 endpoints (a local MinIO) and plain HTTP.
+	AllowPrivateExportEndpoints bool
+	Replay                      ReplayEnv
 
 	// SearchConsoleClientID and SearchConsoleClientSecret enable the Google
 	// Search Console integration; it stays hidden while either is empty.
@@ -340,6 +343,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 			c.AllowPrivateWebhooks = value
 		}
 	}
+	parseOptionalBool(getenv("SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS"), "SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS", &c.AllowPrivateExportEndpoints, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_NEUTRAL_PATHS"), "SUPERMETRY_NEUTRAL_PATHS", &c.NeutralPaths, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_MANAGED"), "SUPERMETRY_MANAGED", &c.Managed, &errs)
