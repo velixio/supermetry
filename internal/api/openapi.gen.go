@@ -1374,11 +1374,12 @@ func (e Metric) Valid() bool {
 
 // Defines values for NotificationChannelKind.
 const (
-	Discord  NotificationChannelKind = "discord"
-	Email    NotificationChannelKind = "email"
-	Slack    NotificationChannelKind = "slack"
-	Telegram NotificationChannelKind = "telegram"
-	Webhook  NotificationChannelKind = "webhook"
+	Discord   NotificationChannelKind = "discord"
+	Email     NotificationChannelKind = "email"
+	Pagerduty NotificationChannelKind = "pagerduty"
+	Slack     NotificationChannelKind = "slack"
+	Telegram  NotificationChannelKind = "telegram"
+	Webhook   NotificationChannelKind = "webhook"
 )
 
 // Valid indicates whether the value is a known member of the NotificationChannelKind enum.
@@ -1387,6 +1388,8 @@ func (e NotificationChannelKind) Valid() bool {
 	case Discord:
 		return true
 	case Email:
+		return true
+	case Pagerduty:
 		return true
 	case Slack:
 		return true
@@ -3402,18 +3405,22 @@ type AppNotificationPrefs struct {
 
 	// Resolved An issue assigned to me was resolved by someone else.
 	Resolved bool `json:"resolved"`
+
+	// WeeklyDigest Mail the weekly digest on Monday 09:00 in the project time zone. Optional when saving: absent keeps the current value. Always present in responses.
+	WeeklyDigest *bool `json:"weekly_digest,omitempty"`
 }
 
 // AppNotificationPrefsSite defines model for AppNotificationPrefsSite.
 type AppNotificationPrefsSite struct {
-	Assigned  bool   `json:"assigned"`
-	OrgName   string `json:"org_name"`
-	OrgSlug   string `json:"org_slug"`
-	Regressed bool   `json:"regressed"`
-	Resolved  bool   `json:"resolved"`
-	SiteId    int32  `json:"site_id"`
-	SiteName  string `json:"site_name"`
-	SiteSlug  string `json:"site_slug"`
+	Assigned     bool   `json:"assigned"`
+	OrgName      string `json:"org_name"`
+	OrgSlug      string `json:"org_slug"`
+	Regressed    bool   `json:"regressed"`
+	Resolved     bool   `json:"resolved"`
+	SiteId       int32  `json:"site_id"`
+	SiteName     string `json:"site_name"`
+	SiteSlug     string `json:"site_slug"`
+	WeeklyDigest bool   `json:"weekly_digest"`
 }
 
 // AppOverview defines model for AppOverview.

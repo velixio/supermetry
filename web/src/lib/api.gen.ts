@@ -730,7 +730,7 @@ export interface paths {
         };
         /**
          * The signed-in user's issue notification switches for every app project they can read
-         * @description Defaults apply until saved. Assigned and regressed are on by default, resolved is off.
+         * @description Defaults apply until saved. Assigned and regressed are on by default; resolved and the weekly digest are off.
          */
         get: operations["listAppNotificationPrefs"];
         put?: never;
@@ -4402,7 +4402,7 @@ export interface components {
             rows: components["schemas"]["SearchConsoleTopRow"][];
         };
         /** @enum {string} */
-        NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram";
+        NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram" | "pagerduty";
         /** @enum {string} */
         DeliveryStatus: "pending" | "succeeded" | "failed";
         RevenueReportRow: {
@@ -5577,6 +5577,8 @@ export interface components {
             resolved: boolean;
             /** @description An issue assigned to me regressed. */
             regressed: boolean;
+            /** @description Mail the weekly digest on Monday 09:00 in the project time zone. Optional when saving: absent keeps the current value. Always present in responses. */
+            weekly_digest?: boolean;
         };
         AppNotificationPrefsSite: {
             /** Format: int32 */
@@ -5588,6 +5590,7 @@ export interface components {
             assigned: boolean;
             resolved: boolean;
             regressed: boolean;
+            weekly_digest: boolean;
         };
         /** @description A partial update; at least one field is required. Omitted fields are left alone. */
         AppIssueChange: {
