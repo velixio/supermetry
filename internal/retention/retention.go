@@ -47,8 +47,11 @@ var eraseTables = []string{
 	"app_erasure_requests",
 	"app_artifact_files",
 	"app_debug_files",
+	"app_missing_debug_files",
 	"app_client_reports",
 	"spans",
+	"logs",
+	"metric_points",
 	"events",
 	"sessions",
 	"profiles",
@@ -83,6 +86,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 	}
 	if err := deleteExpiredAppRollups(ctx, pool, now); err != nil {
 		return nil, err
+	}
+	// Missing-symbols rows are transient hints, not site data: a fixed 30 days
+	// of silence ends them whatever the retention class.
+	if _, err := pool.Exec(ctx, "delete from app_missing_debug_files where last_seen < $1", now.AddDate(0, 0, -30)); err != nil {
+		return nil, fmt.Errorf("delete stale missing debug files: %w", err)
 	}
 	var expired []db.Partition
 	for _, table := range []string{"events", "sessions"} {
@@ -153,6 +161,16 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		return nil, err
 	}
 	expired = append(expired, spanPartitions...)
+	logPartitions, err := expiredLogPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, logPartitions...)
+	metricPartitions, err := expiredMetricPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, metricPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -469,6 +487,41 @@ func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now 
 	return expired, nil
 }
 
+// logDefaultRetentionDays is the raw log life when no app project sets one.
+const logDefaultRetentionDays = 7
+
+// expiredLogPartitions returns the daily logs partitions that lie wholly
+// before the longest log_retention_days of any live app project (default 7),
+// plus one day of closing slack. Days are shared by all projects, so the
+// longest value decides; queries hide rows older than a site's own retention.
+func expiredLogPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('logs') is not null`).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check logs: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+	var longest int
+	if err := pool.QueryRow(ctx, `
+		select coalesce(max(coalesce(nullif((settings->'app'->>'log_retention_days')::int, 0), $1)), $1)
+		from sites where kind = 'app' and deleted_at is null`, logDefaultRetentionDays).Scan(&longest); err != nil {
+		return nil, fmt.Errorf("read log retention: %w", err)
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "logs")
+	if err != nil {
+		return nil, fmt.Errorf("list log partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -longest-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
 // spanDefaultRetentionDays is the raw span life when no app project sets one.
 const spanDefaultRetentionDays = 14
 
@@ -495,6 +548,33 @@ func expiredSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Tim
 		return nil, fmt.Errorf("list span partitions: %w", err)
 	}
 	cutoff := now.AddDate(0, 0, -longest-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
+// metricPointRetentionDays is the raw metric point life.
+const metricPointRetentionDays = 14
+
+// expiredMetricPartitions returns the daily metric_points partitions that lie
+// wholly before the 14-day retention, plus one day of closing slack.
+func expiredMetricPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('metric_points') is not null`).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check metric_points: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "metric_points")
+	if err != nil {
+		return nil, fmt.Errorf("list metric partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -metricPointRetentionDays-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {

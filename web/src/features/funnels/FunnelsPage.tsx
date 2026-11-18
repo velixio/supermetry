@@ -16,9 +16,11 @@ type FunnelsPageProps = {
   siteId: number
   dateRange: { from: string; to: string }
   funnelId?: number
+  /** App project: installs instead of visitors. */
+  app?: boolean
 }
 
-export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
+export function FunnelsPage({ siteId, dateRange, funnelId, app = false }: FunnelsPageProps) {
   const funnels = useFunnels(siteId)
   const create = useCreateFunnel(siteId)
   const update = useUpdateFunnel(siteId)
@@ -37,7 +39,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
 
   return (
     <PageContainer>
-      <PageHeader title="Funnels" description="See where sessions or visitors continue and where they leave." />
+      <PageHeader title="Funnels" description={app ? 'See where sessions or installs continue and where they leave.' : 'See where sessions or visitors continue and where they leave.'} />
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(18rem,0.8fr)_minmax(0,1.5fr)]">
         <section className="flex flex-col gap-4 rounded-xl border bg-card p-4">
           <h2 className="font-medium">Saved funnels</h2>
@@ -71,7 +73,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="sessions">Sessions</SelectItem>
-                  <SelectItem value="visitors">Visitors</SelectItem>
+                  <SelectItem value="visitors">{app ? 'Installs' : 'Visitors'}</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -112,7 +114,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId }: FunnelsPageProps) {
           />
           {result.data ? (
             <FunnelChart
-              countLabel={result.data.count_by === 'visitors' ? 'Visitors' : 'Sessions'}
+              countLabel={result.data.count_by === 'visitors' ? (app ? 'Installs' : 'Visitors') : 'Sessions'}
               steps={result.data.steps.map((step, index) => ({
                 label: steps[index]?.value ?? `Step ${step.step}`,
                 count: step.count,

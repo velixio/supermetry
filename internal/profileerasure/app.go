@@ -250,6 +250,25 @@ with target as (
 where id = $4 returning (select count(*) from upd)`, r); err != nil {
 		return fmt.Errorf("clear app event user hash: %w", err)
 	}
+	// Log records carry the same keyed hash; delete them in ctid batches. The
+	// request counters track event rows only, so this batch just touches
+	// updated_at to report its size. A schema without logs (older migration
+	// tests) has nothing to delete.
+	var hasLogs bool
+	if err := w.pool.QueryRow(ctx, `select to_regclass('logs') is not null`).Scan(&hasLogs); err != nil {
+		return fmt.Errorf("check logs: %w", err)
+	}
+	if hasLogs {
+		if err := w.drain(ctx, r.ID, `
+with target as (
+  select tableoid, ctid from logs where site_id = $1 and user_hash = $2 limit $3
+), del as (
+  delete from logs l using target t where l.tableoid = t.tableoid and l.ctid = t.ctid returning 1
+) update app_erasure_requests set updated_at = now()
+where id = $4 returning (select count(*) from del)`, r); err != nil {
+			return fmt.Errorf("delete app logs: %w", err)
+		}
+	}
 	// Sentry SDKs set the session did to the user's id, email or username, so
 	// install_hash can carry the same keyed hash as user_hash. Clear it on the
 	// session state and on the session pings. The request counters track event

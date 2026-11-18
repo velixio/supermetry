@@ -6,7 +6,7 @@ export const APP_PERIODS: readonly [Period, string][] = [
 export const APP_PLATFORMS = ['windows', 'macos', 'linux', 'ios', 'android', 'web', 'other'] as const
 export const ISSUE_STATUSES = ['open', 'regressed', 'resolved', 'ignored', 'archived', 'all'] as const
 export const ISSUE_SORTS = ['last_seen', 'events', 'users'] as const
-export const ISSUE_KINDS = ['crash', 'error', 'hang', 'install_failed', 'install_stalled', 'incompatibility', 'operation_failed'] as const
+export const ISSUE_KINDS = ['crash', 'error', 'hang', 'oom', 'watchdog', 'install_failed', 'install_stalled', 'incompatibility', 'operation_failed'] as const
 
 export type IssueStatusTab = (typeof ISSUE_STATUSES)[number]
 export type IssueSort = (typeof ISSUE_SORTS)[number]

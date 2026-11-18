@@ -331,6 +331,7 @@ func (s *Symbolicator) symbolicate(ctx context.Context, ev appingest.Event, body
 		return ev, body
 	case resolved == 0:
 		ev.Symbolication, body.Symbolication = "missing", "missing"
+		body.MissingDebug = s.missingDebug(ctx, work)
 		s.cfg.Stats.Add("symbolication_missing", 1)
 		return ev, body
 	}
@@ -341,6 +342,9 @@ func (s *Symbolicator) symbolicate(ctx context.Context, ev appingest.Event, body
 	}
 	s.cfg.Stats.Add("symbolication_"+status, 1)
 	ev.Symbolication, body.Symbolication = status, status
+	if status == "partial" {
+		body.MissingDebug = s.missingDebug(ctx, work)
+	}
 	ev.Frames = eventFrames(exceptions)
 	ev.Culprit = culprit(exceptions, ev.Transaction)
 	body.Row.Culprit = ev.Culprit

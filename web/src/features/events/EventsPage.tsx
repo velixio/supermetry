@@ -42,13 +42,15 @@ type EventsPageProps = {
   onFirst: () => void
   org?: string
   site?: string
+  /** App project: screens instead of pages, and no referrer source column. */
+  app?: boolean
   replayId?: string
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
 }
 
 export function EventsPage({
   siteId, orgId, dateRange, filters, name, propertyKey, cursor, page,
-  onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site, replayId, onReplayChange,
+  onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site, replayId, onReplayChange, app = false,
 }: EventsPageProps) {
   const canReplay = useCapability('replay.read')
   const [draftName, setDraftName] = useState(name)
@@ -79,7 +81,7 @@ export function EventsPage({
 
   return (
     <PageContainer>
-      <PageHeader title="Events" description="Inspect recent pageviews, custom events, and their properties." />
+      <PageHeader title="Events" description={app ? 'Inspect recent screen views, custom events, and their properties.' : 'Inspect recent pageviews, custom events, and their properties.'} />
       <form className="flex items-end gap-2" onSubmit={submitName}>
         <FieldGroup className="max-w-sm flex-1">
           <Field>
@@ -131,9 +133,9 @@ export function EventsPage({
         <div className="overflow-x-auto rounded-xl border bg-card">
           <Table aria-label="Events">
             <TableHeader><TableRow>
-              <TableHead>Time</TableHead><TableHead>Kind</TableHead><TableHead>Name</TableHead><TableHead>Page</TableHead>
+              <TableHead>Time</TableHead><TableHead>Kind</TableHead><TableHead>Name</TableHead><TableHead>{app ? 'Screen' : 'Page'}</TableHead>
               {canReplay ? <TableHead>Replay</TableHead> : null}
-              <TableHead>Properties</TableHead><TableHead>Location</TableHead><TableHead>Browser</TableHead><TableHead>OS</TableHead><TableHead>Device</TableHead><TableHead>Source</TableHead>
+              <TableHead>Properties</TableHead><TableHead>Location</TableHead><TableHead>Browser</TableHead><TableHead>OS</TableHead><TableHead>Device</TableHead>{app ? null : <TableHead>Source</TableHead>}
             </TableRow></TableHeader>
             <TableBody>{(events.data.data as EventRow[]).map((event, index) => (
               <TableRow key={`${event.ts}:${event.name}:${event.page}:${index}`}>
@@ -145,7 +147,7 @@ export function EventsPage({
                 <TableCell><BrowserLabel value={event.browser} /></TableCell>
                 <TableCell><OsLabel value={event.os} /></TableCell>
                 <TableCell><DeviceLabel value={event.device} /></TableCell>
-                <TableCell>{event.source || '—'}</TableCell>
+                {app ? null : <TableCell>{event.source || '—'}</TableCell>}
               </TableRow>
             ))}</TableBody>
           </Table>

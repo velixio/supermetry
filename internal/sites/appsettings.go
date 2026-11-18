@@ -11,6 +11,8 @@ import (
 const (
 	defaultMaxReportAgeDays  = 7
 	defaultSpanRetentionDays = 14
+	defaultLogRetentionDays  = 7
+	maxLogRetentionDays      = 30
 	maxReportAgeDaysLimit    = 30
 	maxTagKeys               = 50
 	maxEnvironments          = 20
@@ -36,6 +38,8 @@ type AppSettings struct {
 	PerformanceEnabled *bool `json:"performance_enabled"`
 	// SpanRetentionDays is the raw span life, 1..14; 0 means the default 14.
 	SpanRetentionDays int `json:"span_retention_days"`
+	// LogRetentionDays is the raw log life, 1..30; 0 means the default 7.
+	LogRetentionDays int `json:"log_retention_days"`
 }
 
 // ParseAppSettings decodes stored settings; empty or missing input gives the defaults.
@@ -74,6 +78,12 @@ func (a AppSettings) Normalize() (AppSettings, error) {
 	}
 	if a.SpanRetentionDays < 1 || a.SpanRetentionDays > defaultSpanRetentionDays {
 		return AppSettings{}, fmt.Errorf("span_retention_days must be between 1 and %d", defaultSpanRetentionDays)
+	}
+	if a.LogRetentionDays == 0 {
+		a.LogRetentionDays = defaultLogRetentionDays
+	}
+	if a.LogRetentionDays < 1 || a.LogRetentionDays > maxLogRetentionDays {
+		return AppSettings{}, fmt.Errorf("log_retention_days must be between 1 and %d", maxLogRetentionDays)
 	}
 	if a.MaxReportAgeDays == 0 {
 		a.MaxReportAgeDays = defaultMaxReportAgeDays
