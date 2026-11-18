@@ -5,11 +5,13 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"supermetry/internal/api"
@@ -78,9 +80,10 @@ func (e *Exporter) Write(ctx context.Context, output io.Writer, siteID int32, fr
 	if e.trackingMode != privacy.Identified {
 		return api.ErrAnonymousHistory
 	}
-	archive := zip.NewWriter(output)
+	zw := zip.NewWriter(output)
+	archive := &archive{zw: zw}
 	defer func() {
-		if err := archive.Close(); resultErr == nil && err != nil {
+		if err := zw.Close(); resultErr == nil && err != nil {
 			resultErr = err
 		}
 	}()
@@ -105,10 +108,23 @@ func (e *Exporter) Write(ctx context.Context, output io.Writer, siteID int32, fr
 	if err := e.writeCustom(ctx, archive, siteID, from, to); err != nil {
 		return err
 	}
-	return e.writeApp(ctx, archive, siteID, from, to)
+	if err := e.writeApp(ctx, archive, siteID, from, to); err != nil {
+		return err
+	}
+	return e.finish(ctx, archive, siteID, from, to)
 }
 
-func (e *Exporter) writeDaily(ctx context.Context, archive *zip.Writer, siteID int32, from, to time.Time) error {
+// finish writes manifest.json, the last entry of every export.
+func (e *Exporter) finish(ctx context.Context, archive *archive, siteID int32, from, to time.Time) error {
+	site := ManifestSite{ID: siteID}
+	if err := e.pool.QueryRow(ctx, `select public_id,name,kind,timezone from sites where id=$1`, siteID).
+		Scan(&site.PublicID, &site.Name, &site.Kind, &site.Timezone); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("load site for manifest: %w", err)
+	}
+	return archive.writeManifest(archive.manifest(e.clock(), site, from, to))
+}
+
+func (e *Exporter) writeDaily(ctx context.Context, archive *archive, siteID int32, from, to time.Time) error {
 	const query = `
 with first_native as (
   select min(day) as first_day from (
@@ -133,7 +149,7 @@ from combined group by day order by day`
 		siteID, date(from), date(to))
 }
 
-func (e *Exporter) writeDimension(ctx context.Context, archive *zip.Writer, item dimension, siteID int32, from, to time.Time) error {
+func (e *Exporter) writeDimension(ctx context.Context, archive *archive, item dimension, siteID int32, from, to time.Time) error {
 	value := `case
 when r.dim=3 then case when r.value_id=0 then '' else chr(r.value_id/256)||chr(r.value_id%256) end
 when r.dim=6 then case r.value_id when 1 then 'desktop' when 2 then 'mobile' when 3 then 'tablet' else '' end
@@ -167,7 +183,7 @@ from combined group by day,value order by day,value`, value)
 		query, siteID, date(from), date(to), item.code, kindID)
 }
 
-func (e *Exporter) writeAttribution(ctx context.Context, archive *zip.Writer, item attribution, siteID int32, from, to time.Time) error {
+func (e *Exporter) writeAttribution(ctx context.Context, archive *archive, item attribution, siteID int32, from, to time.Time) error {
 	query := fmt.Sprintf(`
 select s.day::text,coalesce(d.value,''),
  count(distinct s.visitor_id),count(*),sum(s.pageviews),
@@ -181,7 +197,7 @@ group by s.day,d.value order by s.day,d.value`, item.column, item.column)
 		query, siteID, date(from), date(to), int16(item.kind))
 }
 
-func (e *Exporter) writeCustom(ctx context.Context, archive *zip.Writer, siteID int32, from, to time.Time) error {
+func (e *Exporter) writeCustom(ctx context.Context, archive *archive, siteID int32, from, to time.Time) error {
 	const query = `
 select c.day::text,coalesce(n.value,''),coalesce(p.value,''),coalesce(c.props::text,'{}'),
  count(*),sum(c.revenue_micros)::bigint,coalesce(c.revenue_currency::text,'')
@@ -196,11 +212,12 @@ order by c.day,n.value,p.value,c.props::text`
 		siteID, date(from), date(to), int16(dict.EventName), int16(dict.Path))
 }
 
-func (e *Exporter) writeRows(ctx context.Context, archive *zip.Writer, name string, header []string, query string, args ...any) error {
+func (e *Exporter) writeRows(ctx context.Context, archive *archive, name string, header []string, query string, args ...any) error {
 	entry, err := archive.Create(name)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", name, err)
 	}
+	entry.header = header
 	w := csv.NewWriter(entry)
 	if err := w.Write(header); err != nil {
 		return fmt.Errorf("write %s header: %w", name, err)
@@ -222,6 +239,7 @@ func (e *Exporter) writeRows(ctx context.Context, archive *zip.Writer, name stri
 		if err := w.Write(record); err != nil {
 			return fmt.Errorf("write %s: %w", name, err)
 		}
+		entry.rows++
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterate %s: %w", name, err)

@@ -1,7 +1,6 @@
 package siteexport
 
 import (
-	"archive/zip"
 	"context"
 	"encoding/csv"
 	"errors"
@@ -24,7 +23,7 @@ func utc(column string) string {
 // selects user_hash, install or session hashes, event bodies or any IP data:
 // each query names its columns explicitly, so a new sensitive column cannot
 // leak by default.
-func (e *Exporter) writeApp(ctx context.Context, archive *zip.Writer, siteID int32, from, to time.Time) error {
+func (e *Exporter) writeApp(ctx context.Context, archive *archive, siteID int32, from, to time.Time) error {
 	var kind, tz string
 	var orgID int64
 	err := e.pool.QueryRow(ctx, `select kind,org_id,timezone from sites where id=$1`, siteID).Scan(&kind, &orgID, &tz)
@@ -365,11 +364,12 @@ func attachmentPath(eventID string, idx int16, name string) string {
 	return fmt.Sprintf("app_attachments/%s/%d-%s", clean(eventID), idx, clean(name))
 }
 
-func (e *Exporter) writeAttachmentList(ctx context.Context, archive *zip.Writer, query string, args ...any) error {
+func (e *Exporter) writeAttachmentList(ctx context.Context, archive *archive, query string, args ...any) error {
 	entry, err := archive.Create("app_event_attachments.csv")
 	if err != nil {
 		return fmt.Errorf("create app_event_attachments.csv: %w", err)
 	}
+	entry.header = []string{"event_id", "index", "name", "content_type", "size_bytes", "created", "file"}
 	w := csv.NewWriter(entry)
 	if err := w.Write([]string{"event_id", "index", "name", "content_type", "size_bytes", "created", "file"}); err != nil {
 		return err
@@ -390,6 +390,7 @@ func (e *Exporter) writeAttachmentList(ctx context.Context, archive *zip.Writer,
 			strconv.Itoa(int(size)), created, attachmentPath(eventID, idx, name)}); err != nil {
 			return err
 		}
+		entry.rows++
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterate attachments: %w", err)
@@ -398,7 +399,7 @@ func (e *Exporter) writeAttachmentList(ctx context.Context, archive *zip.Writer,
 	return w.Error()
 }
 
-func (e *Exporter) writeAttachmentFiles(ctx context.Context, archive *zip.Writer, query string, args ...any) error {
+func (e *Exporter) writeAttachmentFiles(ctx context.Context, archive *archive, query string, args ...any) error {
 	rows, err := e.pool.Query(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("query attachment bytes: %w", err)

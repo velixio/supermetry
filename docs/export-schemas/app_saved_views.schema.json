@@ -1,0 +1,45 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_saved_views.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Shared saved issue searches.",
+  "properties": {
+    "created": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "owner_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "query": {
+      "type": "string"
+    },
+    "view_id": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "view_id",
+    "name",
+    "query",
+    "owner_id",
+    "created"
+  ],
+  "title": "app_saved_views.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "view_id",
+    "name",
+    "query",
+    "owner_id",
+    "created"
+  ],
+  "x-supermetry-schema-version": 1
+}

@@ -1,0 +1,60 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_artifacts.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Source map and debug artifact bundles (metadata only).",
+  "properties": {
+    "bundle_id": {
+      "type": "integer"
+    },
+    "created": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "debug_ids": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dist": {
+      "type": "string"
+    },
+    "file_count": {
+      "type": "integer"
+    },
+    "release": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "integer"
+    },
+    "state": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "bundle_id",
+    "release",
+    "dist",
+    "state",
+    "debug_ids",
+    "file_count",
+    "size_bytes",
+    "created"
+  ],
+  "title": "app_artifacts.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "bundle_id",
+    "release",
+    "dist",
+    "state",
+    "debug_ids",
+    "file_count",
+    "size_bytes",
+    "created"
+  ],
+  "x-supermetry-schema-version": 1
+}

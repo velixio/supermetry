@@ -1,0 +1,35 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_grouping_rules.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Fingerprint grouping rules in evaluation order.",
+  "properties": {
+    "fingerprint": {
+      "type": "string"
+    },
+    "matcher": {
+      "type": "string"
+    },
+    "position": {
+      "type": "integer"
+    },
+    "value": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "position",
+    "matcher",
+    "value",
+    "fingerprint"
+  ],
+  "title": "app_grouping_rules.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "position",
+    "matcher",
+    "value",
+    "fingerprint"
+  ],
+  "x-supermetry-schema-version": 1
+}

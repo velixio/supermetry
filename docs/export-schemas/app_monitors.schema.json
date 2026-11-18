@@ -1,0 +1,90 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_monitors.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Cron monitor configuration.",
+  "properties": {
+    "checkin_margin_minutes": {
+      "type": "integer"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "failure_threshold": {
+      "type": "integer"
+    },
+    "last_checkin": {
+      "description": "An empty CSV cell is null.",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "max_runtime_minutes": {
+      "type": "integer"
+    },
+    "monitor_id": {
+      "type": "integer"
+    },
+    "next_expected": {
+      "description": "An empty CSV cell is null.",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recovery_threshold": {
+      "type": "integer"
+    },
+    "schedule": {
+      "type": "string"
+    },
+    "schedule_type": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "monitor_id",
+    "slug",
+    "environment",
+    "schedule_type",
+    "schedule",
+    "timezone",
+    "checkin_margin_minutes",
+    "max_runtime_minutes",
+    "failure_threshold",
+    "recovery_threshold",
+    "status",
+    "last_checkin",
+    "next_expected"
+  ],
+  "title": "app_monitors.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "monitor_id",
+    "slug",
+    "environment",
+    "schedule_type",
+    "schedule",
+    "timezone",
+    "checkin_margin_minutes",
+    "max_runtime_minutes",
+    "failure_threshold",
+    "recovery_threshold",
+    "status",
+    "last_checkin",
+    "next_expected"
+  ],
+  "x-supermetry-schema-version": 1
+}

@@ -127,6 +127,9 @@ func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site
 	var names []string
 	var raw strings.Builder
 	for _, f := range zr.File {
+		if f.Name == siteexport.ManifestName {
+			continue
+		}
 		names = append(names, f.Name)
 		files[f.Name] = readCSV(t, f)
 		for _, row := range files[f.Name] {

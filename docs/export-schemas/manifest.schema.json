@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supermetry.com/schemas/export/v1/manifest.schema.json",
+  "title": "manifest.json",
+  "description": "Lists every file of a Supermetry site export with a checksum.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "generator", "range", "site", "files"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "generator": {"type": "string"},
+    "range": {"type": "object", "required": ["from", "to"], "additionalProperties": false,
+      "properties": {"from": {"type": "string", "format": "date"}, "to": {"type": "string", "format": "date"}}},
+    "site": {"type": "object", "required": ["id", "public_id", "name", "kind", "timezone"], "additionalProperties": false,
+      "properties": {"id": {"type": "integer"}, "public_id": {"type": "string"}, "name": {"type": "string"},
+        "kind": {"type": "string", "enum": ["web", "pixel", "app"]}, "timezone": {"type": "string"}}},
+    "files": {"type": "array", "items": {"type": "object",
+      "required": ["path", "format", "bytes", "sha256"], "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string"},
+        "format": {"type": "string", "enum": ["csv", "binary"]},
+        "rows": {"type": "integer", "minimum": 0, "description": "Data rows, excluding the CSV header (csv only)."},
+        "bytes": {"type": "integer", "minimum": 0, "description": "Uncompressed size."},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Of the uncompressed content."},
+        "columns": {"type": "array", "items": {"type": "string"}},
+        "schema": {"type": "string", "description": "File name of the row schema under the published schema directory."}
+      }}}
+  }
+}

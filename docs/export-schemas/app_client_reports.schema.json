@@ -1,0 +1,36 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_client_reports.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Daily counts of events SDKs report they discarded.",
+  "properties": {
+    "category": {
+      "type": "string"
+    },
+    "day": {
+      "format": "date",
+      "type": "string"
+    },
+    "quantity": {
+      "type": "integer"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "day",
+    "reason",
+    "category",
+    "quantity"
+  ],
+  "title": "app_client_reports.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "day",
+    "reason",
+    "category",
+    "quantity"
+  ],
+  "x-supermetry-schema-version": 1
+}
