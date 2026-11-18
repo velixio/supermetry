@@ -358,6 +358,42 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 	}
 }
 
+// Defines values for AlertSilenceKind.
+const (
+	AlertSilenceKindMaintenance AlertSilenceKind = "maintenance"
+	AlertSilenceKindSilence     AlertSilenceKind = "silence"
+)
+
+// Valid indicates whether the value is a known member of the AlertSilenceKind enum.
+func (e AlertSilenceKind) Valid() bool {
+	switch e {
+	case AlertSilenceKindMaintenance:
+		return true
+	case AlertSilenceKindSilence:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertSilenceInputKind.
+const (
+	AlertSilenceInputKindMaintenance AlertSilenceInputKind = "maintenance"
+	AlertSilenceInputKindSilence     AlertSilenceInputKind = "silence"
+)
+
+// Valid indicates whether the value is a known member of the AlertSilenceInputKind enum.
+func (e AlertSilenceInputKind) Valid() bool {
+	switch e {
+	case AlertSilenceInputKindMaintenance:
+		return true
+	case AlertSilenceInputKindSilence:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppAppStartType.
 const (
 	Cold AppAppStartType = "cold"
@@ -837,9 +873,10 @@ func (e DashboardLayoutSchemaVersion) Valid() bool {
 
 // Defines values for DeliveryStatus.
 const (
-	DeliveryStatusFailed    DeliveryStatus = "failed"
-	DeliveryStatusPending   DeliveryStatus = "pending"
-	DeliveryStatusSucceeded DeliveryStatus = "succeeded"
+	DeliveryStatusFailed     DeliveryStatus = "failed"
+	DeliveryStatusPending    DeliveryStatus = "pending"
+	DeliveryStatusSucceeded  DeliveryStatus = "succeeded"
+	DeliveryStatusSuppressed DeliveryStatus = "suppressed"
 )
 
 // Valid indicates whether the value is a known member of the DeliveryStatus enum.
@@ -850,6 +887,8 @@ func (e DeliveryStatus) Valid() bool {
 	case DeliveryStatusPending:
 		return true
 	case DeliveryStatusSucceeded:
+		return true
+	case DeliveryStatusSuppressed:
 		return true
 	default:
 		return false
@@ -1374,25 +1413,28 @@ func (e Metric) Valid() bool {
 
 // Defines values for NotificationChannelKind.
 const (
-	Discord  NotificationChannelKind = "discord"
-	Email    NotificationChannelKind = "email"
-	Slack    NotificationChannelKind = "slack"
-	Telegram NotificationChannelKind = "telegram"
-	Webhook  NotificationChannelKind = "webhook"
+	NotificationChannelKindDiscord  NotificationChannelKind = "discord"
+	NotificationChannelKindEmail    NotificationChannelKind = "email"
+	NotificationChannelKindNone     NotificationChannelKind = "none"
+	NotificationChannelKindSlack    NotificationChannelKind = "slack"
+	NotificationChannelKindTelegram NotificationChannelKind = "telegram"
+	NotificationChannelKindWebhook  NotificationChannelKind = "webhook"
 )
 
 // Valid indicates whether the value is a known member of the NotificationChannelKind enum.
 func (e NotificationChannelKind) Valid() bool {
 	switch e {
-	case Discord:
+	case NotificationChannelKindDiscord:
 		return true
-	case Email:
+	case NotificationChannelKindEmail:
 		return true
-	case Slack:
+	case NotificationChannelKindNone:
 		return true
-	case Telegram:
+	case NotificationChannelKindSlack:
 		return true
-	case Webhook:
+	case NotificationChannelKindTelegram:
+		return true
+	case NotificationChannelKindWebhook:
 		return true
 	default:
 		return false
@@ -2803,6 +2845,55 @@ type AdminUsersResponse struct {
 	Data []AdminUser `json:"data"`
 }
 
+// AlertSilence defines model for AlertSilence.
+type AlertSilence struct {
+	// AlertId Absent for a silence covering every rule of the site.
+	AlertId         *int64           `json:"alert_id,omitempty"`
+	CreatedAt       time.Time        `json:"created_at"`
+	CreatedBy       *int64           `json:"created_by,omitempty"`
+	DurationMinutes *int             `json:"duration_minutes,omitempty"`
+	EndsAt          *time.Time       `json:"ends_at,omitempty"`
+	Id              int64            `json:"id"`
+	Kind            AlertSilenceKind `json:"kind"`
+	Reason          string           `json:"reason"`
+	SiteId          int32            `json:"site_id"`
+
+	// StartTime Maintenance only; HH:MM wall clock in tz.
+	StartTime *string   `json:"start_time,omitempty"`
+	StartsAt  time.Time `json:"starts_at"`
+
+	// Tz IANA time zone of the maintenance window.
+	Tz *string `json:"tz,omitempty"`
+
+	// Weekdays Maintenance only; 0 is Sunday.
+	Weekdays *[]int `json:"weekdays,omitempty"`
+}
+
+// AlertSilenceKind defines model for AlertSilence.Kind.
+type AlertSilenceKind string
+
+// AlertSilenceInput defines model for AlertSilenceInput.
+type AlertSilenceInput struct {
+	AlertId         *int64 `json:"alert_id,omitempty"`
+	DurationMinutes *int   `json:"duration_minutes,omitempty"`
+
+	// EndsAt Required for a silence; optional end of a maintenance recurrence.
+	EndsAt    *time.Time            `json:"ends_at,omitempty"`
+	Kind      AlertSilenceInputKind `json:"kind"`
+	Reason    *string               `json:"reason,omitempty"`
+	StartTime *string               `json:"start_time,omitempty"`
+
+	// StartsAt Defaults to now.
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+
+	// Tz Defaults to the site time zone.
+	Tz       *string `json:"tz,omitempty"`
+	Weekdays *[]int  `json:"weekdays,omitempty"`
+}
+
+// AlertSilenceInputKind defines model for AlertSilenceInput.Kind.
+type AlertSilenceInputKind string
+
 // Annotation defines model for Annotation.
 type Annotation struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -4074,7 +4165,7 @@ type DeletionResult struct {
 	Scheduled bool       `json:"scheduled"`
 }
 
-// DeliveryStatus defines model for DeliveryStatus.
+// DeliveryStatus suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
 type DeliveryStatus string
 
 // DemoError defines model for DemoError.
@@ -4802,8 +4893,10 @@ type NotificationDelivery struct {
 	Id            int64                   `json:"id"`
 	LastAttemptAt *time.Time              `json:"last_attempt_at,omitempty"`
 	SiteId        int32                   `json:"site_id"`
-	Status        DeliveryStatus          `json:"status"`
-	UpdatedAt     time.Time               `json:"updated_at"`
+
+	// Status suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
+	Status    DeliveryStatus `json:"status"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 // NotificationSettings defines model for NotificationSettings.
@@ -6858,6 +6951,9 @@ type CreateSharedLinkJSONRequestBody = CreateShareRequest
 // ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
 type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
 
+// CreateAlertSilenceJSONRequestBody defines body for CreateAlertSilence for application/json ContentType.
+type CreateAlertSilenceJSONRequestBody = AlertSilenceInput
+
 // UpdateAppLinkJSONRequestBody defines body for UpdateAppLink for application/json ContentType.
 type UpdateAppLinkJSONRequestBody = AppLink
 
@@ -7744,6 +7840,15 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// ListAlertSilences List silences and maintenance windows of a site
+	// (GET /api/private/sites/{site}/alert-silences)
+	ListAlertSilences(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateAlertSilence Create a silence or maintenance window (owner, admin, editor; at most 50 active or future per site)
+	// (POST /api/private/sites/{site}/alert-silences)
+	CreateAlertSilence(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAlertSilence Delete a silence or maintenance window
+	// (DELETE /api/private/sites/{site}/alert-silences/{silence})
+	DeleteAlertSilence(w http.ResponseWriter, r *http.Request, site int32, silence int64)
 	// GetAppLink Read the app project a web site sends diagnostic reports to
 	// (GET /api/private/sites/{site}/app-link)
 	GetAppLink(w http.ResponseWriter, r *http.Request, site int32)
@@ -11087,6 +11192,93 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeSharedLinkExpiry(w, r, siteId, shareId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAlertSilences operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertSilences(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertSilences(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAlertSilence operation middleware
+func (siw *ServerInterfaceWrapper) CreateAlertSilence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAlertSilence(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAlertSilence operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAlertSilence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "silence" -------------
+	var silence int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "silence", r.PathValue("silence"), &silence, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "silence", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAlertSilence(w, r, site, silence)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18929,6 +19121,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/duplicate", wrapper.DuplicateDashboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/default", wrapper.SetDefaultDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/power-users", wrapper.ListPowerUsers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.ListAlertSilences)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.CreateAlertSilence)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences/{silence}", wrapper.DeleteAlertSilence)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)
