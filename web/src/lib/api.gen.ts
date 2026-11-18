@@ -5954,6 +5954,38 @@ export interface components {
             /** @description Tracking state (waiting, receiving, or quiet). */
             install_status: string;
             tracking_snippet: string;
+            /** @description Up to three typed facts for the project status line, in priority order. The client words them. */
+            highlights: {
+                /** @enum {string} */
+                kind: "quiet" | "new_issues" | "crash_free_drop" | "visitors_change" | "top_source" | "steady";
+                /**
+                 * Format: double
+                 * @description visitors_change: signed percent change against the previous period.
+                 */
+                percent?: number;
+                /** @description top_source: the source name. */
+                name?: string;
+                /**
+                 * Format: double
+                 * @description top_source: share of visitors, 0 to 1.
+                 */
+                share?: number;
+                /**
+                 * Format: int64
+                 * @description new_issues: issues first seen in the period.
+                 */
+                count?: number;
+                /**
+                 * Format: int64
+                 * @description quiet: whole hours since the last event.
+                 */
+                hours?: number;
+                /**
+                 * Format: double
+                 * @description crash_free_drop: percentage points lost.
+                 */
+                points?: number;
+            }[];
         };
         /**
          * @description Days from the current time, or null for no expiry.
