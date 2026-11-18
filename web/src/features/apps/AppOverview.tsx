@@ -12,6 +12,7 @@ import { useAppIssues, useAppOverview } from './api'
 import { formatRate } from './format'
 import { IssueRowsTable } from './IssuesTable'
 import { ReleaseHealth } from './ReleaseHealth'
+import { useActiveUsers } from './product/api'
 import { hasAppFilters, type AppSearch } from './search'
 
 export const SESSIONS_HINT = 'Send a session event at app start to measure this'
@@ -31,6 +32,7 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
   org: string; site: string; siteId: number; timezone: string; search: AppSearch; onSearch: (next: AppSearch) => void
 }) {
   const overview = useAppOverview(siteId, search, timezone)
+  const active = useActiveUsers(siteId, search, timezone)
   const top = useAppIssues(siteId, search, timezone, { status: 'open', limit: 10 })
   if (overview.isPending) return <PageContainer><PageHeader title="Overview" /><p role="status" className="text-sm text-muted-foreground">Loading overview…</p></PageContainer>
   if (overview.isError) return <PageContainer><PageHeader title="Overview" /><p role="alert" className="text-sm text-destructive">{overview.error.message}</p></PageContainer>
@@ -40,11 +42,13 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
   return (
     <PageContainer>
       <PageHeader title="Overview" description="Crash-free rates and issues for this app." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} />} />
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6" aria-label="Key figures">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8" aria-label="Key figures">
         <Tile label="Crash-free users">{formatRate(data.crash_free_users)}</Tile>
         <Tile label="Crash-free sessions">
           {sessions === null ? <span title={SESSIONS_HINT}>n/a</span> : formatRate(sessions)}
         </Tile>
+        {active.data?.series ? <Tile label="DAU (latest day)">{fmt.number(active.data.series.at(-1)?.dau ?? 0)}</Tile> : null}
+        {active.data?.series ? <Tile label="MAU">{fmt.number(active.data.series.at(-1)?.mau ?? 0)}</Tile> : null}
         <Tile label="Events">{fmt.number(data.events)}</Tile>
         <Tile label="Crashes">{fmt.number(data.crashes)}</Tile>
         <Tile label="New issues">{fmt.number(data.new_issues)}</Tile>
