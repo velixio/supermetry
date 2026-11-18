@@ -40,7 +40,7 @@ export function PageHeader({
         <h1 id={titleId} className="sr-only">{title}</h1>
         {description ? <p className="sr-only">{description}</p> : null}
         {actions ? (
-          <div className={cn('-mx-3 flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto px-3 py-0.5 [scrollbar-width:none] empty:hidden *:shrink-0 [&_.flex-wrap]:flex-nowrap', className)} data-slot="page-header-actions">
+          <div className={cn('relative -mx-3 flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto px-3 py-0.5 [scrollbar-width:none] empty:hidden *:shrink-0 [&_.flex-wrap]:flex-nowrap', className)} data-slot="page-header-actions">
             {actions}
           </div>
         ) : null}

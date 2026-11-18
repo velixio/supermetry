@@ -105,10 +105,11 @@ export function AppHeader({
         <Breadcrumbs membership={membership} />
       </div>
       {/* The current page's filters and actions (HeaderToolbar portals them here on wide screens), so the
-          page itself starts with content. It scrolls sideways rather than wrapping when a page has many controls. */}
+          page itself starts with content. It scrolls sideways rather than wrapping when a page has many controls;
+          `relative` keeps its sr-only text inside the scroll box, or that text widens the page. */}
       <div
         ref={toolbarRef}
-        className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [&>:first-child]:ml-auto [scrollbar-width:none] empty:hidden [&_.flex-wrap]:flex-nowrap [&>*]:shrink-0"
+        className="relative flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [&>:first-child]:ml-auto [scrollbar-width:none] empty:hidden [&_.flex-wrap]:flex-nowrap [&>*]:shrink-0"
         data-slot="header-toolbar"
         role="group"
         aria-label={ui.appShell.pageControls}

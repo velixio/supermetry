@@ -39,10 +39,12 @@ test('polished dashboard controls, hierarchy, redirect, and responsive layouts',
   await expect(page.getByRole('button', { name: 'Filters' })).toBeVisible()
   await page.getByRole('button', { name: 'Filters' }).click()
   const sheet = page.getByRole('dialog', { name: 'Filters' })
-  await expect(sheet.getByRole('button', { name: /date range/i })).toBeVisible()
+  // The dashboard keeps its date range beside the Filters button, so the sheet holds only the filters.
+  await expect(sheet.getByRole('button', { name: /date range/i })).toHaveCount(0)
   // On the dashboard, Compare sits on the chart and View options at the end of the filter row.
   await expect(sheet.getByRole('combobox', { name: 'Compare' })).toHaveCount(0)
   await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: /date range/i })).toBeVisible()
   await expect(page.getByTestId('chart-controls').getByRole('combobox', { name: 'Compare' })).toBeVisible()
   await expect(page.getByTestId('filters-trailing').getByRole('button', { name: 'View options' })).toBeVisible()
   await noHorizontalOverflow(page)
