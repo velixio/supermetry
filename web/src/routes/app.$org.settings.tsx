@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, useRouterState } from '@tanstack/react-router'
 
-import { OrganizationSettingsTabs } from '@/features/settings/OrganizationSettings'
+import { SettingsNav } from '@/features/settings/SettingsNav'
 import { useReplayAvailability } from '@/components/replay/api'
 
 import { useMe } from './app.$org'
@@ -14,9 +14,19 @@ function OrganizationSettingsLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const current = pathname.split('/').filter(Boolean).at(-1) ?? 'members'
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <OrganizationSettingsTabs canManage={membership?.role === 'owner' || membership?.role === 'admin'} org={org} current={current} showReplay={membership?.role === 'owner' && replay.enabled} />
-      <Outlet />
+    <div className="mx-auto flex w-full min-w-0 max-w-[1200px] flex-col gap-5 lg:flex-row lg:gap-8">
+      <aside className="shrink-0 lg:w-52">
+        <SettingsNav
+          canManage={membership?.role === 'owner' || membership?.role === 'admin'}
+          org={org}
+          current={current}
+          showReplay={membership?.role === 'owner' && replay.enabled}
+          importsSite={membership?.sites[0]?.slug}
+        />
+      </aside>
+      <div className="min-w-0 flex-1">
+        <Outlet />
+      </div>
     </div>
   )
 }
