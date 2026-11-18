@@ -454,11 +454,12 @@ export function SidebarAccountFooter({ me }: { me: Me }) {
             me={me}
             side={isMobile ? 'top' : 'right'}
             trigger={
-              <SidebarMenuButton aria-label={ui.menus.account} className={`${rowClass} group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!`} tooltip={name}>
+              <SidebarMenuButton className={`${rowClass} group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!`} tooltip={name}>
                 <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
                   {name.charAt(0).toUpperCase()}
                 </span>
-                <span>{name}</span>
+                {/* The visible text is the accessible name (WCAG 2.5.3); the user's name is in the tooltip. */}
+                <span>{ui.menus.account}</span>
               </SidebarMenuButton>
             }
           />

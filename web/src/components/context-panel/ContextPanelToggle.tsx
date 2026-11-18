@@ -23,7 +23,8 @@ export function ContextPanelToggle() {
           className="text-muted-foreground max-md:size-11"
           aria-label={t.label}
           aria-pressed={open}
-          aria-controls={panelId}
+          // Only reference the panel while it is in the DOM; a dangling id is invalid ARIA.
+          aria-controls={open ? panelId : undefined}
           aria-keyshortcuts="Control+. Meta+."
           onClick={toggle}
         >
