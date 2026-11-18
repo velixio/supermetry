@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+
+	"supermetry/internal/alerts"
 )
 
 // SchemaVersion of the bundle format. Imports refuse a newer version.
@@ -169,4 +171,20 @@ func scrub(v any) any {
 	default:
 		return v
 	}
+}
+
+// SanitizeAlertConfig keeps only the fields of alerts.AlertConfig (issue kinds
+// and the crash-free metric). Anything else, such as a webhook URL, routing
+// key or token that a hand-edited bundle might carry, is dropped by decoding
+// into the typed struct and re-encoding it.
+func SanitizeAlertConfig(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 {
+		return nil
+	}
+	var cfg alerts.AlertConfig
+	if json.Unmarshal(raw, &cfg) != nil {
+		return nil
+	}
+	out, _ := json.Marshal(cfg)
+	return out
 }

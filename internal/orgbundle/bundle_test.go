@@ -257,3 +257,46 @@ func TestImportDoesNotSmuggleSettings(t *testing.T) {
 		t.Fatalf("settings = %s", settings)
 	}
 }
+
+// Alert destinations (webhook URLs, routing keys, tokens) live in channels,
+// which are exported by kind and name only; alert config is reduced to its
+// typed fields on export and again on import.
+func TestAlertConfigAndDestinationsAreScrubbed(t *testing.T) {
+	r := newRig(t)
+	if _, err := r.pool.Exec(r.ctx, `
+		insert into notification_channels(id,org_id,kind,name,config) overriding system value values
+		 (101,1,'slack','S','{"url":"https://hooks.slack.test/T0/B0/SLACKTOKEN"}'),
+		 (102,1,'discord','D','{"url":"https://discord.test/api/webhooks/1/DISCORDTOKEN"}'),
+		 (103,1,'telegram','T','{"bot_token":"TGTOKEN","chat_id":"1"}'),
+		 (104,1,'pagerduty','P','{"routing_key":"PDROUTINGKEY"}');
+		update alerts set config='{"kinds":["crash"],"webhook_url":"https://leak.test/TAMPER","routing_key":"CFGKEY"}' where name='Spike'`); err != nil {
+		t.Fatal(err)
+	}
+	b, err := r.svc.Export(r.ctx, r.owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(b)
+	for _, secret := range []string{"SLACKTOKEN", "DISCORDTOKEN", "TGTOKEN", "PDROUTINGKEY", "TAMPER", "CFGKEY", "leak.test", "hooks.example.test"} {
+		if strings.Contains(string(raw), secret) {
+			t.Errorf("bundle contains %q", secret)
+		}
+	}
+	// Tampered bundle: a secret in alert config is dropped on import.
+	for i := range b.Sites[0].Alerts {
+		b.Sites[0].Alerts[i].Config = json.RawMessage(`{"metric":"users","webhook_url":"https://leak.test/TAMPER2"}`)
+	}
+	if _, err := r.svc.Import(r.ctx, r.other, b, ImportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	_ = r.pool.QueryRow(r.ctx, `select count(*) from alerts a join sites s on s.id=a.site_id where s.org_id=2 and a.config::text like '%TAMPER2%'`).Scan(&n)
+	if n != 0 {
+		t.Fatal("tampered alert config was stored")
+	}
+	var disabled int
+	_ = r.pool.QueryRow(r.ctx, `select count(*) from alerts a join sites s on s.id=a.site_id where s.org_id=2 and not a.enabled`).Scan(&disabled)
+	if disabled == 0 {
+		t.Fatal("alerts whose destination is missing must arrive disabled")
+	}
+}

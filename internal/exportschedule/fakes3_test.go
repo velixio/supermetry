@@ -100,6 +100,14 @@ func (f *fakeS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unsigned", http.StatusForbidden)
 		return
 	}
+	f.mu.Lock()
+	fail := f.FailPut
+	f.mu.Unlock()
+	if fail && r.Method != http.MethodDelete {
+		io.Copy(io.Discard, r.Body)
+		http.Error(w, `<Error><Code>AccessDenied</Code><Message>denied</Message></Error>`, http.StatusForbidden)
+		return
+	}
 	key := strings.TrimPrefix(r.URL.Path, "/") // path style: bucket/key
 	q := r.URL.Query()
 	switch {

@@ -225,7 +225,7 @@ func loadAlerts(ctx context.Context, tx pgx.Tx, siteID int32, siteSlug string, g
 			}
 		}
 		if len(config) > 0 {
-			a.Config = config
+			a.Config = SanitizeAlertConfig(config)
 		}
 		out = append(out, a)
 	}

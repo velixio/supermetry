@@ -310,6 +310,7 @@ func (s *Service) prepare(t *plan, site Site, res *SiteResult) items {
 			t.report.warn("alert %q on %q was skipped: kind %s is not importable on a %s project", a.Name, site.Slug, a.Kind, site.Kind)
 			continue
 		}
+		a.Config = SanitizeAlertConfig(a.Config)
 		ra := resolvedAlert{Alert: a, enabled: a.Enabled}
 		for _, c := range a.Channels {
 			if id, ok := t.channels[chanKey(c.Kind, c.Name)]; ok {
