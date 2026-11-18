@@ -5492,6 +5492,8 @@ export interface components {
             event_id: string;
             /** Format: date-time */
             ts: string;
+            /** @description Trace of the event, 32 hex characters; present only when the event is linked to a trace. */
+            trace_id?: string;
             /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional. */
             body: {
                 [key: string]: unknown;

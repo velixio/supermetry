@@ -6390,6 +6390,7 @@ components:
       properties:
         event_id: { type: string }
         ts: { type: string, format: date-time }
+        trace_id: { type: string, description: 'Trace of the event, 32 hex characters; present only when the event is linked to a trace.' }
         body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.' }
     AppIssueDetail:
       type: object
