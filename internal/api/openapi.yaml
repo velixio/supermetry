@@ -2998,7 +2998,7 @@ paths:
       summary: Issues with events in the range, filtered, sorted and paged
       parameters:
         - { name: status, in: query, description: 'open, resolved, ignored, regressed or archived.', schema: { type: string, maxLength: 16 } }
-        - { name: kind, in: query, schema: { type: string, maxLength: 32 } }
+        - { name: kind, in: query, description: 'crash, error, hang, oom or watchdog. oom and watchdog are crashes ended by the OS (out of memory, watchdog termination); a crash filter includes them.', schema: { type: string, maxLength: 32 } }
         - { name: q, in: query, description: Case-insensitive prefix of the title or error type., schema: { type: string, maxLength: 100 } }
         - name: query
           in: query
@@ -3627,6 +3627,49 @@ paths:
       responses:
         '200': { description: Deploys, content: { application/json: { schema: { $ref: '#/components/schemas/AppDeploys' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/platforms:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppPlatforms
+      tags: [Apps]
+      summary: Health and symbolication per platform, busiest first
+      description: Events, crashes and crash-free rates per platform from raw events, plus how many error events were symbolicated and how many lack symbols (missing or partial).
+      responses:
+        '200': { description: Platforms, content: { application/json: { schema: { $ref: '#/components/schemas/AppPlatforms' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/debug-files:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppDebugFiles
+      tags: [Apps]
+      summary: Uploaded debug files and the debug images events still miss
+      description: The project's debug files (its own and its organization's org-wide ones, newest first, at most 500) and the images that events needed and no upload covered (at most 200, last seen first; rows idle for 30 days are dropped). Every member role may read.
+      responses:
+        '200': { description: Debug files, content: { application/json: { schema: { $ref: '#/components/schemas/AppDebugFiles' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/debug-files/{id}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    delete:
+      operationId: deleteAppDebugFile
+      tags: [Apps]
+      summary: Delete one debug file
+      description: "Removes the file; its upload and stored blobs go when no other row uses them. Owner, admin or editor only, and only for the project's own files; an organization-wide file (shared by every project) is removed by an organization owner or admin, anyone else gets 404. Events already symbolicated are not changed."
+      responses:
+        '204': { description: Deleted }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/pixels:
@@ -6436,6 +6479,56 @@ components:
                     id: { type: integer, format: int64 }
                     title: { type: string }
                     events: { type: integer, format: int64 }
+    AppPlatforms:
+      type: object
+      required: [platforms]
+      properties:
+        platforms:
+          type: array
+          items:
+            type: object
+            required: [platform, events, crashes, crash_free_users, crash_free_sessions, symbolicated, missing]
+            properties:
+              platform: { type: string }
+              events: { type: integer, format: int64 }
+              crashes: { type: integer, format: int64 }
+              crash_free_users: { type: number, format: double, nullable: true }
+              crash_free_sessions: { type: number, format: double, nullable: true }
+              symbolicated: { type: integer, format: int64 }
+              missing: { type: integer, format: int64 }
+    AppDebugFiles:
+      type: object
+      required: [files, missing]
+      properties:
+        files:
+          type: array
+          items:
+            type: object
+            required: [id, kind, debug_id, code_id, arch, object_name, features, cache_state, size, created_at, org_wide]
+            properties:
+              id: { type: integer, format: int64 }
+              kind: { type: string, enum: [macho, elf, pe, breakpad, proguard, sourcebundle, other] }
+              debug_id: { type: string }
+              code_id: { type: string }
+              arch: { type: string }
+              object_name: { type: string }
+              features: { type: array, items: { type: string } }
+              cache_state: { type: string, enum: [pending, ok, error, unsupported] }
+              size: { type: integer, format: int64 }
+              created_at: { type: string, format: date-time }
+              org_wide: { type: boolean, description: Serves every project of the organization; only an owner or admin may delete it. }
+        missing:
+          type: array
+          items:
+            type: object
+            required: [kind, debug_id, code_file, arch, last_seen, events]
+            properties:
+              kind: { type: string }
+              debug_id: { type: string }
+              code_file: { type: string }
+              arch: { type: string }
+              last_seen: { type: string, format: date-time }
+              events: { type: integer, format: int64 }
     AppDeploys:
       type: object
       required: [deploys]

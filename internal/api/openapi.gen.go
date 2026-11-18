@@ -358,6 +358,63 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 	}
 }
 
+// Defines values for AppDebugFilesFilesCacheState.
+const (
+	AppDebugFilesFilesCacheStateError       AppDebugFilesFilesCacheState = "error"
+	AppDebugFilesFilesCacheStateOk          AppDebugFilesFilesCacheState = "ok"
+	AppDebugFilesFilesCacheStatePending     AppDebugFilesFilesCacheState = "pending"
+	AppDebugFilesFilesCacheStateUnsupported AppDebugFilesFilesCacheState = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the AppDebugFilesFilesCacheState enum.
+func (e AppDebugFilesFilesCacheState) Valid() bool {
+	switch e {
+	case AppDebugFilesFilesCacheStateError:
+		return true
+	case AppDebugFilesFilesCacheStateOk:
+		return true
+	case AppDebugFilesFilesCacheStatePending:
+		return true
+	case AppDebugFilesFilesCacheStateUnsupported:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppDebugFilesFilesKind.
+const (
+	AppDebugFilesFilesKindBreakpad     AppDebugFilesFilesKind = "breakpad"
+	AppDebugFilesFilesKindElf          AppDebugFilesFilesKind = "elf"
+	AppDebugFilesFilesKindMacho        AppDebugFilesFilesKind = "macho"
+	AppDebugFilesFilesKindOther        AppDebugFilesFilesKind = "other"
+	AppDebugFilesFilesKindPe           AppDebugFilesFilesKind = "pe"
+	AppDebugFilesFilesKindProguard     AppDebugFilesFilesKind = "proguard"
+	AppDebugFilesFilesKindSourcebundle AppDebugFilesFilesKind = "sourcebundle"
+)
+
+// Valid indicates whether the value is a known member of the AppDebugFilesFilesKind enum.
+func (e AppDebugFilesFilesKind) Valid() bool {
+	switch e {
+	case AppDebugFilesFilesKindBreakpad:
+		return true
+	case AppDebugFilesFilesKindElf:
+		return true
+	case AppDebugFilesFilesKindMacho:
+		return true
+	case AppDebugFilesFilesKindOther:
+		return true
+	case AppDebugFilesFilesKindPe:
+		return true
+	case AppDebugFilesFilesKindProguard:
+		return true
+	case AppDebugFilesFilesKindSourcebundle:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppEventArch.
 const (
 	AppEventArchArm   AppEventArch = "arm"
@@ -2818,6 +2875,39 @@ type AppDayCount struct {
 	Day   time.Time `json:"day"`
 }
 
+// AppDebugFiles defines model for AppDebugFiles.
+type AppDebugFiles struct {
+	Files []struct {
+		Arch       string                       `json:"arch"`
+		CacheState AppDebugFilesFilesCacheState `json:"cache_state"`
+		CodeId     string                       `json:"code_id"`
+		CreatedAt  time.Time                    `json:"created_at"`
+		DebugId    string                       `json:"debug_id"`
+		Features   []string                     `json:"features"`
+		Id         int64                        `json:"id"`
+		Kind       AppDebugFilesFilesKind       `json:"kind"`
+		ObjectName string                       `json:"object_name"`
+
+		// OrgWide Serves every project of the organization; only an owner or admin may delete it.
+		OrgWide bool  `json:"org_wide"`
+		Size    int64 `json:"size"`
+	} `json:"files"`
+	Missing []struct {
+		Arch     string    `json:"arch"`
+		CodeFile string    `json:"code_file"`
+		DebugId  string    `json:"debug_id"`
+		Events   int64     `json:"events"`
+		Kind     string    `json:"kind"`
+		LastSeen time.Time `json:"last_seen"`
+	} `json:"missing"`
+}
+
+// AppDebugFilesFilesCacheState defines model for AppDebugFiles.Files.CacheState.
+type AppDebugFilesFilesCacheState string
+
+// AppDebugFilesFilesKind defines model for AppDebugFiles.Files.Kind.
+type AppDebugFilesFilesKind string
+
 // AppDeploys defines model for AppDeploys.
 type AppDeploys struct {
 	Deploys []struct {
@@ -3288,6 +3378,19 @@ type AppOverview struct {
 	Sessions        int64 `json:"sessions"`
 	UnhandledErrors int64 `json:"unhandled_errors"`
 	Users           int64 `json:"users"`
+}
+
+// AppPlatforms defines model for AppPlatforms.
+type AppPlatforms struct {
+	Platforms []struct {
+		CrashFreeSessions float64 `json:"crash_free_sessions"`
+		CrashFreeUsers    float64 `json:"crash_free_users"`
+		Crashes           int64   `json:"crashes"`
+		Events            int64   `json:"events"`
+		Missing           int64   `json:"missing"`
+		Platform          string  `json:"platform"`
+		Symbolicated      int64   `json:"symbolicated"`
+	} `json:"platforms"`
 }
 
 // AppRate defines model for AppRate.
@@ -5839,7 +5942,9 @@ type ListAppFeedbackParams struct {
 type ListAppIssuesParams struct {
 	// Status open, resolved, ignored, regressed or archived.
 	Status *string `form:"status,omitempty" json:"status,omitempty"`
-	Kind   *string `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// Kind crash, error, hang, oom or watchdog. oom and watchdog are crashes ended by the OS (out of memory, watchdog termination); a crash filter includes them.
+	Kind *string `form:"kind,omitempty" json:"kind,omitempty"`
 
 	// Q Case-insensitive prefix of the title or error type.
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
@@ -5906,6 +6011,18 @@ type ListAppIssueFeedbackParams struct {
 
 // GetAppOverviewParams defines parameters for GetAppOverview.
 type GetAppOverviewParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppPlatformsParams defines parameters for GetAppPlatforms.
+type GetAppPlatformsParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
 	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
 
@@ -7321,6 +7438,12 @@ type ServerInterface interface {
 	// GetAppCompatibility Crash and install counts per platform, OS version, architecture and device class
 	// (GET /api/private/sites/{site}/app/compatibility)
 	GetAppCompatibility(w http.ResponseWriter, r *http.Request, site int32, params GetAppCompatibilityParams)
+	// ListAppDebugFiles Uploaded debug files and the debug images events still miss
+	// (GET /api/private/sites/{site}/app/debug-files)
+	ListAppDebugFiles(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppDebugFile Delete one debug file
+	// (DELETE /api/private/sites/{site}/app/debug-files/{id})
+	DeleteAppDebugFile(w http.ResponseWriter, r *http.Request, site int32, id int64)
 	// GetAppDeploys Deploy markers of the project in the range, newest first
 	// (GET /api/private/sites/{site}/app/deploys)
 	GetAppDeploys(w http.ResponseWriter, r *http.Request, site int32, params GetAppDeploysParams)
@@ -7390,6 +7513,9 @@ type ServerInterface interface {
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
+	// GetAppPlatforms Health and symbolication per platform, busiest first
+	// (GET /api/private/sites/{site}/app/platforms)
+	GetAppPlatforms(w http.ResponseWriter, r *http.Request, site int32, params GetAppPlatformsParams)
 	// GetAppActiveUsers Daily, weekly and monthly active installs, stickiness and new installs
 	// (GET /api/private/sites/{site}/app/product/active-users)
 	GetAppActiveUsers(w http.ResponseWriter, r *http.Request, site int32, params GetAppActiveUsersParams)
@@ -10846,6 +10972,67 @@ func (siw *ServerInterfaceWrapper) GetAppCompatibility(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ListAppDebugFiles operation middleware
+func (siw *ServerInterfaceWrapper) ListAppDebugFiles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppDebugFiles(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppDebugFile operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppDebugFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppDebugFile(w, r, site, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppDeploys operation middleware
 func (siw *ServerInterfaceWrapper) GetAppDeploys(w http.ResponseWriter, r *http.Request) {
 
@@ -12093,6 +12280,100 @@ func (siw *ServerInterfaceWrapper) GetAppOverview(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAppOverview(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppPlatforms operation middleware
+func (siw *ServerInterfaceWrapper) GetAppPlatforms(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppPlatformsParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppPlatforms(w, r, site, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -17498,6 +17779,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/compatibility", wrapper.GetAppCompatibility)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases", wrapper.GetAppReleases)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/deploys", wrapper.GetAppDeploys)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/platforms", wrapper.GetAppPlatforms)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/debug-files", wrapper.ListAppDebugFiles)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/debug-files/{id}", wrapper.DeleteAppDebugFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.CreatePixel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels/stats", wrapper.PixelStats)

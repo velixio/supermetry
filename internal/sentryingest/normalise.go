@@ -386,13 +386,19 @@ func parseUA(ua string) *useragent.UserAgent {
 	return &p
 }
 
-// classify decides the event kind. Hangs (ANR, app hang, watchdog) come
-// first, then fatal level or a minidump means crash, else error.
+// classify decides the event kind. Hangs (ANR, app hang) come first. Then the
+// terminations the OS carried out (watchdog, out of memory) are crashes with
+// an exit reason: they are fatal and unhandled, and the API and UI expose
+// them as the kinds "watchdog" and "oom". Then fatal level or a minidump means
+// crash, else error.
 func classify(level string, excs []appingest.Exception, platform string, minidump bool) (kind, exitReason string) {
+	oom := false
 	for _, ex := range excs {
 		mech := ""
+		unhandled := false
 		if ex.Mechanism != nil {
 			mech = strings.ToLower(ex.Mechanism.Type)
+			unhandled = ex.Mechanism.Handled != nil && !*ex.Mechanism.Handled
 		}
 		switch {
 		case mech == "anr" || ex.Type == "ApplicationNotResponding":
@@ -400,8 +406,23 @@ func classify(level string, excs []appingest.Exception, platform string, minidum
 		case mech == "apphang" || strings.HasPrefix(ex.Type, "App Hang"):
 			return "hang", "app_hang"
 		case mech == "watchdog_termination" || ex.Type == "WatchdogTermination":
-			return "hang", "watchdog_termination"
+			return "crash", "watchdog_termination"
 		}
+		// A caught OutOfMemoryError is an ordinary error; only a fatal or
+		// unhandled one ended the process.
+		if level == "fatal" || unhandled {
+			switch {
+			case ex.Type == "java.lang.OutOfMemoryError" || (ex.Type == "OutOfMemoryError" && (ex.Module == "java.lang" || ex.Module == "")):
+				oom = true
+			case ex.Type == "EXC_RESOURCE" && strings.Contains(strings.ToUpper(ex.Value), "RESOURCE_TYPE_MEMORY"):
+				oom = true
+			case mech == "memorylimiter": // inference: not found in the sentry-java or sentry-cocoa sources
+				oom = true
+			}
+		}
+	}
+	if oom {
+		return "crash", "oom"
 	}
 	if level == "fatal" || minidump {
 		return "crash", ""
