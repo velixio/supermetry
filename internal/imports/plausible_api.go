@@ -125,7 +125,7 @@ func (p *plausiblePuller) run(ctx context.Context, chunk DayRange, query plausib
 		_ = json.Unmarshal(raw, &parsed)
 		switch {
 		case status == http.StatusUnauthorized || status == http.StatusForbidden:
-			return fmt.Errorf("%w: check the Plausible API key and that it can read %q", errRemoteAuth, p.siteID)
+			return fmt.Errorf("%w: check the Plausible API key and that it can read %q", ErrRemoteAuth, p.siteID)
 		case status == http.StatusNotFound:
 			return fmt.Errorf("Plausible has no API at this address or does not know site %q (HTTP 404)", p.siteID)
 		case status == http.StatusBadRequest || status == http.StatusUnprocessableEntity:

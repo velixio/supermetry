@@ -224,7 +224,10 @@ func (s *PullService) Preview(ctx context.Context, siteID int32, orgID int64, re
 	for _, chunk := range ChunkRange(rng, puller.ChunkDays()) {
 		part, partStats, err := puller.Fetch(ctx, chunk)
 		if err != nil {
-			return PullPreview{}, err
+			if ctx.Err() != nil {
+				return PullPreview{}, context.Cause(ctx)
+			}
+			return PullPreview{}, &RemoteError{Err: err}
 		}
 		mergeInto(aggregate, clip(part, chunk))
 		stats.Rows += partStats.Rows

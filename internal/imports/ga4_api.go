@@ -282,7 +282,7 @@ func (p *ga4Puller) post(ctx context.Context, body []byte) (ga4Response, error) 
 			}
 			continue
 		case status == http.StatusUnauthorized || status == http.StatusForbidden:
-			return ga4Response{}, fmt.Errorf("%w: the Google account cannot read this property; reconnect Google Analytics", errRemoteAuth)
+			return ga4Response{}, fmt.Errorf("%w: the Google account cannot read this property; reconnect Google Analytics", ErrRemoteAuth)
 		case status == http.StatusBadRequest || status == http.StatusNotFound:
 			return ga4Response{}, remoteRejection{fmt.Sprintf("Google Analytics rejected the report (HTTP %d): %s", status, truncateLabel(redact(parsed.Error.Message, access)))}
 		case status != http.StatusOK:

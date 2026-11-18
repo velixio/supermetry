@@ -33,6 +33,15 @@ var (
 	ErrPullNotEnabled = errors.New("pull imports are not enabled")
 )
 
+// RemoteError wraps a failure while talking to the remote analytics service
+// (network, rejected credentials, rate limits, unexpected answers), so the API
+// can tell it apart from a problem inside this installation. Messages are
+// already free of credentials.
+type RemoteError struct{ Err error }
+
+func (e *RemoteError) Error() string { return e.Err.Error() }
+func (e *RemoteError) Unwrap() error { return e.Err }
+
 // PullRequest describes one pull. Secret is never persisted in config and is
 // never serialised.
 type PullRequest struct {

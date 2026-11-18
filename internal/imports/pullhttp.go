@@ -37,8 +37,8 @@ type PullHTTPOptions struct {
 // ErrUnsafeBaseURL is returned for a base URL that is malformed or not http(s).
 var ErrUnsafeBaseURL = errors.New("base URL must be an http or https URL without credentials")
 
-// errRemoteAuth reports a rejected key or token (HTTP 401/403).
-var errRemoteAuth = errors.New("the remote service rejected the credentials")
+// ErrRemoteAuth reports a rejected key or token (HTTP 401/403).
+var ErrRemoteAuth = errors.New("the remote service rejected the credentials")
 
 type pullClient struct {
 	client *http.Client

@@ -111,7 +111,7 @@ func (p *matomoPuller) report(ctx context.Context, method string, extra url.Valu
 	}
 	switch {
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
-		return nil, fmt.Errorf("%w: check the Matomo token_auth", errRemoteAuth)
+		return nil, fmt.Errorf("%w: check the Matomo token_auth", ErrRemoteAuth)
 	case status == http.StatusNotFound:
 		return nil, fmt.Errorf("no Matomo API at this address (HTTP 404)")
 	case status != http.StatusOK:

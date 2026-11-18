@@ -161,7 +161,7 @@ func (s *PullService) tokenRequest(ctx context.Context, form url.Values, into *t
 		return nil
 	case status == http.StatusBadRequest || status == http.StatusUnauthorized:
 		if into.Error == "invalid_grant" || status == http.StatusUnauthorized {
-			return fmt.Errorf("%w: Google authorization was revoked or expired; reconnect", errRemoteAuth)
+			return fmt.Errorf("%w: Google authorization was revoked or expired; reconnect", ErrRemoteAuth)
 		}
 		return errors.New("Google rejected the token request")
 	}
@@ -273,7 +273,7 @@ func (s *PullService) ListGA4Properties(ctx context.Context, orgID, connectionID
 	}
 	access, _, err := s.ga4Refresh(ctx, refresh)
 	if err != nil {
-		return nil, err
+		return nil, &RemoteError{Err: err}
 	}
 	properties := make([]GA4Property, 0)
 	pageToken := ""
@@ -292,13 +292,13 @@ func (s *PullService) ListGA4Properties(ctx context.Context, orgID, connectionID
 			return request, nil
 		})
 		if err != nil {
-			return nil, err
+			return nil, &RemoteError{Err: err}
 		}
 		if status == http.StatusUnauthorized || status == http.StatusForbidden {
-			return nil, fmt.Errorf("%w: the Google account cannot list Analytics properties; reconnect", errRemoteAuth)
+			return nil, &RemoteError{Err: fmt.Errorf("%w: the Google account cannot list Analytics properties; reconnect", ErrRemoteAuth)}
 		}
 		if status != http.StatusOK {
-			return nil, fmt.Errorf("Google Analytics Admin API answered HTTP %d", status)
+			return nil, &RemoteError{Err: fmt.Errorf("Google Analytics Admin API answered HTTP %d", status)}
 		}
 		var page struct {
 			AccountSummaries []struct {
