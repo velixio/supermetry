@@ -25,7 +25,7 @@ export function PageHeader({
   inlineActions?: boolean
 }) {
   return (
-    <header className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-2', className)}>
+    <header className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-3', className)}>
       <div className={cn('flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5', inlineActions && 'max-sm:shrink-0')}>
         <h1 id={titleId} className="min-w-0 wrap-anywhere text-xl leading-tight font-semibold tracking-tight">{title}</h1>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
