@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -59,7 +60,7 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
           </table>
           {goals.isPending ? <p className="p-5 text-sm text-muted-foreground" role="status">Loading goals…</p> : null}
           {goals.isError ? <div className="p-5" role="alert">Goals could not be loaded. <Button variant="outline" size="sm" onClick={() => void goals.refetch()}>Retry goals</Button></div> : null}
-          {!goals.isPending && !goals.isError && goals.data?.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No goals yet.</p> : null}
+          {!goals.isPending && !goals.isError && goals.data?.length === 0 ? <FeatureEmptyState kind="goals" onAction={() => document.getElementById('goal-name')?.focus()} /> : null}
         </section>
         <GoalEditor
           projectCurrency={revenueCurrency}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -207,16 +208,7 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
   }
 
   if (!enabled) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>Heatmaps are not collecting yet</EmptyTitle>
-          <EmptyDescription>
-            Enable heatmaps in site settings and install the full tracker script to start collecting private, aggregated clicks.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
+    return <FeatureEmptyState kind="heatmaps" />
   }
 
   const cells = report.data?.cells ?? []

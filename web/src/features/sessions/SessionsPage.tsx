@@ -1,4 +1,5 @@
 import { useCapability } from '@/lib/authorization'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { ListPager } from '@/components/ListPager'
@@ -183,6 +184,8 @@ export function SessionsPage({
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-52 w-full" />
         </div>
+      ) : sessions.data.data.length === 0 && filters.length === 0 && !cursor && !hasReplayOnly ? (
+        <FeatureEmptyState kind="sessions" />
       ) : sessions.data.data.length === 0 ? (
         <Empty>
           <EmptyHeader>

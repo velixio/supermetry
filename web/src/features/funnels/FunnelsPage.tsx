@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -61,7 +62,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId, app = false }: Funnel
                 </li>
               ))}
             </ul>
-          ) : <p className="text-sm text-muted-foreground">No saved funnels yet.</p>}
+          ) : funnels.isPending ? <p className="text-sm text-muted-foreground" role="status">Loading funnels…</p> : <FeatureEmptyState kind="funnels" onAction={() => document.getElementById('funnel-name')?.focus()} />}
         </section>
         <section className="flex min-w-0 flex-col gap-5 rounded-xl border bg-card p-4">
           <Field>

@@ -1,7 +1,7 @@
 import { useCapability } from '@/lib/authorization'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -76,7 +76,7 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
           <Skeleton className="h-10 w-3/5" />
         </div>
       ) : !report.data || report.data.cohorts.length === 0 ? (
-        <EmptyState />
+        <FeatureEmptyState kind="retention" />
       ) : (
         <RetentionHeatmap
           cohorts={report.data.cohorts}

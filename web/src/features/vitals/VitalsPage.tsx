@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { GaugeIcon } from 'lucide-react'
 import {
   CartesianGrid,
@@ -186,13 +187,7 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
       {result.isPending ? <LoadingState /> : result.isError ? (
         <Empty role="alert"><EmptyHeader><EmptyTitle>Web Vitals could not be loaded</EmptyTitle><EmptyDescription>{result.error.detail ?? 'Try again in a moment.'}</EmptyDescription></EmptyHeader></Empty>
       ) : totalSamples === 0 ? (
-        <Empty>
-          <GaugeIcon className="size-6 text-muted-foreground" aria-hidden="true" />
-          <EmptyHeader>
-            <EmptyTitle>No Web Vitals yet</EmptyTitle>
-            <EmptyDescription>Web Vitals need the full tracker script. Measurements will appear after visitors load your pages.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <FeatureEmptyState kind="vitals" />
       ) : result.data ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
