@@ -133,8 +133,7 @@ func TestTransactionsClosedAndOpenHours(t *testing.T) {
 	if len(got) != 1 || len(raw) != 1 {
 		t.Fatalf("rows raw=%d rolled=%d, want 1", len(raw), len(got))
 	}
-	raw[0].ErrorRate, got[0].ErrorRate = nil, got[0].ErrorRate
-	if raw[0].ErrorRate != nil || raw[0].P95 != got[0].P95 || raw[0].P50 != got[0].P50 || raw[0].P99 != got[0].P99 || raw[0].Count != got[0].Count || raw[0].Errors != got[0].Errors {
+	if *raw[0].ErrorRate != *got[0].ErrorRate || raw[0].P95 != got[0].P95 || raw[0].P50 != got[0].P50 || raw[0].P99 != got[0].P99 || raw[0].Count != got[0].Count || raw[0].Errors != got[0].Errors {
 		t.Errorf("closed and open hours disagree:\nraw    %+v\nrolled %+v", raw[0], got[0])
 	}
 	r := got[0]
