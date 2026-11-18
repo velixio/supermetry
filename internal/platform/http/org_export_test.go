@@ -31,6 +31,11 @@ func (nopExporter) Write(_ context.Context, w io.Writer, _ int32, _, _ time.Time
 
 func newExportEnv(t *testing.T) (http.Handler, int64, int64) {
 	t.Helper()
+	return newExportEnvStepUp(t, freshSession{})
+}
+
+func newExportEnvStepUp(t *testing.T, stepUp platformhttp.StepUpChecker) (http.Handler, int64, int64) {
+	t.Helper()
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
 	if err := db.Migrate(ctx, pool); err != nil {
@@ -67,6 +72,7 @@ func newExportEnv(t *testing.T) (http.Handler, int64, int64) {
 		return authz.Principal{UserID: ids[n], OrgID: org, Role: r}
 	}
 	handler := platformhttp.New(platformhttp.Deps{
+		StepUp: stepUp,
 		Authenticator: actorAuthenticator{
 			"owner": member("owner", authz.RoleOwner, org1), "admin": member("admin", authz.RoleAdmin, org1),
 			"editor": member("editor", authz.RoleEditor, org1), "viewer": member("viewer", authz.RoleViewer, org1),

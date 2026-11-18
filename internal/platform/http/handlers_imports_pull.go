@@ -116,7 +116,7 @@ func (h *handler) previewPullImport(w http.ResponseWriter, r *http.Request) {
 // and queues the background job. Poll GET /imports/{id} for progress.
 func (h *handler) createPullImport(w http.ResponseWriter, r *http.Request) {
 	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	if !h.allowHistoricalIdentity(w) {
@@ -189,7 +189,7 @@ func (h *handler) getImport(w http.ResponseWriter, r *http.Request) {
 // connectGA4 starts the Google consent flow and returns its URL.
 func (h *handler) connectGA4(w http.ResponseWriter, r *http.Request) {
 	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	service, ok := h.pullService(w)

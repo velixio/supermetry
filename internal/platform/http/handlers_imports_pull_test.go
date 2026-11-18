@@ -69,7 +69,11 @@ type pullQueue struct{ jobs []imports.Job }
 func (q *pullQueue) Queue(job imports.Job) error { q.jobs = append(q.jobs, job); return nil }
 
 func pullHandler(role authz.Role, stub *pullStub, queue *pullQueue, store *importTestStore) http.Handler {
-	return New(Deps{TrackingMode: privacy.Identified,
+	return pullHandlerStepUp(role, stub, queue, store, freshStepUp{})
+}
+
+func pullHandlerStepUp(role authz.Role, stub *pullStub, queue *pullQueue, store *importTestStore, stepUp StepUpChecker) http.Handler {
+	return New(Deps{TrackingMode: privacy.Identified, StepUp: stepUp,
 		Authenticator: importTestAuth{principal: authz.Principal{UserID: 1, OrgID: 4, Role: role}},
 		Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}},
 		Imports:       store, ImportQueue: queue, ImportPulls: stub,
@@ -263,7 +267,7 @@ func TestGetImportShowsProgressOnlyToSiteAdmins(t *testing.T) {
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"done_days":31`) {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
-	other := New(Deps{TrackingMode: privacy.Identified,
+	other := New(Deps{TrackingMode: privacy.Identified, StepUp: freshStepUp{},
 		Authenticator: importTestAuth{principal: authz.Principal{UserID: 1, OrgID: 99, Role: authz.RoleOwner}},
 		Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}}, Imports: store, ImportPulls: &pullStub{},
 	})
