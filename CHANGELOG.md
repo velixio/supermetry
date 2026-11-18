@@ -6,8 +6,13 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.28 (2026-11-18)
+
 ### Fixed
 
+- Spans sent again by a retrying Sentry SDK (the span containers of `@sentry/browser` and `@sentry/node` 11, which carry no event id) are no longer stored twice, so transaction counts and percentiles stay right. Recently seen spans are remembered in memory for 10 to 20 minutes (at most 400,000, about 21 MB); no database read is added to ingest.
+- Browser request spans (`browser.request`, `resource.fetch`, `resource.xhr`) have ids in their URLs replaced like HTTP spans, so `GET /users/1234` groups as `GET /users/*`.
+- The alerts, notifications, silences and cron monitor pages are translated (Spanish, German, Bengali) instead of always showing English.
 - The app project export now carries the data App Monitoring added later: `app_issues.csv` gains `merged_into`, event attachments come as `app_event_attachments.csv` with their bytes under `app_attachments/`, and `metric_hourly.csv` holds the hourly metric rollups (`metric_series.csv` gains the histogram `bounds`). See [Exporting your data](docs/guide/apps.md#exporting-your-data).
 
 ## v0.1.27 (2026-11-18)
