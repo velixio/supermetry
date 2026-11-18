@@ -90,7 +90,7 @@ func (e *RuleEvaluator) monitorCandidates(ctx context.Context, alert Alert, site
 				App: &AppNotification{
 					AppName: info.Name, Release: ev.Release, Metric: "cron_monitor",
 					MonitorSlug: ev.Slug, MonitorEnvironment: ev.Environment, MonitorStatus: ev.Status,
-					IssueURL: fmt.Sprintf("/app/%s/%s/alerts/monitors", info.OrgSlug, info.SiteSlug),
+					IssueURL: fmt.Sprintf("/app/%s/%s/settings/monitors", info.OrgSlug, info.SiteSlug),
 				},
 				Rule: &RuleNotification{ID: alert.ID, Name: alert.Name, TriggerType: TriggerMonitor, Severity: severity, Status: status},
 			},
