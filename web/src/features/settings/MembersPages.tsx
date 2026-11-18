@@ -1,6 +1,6 @@
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -302,12 +302,17 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(activeLocale(), { dateStyle: 'medium' })
 }
 
-export function InvitationsPage({ orgId, actorRole = 'viewer', sites = [], now = Date.now() }: {
+export function InvitationsPage({ orgId, actorRole = 'viewer', sites = [], now = Date.now(), focusInvite = false }: {
   orgId: number
   actorRole?: MemberRole
   sites?: { id: number; name: string }[]
   now?: number
+  /** Focus the email field on load (the command palette's "Invite member" action). */
+  focusInvite?: boolean
 }) {
+  useEffect(() => {
+    if (focusInvite) document.getElementById('invite-email')?.focus()
+  }, [focusInvite])
   const queryClient = useQueryClient()
   const [link, setLink] = useState('')
   const [notice, setNotice] = useState('')

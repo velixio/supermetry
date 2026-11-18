@@ -69,7 +69,7 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
     firstEvent: `${base}/realtime`,
     goal: `${base}/goals`,
     invite: `/app/${orgSlug}/settings/invites`,
-    mcp: `/app/${orgSlug}/settings/api-keys`,
+    mcp: `/app/${orgSlug}/settings/api-keys?create=1`,
   }
   const text = uiOnboarding.checklist
   const firstEventMissing = items.find((item) => item.id === 'firstEvent')?.done === false

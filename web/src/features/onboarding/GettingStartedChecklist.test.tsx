@@ -45,7 +45,7 @@ describe('GettingStartedChecklist', () => {
     mockFacts()
     await renderWithRouter(<GettingStartedChecklist {...props} />)
     expect(await screen.findByRole('link', { name: 'Create goal' })).toHaveAttribute('href', '/app/acme/example/goals')
-    expect(screen.getByRole('link', { name: 'Create API key' })).toHaveAttribute('href', '/app/acme/settings/api-keys')
+    expect(screen.getByRole('link', { name: 'Create API key' })).toHaveAttribute('href', '/app/acme/settings/api-keys?create=1')
     expect(screen.getByRole('link', { name: 'Invite teammate' })).toHaveAttribute('href', '/app/acme/settings/invites')
     expect(screen.getByRole('link', { name: 'Open install steps' })).toHaveAttribute('href', '/app/acme/example/settings/installation')
     expect(screen.getByRole('button', { name: 'Explore with sample data' })).toBeInTheDocument()
