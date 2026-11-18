@@ -192,7 +192,7 @@ func describe(op, desc string) string {
 	switch {
 	case strings.HasPrefix(op, "db"):
 		return spans.ParameteriseSQL(desc)
-	case strings.HasPrefix(op, "http"):
+	case strings.HasPrefix(op, "http"), op == "browser.request", op == "resource.fetch", op == "resource.xhr":
 		return spans.ParameteriseURL("", desc)
 	default:
 		return scrubClip(desc, spans.MaxDescription)

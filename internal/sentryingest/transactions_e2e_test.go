@@ -43,7 +43,7 @@ var txE2ECases = []txE2E{
 	}},
 	{file: "javascript-static", trace: e2eTrace, name: "/users/*", spans: 4, tree: []string{
 		"0 pageload",
-		"1 browser.request GET /users/1234",
+		"1 browser.request GET /users/*",
 		"1 resource.script https://app.example.com/assets/index-3f2a9c.js",
 		"1 http.client GET https://api.example.com/v1/me",
 	}},
