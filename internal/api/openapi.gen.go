@@ -1123,6 +1123,117 @@ func (e EventPayloadV) Valid() bool {
 	}
 }
 
+// Defines values for ExportRunStatus.
+const (
+	ExportRunStatusFailed    ExportRunStatus = "failed"
+	ExportRunStatusRunning   ExportRunStatus = "running"
+	ExportRunStatusSkipped   ExportRunStatus = "skipped"
+	ExportRunStatusSucceeded ExportRunStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the ExportRunStatus enum.
+func (e ExportRunStatus) Valid() bool {
+	switch e {
+	case ExportRunStatusFailed:
+		return true
+	case ExportRunStatusRunning:
+		return true
+	case ExportRunStatusSkipped:
+		return true
+	case ExportRunStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportScheduleFrequency.
+const (
+	ExportScheduleFrequencyDaily   ExportScheduleFrequency = "daily"
+	ExportScheduleFrequencyMonthly ExportScheduleFrequency = "monthly"
+	ExportScheduleFrequencyWeekly  ExportScheduleFrequency = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the ExportScheduleFrequency enum.
+func (e ExportScheduleFrequency) Valid() bool {
+	switch e {
+	case ExportScheduleFrequencyDaily:
+		return true
+	case ExportScheduleFrequencyMonthly:
+		return true
+	case ExportScheduleFrequencyWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportScheduleLastStatus.
+const (
+	ExportScheduleLastStatusFailed      ExportScheduleLastStatus = "failed"
+	ExportScheduleLastStatusLessThannil ExportScheduleLastStatus = "<nil>"
+	ExportScheduleLastStatusSkipped     ExportScheduleLastStatus = "skipped"
+	ExportScheduleLastStatusSucceeded   ExportScheduleLastStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the ExportScheduleLastStatus enum.
+func (e ExportScheduleLastStatus) Valid() bool {
+	switch e {
+	case ExportScheduleLastStatusFailed:
+		return true
+	case ExportScheduleLastStatusLessThannil:
+		return true
+	case ExportScheduleLastStatusSkipped:
+		return true
+	case ExportScheduleLastStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportScheduleInputFrequency.
+const (
+	ExportScheduleInputFrequencyDaily   ExportScheduleInputFrequency = "daily"
+	ExportScheduleInputFrequencyMonthly ExportScheduleInputFrequency = "monthly"
+	ExportScheduleInputFrequencyWeekly  ExportScheduleInputFrequency = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the ExportScheduleInputFrequency enum.
+func (e ExportScheduleInputFrequency) Valid() bool {
+	switch e {
+	case ExportScheduleInputFrequencyDaily:
+		return true
+	case ExportScheduleInputFrequencyMonthly:
+		return true
+	case ExportScheduleInputFrequencyWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportSchedulePatchFrequency.
+const (
+	ExportSchedulePatchFrequencyDaily   ExportSchedulePatchFrequency = "daily"
+	ExportSchedulePatchFrequencyMonthly ExportSchedulePatchFrequency = "monthly"
+	ExportSchedulePatchFrequencyWeekly  ExportSchedulePatchFrequency = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the ExportSchedulePatchFrequency enum.
+func (e ExportSchedulePatchFrequency) Valid() bool {
+	switch e {
+	case ExportSchedulePatchFrequencyDaily:
+		return true
+	case ExportSchedulePatchFrequencyMonthly:
+		return true
+	case ExportSchedulePatchFrequencyWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterOperator.
 const (
 	Contains   FilterOperator = "contains"
@@ -1975,6 +2086,60 @@ func (e SessionTimelineItemKind) Valid() bool {
 	case SessionEvent:
 		return true
 	case SessionPageview:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingsImportReportMembersAction.
+const (
+	SettingsImportReportMembersActionAlreadyMember SettingsImportReportMembersAction = "already_member"
+	SettingsImportReportMembersActionFailed        SettingsImportReportMembersAction = "failed"
+	SettingsImportReportMembersActionInvited       SettingsImportReportMembersAction = "invited"
+	SettingsImportReportMembersActionListedOnly    SettingsImportReportMembersAction = "listed_only"
+	SettingsImportReportMembersActionNotInvited    SettingsImportReportMembersAction = "not_invited"
+	SettingsImportReportMembersActionWouldInvite   SettingsImportReportMembersAction = "would_invite"
+)
+
+// Valid indicates whether the value is a known member of the SettingsImportReportMembersAction enum.
+func (e SettingsImportReportMembersAction) Valid() bool {
+	switch e {
+	case SettingsImportReportMembersActionAlreadyMember:
+		return true
+	case SettingsImportReportMembersActionFailed:
+		return true
+	case SettingsImportReportMembersActionInvited:
+		return true
+	case SettingsImportReportMembersActionListedOnly:
+		return true
+	case SettingsImportReportMembersActionNotInvited:
+		return true
+	case SettingsImportReportMembersActionWouldInvite:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingsImportReportSitesAction.
+const (
+	SettingsImportReportSitesActionCreate     SettingsImportReportSitesAction = "create"
+	SettingsImportReportSitesActionCreated    SettingsImportReportSitesAction = "created"
+	SettingsImportReportSitesActionFailed     SettingsImportReportSitesAction = "failed"
+	SettingsImportReportSitesActionSkipExists SettingsImportReportSitesAction = "skip_exists"
+)
+
+// Valid indicates whether the value is a known member of the SettingsImportReportSitesAction enum.
+func (e SettingsImportReportSitesAction) Valid() bool {
+	switch e {
+	case SettingsImportReportSitesActionCreate:
+		return true
+	case SettingsImportReportSitesActionCreated:
+		return true
+	case SettingsImportReportSitesActionFailed:
+		return true
+	case SettingsImportReportSitesActionSkipExists:
 		return true
 	default:
 		return false
@@ -4584,6 +4749,97 @@ type EventPayload_Revenue_Amount struct {
 // EventPayloadV Event payload contract version.
 type EventPayloadV int
 
+// ExportRun defines model for ExportRun.
+type ExportRun struct {
+	Bytes      int64               `json:"bytes"`
+	Error      string              `json:"error"`
+	FinishedAt *time.Time          `json:"finished_at"`
+	FromDay    *openapi_types.Date `json:"from_day"`
+	Id         int64               `json:"id"`
+	ObjectKey  string              `json:"object_key"`
+	ScheduleId int64               `json:"schedule_id"`
+	SiteId     *int32              `json:"site_id"`
+	StartedAt  time.Time           `json:"started_at"`
+	Status     ExportRunStatus     `json:"status"`
+	ToDay      *openapi_types.Date `json:"to_day"`
+}
+
+// ExportRunStatus defines model for ExportRun.Status.
+type ExportRunStatus string
+
+// ExportSchedule defines model for ExportSchedule.
+type ExportSchedule struct {
+	AccessKeyId string                  `json:"access_key_id"`
+	Bucket      string                  `json:"bucket"`
+	CreatedAt   time.Time               `json:"created_at"`
+	Enabled     bool                    `json:"enabled"`
+	Endpoint    string                  `json:"endpoint"`
+	Frequency   ExportScheduleFrequency `json:"frequency"`
+	Id          int64                   `json:"id"`
+
+	// Incremental After the first full export only new days are written.
+	Incremental bool                      `json:"incremental"`
+	LastError   string                    `json:"last_error"`
+	LastRunAt   *time.Time                `json:"last_run_at"`
+	LastStatus  *ExportScheduleLastStatus `json:"last_status"`
+	Name        string                    `json:"name"`
+	NextRunAt   time.Time                 `json:"next_run_at"`
+	OrgId       int64                     `json:"org_id"`
+	PathStyle   bool                      `json:"path_style"`
+	Prefix      string                    `json:"prefix"`
+	Region      string                    `json:"region"`
+	SecretSet   bool                      `json:"secret_set"`
+
+	// SiteId Null means every site of the organization.
+	SiteId *int32 `json:"site_id"`
+}
+
+// ExportScheduleFrequency defines model for ExportSchedule.Frequency.
+type ExportScheduleFrequency string
+
+// ExportScheduleLastStatus defines model for ExportSchedule.LastStatus.
+type ExportScheduleLastStatus string
+
+// ExportScheduleInput defines model for ExportScheduleInput.
+type ExportScheduleInput struct {
+	AccessKeyId string `json:"access_key_id"`
+	Bucket      string `json:"bucket"`
+
+	// Endpoint Bare https://host[:port], no path.
+	Endpoint  string                       `json:"endpoint"`
+	Frequency ExportScheduleInputFrequency `json:"frequency"`
+
+	// Incremental Defaults to true.
+	Incremental *bool   `json:"incremental,omitempty"`
+	Name        string  `json:"name"`
+	PathStyle   *bool   `json:"path_style,omitempty"`
+	Prefix      *string `json:"prefix,omitempty"`
+	Region      string  `json:"region"`
+	Secret      *string `json:"secret,omitempty"`
+	SiteId      *int32  `json:"site_id,omitempty"`
+}
+
+// ExportScheduleInputFrequency defines model for ExportScheduleInput.Frequency.
+type ExportScheduleInputFrequency string
+
+// ExportSchedulePatch defines model for ExportSchedulePatch.
+type ExportSchedulePatch struct {
+	AccessKeyId *string                       `json:"access_key_id,omitempty"`
+	Bucket      *string                       `json:"bucket,omitempty"`
+	Enabled     *bool                         `json:"enabled,omitempty"`
+	Endpoint    *string                       `json:"endpoint,omitempty"`
+	Frequency   *ExportSchedulePatchFrequency `json:"frequency,omitempty"`
+	Incremental *bool                         `json:"incremental,omitempty"`
+	Name        *string                       `json:"name,omitempty"`
+	PathStyle   *bool                         `json:"path_style,omitempty"`
+	Prefix      *string                       `json:"prefix,omitempty"`
+	Region      *string                       `json:"region,omitempty"`
+	Secret      *string                       `json:"secret,omitempty"`
+}
+
+// ExportSchedulePatchFrequency defines model for ExportSchedulePatch.Frequency.
+type ExportSchedulePatchFrequency string
+
 // Filter defines model for Filter.
 type Filter struct {
 	// Dimension Analytics dimension to filter, including browser_version, os_version, screen_size, language, and hostname. screen_size accepts mobile, tablet, laptop, desktop, or large; stored value 0 is returned as an empty string for Unknown. channel accepts Direct, Organic Search, Paid Search, Organic Social, Paid Social, Email, Referral, AI Assistants, or Other. goal_id accepts only operator is with exactly one numeric goal ID and is evaluated from session data. Region and city accept the legacy one-value [place] form for any country and the country-scoped [place, ISO country code] form.
@@ -6027,6 +6283,36 @@ type SessionTimelineItem struct {
 // SessionTimelineItemKind defines model for SessionTimelineItem.Kind.
 type SessionTimelineItemKind string
 
+// SettingsImportReport defines model for SettingsImportReport.
+type SettingsImportReport struct {
+	DryRun  bool `json:"dry_run"`
+	Members []struct {
+		Action *SettingsImportReportMembersAction `json:"action,omitempty"`
+		Email  *string                            `json:"email,omitempty"`
+		Note   *string                            `json:"note,omitempty"`
+		Role   *string                            `json:"role,omitempty"`
+	} `json:"members"`
+	Sites []struct {
+		Action                 *SettingsImportReportSitesAction `json:"action,omitempty"`
+		Alerts                 *int                             `json:"alerts,omitempty"`
+		AlertsDisabled         *int                             `json:"alerts_disabled,omitempty"`
+		Error                  *string                          `json:"error,omitempty"`
+		Funnels                *int                             `json:"funnels,omitempty"`
+		Goals                  *int                             `json:"goals,omitempty"`
+		Name                   *string                          `json:"name,omitempty"`
+		Segments               *int                             `json:"segments,omitempty"`
+		ShareLinksNotRecreated *int                             `json:"share_links_not_recreated,omitempty"`
+		Slug                   *string                          `json:"slug,omitempty"`
+	} `json:"sites"`
+	Warnings []string `json:"warnings"`
+}
+
+// SettingsImportReportMembersAction defines model for SettingsImportReport.Members.Action.
+type SettingsImportReportMembersAction string
+
+// SettingsImportReportSitesAction defines model for SettingsImportReport.Sites.Action.
+type SettingsImportReportSitesAction string
+
 // Share defines model for Share.
 type Share struct {
 	Config            ShareConfig `json:"config"`
@@ -6584,6 +6870,11 @@ type RenameOrganizationJSONBody struct {
 	Name string `json:"name"`
 }
 
+// OrgListExportRunsParams defines parameters for OrgListExportRuns.
+type OrgListExportRunsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // OrgListGitHubStarsAnnotationsParams defines parameters for OrgListGitHubStarsAnnotations.
 type OrgListGitHubStarsAnnotationsParams struct {
 	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
@@ -6627,6 +6918,18 @@ type OrgGetGitHubStarsSummaryParams struct {
 // OrgEraseGitHubStarsUserParams defines parameters for OrgEraseGitHubStarsUser.
 type OrgEraseGitHubStarsUserParams struct {
 	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
+}
+
+// OrgImportSettingsJSONBody defines parameters for OrgImportSettings.
+type OrgImportSettingsJSONBody map[string]interface{}
+
+// OrgImportSettingsParams defines parameters for OrgImportSettings.
+type OrgImportSettingsParams struct {
+	// DryRun Report what would happen and write nothing.
+	DryRun *bool `form:"dry_run,omitempty" json:"dry_run,omitempty"`
+
+	// InviteMembers Invite the bundle's members (never owners). Off by default.
+	InviteMembers *bool `form:"invite_members,omitempty" json:"invite_members,omitempty"`
 }
 
 // GetSitesOverviewParams defines parameters for GetSitesOverview.
@@ -7395,6 +7698,12 @@ type RenameOrganizationJSONRequestBody RenameOrganizationJSONBody
 // CreateDemoProjectJSONRequestBody defines body for CreateDemoProject for application/json ContentType.
 type CreateDemoProjectJSONRequestBody = CreateDemoRequest
 
+// OrgCreateExportScheduleJSONRequestBody defines body for OrgCreateExportSchedule for application/json ContentType.
+type OrgCreateExportScheduleJSONRequestBody = ExportScheduleInput
+
+// OrgUpdateExportScheduleJSONRequestBody defines body for OrgUpdateExportSchedule for application/json ContentType.
+type OrgUpdateExportScheduleJSONRequestBody = ExportSchedulePatch
+
 // OrgCreateGitHubStarsAnnotationJSONRequestBody defines body for OrgCreateGitHubStarsAnnotation for application/json ContentType.
 type OrgCreateGitHubStarsAnnotationJSONRequestBody = GitHubStarsAnnotationInput
 
@@ -7415,6 +7724,9 @@ type SaveNotificationTemplateJSONRequestBody = NotificationTemplateInput
 
 // PreviewNotificationTemplateJSONRequestBody defines body for PreviewNotificationTemplate for application/json ContentType.
 type PreviewNotificationTemplateJSONRequestBody = NotificationTemplateInput
+
+// OrgImportSettingsJSONRequestBody defines body for OrgImportSettings for application/json ContentType.
+type OrgImportSettingsJSONRequestBody OrgImportSettingsJSONBody
 
 // OpenSharedLinkJSONRequestBody defines body for OpenSharedLink for application/json ContentType.
 type OpenSharedLinkJSONRequestBody = OpenShareRequest
@@ -8206,6 +8518,27 @@ type ServerInterface interface {
 	// CreateDemoProject Create and start seeding the organization's demo project
 	// (POST /api/private/orgs/{org}/demo)
 	CreateDemoProject(w http.ResponseWriter, r *http.Request, org int64)
+	// OrgListExportSchedules List scheduled exports to S3-compatible storage
+	// (GET /api/private/orgs/{org}/export-schedules)
+	OrgListExportSchedules(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgCreateExportSchedule Create a scheduled export
+	// (POST /api/private/orgs/{org}/export-schedules)
+	OrgCreateExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgDeleteExportSchedule Delete a scheduled export and its history
+	// (DELETE /api/private/orgs/{org}/export-schedules/{schedule})
+	OrgDeleteExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
+	// OrgUpdateExportSchedule Change a scheduled export
+	// (PATCH /api/private/orgs/{org}/export-schedules/{schedule})
+	OrgUpdateExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
+	// OrgRunExportSchedule Queue a run now
+	// (POST /api/private/orgs/{org}/export-schedules/{schedule}/run)
+	OrgRunExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
+	// OrgListExportRuns Run history, newest first
+	// (GET /api/private/orgs/{org}/export-schedules/{schedule}/runs)
+	OrgListExportRuns(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64, params OrgListExportRunsParams)
+	// OrgTestExportSchedule Check the destination by writing and deleting a small object
+	// (POST /api/private/orgs/{org}/export-schedules/{schedule}/test)
+	OrgTestExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
 	// OrgListGitHubStarsAnnotations List chart annotations
 	// (GET /api/private/orgs/{org}/github-stars/annotations)
 	OrgListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgListGitHubStarsAnnotationsParams)
@@ -8272,6 +8605,12 @@ type ServerInterface interface {
 	// PreviewNotificationTemplate Validate and preview a template with sample alert data
 	// (POST /api/private/orgs/{org}/notification-templates/{kind}/preview)
 	PreviewNotificationTemplate(w http.ResponseWriter, r *http.Request, org OrgPathID, kind NotificationChannelKind)
+	// OrgExportSettings Download the organization's settings as a JSON bundle
+	// (GET /api/private/orgs/{org}/settings-export)
+	OrgExportSettings(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgImportSettings Recreate a settings bundle in this organization
+	// (POST /api/private/orgs/{org}/settings-import)
+	OrgImportSettings(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgImportSettingsParams)
 	// ListDeletedSites List restorable sites in an organization
 	// (GET /api/private/orgs/{org}/sites/deleted)
 	ListDeletedSites(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -10138,6 +10477,249 @@ func (siw *ServerInterfaceWrapper) CreateDemoProject(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// OrgListExportSchedules operation middleware
+func (siw *ServerInterfaceWrapper) OrgListExportSchedules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgListExportSchedules(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgCreateExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgCreateExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgCreateExportSchedule(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgDeleteExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgDeleteExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgDeleteExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgUpdateExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgUpdateExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgUpdateExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgRunExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgRunExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgRunExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgListExportRuns operation middleware
+func (siw *ServerInterfaceWrapper) OrgListExportRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgListExportRunsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgListExportRuns(w, r, org, schedule, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgTestExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgTestExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgTestExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // OrgListGitHubStarsAnnotations operation middleware
 func (siw *ServerInterfaceWrapper) OrgListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request) {
 
@@ -11011,6 +11593,87 @@ func (siw *ServerInterfaceWrapper) PreviewNotificationTemplate(w http.ResponseWr
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PreviewNotificationTemplate(w, r, org, kind)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgExportSettings operation middleware
+func (siw *ServerInterfaceWrapper) OrgExportSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgExportSettings(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgImportSettings operation middleware
+func (siw *ServerInterfaceWrapper) OrgImportSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgImportSettingsParams
+
+	// ------------- Optional query parameter "dry_run" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "dry_run", r.URL.Query(), &params.DryRun, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "dry_run"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dry_run", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "invite_members" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "invite_members", r.URL.Query(), &params.InviteMembers, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "invite_members"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "invite_members", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgImportSettings(w, r, org, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20068,6 +20731,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminResetReplayRetentionCap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminGetReplayRetentionCap)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminSetReplayRetentionCap)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules", wrapper.OrgListExportSchedules)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules", wrapper.OrgCreateExportSchedule)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}", wrapper.OrgDeleteExportSchedule)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}", wrapper.OrgUpdateExportSchedule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}/run", wrapper.OrgRunExportSchedule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}/test", wrapper.OrgTestExportSchedule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}/runs", wrapper.OrgListExportRuns)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/settings-export", wrapper.OrgExportSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/settings-import", wrapper.OrgImportSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgListGitHubStarsRepos)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgCreateGitHubStarsRepo)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}", wrapper.OrgDeleteGitHubStarsRepo)
