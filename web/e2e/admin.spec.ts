@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const screenshotDir = 'e2e/screenshots/admin'
 
@@ -58,10 +59,10 @@ test('instance admin console lists users, organizations and sites and manages se
     await expect(page.getByRole('list').filter({ hasText: 'policy' }).first()).toBeVisible()
     await noHorizontalOverflow(page)
     await page.screenshot({ path: `${screenshotDir}/security-1440-light.png`, fullPage: true })
-    await page.getByRole('button', { name: 'Use dark theme' }).click()
+    await setTheme(page, 'dark')
     await expect(page.locator('html')).toHaveClass(/dark/)
     await page.screenshot({ path: `${screenshotDir}/security-1440-dark.png`, fullPage: true })
-    await page.getByRole('button', { name: 'Use light theme' }).click()
+    await setTheme(page, 'light')
     await page.setViewportSize({ width: 1024, height: 900 })
     await noHorizontalOverflow(page)
     await page.screenshot({ path: `${screenshotDir}/security-1024.png`, fullPage: true })

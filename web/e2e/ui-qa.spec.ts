@@ -5,6 +5,7 @@ import type { Page } from '@playwright/test'
 import { axeAvailable, axeMissing, axePath } from './axe'
 import { removeSavedDashboards } from './dashboards-cleanup'
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 test.use({ bypassCSP: true })
 
@@ -38,18 +39,6 @@ async function noOverflow(page: Page, name: string) {
       })
     : []
   expect.soft(over, `${name} horizontal overflow ${culprits.join(' | ')}`).toBeLessThanOrEqual(0)
-}
-
-async function setTheme(page: Page, theme: 'light' | 'dark') {
-  const toDark = page.getByRole('button', { name: 'Use dark theme' })
-  const toLight = page.getByRole('button', { name: 'Use light theme' })
-  const want = theme === 'dark' ? toDark : toLight
-  if (await want.count()) {
-    await want.first().click()
-  } else if (!(await (theme === 'dark' ? toLight : toDark).count())) {
-    throw new Error('no theme toggle found')
-  }
-  await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*dark)/)
 }
 
 type Step = [name: string, url: string, action?: (page: Page) => Promise<void>]

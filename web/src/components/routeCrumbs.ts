@@ -8,9 +8,17 @@ const labelOf = (segment: string) => ui.crumbs.segments[segment]
 // Section names that only exist under a site, so they cannot shadow an organization-level page.
 const siteLabelOf = (segment: string) => ui.crumbs.siteSegments[segment] ?? labelOf(segment)
 
+/** True for pages that belong to the organization rather than a site: settings, sites list, health, GitHub stars, account and admin. */
+export function isOrgScopedPath(pathname: string): boolean {
+  const [app, first, second] = pathname.split('/').filter(Boolean)
+  if (app !== 'app') return false
+  if (first === 'account' || first === 'admin') return true
+  return !second || labelOf(second) !== undefined
+}
+
 /**
- * Org / Site / Section / Detail from a pathname. Pure: no router access, so it is
- * trivial to test. The last crumb is the current page and has no link.
+ * Section / Detail from a pathname. The organization and site are not crumbs: the sidebar
+ * switcher shows them. Pure: no router access, so it is trivial to test. The last crumb is the current page and has no link.
  * Without a membership (sites overview, account, admin, an unknown organization)
  * only account and admin paths have crumbs.
  */
@@ -29,8 +37,8 @@ export function buildCrumbs(pathname: string, membership?: Membership): Crumb[] 
 
   const [org, second, ...after] = rest
   if (!org || !membership) return []
-  crumbs.push({ label: membership.org.name, to: '/app/$org/sites', params: { org } })
-  if (!second) return finish(crumbs)
+  // The organization and the site live in the sidebar switcher; the trail names only the page.
+  if (!second) return [{ label: ui.crumbs.segments.sites }]
 
   const isOrgPage = labelOf(second) !== undefined
   if (isOrgPage) {
@@ -39,7 +47,6 @@ export function buildCrumbs(pathname: string, membership?: Membership): Crumb[] 
   }
 
   const site = membership.sites.find((item) => matchesSite(item, second))
-  crumbs.push({ label: site?.name ?? second, to: '/app/$org/$site', params: { org, site: second } })
   const home = site?.kind === 'app' ? ui.crumbs.appOverview : undefined
   pushTail(crumbs, after.length === 0 ? ['dashboard'] : after, '/app/$org/$site', { org, site: second }, home)
   return finish(crumbs)

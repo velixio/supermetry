@@ -44,6 +44,11 @@ const messages: MessageTree = {
     yourAccount: 'Tu cuenta',
     accountSettings: 'Ajustes de la cuenta',
     logOut: 'Cerrar sesión',
+    plan: 'Plan',
+    theme: 'Tema',
+    themeToLight: 'Cambiar al tema claro',
+    themeToDark: 'Cambiar al tema oscuro',
+    language: 'Idioma',
   },
   emptyState: { setUpTracking: 'Configurar el seguimiento' },
   impersonation: {
@@ -78,7 +83,20 @@ const messages: MessageTree = {
     deleting: 'Eliminando…',
     delete: 'Eliminar segmento',
   },
-  sidebar: { demo: 'Demo', chooseOrganization: 'Elegir organización' },
+  sidebar: {
+    demo: 'Demo', chooseOrganization: 'Elegir organización',
+    organizationScope: 'Organización',
+    pinned: 'Fijados',
+    pin: (label: string) => `Fijar ${label} arriba`,
+    unpin: (label: string) => `Desfijar ${label}`,
+  },
+  help: {
+    menu: 'Ayuda',
+    shortcuts: 'Atajos de teclado',
+    about: 'Acerca de Supermetry',
+    aboutDescription: 'Versión y créditos de esta instalación.',
+    version: 'Versión',
+  },
   appShell: { loadingLive: 'Cargando visitantes en vivo' },
   crumbs: {
     label: 'Ruta de navegación',
@@ -129,7 +147,7 @@ const messages: MessageTree = {
       security: 'Seguridad',
       organizations: 'Organizaciones',
       users: 'Usuarios',
-      update: 'Actualización del sistema',
+      update: 'Actualización del sistema', 'github-stars': 'Estrellas de GitHub',
     },
   },
   inspector: {
@@ -159,6 +177,7 @@ const messages: MessageTree = {
     saveFailed: 'No se pudo guardar el idioma. Inténtalo de nuevo.',
   },
   palette: {
+    searchField: 'Buscar o ir a…',
     open: 'Abrir la paleta de comandos',
     loadFailed: 'No se pudo cargar la paleta de comandos. Compruebe su conexión e inténtelo de nuevo.',
     keyHint: 'Ctrl K',
@@ -168,7 +187,12 @@ const messages: MessageTree = {
     inputLabel: 'Buscar comandos',
     placeholder: 'Escribe una página, un sitio o una acción…',
     empty: 'No hay comandos coincidentes',
-    groups: { pages: 'Páginas', sites: 'Sitios', organizations: 'Organizaciones', actions: 'Acciones' },
+    groups: { recent: 'Recientes', pages: 'Páginas', settings: 'Ajustes', sites: 'Sitios', organizations: 'Organizaciones', actions: 'Acciones' },
+    actions: {
+      createApiKey: 'Crear clave de API', inviteMember: 'Invitar a un miembro', addSite: 'Añadir sitio',
+      switchTheme: 'Cambiar tema', changeLanguage: 'Cambiar idioma', about: 'Acerca de Supermetry',
+    },
+    scopes: { org: 'Ajustes de la organización', site: 'Ajustes del sitio', account: 'Cuenta', admin: 'Administración' },
   },
 }
 

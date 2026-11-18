@@ -5,6 +5,7 @@ import type { Locator, Page } from '@playwright/test'
 
 import { axeAvailable, axeMissing, axePath } from './axe'
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 test.use({ bypassCSP: true })
 
@@ -120,7 +121,7 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   await owner.login(page, dashboard + fixtureRange)
   await waitForDashboard(page)
   reports.push(await audit(page, 'dashboard'))
-  await page.getByRole('button', { name: 'Open command palette' }).click()
+  await page.getByRole('button', { name: 'Search or jump to…' }).click()
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
   reports.push(await audit(page, 'command-palette'))
   await page.keyboard.press('Escape')
@@ -269,11 +270,11 @@ test('captures the dashboard and grouped sidebar at the requested breakpoints', 
   await band.scrollIntoViewIfNeeded()
   await screenshot(page, 'dashboard-band-1440-light.png', false)
 
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.evaluate(() => window.scrollTo({ top: 0 }))
   await screenshot(page, 'dashboard-1440-dark.png')
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
   await expect(page.locator('html')).not.toHaveClass(/dark/)
 
   await page.setViewportSize({ width: 1024, height: 900 })

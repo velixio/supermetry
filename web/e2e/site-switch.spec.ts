@@ -44,7 +44,7 @@ test('switching site from the sidebar or the palette keeps the page, its portabl
 
     // The command palette's switch command uses the same mapping.
     await page.goto(`${base}/${owner.siteSlug}/sessions?period=7d`)
-    await page.getByRole('button', { name: 'Open command palette' }).click()
+    await page.getByRole('button', { name: 'Search or jump to…' }).click()
     const palette = page.getByRole('dialog', { name: 'Command palette' })
     await palette.getByRole('combobox').fill(other.name)
     await palette.getByRole('option', { name: new RegExp(`^${other.name}`) }).click()

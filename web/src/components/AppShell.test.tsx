@@ -133,6 +133,9 @@ function renderAppShell(initialEntry: string, shellMe: Me = me) {
 
 describe('AppShell live visitor badge', () => {
   beforeEach(() => {
+    // Settings pages sit outside every nav group, so open them all to keep the destinations reachable.
+    localStorage.setItem('sm.sidebar.v1.1', JSON.stringify({ open: { analyze: true, behaviour: true, conversion: true, manage: true }, pinned: [] }))
+    localStorage.removeItem('sm.palette.recent.v1.1')
     Element.prototype.scrollIntoView = () => undefined
     loadPalette.mockReset()
     loadPalette.mockImplementation(async () => (await vi.importActual<typeof import('./paletteLoader')>('./paletteLoader')).loadPalette())
@@ -200,18 +203,20 @@ describe('AppShell live visitor badge', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/docs-public/realtime'))
   })
 
-  it('shows breadcrumbs in the header instead of a repeated site name', async () => {
+  it('shows a section-first trail in the header instead of a repeated site name', async () => {
     renderShell('/app/acme/docs/settings/general')
     const nav = await screen.findByRole('navigation', { name: 'Breadcrumb' })
-    expect(within(nav).getByRole('link', { name: 'Acme' })).toBeInTheDocument()
-    expect(within(nav).getByRole('link', { name: 'Docs' })).toBeInTheDocument()
+    // Org and site live in the switcher, so the trail is just the section and the page.
+    expect(within(nav).queryByRole('link', { name: 'Acme' })).toBeNull()
+    expect(within(nav).queryByRole('link', { name: 'Docs' })).toBeNull()
+    expect(within(nav).getByRole('link', { name: 'Settings' })).toBeInTheDocument()
     expect(within(nav).getByText('General')).toHaveAttribute('aria-current', 'page')
   })
 
-  it('names the site crumb from a public id in the URL', async () => {
+  it('keeps the site alias from the URL in the section crumb link', async () => {
     renderShell('/app/acme/docs-public/settings/general')
     const nav = await screen.findByRole('navigation', { name: 'Breadcrumb' })
-    expect(within(nav).getByRole('link', { name: 'Docs' })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/acme/docs-public/settings/general')
   })
 
   it('remembers a valid scoped site as the last visited site', async () => {
@@ -227,7 +232,8 @@ describe('AppShell live visitor badge', () => {
     const skip = await screen.findByRole('link', { name: 'Skip to main content' })
     expect(container.querySelector('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])')).toBe(skip)
     expect(skip).toHaveAttribute('href', '#main-content')
-    expect(skip).toHaveClass('-left-[10000px]', 'focus:fixed', 'focus:z-[100]', 'focus:rounded-full', 'focus:ring-2')
+    expect(skip).toHaveAttribute('data-slot', 'skip-link')
+    expect(skip).toHaveClass('sr-only', 'focus:not-sr-only', 'focus:fixed', 'focus:z-[100]', 'focus:ring-2')
     expect(container.querySelectorAll('main')).toHaveLength(1)
     expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('id', 'main-content')
     expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('tabindex', '-1')
@@ -235,19 +241,34 @@ describe('AppShell live visitor badge', () => {
     expect(screen.getByRole('complementary', { name: 'Application sidebar' })).toBeVisible()
   })
 
-  it('credits DB-IP throughout the authenticated app', async () => {
-    renderShell('/app/acme/docs-public/settings/general')
+  it('has no app footer: credits and version live in Help > About', async () => {
+    const { container } = renderShell('/app/acme/docs-public/settings/general')
+    await screen.findByRole('banner', { name: 'Application header' })
+    expect(container.querySelector('footer')).toBeNull()
+    expect(screen.queryByTestId('app-version')).toBeNull()
+    expect(screen.queryByText(/IP geolocation by/)).toBeNull()
+  })
 
-    expect(await screen.findByRole('link', { name: 'IP geolocation by DB-IP.com' })).toHaveAttribute(
+  const openAbout = async () => {
+    fireEvent.keyDown(await screen.findByRole('button', { name: 'Help' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'About Supermetry' }))
+    return screen.findByRole('dialog', { name: 'About Supermetry' })
+  }
+
+  it('credits the geolocation provider in Help > About', async () => {
+    renderShell('/app/acme/docs-public/settings/general')
+    const about = await openAbout()
+    expect(await within(about).findByRole('link', { name: 'IP geolocation by DB-IP.com' })).toHaveAttribute(
       'href',
       'https://db-ip.com',
     )
   })
 
-  it('shows the build version in the footer', async () => {
+  it('shows the powered-by link and build version in Help > About', async () => {
     renderShell('/app/acme/docs-public/settings/general')
-
-    expect(await screen.findByTestId('app-version')).toHaveTextContent(/^(v\d+\.\d+\.\d+( · dev)?|dev)$/)
+    const about = await openAbout()
+    expect(within(about).getByRole('link', { name: 'Powered by Supermetry' })).toBeInTheDocument()
+    expect(await within(about).findByTestId('app-version')).toHaveTextContent(/^(v\d+\.\d+\.\d+( · dev)?|dev)$/)
   })
 
   it.each(['docs', 'docs-public', '7'])('keeps current site context for the %s alias', async (alias) => {
@@ -336,7 +357,7 @@ describe('AppShell live visitor badge', () => {
     const { container } = renderShell('/app/acme/docs/settings/general')
     const header = await screen.findByRole('banner', { name: 'Application header' })
     expect(header).toHaveClass('sticky', 'top-0', 'h-11')
-    expect(container.querySelectorAll('.sticky')).toHaveLength(1)
+    expect(container.querySelectorAll('.sticky:not([data-slot="sidebar-header"])')).toHaveLength(1)
     expect(screen.queryByRole('navigation', { name: 'Projects' })).not.toBeInTheDocument()
   })
 
@@ -367,7 +388,7 @@ describe('AppShell live visitor badge', () => {
     expect(header).toHaveClass('top-0')
     const settings = screen.getByRole('navigation', { name: 'Settings' })
     expect(within(settings).getAllByRole('link').map((link) => link.textContent)).toEqual(['Organization settings'])
-    fireEvent.pointerDown(screen.getByRole('button', { name: /Site\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    fireEvent.pointerDown(screen.getByRole('button', { name: /Organization: Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
     expect(await screen.findByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
   })
 
@@ -385,7 +406,8 @@ describe('AppShell live visitor badge', () => {
 
   it('lists every registered keyboard shortcut in the help dialog', async () => {
     renderShell('/app/acme/docs/settings/general')
-    fireEvent.click(await screen.findByRole('button', { name: 'Show keyboard shortcuts' }))
+    fireEvent.keyDown(await screen.findByRole('button', { name: 'Help' }), { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Keyboard shortcuts' }))
     const dialog = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' })
     expect(within(dialog).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'D — Toggle dark mode',
@@ -434,7 +456,7 @@ describe('AppShell live visitor badge', () => {
   it('opens the command palette from the header trigger and returns focus to it on Escape', async () => {
     renderShell('/app/acme/docs/settings/general')
     const header = await screen.findByRole('banner', { name: 'Application header' })
-    const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+    const trigger = within(header).getByRole('button', { name: 'Search or jump to…' })
     trigger.focus()
     fireEvent.click(trigger)
     const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
@@ -459,15 +481,33 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
   })
 
-  it('runs only the existing actions: theme, shortcut help and log out', async () => {
+  it('lists settings destinations read from the router tree and remembers the command run as recent', async () => {
+    const { router } = renderShell('/app/acme/docs/realtime')
+    fireEvent.click(await screen.findByRole('button', { name: 'Search or jump to…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
+    const settings = within(dialog).getByRole('group', { name: 'Settings' })
+    expect(within(settings).getByRole('option', { name: 'Organization settings: Members' })).toBeVisible()
+    // Site settings > General is already the Pages entry for site settings, so it is not listed twice.
+    expect(within(settings).queryByRole('option', { name: 'Site settings: General' })).toBeNull()
+    fireEvent.click(within(settings).getByRole('option', { name: 'Organization settings: Members' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/settings/members'))
+    expect(JSON.parse(localStorage.getItem('sm.palette.recent.v1.1') ?? '[]')).toEqual(['settings:/app/acme/settings/members'])
+    fireEvent.click(await screen.findByRole('button', { name: 'Search or jump to…' }))
+    const again = await screen.findByRole('dialog', { name: 'Command palette' })
+    expect(within(within(again).getByRole('group', { name: 'Recent' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Organization settings: Members'])
+  })
+
+  it('lists the create, language, theme, help, about and sign-out actions and runs them', async () => {
     renderShell('/app/acme/docs/settings/general')
     const openPalette = async () => {
-      fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Search or jump to…' }))
       return screen.findByRole('dialog', { name: 'Command palette' })
     }
     const actions = within(await openPalette()).getByRole('group', { name: 'Actions' })
-    expect(within(actions).getAllByRole('option').map((option) => option.textContent)).toEqual(['Use dark theme', 'Show keyboard shortcuts', 'Log out'])
-    fireEvent.click(within(actions).getByRole('option', { name: 'Use dark theme' }))
+    expect(within(actions).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Create API key', 'Invite member', 'Add site', 'Change language', 'Switch theme', 'Show keyboard shortcuts', 'About Supermetry', 'Log out',
+    ])
+    fireEvent.click(within(actions).getByRole('option', { name: 'Switch theme' }))
     expect(toggleTheme).toHaveBeenCalledOnce()
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument())
 
@@ -483,10 +523,10 @@ describe('AppShell live visitor badge', () => {
   it('returns focus to the header trigger after the theme command when opened by the shortcut', async () => {
     renderShell('/app/acme/docs/settings/general')
     const header = await screen.findByRole('banner', { name: 'Application header' })
-    const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+    const trigger = within(header).getByRole('button', { name: 'Search or jump to…' })
     act(() => shortcuts.current['mod+k']())
     const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
-    fireEvent.click(within(dialog).getByRole('option', { name: 'Use dark theme' }))
+    fireEvent.click(within(dialog).getByRole('option', { name: 'Switch theme' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument())
     await waitFor(() => expect(trigger).toHaveFocus())
   })
@@ -494,7 +534,7 @@ describe('AppShell live visitor badge', () => {
   it('offers no blocked analytics screen in the palette for an anonymous site', async () => {
     const anonymousMembership: Membership = { ...membership, sites: membership.sites.map((site) => ({ ...site, tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] } })) }
     renderShell('/app/acme/docs-public/settings/general', anonymousMembership)
-    fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Search or jump to…' }))
     const pages = within(await screen.findByRole('dialog', { name: 'Command palette' })).getByRole('group', { name: 'Pages' })
     const names = within(pages).getAllByRole('option').map((option) => option.textContent)
     expect(names).toContain('Dashboard')
@@ -503,12 +543,14 @@ describe('AppShell live visitor badge', () => {
     }
   })
 
-  it('offers the language menu on account and admin pages with the saved language checked', async () => {
+  it('offers the language menu in the account menu on account and admin pages with the saved language checked', async () => {
     const withLocale: Me = { ...me, user: { ...me.user, instance_admin: true }, preferences: { landing_page: 'overview', sites_view: 'cards', locale: 'es' } }
     for (const path of ['/app/account/profile', '/app/admin/users']) {
       const view = renderAppShell(path, withLocale)
       const header = await screen.findByRole('banner', { name: 'Application header' })
-      fireEvent.keyDown(within(header).getByRole('button', { name: 'Language' }), { key: 'ArrowDown' })
+      expect(within(header).queryByRole('button', { name: 'Language' })).toBeNull()
+      fireEvent.keyDown(await screen.findByRole('button', { name: 'Account' }), { key: 'ArrowDown' })
+      fireEvent.keyDown(await screen.findByRole('menuitem', { name: 'Language' }), { key: 'ArrowRight' })
       expect(await screen.findByRole('menuitemradio', { name: /^Español/ })).toHaveAttribute('aria-checked', 'true')
       view.unmount()
     }
@@ -516,7 +558,7 @@ describe('AppShell live visitor badge', () => {
 
   it('limits the palette to account pages and organizations outside an organization', async () => {
     renderAppShell('/app/account/profile')
-    fireEvent.click(await screen.findByRole('button', { name: 'Open command palette' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Search or jump to…' }))
     const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
     expect(within(within(dialog).getByRole('group', { name: 'Pages' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Account settings', 'GitHub stars'])
     expect(within(within(dialog).getByRole('group', { name: 'Organizations' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Acme'])
@@ -530,7 +572,7 @@ describe('AppShell live visitor badge', () => {
     expect(loadPalette).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
     expect(document.querySelector('[cmdk-root]')).toBeNull()
-    fireEvent.click(within(header).getByRole('button', { name: 'Open command palette' }))
+    fireEvent.click(within(header).getByRole('button', { name: 'Search or jump to…' }))
     expect(await screen.findByRole('dialog', { name: 'Command palette' })).toBeVisible()
     expect(loadPalette).toHaveBeenCalledOnce()
   })
@@ -541,7 +583,7 @@ describe('AppShell live visitor badge', () => {
       loadPalette.mockRejectedValueOnce(new Error('Failed to fetch dynamically imported module'))
       renderShell('/app/acme/docs/settings/general')
       const header = await screen.findByRole('banner', { name: 'Application header' })
-      const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+      const trigger = within(header).getByRole('button', { name: 'Search or jump to…' })
       fireEvent.click(trigger)
       expect(await screen.findByText('The command palette could not be loaded. Check your connection and try again.')).toBeVisible()
       expect(screen.getByRole('banner', { name: 'Application header' })).toBeInTheDocument()
@@ -561,7 +603,7 @@ describe('AppShell live visitor badge', () => {
       loadPalette.mockRejectedValue(new Error('offline'))
       renderShell('/app/acme/docs/settings/general')
       const header = await screen.findByRole('banner', { name: 'Application header' })
-      const trigger = within(header).getByRole('button', { name: 'Open command palette' })
+      const trigger = within(header).getByRole('button', { name: 'Search or jump to…' })
       fireEvent.click(trigger)
       await screen.findByText(ui.palette.loadFailed)
       await new Promise((resolve) => setTimeout(resolve, 300))

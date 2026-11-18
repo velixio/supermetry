@@ -8,9 +8,10 @@ import { useQuery } from '@tanstack/react-query'
 import { AccountSidebar } from './AccountSidebar'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
 import { AppHeader } from './AppHeader'
-import { GeolocationCredit } from '@/components/GeolocationCredit'
+import { AboutDialog } from '@/components/AboutDialog'
 import { ImpersonationBanner } from '@/components/ImpersonationBanner'
-import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
+import { ShellPrefsContext } from '@/components/ShellPrefsContext'
+import { MAIN_CONTENT_ID, SkipLink } from '@/components/SkipLink'
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,7 @@ import { getSite } from '@/features/sites/api'
 import { RemoveDemoBanner } from '@/features/demo/RemoveDemoBanner'
 import { privateRequest } from '@/features/settings/privateApi'
 import { requestLogout } from '@/lib/session-lifecycle'
-import { versionLabel } from '@/lib/version'
+import { readRecentCommands, recordRecentCommand } from '@/lib/shellPrefs'
 import { paletteCommands, type PaletteCommand } from './paletteCommands'
 import { ui } from '@/messages/ui'
 import { sidebarStartsOpen } from './sidebarState'
@@ -54,6 +55,7 @@ export function AppShell({
   const { theme, toggle } = useTheme()
   const { managed, known: managedKnown } = useManagedState()
   const [helpOpen, setHelpOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [paletteLoaded, setPaletteLoaded] = useState(false)
   // React.lazy memoises a rejected import, so a failed load gets a fresh lazy component and boundary.
@@ -81,7 +83,12 @@ export function AppShell({
   // (an empty list would flash "no matching commands"), and dropped when the scope changes.
   const paletteScope = `${membership?.org.id ?? ''}/${requestedSite ?? ''}`
   const lastCommands = useRef<{ scope: string; list: PaletteCommand[] }>({ scope: '', list: [] })
-  if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({ me, membership, requestedSite, theme, current: currentRoute, managed }) }
+  if (paletteOpen) lastCommands.current = { scope: paletteScope, list: paletteCommands({
+      me, membership, requestedSite, theme, current: currentRoute, managed,
+      // Settings destinations come from the route tree, so a new settings route appears without a palette change.
+      routePaths: Object.keys(router.routesByPath ?? {}),
+      recent: readRecentCommands(me.user.id),
+    }) }
   const commands = lastCommands.current.scope === paletteScope ? lastCommands.current.list : []
   const scopedSite = membership?.sites.find((item) => matchesSite(item, requestedSite))
   const siteDetails = useQuery({
@@ -105,9 +112,11 @@ export function AppShell({
   // Runs after the palette starts closing; the palette decides where focus goes afterwards.
   const runPaletteCommand = (command: PaletteCommand) => {
     setPaletteOpen(false)
+    recordRecentCommand(me.user.id, command.id)
     if (command.kind === 'navigate') router.history.push(command.href)
     else if (command.action === 'theme') toggle()
     else if (command.action === 'help') setHelpOpen(true)
+    else if (command.action === 'about') setAboutOpen(true)
     else void requestLogout()
   }
 
@@ -125,17 +134,16 @@ export function AppShell({
     <AuthorizationProvider membership={membership}>
     <InAppShell.Provider value>
     <TooltipProvider>
+      <ShellPrefsContext.Provider value={{ theme, toggleTheme: toggle }}>
       <SidebarProvider defaultOpen={sidebarOpen}>
-        <a
-          className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden whitespace-nowrap focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:h-auto focus:w-auto focus:overflow-visible focus:rounded-full focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-          href="#main-content"
+        <SkipLink
           onClick={(event) => {
             event.preventDefault()
-            document.getElementById('main-content')?.focus()
+            document.getElementById(MAIN_CONTENT_ID)?.focus()
           }}
         >
           {en.a11y2.skipToMain}
-        </a>
+        </SkipLink>
         {membership ? (
           <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} resolvedSite={resolvedSite} />
         ) : (
@@ -147,14 +155,12 @@ export function AppShell({
             membership={membership}
             site={resolvedSite}
             requestedSite={requestedSite}
-            locale={me.preferences?.locale ?? ''}
-            theme={theme}
-            onToggleTheme={toggle}
             onOpenHelp={() => setHelpOpen(true)}
+            onOpenAbout={() => setAboutOpen(true)}
             onOpenPalette={openPalette}
             paletteTriggerRef={paletteTrigger}
           />
-          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-4 py-3 md:px-6 md:py-4" id="main-content" tabIndex={-1}>
+          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-4 py-3 md:px-6 md:py-4" id={MAIN_CONTENT_ID} tabIndex={-1}>
             {membership ? (
               scopedSite?.is_demo ? (
                 <DemoBanner org={membership.org} site={scopedSite} />
@@ -180,13 +186,9 @@ export function AppShell({
             </AuthorizationCacheBoundary>
           </main>
           <ImpersonationBanner me={me} />
-          <footer className="flex flex-wrap items-center justify-center gap-x-3 px-4 pb-4 text-center text-xs text-muted-foreground md:px-6">
-            <GeolocationCredit />
-            <PoweredBySupermetry className="hover:text-foreground" />
-            <span data-testid="app-version">{versionLabel(me.version)}</span>
-          </footer>
         </SidebarInset>
       </SidebarProvider>
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} version={me.version} />
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent>
           <DialogHeader>
@@ -227,6 +229,7 @@ export function AppShell({
         </PaletteBoundary>
       ) : null}
       <Toaster />
+      </ShellPrefsContext.Provider>
     </TooltipProvider>
     </InAppShell.Provider>
     </AuthorizationProvider>

@@ -124,8 +124,8 @@ describe('organization shell authentication', () => {
     vi.stubGlobal('fetch', meResponse())
     const router = renderRoute('/app/acme')
 
-    // The org name now appears in the sidebar switcher and the breadcrumb.
-    for (const match of await screen.findAllByText('Acme', { exact: true })) expect(match).toBeVisible()
+    // The org page shows the organization in the sidebar switcher; the breadcrumb names only the page.
+    expect(await screen.findByText('Organization: Acme', { exact: true })).toBeVisible()
     expect(router.state.location.pathname).toBe('/app/acme')
     expect(
       screen.queryByText('We could not find that organisation'),

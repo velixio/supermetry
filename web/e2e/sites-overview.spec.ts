@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { request as playwrightRequest } from '@playwright/test'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const screenshotDirectory = 'e2e/screenshots/sites-overview'
 
@@ -64,10 +65,10 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.screenshot({ path: `${screenshotDirectory}/1440-light.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.screenshot({ path: `${screenshotDirectory}/1440-dark.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
 
   await page.setViewportSize({ width: 1024, height: 850 })
   await page.screenshot({ path: `${screenshotDirectory}/1024.png`, fullPage: true })

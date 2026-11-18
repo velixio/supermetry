@@ -28,7 +28,7 @@ export function ActiveUsersPage({ siteId, timezone, search, onSearch, canEdit }:
   siteId: number; timezone: string; search: AppSearch; onSearch: (next: AppSearch) => void; canEdit: boolean
 }) {
   const active = useActiveUsers(siteId, search, timezone)
-  const header = <PageHeader title="Sessions & Users" description="Daily, weekly and monthly active installs, engagement and feature adoption." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} />} />
+  const header = <PageHeader title="Sessions & users" description="Daily, weekly and monthly active installs, engagement and feature adoption." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} />} />
   if (active.isPending) return <PageContainer>{header}<p role="status" className="text-sm text-muted-foreground">Loading users…</p></PageContainer>
   if (active.isError) return <PageContainer>{header}<p role="alert" className="text-sm text-destructive">{active.error.message}</p></PageContainer>
   const data = active.data

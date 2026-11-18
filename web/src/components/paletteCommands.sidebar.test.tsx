@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -13,7 +14,7 @@ import { SupermetrySidebar } from './Sidebar'
 import { SidebarProvider } from './ui/sidebar'
 import { TooltipProvider } from './ui/tooltip'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); localStorage.clear() })
 
 const policy: Site['tracking_policy'] = { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] }
 const restricted: Site['tracking_policy'] = { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] }
@@ -45,12 +46,15 @@ const hrefs = (root: HTMLElement) =>
   Object.fromEntries(Array.from(root.querySelectorAll('a')).map((link) => [link.textContent?.trim(), link.getAttribute('href')]))
 
 async function sidebarHrefs(membership: Membership, requestedSite?: string) {
+  localStorage.setItem('sm.sidebar.v1.1', JSON.stringify({ open: { analyze: true, behaviour: true, conversion: true, manage: true }, pinned: [] }))
   renderWithRouter(
+    <QueryClientProvider client={new QueryClient()}>
     <TooltipProvider>
       <SidebarProvider>
         <SupermetrySidebar me={meFor(membership)} membership={membership} requestedSite={requestedSite} />
       </SidebarProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
+    </QueryClientProvider>,
   )
   await screen.findByRole('navigation', { name: 'Settings' })
   const links: Record<string, string | null> = {}
