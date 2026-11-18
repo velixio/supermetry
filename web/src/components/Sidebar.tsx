@@ -540,7 +540,7 @@ export function SupermetrySidebar({
               {orgScope ? (
                 <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="org">
                   <span className="truncate">{ui.sidebar.organizationScope}: {membership.org.name}</span>
-                  {site ? <span className="truncate text-xs text-muted-foreground opacity-60" data-testid="switcher-site-dimmed">{site.name}</span> : null}
+                  {site ? <span className="truncate text-xs text-muted-foreground" data-testid="switcher-site-dimmed">{site.name}</span> : null}
                 </span>
               ) : (
                 <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="site">

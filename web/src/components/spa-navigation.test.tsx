@@ -343,7 +343,9 @@ describe('sidebar groups, pinning and scope', () => {
     renderSidebar('/app/acme/settings')
     const trigger = await screen.findByRole('button', { name: /Organization: Acme/ })
     expect(trigger.querySelector('[data-scope="org"]')).not.toBeNull()
-    expect(within(trigger).getByTestId('switcher-site-dimmed')).toHaveClass('opacity-60')
+    // Dimmed with the muted token only: an opacity class would drop it below 4.5:1 contrast.
+    expect(within(trigger).getByTestId('switcher-site-dimmed')).toHaveClass('text-muted-foreground')
+    expect(within(trigger).getByTestId('switcher-site-dimmed').className).not.toMatch(/opacity/)
     cleanup()
     renderSidebar('/app/acme/docs-public')
     const siteTrigger = await screen.findByRole('button', { name: /Docs\s*Acme/ })
