@@ -15,8 +15,8 @@ import { ReleasesTable } from './ReleasesTable'
 import { renderWithQuery } from './testing'
 
 const releases = [
-  { release: '1.2.0', first_seen: '2026-11-10T00:00:00Z', last_seen: '2026-11-14T00:00:00Z', installs: 1200, crash_free_users: 0.991, crash_free_sessions: null, new_issues: 3, regressed_issues: 0 },
-  { release: '1.1.0', first_seen: '2026-10-01T00:00:00Z', last_seen: '2026-11-01T00:00:00Z', installs: 800, crash_free_users: 0.97, crash_free_sessions: 0.96, new_issues: 0, regressed_issues: 2 },
+  { release: '1.2.0', first_seen: '2026-11-10T00:00:00Z', last_seen: '2026-11-14T00:00:00Z', installs: 1200, crash_free_users: 0.991, crash_free_sessions: null, sessions: 0, users: 0, abnormal_sessions: 0, errored_sessions: 0, adoption: null, handled_errors: 0, unhandled_errors: 0, health_source: 'events', new_issues: 3, regressed_issues: 0 },
+  { release: '1.1.0', first_seen: '2026-10-01T00:00:00Z', last_seen: '2026-11-01T00:00:00Z', installs: 800, crash_free_users: 0.97, crash_free_sessions: 0.96, sessions: 2500, users: 700, abnormal_sessions: 5, errored_sessions: 40, adoption: 0.75, handled_errors: 10, unhandled_errors: 4, health_source: 'sessions', new_issues: 0, regressed_issues: 2 },
 ]
 
 describe('ReleasesTable', () => {
@@ -38,5 +38,18 @@ describe('ReleasesTable', () => {
     expect(rowsText[2]).toContain('1.1.0')
     expect(screen.getByRole('link', { name: '3' })).toHaveAttribute('href', '/app/acme/desk/issues?period=30d&release=1.2.0&status=all')
     expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('href', '/app/acme/desk/issues?period=30d&release=1.1.0&status=regressed')
+  })
+
+  it('shows adoption, sessions and a note only for rows computed from error events', async () => {
+    renderWithQuery(<ReleasesTable org="acme" site="desk" siteId={7} timezone="UTC" search={{ period: '30d' }} onSearch={vi.fn()} />)
+    const sessionsRow = (await screen.findByText('1.1.0')).closest('tr')!
+    expect(sessionsRow).toHaveTextContent('75.0%')
+    expect(sessionsRow).toHaveTextContent('96.0%')
+    expect(sessionsRow).toHaveTextContent('2,500')
+    expect(sessionsRow).not.toHaveTextContent('from error events')
+    expect(screen.getByText('1.2.0').closest('tr')).toHaveTextContent('from error events')
+    const href = screen.getByRole('link', { name: '1.1.0' }).getAttribute('href')!
+    expect(href.startsWith('/app/acme/desk?')).toBe(true)
+    expect(href).toContain('release=1.1.0')
   })
 })
