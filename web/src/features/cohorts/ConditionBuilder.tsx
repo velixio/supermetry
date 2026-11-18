@@ -11,8 +11,8 @@ import { maxConditions, maxWindowDays, type ConditionType } from './types'
 
 const t = en.cohorts
 
-const selectClass = 'max-sm:h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
-const inputClass = 'max-sm:h-11 md:h-9'
+const selectClass = 'max-sm:min-h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
+const inputClass = 'max-sm:min-h-11 md:h-9'
 const conditionTypes: ConditionType[] = ['event', 'page', 'event_property', 'activity', 'first_seen', 'last_seen']
 
 function ConditionFields({ condition, onChange }: { condition: DraftCondition; onChange: (next: DraftCondition) => void }) {

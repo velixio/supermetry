@@ -8,7 +8,7 @@ import { dashboardView } from '@/messages/dashboardView'
 
 /** The share bar behind a row's label. Every top-N panel draws it the same way. */
 export function TopListBar({ width }: { width: string }) {
-  return <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" data-slot="top-list-bar" style={{ width }} />
+  return <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-chart-1/10 dark:bg-chart-1/15" data-slot="top-list-bar" style={{ width }} />
 }
 
 export function barWidth(value: number, maximum: number): string {

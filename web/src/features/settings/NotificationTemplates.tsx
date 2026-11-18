@@ -52,7 +52,7 @@ export function NotificationTemplates({ orgId, canManage }: { orgId: number; can
       {error ? <p role="alert" className="text-sm text-destructive">{error.message}</p> : null}
       <label className="flex max-w-xs flex-col gap-1 text-sm font-medium">
         {t.templates.channel}
-        <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3 capitalize" value={kind} onChange={(event) => setKind(event.target.value as ChannelKind)}>
+        <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3 capitalize" value={kind} onChange={(event) => setKind(event.target.value as ChannelKind)}>
           {kinds.map((value) => <option key={value} value={value}>{t.common.channelKind[value]}</option>)}
         </select>
       </label>
@@ -81,7 +81,7 @@ export function NotificationTemplates({ orgId, canManage }: { orgId: number; can
       </div>
       <label className="flex max-w-sm flex-col gap-1 text-sm font-medium">
         {t.templates.keepHistory}
-        <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" disabled={!canManage || saveSettings.isPending} value={templates.data?.settings?.history_retention_days ?? 30} onChange={(event) => saveSettings.mutate({ history_retention_days: Number(event.target.value) })}>
+        <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" disabled={!canManage || saveSettings.isPending} value={templates.data?.settings?.history_retention_days ?? 30} onChange={(event) => saveSettings.mutate({ history_retention_days: Number(event.target.value) })}>
           <option value="7">{t.templates.days(7)}</option><option value="30">{t.templates.days(30)}</option><option value="90">{t.templates.days(90)}</option><option value="365">{t.templates.year}</option>
         </select>
       </label>

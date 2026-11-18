@@ -138,7 +138,7 @@ function Breakdown({ title, items, total, label }: {
                   <span className="shrink-0 tabular-nums">{fmt.number(item.clicks)} <span className="text-muted-foreground">({share}%)</span></span>
                 </div>
                 <div aria-hidden="true" className="mt-1 h-1.5 rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
+                  <div className="h-full rounded-full bg-chart-1" style={{ width: `${share}%` }} />
                 </div>
               </li>
             )

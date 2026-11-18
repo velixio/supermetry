@@ -72,7 +72,7 @@ function ExemptionForm() {
       <ErrorLine error={grant.error ?? remove.error} />
       <label className="flex flex-col gap-1 text-sm font-medium">
         {en.admin.exemptionUser}
-        <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" value={userId} onChange={(event) => setUserId(event.target.value)}>
+        <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={userId} onChange={(event) => setUserId(event.target.value)}>
           <option value="">Choose a user</option>
           {users.data?.data.map((user) => <option key={user.id} value={user.id}>{user.email}</option>)}
         </select>

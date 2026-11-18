@@ -37,19 +37,19 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
       <section aria-label={t.history.filters} className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t.history.status}
-          <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" value={filters.status ?? ''} onChange={(event) => onFilters({ ...filters, status: event.target.value as DeliveryStatus || undefined })}>
+          <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={filters.status ?? ''} onChange={(event) => onFilters({ ...filters, status: event.target.value as DeliveryStatus || undefined })}>
             <option value="">{t.history.allStatuses}</option><option value="pending">{t.history.statuses.pending}</option><option value="succeeded">{t.history.statuses.succeeded}</option><option value="failed">{t.history.statuses.failed}</option><option value="suppressed">{t.history.statuses.suppressed}</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t.history.channel}
-          <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" value={filters.channel ?? ''} onChange={(event) => onFilters({ ...filters, channel: event.target.value || undefined })}>
+          <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={filters.channel ?? ''} onChange={(event) => onFilters({ ...filters, channel: event.target.value || undefined })}>
             <option value="">{t.history.allChannels}</option>{Object.entries(t.common.channelKind).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t.history.alertId}
-          <Input className="max-sm:h-11" min="1" placeholder={t.history.anyAlert} type="number" value={filters.alertId ?? ''} onChange={(event) => onFilters({ ...filters, alertId: event.target.value ? Number(event.target.value) : undefined })} />
+          <Input className="max-sm:min-h-11" min="1" placeholder={t.history.anyAlert} type="number" value={filters.alertId ?? ''} onChange={(event) => onFilters({ ...filters, alertId: event.target.value ? Number(event.target.value) : undefined })} />
         </label>
       </section>
       {history.error || retry.error ? <p role="alert" className="text-sm text-destructive">{history.error?.message ?? retry.error?.message}</p> : null}

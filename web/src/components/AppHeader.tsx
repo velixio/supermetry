@@ -105,7 +105,7 @@ export function AppHeader({
           ref={paletteTriggerRef}
           type="button"
           variant="outline"
-          className="justify-start gap-2 bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:px-0 md:w-64 lg:w-72"
+          className="justify-start gap-2 border-border bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:px-0 md:w-64 lg:w-72"
           aria-haspopup="dialog"
           aria-keyshortcuts="Control+K Meta+K"
           aria-label={ui.palette.searchField}

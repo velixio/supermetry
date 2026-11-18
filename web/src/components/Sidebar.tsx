@@ -501,7 +501,7 @@ export function SupermetrySidebar({
     const contentId = `sidebar-${key}-content`
     const open = groupOpen(key)
     return (
-      <SidebarGroup key={key}>
+      <SidebarGroup key={key} className="py-1">
         <SidebarGroupLabel asChild>
           <h2 id={headingId}>
             <button

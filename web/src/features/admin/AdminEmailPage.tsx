@@ -83,7 +83,7 @@ function SettingsForm({ settings }: { settings: AdminEmailSettings }) {
         </label>
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm font-medium">
           {en.admin.emailTls}
-          <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" value={tls} onChange={(event) => setTls(event.target.value as AdminEmailSettings['tls'])}>
+          <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={tls} onChange={(event) => setTls(event.target.value as AdminEmailSettings['tls'])}>
             {tlsOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>

@@ -13,7 +13,7 @@ export function AdminSettingsPage() {
         <div className="flex max-w-xl flex-col gap-5 rounded-lg border bg-card p-4">
           <label className="flex flex-col gap-1 text-sm font-medium">
             {en.admin.signupMode}
-            <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" value={settings.data.signup_mode} disabled={update.isPending}
+            <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={settings.data.signup_mode} disabled={update.isPending}
               onChange={(event) => update.mutate({ signup_mode: event.target.value as 'invite' | 'open' })}>
               <option value="invite">{en.admin.signupInvite}</option>
               <option value="open">{en.admin.signupOpen}</option>

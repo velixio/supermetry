@@ -164,7 +164,7 @@ export function RevenueBreakdown(props: Props) {
           <tbody>{rows.map((row) => <tr className="border-b last:border-0" key={row.key}>
             <th className="max-w-56 py-2 text-left font-normal" scope="row">
               <span className="block truncate" title={label(row.key)}>{label(row.key)}</span>
-              <span aria-hidden="true" className="mt-1 block h-1.5 rounded bg-primary/75" style={{ width: `${Math.max(2, row.revenue / maximum * 100)}%` }} />
+              <span aria-hidden="true" className="mt-1 block h-1.5 rounded bg-chart-1" style={{ width: `${Math.max(2, row.revenue / maximum * 100)}%` }} />
             </th>
             <td className="py-2 text-right tabular-nums">{fmt.number(row.orders)}</td>
             <td className="py-2 text-right tabular-nums">{formatter.format(row.revenue)}</td>

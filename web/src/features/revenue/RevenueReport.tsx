@@ -77,7 +77,7 @@ function Trend({ query, currency }: { query: ReturnType<typeof useStats>; curren
     <CardContent>
       <div className="flex h-48 items-end gap-1 overflow-hidden" aria-hidden="true">
         {rows.map((row, index) => <div className="flex h-full min-w-1 flex-1 items-end gap-px" key={String(row.time)}>
-          <div className="min-w-0 flex-1 rounded-t bg-primary/75" style={{ height: `${Math.max(2, numeric(row.total_revenue) / maximum * 100)}%` }} />
+          <div className="min-w-0 flex-1 rounded-t bg-chart-1" style={{ height: `${Math.max(2, numeric(row.total_revenue) / maximum * 100)}%` }} />
           {comparisonRows[index] ? <div className="min-w-0 flex-1 rounded-t bg-muted-foreground/30" style={{ height: `${Math.max(2, numeric(comparisonRows[index].total_revenue) / maximum * 100)}%` }} /> : null}
         </div>)}
       </div>

@@ -55,7 +55,7 @@ export function TraceWaterfall({ org, site, trace }: { org: string; site: string
                   className={`absolute top-0 h-full rounded ${failed ? 'bg-destructive' : span.is_segment ? 'bg-chart-1' : 'bg-chart-2'}`}
                   style={{ left: `${left}%`, width: `${width}%` }}
                 />
-                <span className="absolute inset-y-0 right-1 flex items-center text-xs tabular-nums text-foreground/80">{formatMs(span.duration_ms)}</span>
+                <span className="absolute inset-y-0 right-1 flex items-center text-xs tabular-nums text-foreground">{formatMs(span.duration_ms)}</span>
               </div>
             </li>
           )

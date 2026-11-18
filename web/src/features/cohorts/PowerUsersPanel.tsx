@@ -15,7 +15,7 @@ import { thresholdChoices, type PowerMetric } from './types'
 import { activeLocale } from '@/lib/i18n/intl'
 
 const t = en.cohorts
-const selectClass = 'max-sm:h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
+const selectClass = 'max-sm:min-h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
 
 function formatDate(value: string): string {
   return value ? new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium' }).format(new Date(value)) : '—'

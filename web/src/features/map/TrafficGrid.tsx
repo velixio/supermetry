@@ -37,7 +37,7 @@ type TrafficGridProps = {
   inspect?: InspectControl
 }
 
-const stepClasses = ['bg-muted/35', 'bg-accent/20', 'bg-accent/40', 'bg-accent/60', 'bg-accent/80', 'bg-accent'] as const
+const stepClasses = ['bg-muted/35', 'bg-chart-1/20', 'bg-chart-1/40', 'bg-chart-1/60', 'bg-chart-1/80', 'bg-chart-1'] as const
 
 function timezoneLabel(timezone: string, locale?: string): string {
   try {
@@ -234,7 +234,7 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
                     )
                   })}
                   <span aria-label={`${weekday.name} total: ${fmt.number(totals.weekday[row])} ${metricLabel}`} className="relative h-5 overflow-hidden rounded-sm bg-muted text-right text-xs leading-5 tabular-nums" role="gridcell">
-                    <span aria-hidden="true" className="absolute inset-y-0 left-0 bg-accent/50" style={{ width: `${maximum > 0 ? (totals.weekday[row] / Math.max(...totals.weekday)) * 100 : 0}%` }} />
+                    <span aria-hidden="true" className="absolute inset-y-0 left-0 bg-chart-1/50" style={{ width: `${maximum > 0 ? (totals.weekday[row] / Math.max(...totals.weekday)) * 100 : 0}%` }} />
                     <span className="relative px-1">{fmt.number(totals.weekday[row])}</span>
                   </span>
                 </div>
@@ -243,7 +243,7 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
                 <span className="sr-only" role="rowheader">Hourly totals</span>
                 {totals.hour.map((value, hour) => (
                   <span key={hour} aria-label={`${hourLabel(hour, locale)} total: ${fmt.number(value)} ${metricLabel}`} className="relative min-h-10 rounded-sm bg-muted" role="gridcell">
-                    <span aria-hidden="true" className="absolute inset-x-0 bottom-0 rounded-sm bg-accent/50" style={{ height: `${Math.max(...totals.hour) > 0 ? (value / Math.max(...totals.hour)) * 100 : 0}%` }} />
+                    <span aria-hidden="true" className="absolute inset-x-0 bottom-0 rounded-sm bg-chart-1/50" style={{ height: `${Math.max(...totals.hour) > 0 ? (value / Math.max(...totals.hour)) * 100 : 0}%` }} />
                   </span>
                 ))}
                 <span aria-label="All hours" role="gridcell" />
@@ -267,13 +267,13 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
                   return <li key={`${window.weekday}:${window.hour}`} className="text-xs">
                     <span>{weekday} {hourLabel(window.hour, locale)}, {fmt.number(window.value)} {metricLabel}</span>
                     <span aria-hidden="true" className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
-                      <span className="block h-full rounded-full bg-accent" style={{ width: `${maximum > 0 ? (window.value / maximum) * 100 : 0}%` }} />
+                      <span className="block h-full rounded-full bg-chart-1" style={{ width: `${maximum > 0 ? (window.value / maximum) * 100 : 0}%` }} />
                     </span>
                   </li>
                 })}
               </ol> : <p className="mt-2 text-xs text-muted-foreground">No busy windows in this range.</p>}
               <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                <div><p>Weekdays {weekparts.weekdays}%</p><span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-accent" style={{ width: `${weekparts.weekdays}%` }} /></span></div>
+                <div><p>Weekdays {weekparts.weekdays}%</p><span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-chart-1" style={{ width: `${weekparts.weekdays}%` }} /></span></div>
                 <div><p>Weekends {weekparts.weekends}%</p><span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-chart-2" style={{ width: `${weekparts.weekends}%` }} /></span></div>
               </div>
             </section>
