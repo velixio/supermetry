@@ -6,8 +6,8 @@ import { APP_NAV_SUFFIXES, navigationHref, replaysAvailable, navigationIsActive,
 import { accountDestinationIsActive, accountDestinations } from './AccountSidebar'
 
 describe('primary sidebar navigation', () => {
-  it('names the analysis section App Monitoring for app projects', () => {
-    expect(en.a11y2.sidebarSections.appMonitoring).toBe('App Monitoring')
+  it('names the analysis section App monitoring for app projects', () => {
+    expect(en.a11y2.sidebarSections.appMonitoring).toBe('App monitoring')
   })
 
   it('adds the organization-level GitHub stars item for every member', () => {
@@ -38,7 +38,7 @@ describe('primary sidebar navigation', () => {
     const identified = { id: 1, name: 'D', kind: 'app', tracking_policy: { instance_mode: 'identified', effective_mode: 'identified', configured_profiles_enabled: true, restrictions: [] } } as Site
     const items = visibleNavigation('owner', true, undefined, identified)
     expect(items.map((item) => item.suffix)).toEqual(APP_NAV_SUFFIXES.filter((suffix) => suffix !== '/settings'))
-    expect(items.find((item) => item.suffix === '/users')?.label).toBe('Sessions & Users')
+    expect(items.find((item) => item.suffix === '/users')?.label).toBe('Sessions & users')
     // Anonymous instances keep the install-keyed pages and hide the detailed-history ones.
     const anonymous = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)
     expect(anonymous).toEqual(expect.arrayContaining(['/users', '/issues']))

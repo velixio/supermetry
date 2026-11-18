@@ -66,7 +66,7 @@ export const en = {
     dashboard: 'Dashboard',
     events: 'Events',
     sessions: 'Sessions',
-    usersAndSessions: 'Sessions & Users',
+    usersAndSessions: 'Sessions & users',
     journeys: 'Journeys',
     retention: 'Retention',
     profiles: 'Profiles',
@@ -296,7 +296,7 @@ export const en = {
     applicationSidebar: 'Application sidebar',
     sidebarSections: {
       analyze: 'Analyze',
-      appMonitoring: 'App Monitoring',
+      appMonitoring: 'App monitoring',
       behaviour: 'Behaviour',
       conversion: 'Conversion',
       manage: 'Manage',

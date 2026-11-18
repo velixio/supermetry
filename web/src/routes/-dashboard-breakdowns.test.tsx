@@ -264,7 +264,7 @@ describe('dashboard breakdown route', () => {
       within(sources)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Source', 'Channels', 'UTM Source', 'Medium', 'Campaign'])
+    ).toEqual(['Source', 'Channels', 'UTM source', 'Medium', 'Campaign'])
   })
 
   it('shows the new device tabs and hides Hostname for a single-host site', async () => {
@@ -308,7 +308,7 @@ describe('dashboard breakdown route', () => {
     expect(within(sources).getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
       'Source',
       'Channels',
-      'UTM Source',
+      'UTM source',
       'Medium',
       'Campaign',
     ])
