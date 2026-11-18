@@ -45,6 +45,24 @@ func (s *Symbolicator) missingDebug(ctx context.Context, b appingest.Body) []app
 	}
 	for _, im := range b.DebugImages {
 		kind, raw := im.Type, im.DebugID
+		if im.Minidump {
+			// Minidump modules are asked for as Breakpad symbol files.
+			if systemImage(im.CodeFile) || windowsSystemPath(im.CodeFile) || !referenced(b, im) {
+				continue
+			}
+			id := debugfile.NormalizeDebugID(raw)
+			if id == "" {
+				continue
+			}
+			if _, found := s.cacheFor(ctx, b.SiteID, "breakpad", id); found {
+				continue
+			}
+			if _, found := s.remoteCache(ctx, b.SiteID, im); found {
+				continue
+			}
+			add("breakpad", id, baseFile(im.CodeFile), im.Arch)
+			continue
+		}
 		switch kind {
 		case "proguard":
 			raw = im.UUID
