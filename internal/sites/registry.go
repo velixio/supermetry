@@ -48,6 +48,7 @@ type AppConfig struct {
 	FilterLocalhost    *bool         // nil means the server-wide default
 	PerformanceEnabled *bool         // nil means on
 	SpanRetentionDays  int           // 1..14; 0 means 14
+	ElectronSymbols    *bool         // nil means on
 	Rules              *apprules.Set // compiled ownership and grouping rules; nil when the project has none
 	HashSecret         []byte        // per-app HMAC secret for install and session ids; nil until the first event creates it
 }

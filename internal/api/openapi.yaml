@@ -5029,6 +5029,7 @@ components:
         filter_localhost: { type: boolean, nullable: true, description: "Drop events raised on localhost. Null means the server default (filter_localhost_default)." }
         performance_enabled: { type: boolean, nullable: true, description: "Accept transactions and spans. Omitted or null means on." }
         span_retention_days: { type: integer, minimum: 0, maximum: 14, description: "Raw span retention in days. 0 means the default of 14." }
+        electron_symbols: { type: boolean, nullable: true, description: "Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on." }
         filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
     AppRules:
       type: object

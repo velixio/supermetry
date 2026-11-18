@@ -54,7 +54,7 @@ describe('AppSettingsPage', () => {
       orgId: 3,
       body: {
         tag_allowlist: ['beta', 'stable'], max_report_age_days: 14, environments: ['prod'],
-        filter_extensions: true, filter_crawlers: true, filter_localhost: null,
+        filter_extensions: true, filter_crawlers: true, filter_localhost: null, electron_symbols: true,
       },
     }))
     await waitFor(() => expect(screen.getByLabelText('Tag allowlist')).toHaveValue('beta\nstable'))
@@ -76,6 +76,13 @@ describe('AppSettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(privateRequest).toHaveBeenLastCalledWith('PUT', '/api/private/sites/7/app-settings', expect.objectContaining({
       body: expect.objectContaining({ filter_localhost: true }),
+    })))
+    const symbols = screen.getByRole('switch', { name: "Fetch Electron's public symbols" })
+    expect(symbols).toBeChecked()
+    fireEvent.click(symbols)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(privateRequest).toHaveBeenLastCalledWith('PUT', '/api/private/sites/7/app-settings', expect.objectContaining({
+      body: expect.objectContaining({ electron_symbols: false }),
     })))
   })
 
