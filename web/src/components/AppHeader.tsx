@@ -99,24 +99,26 @@ export function AppHeader({
         <Breadcrumbs membership={membership} />
       </div>
       <div className="flex items-center gap-1">
-        {/* One search field for the command palette. Its accessible name is its visible text; the
-            shortcut hint sits inside the field and is announced through aria-keyshortcuts. */}
-        <Button
-          ref={paletteTriggerRef}
-          type="button"
-          variant="outline"
-          className="justify-start gap-2 border-border bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:px-0 md:w-64 lg:w-72"
-          aria-haspopup="dialog"
-          aria-keyshortcuts="Control+K Meta+K"
-          aria-label={ui.palette.searchField}
-          onClick={onOpenPalette}
-        >
-          <SearchIcon aria-hidden="true" />
-          <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{ui.palette.searchField}</span>
-          <kbd aria-hidden="true" className="pointer-events-none hidden rounded border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline">
+        {/* One search field for the command palette. The shortcut hint sits beside the button's text,
+            not inside it, so the button's name is exactly its visible text. */}
+        <span className="relative inline-flex">
+          <Button
+            ref={paletteTriggerRef}
+            type="button"
+            variant="outline"
+            className="justify-start gap-2 border-border bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:px-0 md:w-64 md:pr-16 lg:w-72"
+            aria-haspopup="dialog"
+            aria-keyshortcuts="Control+K Meta+K"
+            aria-label={ui.palette.searchField}
+            onClick={onOpenPalette}
+          >
+            <SearchIcon aria-hidden="true" />
+            <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{ui.palette.searchField}</span>
+          </Button>
+          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
-        </Button>
+        </span>
         <UpdateNotice instanceAdmin={instanceAdmin} />
         {membership && site && requestedSite && site.kind !== 'app' ? (
           <div className="hidden sm:block">

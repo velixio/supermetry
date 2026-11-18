@@ -137,13 +137,17 @@ function Delta({ metric, value, reference }: { metric: StatMetric; value?: numbe
   )
 }
 
-/** The spoken form of a card: label, value and, when there is something to compare, direction and size of the change. */
+/**
+ * The spoken form of a card: label, value and, when there is something to compare, direction and size of the change.
+ * It starts with the exact text the card shows (label, value, signed change), so the accessible name contains the
+ * visible text (WCAG 2.5.3, axe label-content-name-mismatch).
+ */
 export function cardAriaLabel(metric: StatMetric, valueText: string, delta: number | undefined, reference: string): string {
   const t = dashboardView.kpi
   const label = metricLabel(metric)
-  if (delta === undefined) return t.ariaFlat(label, valueText, t.deltaNone)
-  if (delta === 0) return t.ariaFlat(label, valueText, `${t.deltaUnchanged} ${reference}`)
-  return t.ariaDelta(label, valueText, delta > 0 ? t.up : t.down, fmt.percent(Math.abs(delta)), reference)
+  if (delta === undefined) return t.ariaFlat(label, `${valueText} \u2014`, t.deltaNone)
+  if (delta === 0) return t.ariaFlat(label, `${valueText} ${formatDelta(0)}`, `${t.deltaUnchanged} ${reference}`)
+  return t.ariaDelta(label, `${valueText} ${formatDelta(delta)}`, delta > 0 ? t.up : t.down, fmt.percent(Math.abs(delta)), reference)
 }
 
 const primaryMetrics: readonly StatMetric[] = ['visitors', 'visits', 'pageviews', 'bounce_rate', 'visit_duration']
@@ -191,7 +195,10 @@ export function StatsStrip({
     const content = (
       <>
         <span className="w-full truncate text-sm text-muted-foreground">{metricLabel(metric)}</span>
+        {/* Whitespace text nodes keep the parts apart for assistive-tech text matching; the flex layout does not render them. */}
+        {' '}
         <span className="text-2xl font-semibold leading-none tabular-nums">{valueText}</span>
+        {' '}
         {comparison.isLoading ? <span className="h-4" aria-hidden="true" /> : <Delta metric={metric} value={delta} reference={referenceText} />}
       </>
     )

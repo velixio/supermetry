@@ -135,7 +135,9 @@ describe('AppHeader controls', () => {
     const header = await show('/app/account/profile', onOpenPalette)
     const field = within(header).getByRole('button', { name: 'Search or jump to…' })
     expect(field).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K')
-    expect(field.querySelector('kbd')).not.toBeNull()
+    // The hint sits beside the button's text (name equals visible text), inside the same field wrapper.
+    expect(field.parentElement?.querySelector('kbd')).not.toBeNull()
+    expect(field.querySelector('kbd')).toBeNull()
     expect(within(header).queryByRole('button', { name: 'Language' })).toBeNull()
     expect(within(header).queryByRole('button', { name: /theme/ })).toBeNull()
     expect(within(header).queryByRole('button', { name: 'Open command palette' })).toBeNull()

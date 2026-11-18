@@ -91,22 +91,22 @@ describe('StatsStrip', () => {
     render(<StatsStrip query={query} compare="previous_year" onSelectMetric={vi.fn()} />)
 
     expect(useStats).toHaveBeenNthCalledWith(2, expect.objectContaining({ dateRange: { from: '2025-10-01', to: '2025-10-07' } }))
-    expect(screen.getByRole('button', { name: /visitors/i })).toHaveAccessibleName('Visitors 120, up 20% vs same dates last year')
+    expect(screen.getByRole('button', { name: /visitors/i })).toHaveAccessibleName('Visitors 120 +20%, up 20% vs same dates last year')
   })
 
   it('says the direction and size of the change in the card name', () => {
     mockQuery({ visitors: 110, bounce_rate: 60, visits: 5 }, { visitors: 100, bounce_rate: 50, visits: 5 })
     render(<StatsStrip query={query} compare="off" onSelectMetric={vi.fn()} />)
 
-    expect(screen.getByRole('button', { name: /^Visitors/ })).toHaveAccessibleName('Visitors 110, up 10% vs previous 7 days')
-    expect(screen.getByRole('button', { name: /^Bounce rate/ })).toHaveAccessibleName('Bounce rate 60%, up 20% vs previous 7 days')
-    expect(screen.getByRole('button', { name: /^Visits/ })).toHaveAccessibleName('Visits 5, unchanged vs previous 7 days')
+    expect(screen.getByRole('button', { name: /^Visitors/ })).toHaveAccessibleName('Visitors 110 +10%, up 10% vs previous 7 days')
+    expect(screen.getByRole('button', { name: /^Bounce rate/ })).toHaveAccessibleName('Bounce rate 60% +20%, up 20% vs previous 7 days')
+    expect(screen.getByRole('button', { name: /^Visits/ })).toHaveAccessibleName('Visits 5 0%, unchanged vs previous 7 days')
   })
 
   it('shows no change when the previous period had no data', () => {
     mockQuery({ visitors: 10 }, { visitors: 0 })
     render(<StatsStrip query={query} compare="off" onSelectMetric={vi.fn()} />)
-    expect(screen.getByRole('button', { name: /^Visitors/ })).toHaveAccessibleName('Visitors 10, no previous data to compare')
+    expect(screen.getByRole('button', { name: /^Visitors/ })).toHaveAccessibleName('Visitors 10 —, no previous data to compare')
   })
 
   it('marks the card the chart shows as pressed', () => {
