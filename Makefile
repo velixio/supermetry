@@ -97,6 +97,7 @@ test-e2e: build
 	cd web && bunx playwright test e2e/not-found.spec.ts e2e/privacy-navigation.spec.ts --reporter=list --workers=1
 	cd web && bunx playwright test e2e/a11y-audit.spec.ts e2e/api-docs.spec.ts e2e/dashboard.spec.ts e2e/dashboard-where-when.spec.ts e2e/navigation.spec.ts e2e/pixels.spec.ts e2e/privacy.spec.ts e2e/revenue.spec.ts e2e/sessions.spec.ts e2e/settings.spec.ts e2e/vitals.spec.ts --reporter=list --workers=1
 	cd web && bunx playwright test e2e/account-sessions.spec.ts e2e/accuracy-live.spec.ts e2e/notifications.spec.ts e2e/project-currency.spec.ts e2e/replay-fit.spec.ts e2e/share.spec.ts --reporter=list --workers=1
+	cd web && bunx playwright test e2e/app-alert-rules.spec.ts e2e/app-performance.spec.ts e2e/obs-logs.spec.ts --reporter=list --workers=1
 
 test-all: fixtures
 	go vet ./...

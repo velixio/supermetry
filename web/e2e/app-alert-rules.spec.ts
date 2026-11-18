@@ -1,6 +1,8 @@
 import { expect, test } from './fixtures'
 
 test('app project: create a metric rule, silence it, and open the history', async ({ page, owner }) => {
+  // The org outlives the test, so every run uses its own channel name to keep the label unique.
+  const channelName = `Operations ${Date.now()}`
   await owner.login(page, `/app/${owner.orgSlug}/sites`)
   const created = await page.request.post('/api/private/sites', {
     headers: owner.apiHeaders,
@@ -10,7 +12,7 @@ test('app project: create a metric rule, silence it, and open the history', asyn
   const site = await created.json()
   const channel = await page.request.post(`/api/private/orgs/${owner.orgId}/channels`, {
     headers: owner.apiHeaders,
-    data: { kind: 'email', name: 'Operations', enabled: true, config: { recipients: ['ops@example.test'] } },
+    data: { kind: 'email', name: channelName, enabled: true, config: { recipients: ['ops@example.test'] } },
   })
   expect(channel.status(), await channel.text()).toBe(201)
 
@@ -23,7 +25,7 @@ test('app project: create a metric rule, silence it, and open the history', asyn
   await dialog.getByLabel('Name').fill('Too many errors')
   await dialog.getByLabel('When').selectOption('metric')
   await dialog.getByLabel('Critical threshold').fill('50')
-  await dialog.getByLabel('Operations').check()
+  await dialog.getByLabel(channelName).check()
   await dialog.getByRole('button', { name: 'Save rule' }).click()
   const rule = page.getByRole('region', { name: 'Rule Too many errors' })
   await expect(rule).toContainText('Error count above 50')

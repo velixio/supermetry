@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { uiAlerts as t } from '@/messages/uiAlerts'
 import { type AlertRule, useAlerts } from '@/features/settings/alertsApi'
 import { privateRequest } from '@/features/settings/privateApi'
 import type { components } from '@/lib/api.gen'
@@ -18,7 +19,8 @@ export type AlertSilence = components['schemas']['AlertSilence']
 type SilenceInput = components['schemas']['AlertSilenceInput']
 
 const base = (siteId: number) => `/api/private/sites/${siteId}/alert-silences`
-const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
+const dayName = (index: number) => t.silences.days[dayKeys[index]]
 const keyOf = (siteId: number) => ['sites', siteId, 'alert-silences'] as const
 
 export function useSilences(siteId: number, orgId: number) {
@@ -29,9 +31,9 @@ export function useSilences(siteId: number, orgId: number) {
 const toIso = (local: string) => (local ? new Date(local).toISOString() : undefined)
 
 export function describeSilence(s: AlertSilence): string {
-  if (s.kind === 'silence') return `${new Date(s.starts_at).toLocaleString()} until ${s.ends_at ? new Date(s.ends_at).toLocaleString() : 'further notice'}`
-  const when = (s.weekdays ?? []).map((d) => days[d]).join(', ')
-  return `Every ${when} at ${s.start_time} for ${s.duration_minutes} min (${s.tz})`
+  if (s.kind === 'silence') return t.silences.oneOff(new Date(s.starts_at).toLocaleString(), s.ends_at ? new Date(s.ends_at).toLocaleString() : t.silences.furtherNotice)
+  const when = (s.weekdays ?? []).map(dayName).join(', ')
+  return t.silences.recurring(when, s.start_time ?? '', s.duration_minutes ?? 0, s.tz ?? '')
 }
 
 export function SilencesPage({ siteId, orgId, siteTimezone, canEdit }: { siteId: number; orgId: number; siteTimezone: string; canEdit: boolean }) {
@@ -47,20 +49,20 @@ export function SilencesPage({ siteId, orgId, siteTimezone, canEdit }: { siteId:
 
   return (
     <PageContainer width="narrow">
-      <PageHeader title="Silences" description="Mute rules for a deploy or a planned outage. Muted notices are logged as suppressed and are not sent later." />
+      <PageHeader title={t.silences.title} description={t.silences.description} />
       {failure ? <p role="alert" className="text-sm text-destructive">{failure.message}</p> : null}
-      {silences.data && items.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">No silences or maintenance windows.</p> : null}
-      <ul aria-label="Silences" className="flex flex-col gap-3">
+      {silences.data && items.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.silences.empty}</p> : null}
+      <ul aria-label={t.silences.title} className="flex flex-col gap-3">
         {items.map((s) => (
           <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={s.id}>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{s.kind === 'silence' ? 'Silence' : 'Maintenance'}</Badge>
-                <span className="font-medium">{s.alert_id ? (rules.find((r) => r.id === s.alert_id)?.name ?? `Rule ${s.alert_id}`) : 'All rules'}</span>
+                <Badge variant="secondary">{s.kind === 'silence' ? t.silences.silence : t.silences.maintenance}</Badge>
+                <span className="font-medium">{s.alert_id ? (rules.find((r) => r.id === s.alert_id)?.name ?? t.silences.rule(s.alert_id)) : t.silences.allRules}</span>
               </div>
               <p className="text-sm text-muted-foreground">{describeSilence(s)}{s.reason ? ` · ${s.reason}` : ''}</p>
             </div>
-            {canEdit ? <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(s.id)}>Delete</Button> : null}
+            {canEdit ? <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(s.id)}>{t.common.delete}</Button> : null}
           </li>
         ))}
       </ul>
@@ -99,20 +101,20 @@ function SilenceForm({ rules, siteTimezone, error, pending, onCreate }: {
   }
 
   return (
-    <form aria-label="New silence" className="flex flex-col gap-4 rounded-xl border bg-card p-4" onSubmit={submit}>
+    <form aria-label={t.silences.form} className="flex flex-col gap-4 rounded-xl border bg-card p-4" onSubmit={submit}>
       <FieldGroup>
-        <FieldLegend>New silence</FieldLegend>
+        <FieldLegend>{t.silences.form}</FieldLegend>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="silence-kind">Type</FieldLabel>
+            <FieldLabel htmlFor="silence-kind">{t.silences.type}</FieldLabel>
             <select id="silence-kind" className={selectClass} value={kind} onChange={(e) => setKind(e.target.value as 'silence' | 'maintenance')}>
-              <option value="silence">One-off silence</option><option value="maintenance">Weekly maintenance window</option>
+              <option value="silence">{t.silences.typeSilence}</option><option value="maintenance">{t.silences.typeMaintenance}</option>
             </select>
           </Field>
           <Field>
-            <FieldLabel htmlFor="silence-alert">Applies to</FieldLabel>
+            <FieldLabel htmlFor="silence-alert">{t.silences.appliesTo}</FieldLabel>
             <select id="silence-alert" className={selectClass} value={alertId} onChange={(e) => setAlertId(e.target.value)}>
-              <option value="">All rules</option>
+              <option value="">{t.silences.allRules}</option>
               {rules.map((rule) => <option key={rule.id} value={rule.id}>{rule.name}</option>)}
             </select>
           </Field>
@@ -120,59 +122,59 @@ function SilenceForm({ rules, siteTimezone, error, pending, onCreate }: {
         {kind === 'silence' ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="silence-starts">Starts (optional, default now)</FieldLabel>
+              <FieldLabel htmlFor="silence-starts">{t.silences.starts}</FieldLabel>
               <Input id="silence-starts" type="datetime-local" value={starts} onChange={(e) => setStarts(e.target.value)} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="silence-ends">Ends</FieldLabel>
+              <FieldLabel htmlFor="silence-ends">{t.silences.ends}</FieldLabel>
               <Input id="silence-ends" required type="datetime-local" value={ends} onChange={(e) => setEnds(e.target.value)} />
             </Field>
           </div>
         ) : (
           <>
             <FieldSet>
-              <FieldLegend variant="label">Days</FieldLegend>
+              <FieldLegend variant="label">{t.silences.daysLegend}</FieldLegend>
               <div className="flex flex-wrap gap-x-4">
-                {days.map((day, index) => (
-                  <CheckField key={day} id={`silence-day-${index}`} label={day} checked={weekdays.includes(index)}
+                {dayKeys.map((day, index) => (
+                  <CheckField key={day} id={`silence-day-${index}`} label={dayName(index)} checked={weekdays.includes(index)}
                     onChange={(checked) => setWeekdays((list) => (checked ? [...list, index].sort() : list.filter((d) => d !== index)))} />
                 ))}
               </div>
             </FieldSet>
             <div className="grid gap-3 sm:grid-cols-3">
               <Field>
-                <FieldLabel htmlFor="silence-time">Starts at</FieldLabel>
+                <FieldLabel htmlFor="silence-time">{t.silences.startsAt}</FieldLabel>
                 <Input id="silence-time" required type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="silence-duration">Duration (minutes)</FieldLabel>
+                <FieldLabel htmlFor="silence-duration">{t.silences.duration}</FieldLabel>
                 <Input id="silence-duration" required min={1} max={1440} type="number" value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="silence-tz">Time zone</FieldLabel>
+                <FieldLabel htmlFor="silence-tz">{t.silences.tz}</FieldLabel>
                 <Input id="silence-tz" required value={tz} onChange={(e) => setTz(e.target.value)} />
               </Field>
             </div>
             <Field>
-              <FieldLabel htmlFor="silence-until">Repeat until (optional)</FieldLabel>
+              <FieldLabel htmlFor="silence-until">{t.silences.until}</FieldLabel>
               <Input id="silence-until" type="datetime-local" value={ends} onChange={(e) => setEnds(e.target.value)} />
             </Field>
-            <div aria-label="Next occurrences" role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
-              <p className="font-medium">Next occurrences ({tz})</p>
-              {preview.length === 0 ? <p className="text-muted-foreground">Choose at least one day and a valid time zone.</p> : (
-                <ul>{preview.map((o) => <li key={o.start.toISOString()}>{formatInZone(o.start, tz)} to {formatInZone(o.end, tz)}</li>)}</ul>
+            <div aria-label={t.silences.next} role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <p className="font-medium">{t.silences.nextTz(tz)}</p>
+              {preview.length === 0 ? <p className="text-muted-foreground">{t.silences.nextEmpty}</p> : (
+                <ul>{preview.map((o) => <li key={o.start.toISOString()}>{formatInZone(o.start, tz)} {t.silences.to} {formatInZone(o.end, tz)}</li>)}</ul>
               )}
             </div>
           </>
         )}
         <Field>
-          <FieldLabel htmlFor="silence-reason">Reason (optional)</FieldLabel>
+          <FieldLabel htmlFor="silence-reason">{t.silences.reason}</FieldLabel>
           <Input id="silence-reason" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
-          <FieldDescription>Shown in the delivery history next to each suppressed notice.</FieldDescription>
+          <FieldDescription>{t.silences.reasonNote}</FieldDescription>
         </Field>
       </FieldGroup>
       <FieldError>{error?.message}</FieldError>
-      <div><Button type="submit" disabled={pending}>Create silence</Button></div>
+      <div><Button type="submit" disabled={pending}>{t.silences.submit}</Button></div>
     </form>
   )
 }

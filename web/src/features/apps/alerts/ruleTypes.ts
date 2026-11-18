@@ -1,5 +1,7 @@
 // Types and helpers of the alert rule document (internal/alerts/rule.go).
 
+import { uiAlerts as t } from '@/messages/uiAlerts'
+
 export type TriggerType = 'issue' | 'event' | 'metric' | 'monitor'
 export type MetricName =
   | 'error_count' | 'crash_free_sessions' | 'crash_free_users'
@@ -48,24 +50,10 @@ export type RuleDoc = {
   notify_on_resolve?: boolean
 }
 
-export const metricLabels: Record<MetricName, string> = {
-  error_count: 'Error count',
-  crash_free_sessions: 'Crash-free sessions (%)',
-  crash_free_users: 'Crash-free users (%)',
-  transaction_count: 'Transaction count',
-  transaction_failure_rate: 'Transaction failure rate (%)',
-  transaction_p50: 'Transaction duration p50 (ms)',
-  transaction_p75: 'Transaction duration p75 (ms)',
-  transaction_p95: 'Transaction duration p95 (ms)',
-  transaction_p99: 'Transaction duration p99 (ms)',
-}
+// Live catalogue objects: translations are applied in place, so these always show the active language.
+export const metricLabels: Record<MetricName, string> = t.rules.metrics
 
-export const triggerLabels: Record<TriggerType, string> = {
-  issue: 'An issue is new, regressed or escalated',
-  event: 'An issue gets many events',
-  metric: 'A metric crosses a threshold',
-  monitor: 'A cron monitor misses, fails or times out',
-}
+export const triggerLabels: Record<TriggerType, string> = t.rules.triggers
 
 export const usesClosedHours = (name: MetricName) => name.startsWith('transaction_') || name.startsWith('crash_free_')
 
@@ -102,11 +90,12 @@ export function errorAt(message: string | undefined, path: string): string | und
 
 export function describeRule(rule: RuleDoc | undefined): string {
   if (!rule) return ''
-  const t = rule.trigger
-  switch (t.type) {
-    case 'issue': return `Issue ${t.issue?.on.join(', ') ?? ''}`
-    case 'event': return t.event?.spike ? 'Issue spike against its hourly baseline' : `Issue with more than ${t.event?.above} ${t.event?.measure ?? 'events'} in ${t.event?.window_minutes} min`
-    case 'metric': return `${metricLabels[t.metric!.name]} ${t.metric!.op} ${t.metric!.critical}`
-    case 'monitor': return `Cron monitor ${t.monitor?.slugs?.length ? t.monitor.slugs.join(', ') : '(any)'}: ${(t.monitor?.on ?? []).join(', ')}`
+  const tr = rule.trigger
+  const d = t.rules.describe
+  switch (tr.type) {
+    case 'issue': return d.issue(tr.issue?.on.join(', ') ?? '')
+    case 'event': return tr.event?.spike ? d.spike : d.event(tr.event?.above ?? '', tr.event?.measure ?? 'events', tr.event?.window_minutes ?? '')
+    case 'metric': return d.metric(metricLabels[tr.metric!.name], tr.metric!.op, tr.metric!.critical)
+    case 'monitor': return d.monitor(tr.monitor?.slugs?.length ? tr.monitor.slugs.join(', ') : d.anyMonitor, (tr.monitor?.on ?? []).join(', '))
   }
 }
