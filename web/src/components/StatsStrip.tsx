@@ -250,8 +250,9 @@ export function StatsStrip({
   const shown = shownMetrics ? visible(statMetrics) : visible(primaryMetrics)
   const more = shownMetrics ? [] : visible(secondaryMetrics)
   const grid = tabs
-    // One-pixel gaps over the border colour draw hairline dividers however the tabs wrap.
-    ? 'grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-5'
+    // Each tab draws its right and bottom hairline; the negative margins tuck the outer ones under the
+    // clipped edge, so dividers stay correct however the tabs wrap and empty slots stay card-coloured.
+    ? '-mr-px -mb-px grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 [&>*]:border-r [&>*]:border-b'
     : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'
   const toggle = more.length > 0 ? (
     <Button
@@ -274,10 +275,12 @@ export function StatsStrip({
   if (tabs) {
     return (
       <div aria-label={dashboardView.kpi.groupLabel} className="flex flex-col border-b" role="group">
-        <section aria-busy={current.isLoading || comparison.isLoading} className={grid}>
-          {shown.map(card)}
-        </section>
-        {moreGrid}
+        <div className="overflow-hidden">
+          <section aria-busy={current.isLoading || comparison.isLoading} className={grid}>
+            {shown.map(card)}
+          </section>
+        </div>
+        {moreGrid ? <div className="overflow-hidden">{moreGrid}</div> : null}
         <div className="flex flex-wrap items-center justify-between gap-x-3 border-t px-2 py-1">
           {toggle ?? <span />}
           <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground" data-testid="kpi-reference">
