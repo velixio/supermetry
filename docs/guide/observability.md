@@ -23,6 +23,8 @@ Both `http/protobuf` and `http/json` work, gzip is accepted. Most SDKs only
 enable the logs and metrics exporters when you ask for them, for example
 `OTEL_LOGS_EXPORTER=otlp` and `OTEL_METRICS_EXPORTER=otlp`.
 
+No SDK in the app? See [Collect errors without changing the app](collect-without-code.md).
+
 ### Sentry logs
 
 Sentry SDKs that support structured logs send them over the DSN:
