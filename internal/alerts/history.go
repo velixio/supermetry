@@ -21,7 +21,7 @@ const (
 	maxHistoryPageSize          = 100
 )
 
-var channelKinds = []ChannelKind{ChannelEmail, ChannelSlack, ChannelDiscord, ChannelTelegram, ChannelWebhook}
+var channelKinds = []ChannelKind{ChannelEmail, ChannelSlack, ChannelDiscord, ChannelTelegram, ChannelPagerDuty, ChannelWebhook}
 
 func (s *Service) RecordDelivery(ctx context.Context, alertID int64, channel DeliveryChannel, notification Notification, attempts int, status DeliveryStatus, errorText string, at time.Time) error {
 	encoded, err := json.Marshal(notification)

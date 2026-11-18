@@ -71,7 +71,11 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 	reqRaw := asMap(m["request"])
 	body.Request = ScrubRequest(reqRaw)
 	body.Breadcrumbs = scrubBreadcrumbs(asList(m["breadcrumbs"]))
-	body.Tags = limitTags(tagPairs(m["tags"]), maxBodyTags)
+	tags := tagPairs(m["tags"])
+	if p := processTag(tags, body.Contexts); p != "" {
+		tags["process"] = p
+	}
+	body.Tags = limitTags(tags, maxBodyTags)
 	ev.Tags = limitTags(body.Tags, maxEventTags)
 
 	level := strings.ToLower(str(m["level"]))
@@ -116,6 +120,7 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 	body.DebugImages = parseDebugImages(m["debug_meta"], platform)
 	ev.Environment = clip(str(m["environment"]), 32)
 	ev.Build = clip(str(asMap(contexts["app"])["app_build"]), 64)
+	ev.TraceID, ev.SpanID = traceContextIDs(asMap(contexts["trace"]))
 	osCtx, dev, rt := body.Contexts["os"], body.Contexts["device"], body.Contexts["runtime"]
 	ev.Platform = platformOf(str(osCtx["name"]), platform, client != nil, ctx.SDKName+str(sdk["name"]))
 	ev.OSVersion = clip(strings.TrimSpace(fmt.Sprint(valueOr(osCtx["version"]))), 32)
@@ -386,13 +391,19 @@ func parseUA(ua string) *useragent.UserAgent {
 	return &p
 }
 
-// classify decides the event kind. Hangs (ANR, app hang, watchdog) come
-// first, then fatal level or a minidump means crash, else error.
+// classify decides the event kind. Hangs (ANR, app hang) come first. Then the
+// terminations the OS carried out (watchdog, out of memory) are crashes with
+// an exit reason: they are fatal and unhandled, and the API and UI expose
+// them as the kinds "watchdog" and "oom". Then fatal level or a minidump means
+// crash, else error.
 func classify(level string, excs []appingest.Exception, platform string, minidump bool) (kind, exitReason string) {
+	oom := false
 	for _, ex := range excs {
 		mech := ""
+		unhandled := false
 		if ex.Mechanism != nil {
 			mech = strings.ToLower(ex.Mechanism.Type)
+			unhandled = ex.Mechanism.Handled != nil && !*ex.Mechanism.Handled
 		}
 		switch {
 		case mech == "anr" || ex.Type == "ApplicationNotResponding":
@@ -400,8 +411,23 @@ func classify(level string, excs []appingest.Exception, platform string, minidum
 		case mech == "apphang" || strings.HasPrefix(ex.Type, "App Hang"):
 			return "hang", "app_hang"
 		case mech == "watchdog_termination" || ex.Type == "WatchdogTermination":
-			return "hang", "watchdog_termination"
+			return "crash", "watchdog_termination"
 		}
+		// A caught OutOfMemoryError is an ordinary error; only a fatal or
+		// unhandled one ended the process.
+		if level == "fatal" || unhandled {
+			switch {
+			case ex.Type == "java.lang.OutOfMemoryError" || (ex.Type == "OutOfMemoryError" && (ex.Module == "java.lang" || ex.Module == "")):
+				oom = true
+			case ex.Type == "EXC_RESOURCE" && strings.Contains(strings.ToUpper(ex.Value), "RESOURCE_TYPE_MEMORY"):
+				oom = true
+			case mech == "memorylimiter": // inference: not found in the sentry-java or sentry-cocoa sources
+				oom = true
+			}
+		}
+	}
+	if oom {
+		return "crash", "oom"
 	}
 	if level == "fatal" || minidump {
 		return "crash", ""
@@ -675,4 +701,60 @@ func parseAddr(v any) uint64 {
 		return n
 	}
 	return 0
+}
+
+// processTag normalises the process an Electron or Crashpad event came from
+// into main, renderer, gpu, utility or other; "" when the event names none.
+// One Electron app reports all its processes to one project, and this tag
+// tells them apart.
+func processTag(tags map[string]string, contexts map[string]map[string]any) string {
+	raw, fromTag := "", ""
+	for _, k := range []string{"process", "event.process", "process_type"} {
+		if v := strings.TrimSpace(tags[k]); v != "" {
+			raw, fromTag = v, k
+			break
+		}
+	}
+	if raw == "" {
+		for _, c := range []string{"electron", "crashpad"} {
+			if v := strings.TrimSpace(str(contexts[c]["process_type"])); v != "" {
+				raw = v
+				break
+			}
+			if v := strings.TrimSpace(str(contexts[c]["crashpad.process_type"])); v != "" {
+				raw = v
+				break
+			}
+		}
+	}
+	if raw == "" {
+		return ""
+	}
+	switch strings.ToLower(raw) {
+	case "main", "browser":
+		return "main"
+	case "renderer":
+		return "renderer"
+	case "gpu", "gpu-process":
+		return "gpu"
+	case "utility":
+		return "utility"
+	}
+	if fromTag == "process" {
+		return "" // an app's own process tag keeps its own values
+	}
+	return "other"
+}
+
+// traceContextIDs reads the 16-byte trace id and 8-byte span id of a
+// contexts.trace entry. Wrong lengths, non-hex text and an all-zero trace id
+// give nil, so a malformed context never blocks the event.
+func traceContextIDs(trace map[string]any) (traceID, spanID []byte) {
+	if b, err := hex.DecodeString(str(trace["trace_id"])); err == nil && len(b) == 16 && !allZero(b) {
+		traceID = b
+		if s, err := hex.DecodeString(str(trace["span_id"])); err == nil && len(s) == 8 && !allZero(s) {
+			spanID = s
+		}
+	}
+	return traceID, spanID
 }

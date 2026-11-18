@@ -1,6 +1,7 @@
 import json
 import platform as _platform
 import random as _random
+import re
 import secrets
 import sys
 import threading
@@ -34,6 +35,29 @@ def _urllib_transport(url: str, headers: Dict[str, str], body: str) -> Tuple[int
 
 def _clip(s: str, n: int) -> str:
     return s[:n]
+
+
+_EVENT_NAME = re.compile(r"[A-Za-z0-9_.:$ -]+")
+
+
+def _clip_bytes(s: str, n: int) -> str:
+    while len(s.encode("utf-8")) > n:
+        s = s[:-1]
+    return s
+
+
+def _clean_props(props: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+    """Custom event props: string values only, no "$" keys (reserved), at most 20 keys."""
+    if not props:
+        return None
+    out: Dict[str, str] = {}
+    for k, v in props.items():
+        if len(out) >= 20:
+            break
+        if not isinstance(k, str) or not isinstance(v, str) or not k or k.startswith("$") or len(k.encode("utf-8")) > 64:
+            continue
+        out[k] = _clip_bytes(v, 200)
+    return out or None
 
 
 def _clean_tags(tags: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -169,6 +193,25 @@ class Client:
     def capture_event(self, kind: str, **fields: Any) -> None:
         self._enqueue(kind, **fields)
 
+    def track(self, name: str, props: Optional[Dict[str, str]] = None) -> None:
+        """Records a custom product event.
+
+        The name (1 to 64 characters of letters, digits and _.:$ - space, not starting
+        with "$") and the install id are required: a call the server would reject is
+        ignored. Props are strings. No user id is ever sent.
+        """
+        if not isinstance(name, str) or len(name) > 64 or name.startswith("$") or not _EVENT_NAME.fullmatch(name):
+            return
+        if not self.install_id:
+            return
+        self._enqueue("event", name=name, props=_clean_props(props))
+
+    def screen(self, name: str, props: Optional[Dict[str, str]] = None) -> None:
+        """Records a screen view (1 to 200 bytes). Needs the install id, like track()."""
+        if not isinstance(name, str) or not name or not self.install_id:
+            return
+        self._enqueue("screen", screen=_clip_bytes(name, 200), props=_clean_props(props))
+
     def flush(self, timeout: float = 10.0) -> bool:
         """Sends everything queued. Returns True when the queue is empty, False if it timed out or sending stopped."""
         if not self._enabled:
@@ -230,7 +273,14 @@ class Client:
             dc = f.get("device_class") or self.device_class
             if dc:
                 e["device_class"] = _clip(dc, 32)
-            if kind != "session":
+            if kind in ("screen", "event"):
+                if f.get("screen"):
+                    e["screen"] = f["screen"]
+                if f.get("name"):
+                    e["name"] = f["name"]
+                if f.get("props"):
+                    e["props"] = f["props"]
+            elif kind != "session":
                 e["level"] = f.get("level") or ("fatal" if kind == "crash" else "error")
                 handled = f.get("handled")
                 e["handled"] = (kind != "crash") if handled is None else bool(handled)
@@ -386,6 +436,14 @@ def capture_crash(**kw: Any) -> None:
 
 def capture_event(kind: str, **fields: Any) -> None:
     _need().capture_event(kind, **fields)
+
+
+def track(name: str, props: Optional[Dict[str, str]] = None) -> None:
+    _need().track(name, props)
+
+
+def screen(name: str, props: Optional[Dict[str, str]] = None) -> None:
+    _need().screen(name, props)
 
 
 def start_session() -> None:

@@ -5,10 +5,14 @@
   check.py sites BASE STATE N                    N app sites with one DSN key each; "<id> <key>" lines
   check.py uploadtoken BASE STATE NAME           app site, DSN key and an upload token (sntrys_ format); prints "<id> <key> <token>"
   check.py frame BASE STATE SITE WAIT_S EXPECT_FILE EXPECT_LINE [EXPECT_FUNC]  top in-app frame of the newest event is the original file and line (and function)
+  check.py debugfiles BASE STATE SITE WAIT_S KIND:STATE...  wait until the project lists a debug file of each kind in that cache state (STATE "any" = any but error)
   check.py issues BASE STATE SITE [WAIT_S]       wait for issues; prints "<n> <titles...>"; exit 1 if none
   check.py sessions BASE STATE SITE WAIT_S DB_URL  wait for session rows (crash-free rate, else rows in app_events)
   check.py feedback BASE STATE SITE WAIT_S DB_URL  wait for user feedback: stored, scrubbed, linked to an issue, no raw email
   check.py breadcrumbs BASE STATE SITE DB_URL    PASS/SKIP check that stored bodies carry breadcrumbs
+  check.py transactions BASE STATE SITE WAIT_S DB_URL NAMES FORBIDDEN  wait until the transaction list shows every name in NAMES
+                                                 (comma separated), a trace has child spans with parent links, and no stored span
+                                                 or rollup row contains a string of FORBIDDEN (comma separated)
 
 Exit codes: 0 pass, 1 fail, 3 skip (message on stdout).
 """
@@ -112,6 +116,20 @@ def main(argv):
     site = argv[4]
     wait = float(argv[5]) if len(argv) > 5 and cmd != "breadcrumbs" else 25
     deadline = time.time() + wait
+    if cmd == "debugfiles":
+        want = [w.split(":", 1) for w in argv[6:]]
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/debug-files"), (200,), "list debug files")
+            have = [(f["kind"], f["cache_state"]) for f in r.get("files", [])]
+            missing = [f"{k}:{st}" for k, st in want
+                       if not any(hk == k and (hs == st or (st == "any" and hs != "error")) for hk, hs in have)]
+            if not missing:
+                print("debug files " + ", ".join(f"{k}={s}" for k, s in sorted(have)))
+                return 0
+            if time.time() > deadline:
+                print(f"missing {missing}; listed {sorted(have)}")
+                return 1
+            time.sleep(1)
     if cmd == "issues":
         while True:
             r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")
@@ -123,6 +141,40 @@ def main(argv):
                 print(f"{len(titles)} issues, titles={titles}")
                 return 1
             time.sleep(1)
+    if cmd == "nativecrash":  # a crash issue whose top frame has a symbolicated function name
+        last = "no crash issue yet"
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/issues?kind=crash"), (200,), "list crash issues")
+            for i in r["issues"]:
+                d = need(*c.call(f"/api/private/sites/{site}/app/issues/{i['id']}"), (200,), "issue")
+                for ev in d.get("latest_events", []):
+                    st, b = c.call(f"/api/private/sites/{site}/app/events/{ev.get('event_id')}")
+                    if st != 200:
+                        last = f"event body HTTP {st}"
+                        continue
+                    frames = [f for x in b["body"].get("exceptions", []) for f in x.get("frames", [])]
+                    if not frames:
+                        last = "crash event has no frames"
+                        continue
+                    top = frames[-1]  # oldest call first, so the crashing frame is last
+                    fn = top.get("function", "")
+                    if fn and not re.match(r"^[^\s(]*\+0x[0-9a-f]+$", fn) and not fn.startswith("0x"):
+                        print(f"crash issue {i['id']} top frame {fn} ({top.get('filename')}:{top.get('lineno')}), process={b['body'].get('tags', {}).get('process')}")
+                        return 0
+                    last = f"top frame not symbolicated: {fn!r}"
+            if time.time() > deadline:
+                print(f"FAIL: {last}")
+                return 1
+            time.sleep(1)
+    if cmd == "silent":  # no issue appears for the whole wait (the consent gate dropped everything)
+        while time.time() < deadline:
+            r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")
+            if r["issues"]:
+                print(f"FAIL: {len(r['issues'])} issue(s) arrived: {[i['title'] for i in r['issues']]}")
+                return 1
+            time.sleep(2)
+        print(f"no events in {int(float(argv[5]))} s")
+        return 0
     if cmd == "frame":
         want_file, want_line = argv[6], int(argv[7])
         want_func = argv[8] if len(argv) > 8 else ""
@@ -214,6 +266,44 @@ def main(argv):
                 print("no kind=session rows")
                 return 1
             time.sleep(1)
+    if cmd == "transactions":
+        db, names, forbidden = argv[6], [n for n in argv[7].split(",") if n], [f for f in argv[8].split(",") if f]
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        last = "no transactions yet"
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/transactions?from={day}&to={day}"), (200,), "list transactions")
+            have = {t["name"]: t for t in r["transactions"]}
+            missing = [n for n in names if n not in have]
+            if not missing:
+                break
+            last = f"missing {missing}; have {sorted(have)}"
+            if time.time() > deadline:
+                print("FAIL: " + last)
+                return 1
+            time.sleep(1)
+
+        def sql(q):
+            p = subprocess.run(["psql", db, "-Atc", q], capture_output=True, text=True)
+            return p.stdout.strip() if p.returncode == 0 else "ERR " + p.stderr.strip()
+
+        sid = int(site)
+        linked = sql(f"select count(*) from spans c join spans p on p.site_id=c.site_id and p.trace_id=c.trace_id and p.span_id=c.parent_span_id where c.site_id={sid} and not c.is_segment")
+        if not linked.isdigit() or int(linked) < 1:
+            print(f"FAIL: no child span links to a parent in the same trace ({linked})")
+            return 1
+        tid = sql(f"select encode(trace_id,'hex') from spans where site_id={sid} and not is_segment limit 1")
+        st, tr = c.call(f"/api/private/sites/{sid}/app/traces/{tid}")
+        if st != 200 or len(tr.get("spans", [])) < 2:
+            print(f"FAIL: trace {tid} read: HTTP {st}")
+            return 1
+        for f in forbidden:
+            lit = "'" + f.replace("'", "''") + "'"
+            hit = sql(f"select (select count(*) from spans t where position({lit} in t::text) > 0) + (select count(*) from span_hourly t where position({lit} in t::text) > 0)")
+            if hit != "0":
+                print(f"FAIL: stored spans contain {f!r} ({hit})")
+                return 1
+        print(f"{len(names)} transactions listed, {linked} parent links, trace of {len(tr['spans'])} spans, no forbidden strings")
+        return 0
     if cmd == "breadcrumbs":
         db = argv[5]
         r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")

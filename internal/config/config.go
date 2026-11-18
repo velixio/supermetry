@@ -114,10 +114,13 @@ type Config struct {
 	SentryIPPerMin        int   // Sentry-compatible intake: requests per minute per client IP
 	SentryMaxInflight     int   // Sentry-compatible intake: bodies read and parsed at once
 	SpansPerMin           int   // spans accepted per project per minute (token bucket)
+	ElectronSymbols       bool  // fetch Electron's public symbols for native crashes (SUPERMETRY_ELECTRON_SYMBOLS, default on)
+	RemoteSymbolsMB       int   // byte cap of the global remote symbol cache in MiB (SUPERMETRY_REMOTE_SYMBOLS_MB, default 4096)
 	SentryFilterLocalhost bool  // drop Sentry events whose request URL is localhost; off by default so local trials show events
 	AppSpikePerMin        int   // Sentry-compatible intake: events per minute per app site
 	SymbolicateWorkers    int   // source map symbolication workers
 	SymbolicateCacheMB    int   // parsed source map cache budget, MiB
+	MinidumpInflightMB    int   // raw minidump bytes queued or in process at once, MiB
 	SentryAPIIPPerMin     int   // Sentry-compatible upload API (/api/0/): requests per minute per client IP
 	SentryAPITokenPerMin  int   // Sentry-compatible upload API: requests per minute per API token
 	SentryOrgCapBytes     int64 // Sentry-compatible upload API: stored source map and debug file bytes per organization
@@ -238,12 +241,15 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		AppSpikePerMin:       600,
 		SentryIPPerMin:       600,
 		SentryMaxInflight:    32,
+		ElectronSymbols:      true,
+		RemoteSymbolsMB:      4096,
 		SpansPerMin:          60000,
 		SentryAPIIPPerMin:    600,
 		SentryAPITokenPerMin: 300,
 		SentryOrgCapBytes:    5 << 30,
 		SymbolicateWorkers:   2,
 		SymbolicateCacheMB:   256,
+		MinidumpInflightMB:   128,
 		DIFMaxMB:             512,
 		SymcacheDiskMB:       2048,
 		IngestRateSite:       defaultIngestRateSite,
@@ -487,6 +493,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_IP_PER_MIN"), "SUPERMETRY_SENTRY_IP_PER_MIN", &c.SentryIPPerMin, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_SENTRY_FILTER_LOCALHOST"), "SUPERMETRY_SENTRY_FILTER_LOCALHOST", &c.SentryFilterLocalhost, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_MAX_INFLIGHT"), "SUPERMETRY_SENTRY_MAX_INFLIGHT", &c.SentryMaxInflight, &errs)
+	parseOptionalBool(getenv("SUPERMETRY_ELECTRON_SYMBOLS"), "SUPERMETRY_ELECTRON_SYMBOLS", &c.ElectronSymbols, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_REMOTE_SYMBOLS_MB"), "SUPERMETRY_REMOTE_SYMBOLS_MB", &c.RemoteSymbolsMB, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SPANS_PER_MIN"), "SUPERMETRY_SPANS_PER_MIN", &c.SpansPerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_API_IP_PER_MIN"), "SUPERMETRY_SENTRY_API_IP_PER_MIN", &c.SentryAPIIPPerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_API_TOKEN_PER_MIN"), "SUPERMETRY_SENTRY_API_TOKEN_PER_MIN", &c.SentryAPITokenPerMin, &errs)
@@ -499,6 +507,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	parsePositiveInt(getenv("SUPERMETRY_SYMBOLICATE_WORKERS"), "SUPERMETRY_SYMBOLICATE_WORKERS", &c.SymbolicateWorkers, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SYMBOLICATE_CACHE_MB"), "SUPERMETRY_SYMBOLICATE_CACHE_MB", &c.SymbolicateCacheMB, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_MINIDUMP_INFLIGHT_MB"), "SUPERMETRY_MINIDUMP_INFLIGHT_MB", &c.MinidumpInflightMB, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_DIF_MAX_MB"), "SUPERMETRY_DIF_MAX_MB", &c.DIFMaxMB, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SYMCACHE_DISK_MB"), "SUPERMETRY_SYMCACHE_DISK_MB", &c.SymcacheDiskMB, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_APP_SPIKE_PER_MIN"), "SUPERMETRY_APP_SPIKE_PER_MIN", &c.AppSpikePerMin, &errs)

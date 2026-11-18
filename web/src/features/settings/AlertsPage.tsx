@@ -26,6 +26,7 @@ const labels: Record<AlertKind, string> = {
   app_issue_regressed: 'Issue regressed',
   app_crash_free_below: 'Crash-free rate below threshold',
   app_issue_spike: 'Issue spike',
+  app_rule: 'Rule',
 }
 const thresholdDescriptions: Record<AlertKind, string> = {
   traffic_spike: 'Active visitors in this process during the last 60 minutes.',
@@ -35,6 +36,7 @@ const thresholdDescriptions: Record<AlertKind, string> = {
   app_issue_regressed: '',
   app_crash_free_below: 'Alert when the newest release with at least 100 installs in the last 24 hours drops below this percentage (50 to 100).',
   app_issue_spike: '',
+  app_rule: '',
 }
 const kindDescriptions: Partial<Record<AlertKind, string>> = {
   app_new_issue: 'An issue is seen for the first time.',

@@ -29,6 +29,7 @@ import (
 	"supermetry/internal/ingest"
 	"supermetry/internal/integrations/stripe"
 	"supermetry/internal/minutes"
+	"supermetry/internal/obslogs"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authn"
 	"supermetry/internal/platform/authz"
@@ -91,6 +92,7 @@ type Env struct {
 	auth        *platformauth.Auth
 	orgs        *orgs.Orgs
 	definitions *platformgoals.Goals
+	dictionary  *dict.Dict
 }
 
 // New constructs a Redis-free environment with production services.
@@ -158,7 +160,7 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 	})
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js", Tracking: config.TrackingMode{Mode: privacy.Identified}},
-		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry), AppQuery: appquery.New(pool, func() time.Time { return now }), AppIssues: appissues.New(pool, func() time.Time { return now }),
+		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry), AppQuery: appquery.New(pool, func() time.Time { return now }), AppIssues: appissues.New(pool, func() time.Time { return now }), AppLogs: &obslogs.Reader{Pool: pool, Now: func() time.Time { return now }},
 		PublicAuth: analyticsAuthenticator, PrivateAuth: analyticsAuthenticator, Sites: registry,
 		Platform: platform, Sessions: live, MinuteSource: minutes.NewStore(pool), Dictionary: dictionary,
 		Now: func() time.Time { return now }, RateLimitNow: func() time.Time { return now },
@@ -170,7 +172,7 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 			Mode: privacy.Identified, Now: func() time.Time { return now },
 		},
 	})
-	env := &Env{Pool: pool, Handler: router, Now: now, data: data, registry: registry, sites: siteService, keys: keyService, auth: authService, orgs: orgService, definitions: definitions}
+	env := &Env{Pool: pool, Handler: router, Now: now, data: data, registry: registry, sites: siteService, keys: keyService, auth: authService, orgs: orgService, definitions: definitions, dictionary: dictionary}
 	t.Cleanup(func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -189,6 +191,15 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 type unavailableSink struct{}
 
 func (unavailableSink) Reserve() (stripe.Slot, bool) { return nil, false }
+
+// ReloadDictionary reloads the query engine's dictionary cache after a test
+// inserted dictionary rows (screen and event names) directly.
+func (e *Env) ReloadDictionary(t testing.TB) {
+	t.Helper()
+	if err := e.dictionary.Load(context.Background()); err != nil {
+		t.Fatalf("reload dictionary: %v", err)
+	}
+}
 
 // Org creates an owner and organization.
 func (e *Env) Org(t testing.TB) Org {

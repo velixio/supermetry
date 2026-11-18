@@ -17,7 +17,7 @@ import { IssueBulkBar } from './IssueBulkBar'
 import { IssueSearchBar } from './IssueSearchBar'
 import { useAppIssues, type AppIssueRow } from './api'
 import { formatDay } from './format'
-import { appQuery, ISSUE_KINDS, ISSUE_SORTS, ISSUE_STATUSES, type AppIssuesSearch, type AppSearch, type IssueSort, type IssueStatusTab } from './search'
+import { appQuery, issueSearchQuery, ISSUE_KINDS, ISSUE_SORTS, ISSUE_STATUSES, type AppIssuesSearch, type AppSearch, type IssueSort, type IssueStatusTab } from './search'
 import { Sparkline } from './Sparkline'
 
 const PAGE_SIZE = 50
@@ -76,7 +76,7 @@ export function IssuesTable({ org, site, siteId, timezone, search, onSearch, can
   org: string; site: string; siteId: number; timezone: string; search: AppIssuesSearch; onSearch: (next: AppIssuesSearch) => void; canEdit?: boolean
 }) {
   const offset = search.offset ?? 0
-  const filters = { status: search.status === 'all' ? undefined : search.status, kind: search.kind, q: search.q, query: search.query }
+  const filters = { status: search.status === 'all' ? undefined : search.status, kind: search.kind, q: search.q, query: issueSearchQuery(search) }
   const issues = useAppIssues(siteId, search, timezone, { ...filters, sort: search.sort, limit: PAGE_SIZE, offset: offset || undefined })
   const [query, setQuery] = useState(search.q ?? '')
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set())
@@ -92,13 +92,13 @@ export function IssuesTable({ org, site, siteId, timezone, search, onSearch, can
     onToggle: (id) => { setBulkNote(''); setAllMatching(false); setSelected((current) => { const next = new Set(current); if (!next.delete(id)) next.add(id); return next }) },
     onToggleAll: (all) => { setAllMatching(false); setSelected(all ? new Set(rows.map((row) => row.id)) : new Set()) },
   } : undefined
-  const matchTarget = { query: search.query ?? '', params: appQuery(search, timezone, filters).toString() }
+  const matchTarget = { query: issueSearchQuery(search) ?? '', params: appQuery(search, timezone, filters).toString() }
   // Any filter change returns to the first page.
   const change = (patch: Partial<AppIssuesSearch>) => onSearch({ ...search, offset: undefined, ...patch })
   const nextOffset = issues.data?.next_offset ?? null
   return (
     <PageContainer>
-      <PageHeader title="Issues" description="Grouped crashes and errors." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={(next) => change(next)} />} />
+      <PageHeader title="Issues" description="Grouped crashes and errors." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} showProcess onSearch={(next) => change(next)} />} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs value={search.status} onValueChange={(value) => change({ status: value as IssueStatusTab })}>
           <TabsList>{ISSUE_STATUSES.map((status) => <TabsTrigger key={status} value={status}>{STATUS_LABELS[status]}</TabsTrigger>)}</TabsList>

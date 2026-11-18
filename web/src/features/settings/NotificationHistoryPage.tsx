@@ -1,17 +1,24 @@
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { AlertTriangleIcon, CheckCircle2Icon, Clock3Icon, RotateCcwIcon } from 'lucide-react'
+import { AlertTriangleIcon, BellOffIcon, CheckCircle2Icon, Clock3Icon, RotateCcwIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { IncidentList, useIncidents } from '@/features/apps/alerts/IncidentList'
 import { en } from '@/messages/en'
 import { type DeliveryStatus, type HistoryFilters, useNotificationHistory, useRetryNotification } from './notificationHistoryApi'
+
+/** Channel kinds as people write them; "none" marks a notice withheld by a silence. */
+export const channelKindLabels: Record<string, string> = {
+  email: 'Email', slack: 'Slack', discord: 'Discord', telegram: 'Telegram', pagerduty: 'PagerDuty', webhook: 'Webhook', none: 'Suppressed',
+}
 
 const statusIcon = {
   pending: Clock3Icon,
   succeeded: CheckCircle2Icon,
   failed: AlertTriangleIcon,
+  suppressed: BellOffIcon,
 } as const
 
 export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
@@ -23,6 +30,7 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
   const history = useNotificationHistory(siteId, orgId, filters)
   const retry = useRetryNotification(siteId, orgId)
   const items = history.data?.data ?? []
+  const incidents = useIncidents(siteId, orgId, filters.alertId)
 
   return (
     <PageContainer width="narrow">
@@ -31,13 +39,13 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
         <label className="flex flex-col gap-1 text-sm font-medium">
           Status
           <select className="h-11 rounded-lg border border-input bg-background px-3" value={filters.status ?? ''} onChange={(event) => onFilters({ ...filters, status: event.target.value as DeliveryStatus || undefined })}>
-            <option value="">All statuses</option><option value="pending">Pending</option><option value="succeeded">Succeeded</option><option value="failed">Failed</option>
+            <option value="">All statuses</option><option value="pending">Pending</option><option value="succeeded">Succeeded</option><option value="failed">Failed</option><option value="suppressed">Suppressed</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           Channel
           <select className="h-11 rounded-lg border border-input bg-background px-3" value={filters.channel ?? ''} onChange={(event) => onFilters({ ...filters, channel: event.target.value || undefined })}>
-            <option value="">All channels</option><option value="email">Email</option><option value="slack">Slack</option><option value="discord">Discord</option><option value="telegram">Telegram</option><option value="webhook">Webhook</option>
+            <option value="">All channels</option><option value="email">Email</option><option value="slack">Slack</option><option value="discord">Discord</option><option value="telegram">Telegram</option><option value="pagerduty">PagerDuty</option><option value="webhook">Webhook</option><option value="none">Suppressed</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
@@ -48,6 +56,12 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
       {history.error || retry.error ? <p role="alert" className="text-sm text-destructive">{history.error?.message ?? retry.error?.message}</p> : null}
       {history.isPending ? <p role="status" className="rounded-xl border p-5 text-sm text-muted-foreground">Loading delivery history…</p> : null}
       {!history.isPending && items.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">No deliveries match these filters.</p> : null}
+      {incidents.data && incidents.data.data.length > 0 ? (
+        <section aria-label="Incidents of this rule" className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium">Incidents of alert {filters.alertId}</h2>
+          <IncidentList incidents={incidents.data.data} />
+        </section>
+      ) : null}
       <ol aria-label="Alert deliveries" className="flex flex-col gap-3">
         {items.map((item) => {
           const Icon = statusIcon[item.status]
@@ -57,9 +71,9 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={item.status === 'failed' ? 'destructive' : 'secondary'} className="gap-1 capitalize"><Icon aria-hidden className="size-3.5" />{item.status}</Badge>
                   <span className="font-medium">{item.channel_name}</span>
-                  <span className="text-sm capitalize text-muted-foreground">{item.channel_kind}</span>
+                  <span className="text-sm text-muted-foreground">{channelKindLabels[item.channel_kind] ?? item.channel_kind}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Alert {item.alert_id} · {item.attempts} {item.attempts === 1 ? 'attempt' : 'attempts'} · Fired {new Date(item.fired_at).toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground"><button type="button" className="underline" onClick={() => onFilters({ ...filters, alertId: item.alert_id })}>Alert {item.alert_id}</button> · {item.attempts} {item.attempts === 1 ? 'attempt' : 'attempts'} · Fired {new Date(item.fired_at).toLocaleString()}</p>
                 {item.error_text ? <p className="break-words text-sm text-destructive">{item.error_text}</p> : null}
               </div>
               {item.status === 'failed' ? <Button className="min-h-11" variant="outline" disabled={retry.isPending} onClick={() => retry.mutate(item.id)}><RotateCcwIcon aria-hidden />Retry delivery</Button> : null}

@@ -27,7 +27,7 @@ except Exception as err:
 sm.flush(2.0)                    # before exit
 ```
 
-`capture_crash(error_type=, exit_reason=, signal=, exit_code=, frames=, tags=)` sends `kind="crash"`, level `fatal`. `capture_event(kind, **fields)` sends `install_failed`, `incompatibility`, `operation_failed`, `hang` and the other kinds. `set_enabled(bool)`, `flush(timeout)` (returns `True` when the queue is empty) and `shutdown()` finish the API. `Client(...)` gives an independent instance with the same keyword options.
+`capture_crash(error_type=, exit_reason=, signal=, exit_code=, frames=, tags=)` sends `kind="crash"`, level `fatal`. `capture_event(kind, **fields)` sends `install_failed`, `incompatibility`, `operation_failed`, `hang` and the other kinds. `track(name, props=None)` records a custom product event and `screen(name, props=None)` a screen view, for the app's product analytics (active users, funnels, retention). Both need `install_id`, queue and batch like every other report, never send a user id, and ignore a name the server would reject: event names are 1 to 64 characters of letters, digits and `_ . : $ - ` and space, and must not start with `$`; props are strings (up to 20 keys, values up to 200 bytes, no `$` keys). `set_enabled(bool)`, `flush(timeout)` (returns `True` when the queue is empty) and `shutdown()` finish the API. `Client(...)` gives an independent instance with the same keyword options.
 
 Options: `max_queue` (100), `flush_interval_ms` (5000, `0` disables the background thread), `max_age_days` (7, older events are discarded unsent), `in_app(path)` (first-party filter; the default drops `site-packages` and `<frozen ...>`), `on_drop(events, reason)`, `os_version`, `device_class`, `transport`, `storage`.
 

@@ -15,6 +15,9 @@ import {
   GoalIcon,
   Globe2Icon,
   GaugeIcon,
+  ScrollTextIcon,
+  SquareActivityIcon,
+  TimerIcon,
   Link2Icon,
   MousePointer2Icon,
   PlusIcon,
@@ -70,9 +73,13 @@ const coreNavigation = [
   { get label() { return en.navigation.events }, suffix: '/events', icon: CodeXmlIcon, scope: 'site' },
   { get label() { return en.navigation.sessions }, suffix: '/sessions', icon: Rows3Icon, scope: 'site' },
   { get label() { return en.navigation.realtime }, suffix: '/realtime', icon: ActivityIcon, scope: 'site' },
+  { get label() { return en.navigation.usersAndSessions }, suffix: '/users', icon: UsersRoundIcon, scope: 'site' },
   { get label() { return en.navigation.issues }, suffix: '/issues', icon: BugIcon, scope: 'site' },
   { get label() { return en.navigation.compatibility }, suffix: '/compatibility', icon: MonitorSmartphoneIcon, scope: 'site' },
   { get label() { return en.navigation.releases }, suffix: '/releases', icon: TagIcon, scope: 'site' },
+  { get label() { return en.navigation.performance }, suffix: '/performance', icon: TimerIcon, scope: 'site' },
+  { get label() { return en.navigation.logs }, suffix: '/obs/logs', icon: ScrollTextIcon, scope: 'site' },
+  { get label() { return en.navigation.metrics }, suffix: '/obs/metrics', icon: SquareActivityIcon, scope: 'site' },
   { get label() { return en.navigation.journeys }, suffix: '/journeys', icon: RouteIcon, scope: 'site' },
   { get label() { return en.navigation.retention }, suffix: '/retention', icon: TablePropertiesIcon, scope: 'site' },
   { get label() { return en.navigation.profiles }, suffix: '/profiles', icon: UserRoundIcon, scope: 'site' },
@@ -94,16 +101,16 @@ const managementNavigation = [
 export const PIXEL_NAV_SUFFIXES: readonly string[] = ['', '/sites', '/health', '/github-stars']
 
 /** Pages that exist only for app projects. */
-const APP_ONLY_SUFFIXES: readonly string[] = ['/issues', '/compatibility', '/releases']
+const APP_ONLY_SUFFIXES: readonly string[] = ['/issues', '/compatibility', '/releases', '/performance', '/users', '/obs/logs', '/obs/metrics']
 
-export const APP_NAV_SUFFIXES: readonly string[] = ['', '/issues', '/compatibility', '/releases', '/sites', '/health', '/settings']
+export const APP_NAV_SUFFIXES: readonly string[] = ['', '/events', '/users', '/issues', '/compatibility', '/releases', '/performance', '/obs/logs', '/obs/metrics', '/journeys', '/retention', '/funnels', '/sites', '/health', '/settings']
 
 export type NavigationItem =
   | (typeof coreNavigation)[number]
   | (typeof managementNavigation)[number]
 
 const navigationSections = [
-  { key: 'analyze', get label() { return en.a11y2.sidebarSections.analyze }, suffixes: ['', '/issues', '/compatibility', '/releases', '/events', '/sessions', '/realtime'] },
+  { key: 'analyze', get label() { return en.a11y2.sidebarSections.analyze }, suffixes: ['', '/issues', '/compatibility', '/releases', '/performance', '/obs/logs', '/obs/metrics', '/users', '/events', '/sessions', '/realtime'] },
   { key: 'behaviour', get label() { return en.a11y2.sidebarSections.behaviour }, suffixes: ['/journeys', '/retention', '/profiles', '/cohorts', '/heatmaps', '/vitals'] },
   { key: 'conversion', get label() { return en.a11y2.sidebarSections.conversion }, suffixes: ['/funnels', '/goals', '/revenue'] },
   { key: 'manage', get label() { return en.a11y2.sidebarSections.manage }, suffixes: ['/sites', '/links', '/health', '/github-stars'] },
@@ -287,6 +294,14 @@ function navigationLink(
       return <Link to="/app/$org/$site/compatibility" params={{ org, site }} {...props}>{content}</Link>
     case '/releases':
       return <Link to="/app/$org/$site/releases" params={{ org, site }} {...props}>{content}</Link>
+    case '/performance':
+      return <Link to="/app/$org/$site/performance" params={{ org, site }} {...props}>{content}</Link>
+    case '/obs/logs':
+      return <Link to="/app/$org/$site/obs/logs" params={{ org, site }} {...props}>{content}</Link>
+    case '/obs/metrics':
+      return <Link to="/app/$org/$site/obs/metrics" params={{ org, site }} {...props}>{content}</Link>
+    case '/users':
+      return <Link to="/app/$org/$site/users" params={{ org, site }} {...props}>{content}</Link>
     case '/realtime':
       return <Link to="/app/$org/$site/realtime" params={{ org, site }} {...props}>{content}</Link>
     case '/goals':

@@ -70,6 +70,7 @@ const messages: MessageTree = {
     funnel: 'Trichter',
     retention: 'Bindung',
     web_vitals: 'Web Vitals',
+    obs_metric: 'Eigene Metrik',
   },
   kindNotes: {
     kpi_strip: 'Eine Zeile mit bis zu sechs Kernzahlen.',
@@ -81,6 +82,7 @@ const messages: MessageTree = {
     funnel: 'Abbruch eines gespeicherten Trichters Schritt für Schritt.',
     retention: 'Wie viele Besucher zurückkehren.',
     web_vitals: 'Ladezeit, Interaktion und Layoutstabilität.',
+    obs_metric: 'Eine eigene Metrik dieser App im Zeitverlauf, optional nach einem Attribut gruppiert.',
   },
   titleLabel: 'Titel (optional)',
   titleHint: 'Leer lassen, um den Standardtitel zu verwenden.',
@@ -157,6 +159,7 @@ const messages: MessageTree = {
     dimension: (name: string) => `${name}: Wählen Sie, wonach gruppiert werden soll.`,
     funnel: (name: string) => `${name}: Wählen Sie einen Trichter.`,
     limit: (name: string) => `${name}: Zeilen müssen eine ganze Zahl von 1 bis 50 sein.`,
+    metricName: (name: string) => `${name}: Wählen Sie eine Metrik.`,
   },
 }
 

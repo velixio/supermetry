@@ -3,6 +3,7 @@ package sentryingest
 import (
 	"container/list"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"supermetry/internal/appingest"
@@ -83,7 +85,16 @@ type SymbolicatorConfig struct {
 	Disk *debugfile.DiskCache
 	// Misses is told about debug images no uploaded file covered; nil drops them.
 	Misses MissSink
+	// Remote finds symbol caches beyond the project's uploads (Electron's public
+	// symbols) for minidump modules; nil means none.
+	Remote RemoteSymbols
+	// MinidumpInflightBytes bounds the raw minidump bytes queued or being
+	// processed at once; a dump over the budget is skipped, not waited for.
+	MinidumpInflightBytes int64
 }
+
+// DefaultMinidumpInflightBytes is the default MinidumpInflightBytes.
+const DefaultMinidumpInflightBytes = 128 << 20
 
 // Resolver rewrites the frames of one kind of event: minified JavaScript,
 // obfuscated JVM or native. Wants must be cheap and side-effect free, it runs
@@ -130,6 +141,8 @@ type Symbolicator struct {
 
 	cache *mapCache
 
+	dumpBytes atomic.Int64 // minidump bytes queued or in process
+
 	lmu     sync.Mutex
 	lookups map[string]lookupEntry
 	loading map[string]*loadCall
@@ -160,6 +173,9 @@ func NewSymbolicator(store ArtifactStore, blobs replay.BlobStore, cfg Symbolicat
 	}
 	if cfg.LookupTTL == 0 {
 		cfg.LookupTTL = DefaultLookupTTL
+	}
+	if cfg.MinidumpInflightBytes <= 0 {
+		cfg.MinidumpInflightBytes = DefaultMinidumpInflightBytes
 	}
 	if cfg.Stats == nil {
 		cfg.Stats = &Stats{}
@@ -211,6 +227,18 @@ func (s *Symbolicator) SubmitWith(ev appingest.Event, body appingest.Body, sdkFi
 	if deliver == nil || !s.wants(body) {
 		return false
 	}
+	dump := int64(len(body.Minidump))
+	if dump > 0 && s.dumpBytes.Add(dump) > s.cfg.MinidumpInflightBytes {
+		s.dumpBytes.Add(-dump)
+		s.cfg.Stats.Add("minidump_skipped", 1)
+		return false
+	}
+	queued := false
+	defer func() {
+		if dump > 0 && !queued {
+			s.dumpBytes.Add(-dump)
+		}
+	}()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.closed {
@@ -218,6 +246,7 @@ func (s *Symbolicator) SubmitWith(ev appingest.Event, body appingest.Body, sdkFi
 	}
 	select {
 	case s.queue <- job{ev: ev, body: body, sdkFP: sdkFingerprint, deliver: deliver}:
+		queued = true
 		return true
 	default:
 		s.cfg.Stats.Add("symbolication_skipped", 1)
@@ -246,7 +275,13 @@ func (s *Symbolicator) run(j job) {
 		defer cancel()
 		ev, body = s.symbolicate(ctx, j.ev, j.body, j.sdkFP)
 	}()
+	// The raw dump goes out of scope before delivery: it is never stored.
+	dump := int64(len(j.body.Minidump))
+	j.body.Minidump, body.Minidump = nil, nil
 	j.deliver(ev, body)
+	if dump > 0 {
+		s.dumpBytes.Add(-dump)
+	}
 }
 
 var jsExt = map[string]struct{}{".js": {}, ".mjs": {}, ".cjs": {}, ".jsx": {}, ".ts": {}, ".tsx": {}}
@@ -317,6 +352,7 @@ func (s *Symbolicator) symbolicate(ctx context.Context, ev appingest.Event, body
 		exceptions[i].Frames = frames
 	}
 	work.Exceptions = exceptions
+	dump := len(body.Minidump) > 0
 	attempted, resolved := 0, 0
 	for _, r := range s.cfg.Resolvers {
 		if !r.Wants(work) {
@@ -326,21 +362,49 @@ func (s *Symbolicator) symbolicate(ctx context.Context, ev appingest.Event, body
 		attempted += a
 		resolved += rs
 	}
+	if dump {
+		// The minidump resolver built the exception, images and contexts; they
+		// are kept whether or not any frame resolved.
+		exceptions = work.Exceptions
+		body.Exceptions, body.DebugImages, body.Contexts, body.Platform = exceptions, work.DebugImages, work.Contexts, work.Platform
+		if len(exceptions) == 0 {
+			ev.Symbolication, body.Symbolication = "missing", "missing"
+			return ev, body
+		}
+		defer func() { s.cfg.Stats.Add("minidump_processed", 1) }()
+	}
 	switch {
-	case attempted == 0:
+	case attempted == 0 && !dump:
 		return ev, body
-	case resolved == 0:
+	case resolved == 0 && !dump:
 		ev.Symbolication, body.Symbolication = "missing", "missing"
+		body.MissingDebug = s.missingDebug(ctx, work)
 		s.cfg.Stats.Add("symbolication_missing", 1)
 		return ev, body
 	}
 	body.Exceptions = exceptions
 	status := "ok"
-	if resolved < attempted {
+	switch {
+	case resolved == 0:
+		status = "missing"
+	case resolved < attempted:
 		status = "partial"
 	}
 	s.cfg.Stats.Add("symbolication_"+status, 1)
 	ev.Symbolication, body.Symbolication = status, status
+	if status != "ok" {
+		body.MissingDebug = s.missingDebug(ctx, work)
+	}
+	if dump {
+		ev.ErrorType, ev.Signal = errorTypeAndSignal(exceptions)
+		body.Row.Title = titleOf(body)
+		ev.Title = body.Row.Title
+		if body.Row.Title != "" {
+			sum := sha256.Sum256([]byte(body.Row.Title))
+			body.Row.MessageHash = sum[:]
+			ev.MessageHash = body.Row.MessageHash
+		}
+	}
 	ev.Frames = eventFrames(exceptions)
 	ev.Culprit = culprit(exceptions, ev.Transaction)
 	body.Row.Culprit = ev.Culprit

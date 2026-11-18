@@ -25,6 +25,10 @@ const (
 	// maxInflight bounds concurrent body reads and decodes, so a burst of
 	// large requests cannot hold more than this many decoded bodies at once.
 	maxInflight = 8
+	// inflightWait is how long a request waits for a free slot before it is
+	// answered 503: a stall of a few milliseconds (garbage collection, a busy
+	// CPU) must not turn a burst of exporters into rejected batches.
+	inflightWait = 250 * time.Millisecond
 
 	ctProto = "application/x-protobuf"
 	ctJSON  = "application/json"
@@ -46,6 +50,8 @@ type Handler struct {
 	now      func() time.Time
 	dedup    *digestSet
 	inflight chan struct{}
+	metrics  *metricsFront
+	logs     *logsFront
 }
 
 // NewHandler builds the handler. intake, budget and stats may be nil (no
@@ -60,27 +66,77 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, sink Sink, budg
 	}
 }
 
-// parseRoute extracts the project id from /api/{id}/otlp/v1/traces.
-func parseRoute(path string) (int32, bool) {
-	rest, ok := strings.CutPrefix(path, "/api/")
-	if !ok {
-		return 0, false
+type routeKind int
+
+const (
+	routeTraces routeKind = iota
+	routeMetrics
+	routeLogs
+)
+
+// parseRoute extracts the project id from the traces, metrics and logs routes
+// under /api/{id}/otlp/v1/, and which of the three it was.
+func parseRoute(path string) (id int32, kind routeKind, ok bool) {
+	rest, found := strings.CutPrefix(path, "/api/")
+	if !found {
+		return 0, 0, false
 	}
-	idPart, kind, ok := strings.Cut(rest, "/")
-	if !ok || strings.TrimSuffix(kind, "/") != "otlp/v1/traces" {
-		return 0, false
+	idPart, tail, found := strings.Cut(rest, "/")
+	if !found {
+		return 0, 0, false
 	}
-	id, err := strconv.ParseInt(idPart, 10, 32)
-	if err != nil || id <= 0 || idPart != strconv.FormatInt(id, 10) {
-		return 0, false
+	switch strings.TrimSuffix(tail, "/") {
+	case "otlp/v1/traces":
+		kind = routeTraces
+	case "otlp/v1/metrics":
+		kind = routeMetrics
+	case "otlp/v1/logs":
+		kind = routeLogs
+	default:
+		return 0, 0, false
 	}
-	return int32(id), true
+	n, err := strconv.ParseInt(idPart, 10, 32)
+	if err != nil || n <= 0 || idPart != strconv.FormatInt(n, 10) {
+		return 0, 0, false
+	}
+	return int32(n), kind, true
+}
+
+// enabled reports whether the route's front door is wired in.
+func (h *Handler) enabled(kind routeKind) bool {
+	switch kind {
+	case routeMetrics:
+		return h.metrics != nil
+	case routeLogs:
+		return h.logs != nil
+	}
+	return true
 }
 
 // Matches reports whether the request is for this handler.
 func (h *Handler) Matches(r *http.Request) bool {
-	_, ok := parseRoute(r.URL.Path)
-	return ok
+	_, kind, ok := parseRoute(r.URL.Path)
+	return ok && h.enabled(kind)
+}
+
+// acquire takes an in-flight slot, waiting up to inflightWait for one. It
+// reports false when none came free or the client went away.
+func (h *Handler) acquire(r *http.Request) bool {
+	select {
+	case h.inflight <- struct{}{}:
+		return true
+	default:
+	}
+	t := time.NewTimer(inflightWait)
+	defer t.Stop()
+	select {
+	case h.inflight <- struct{}{}:
+		return true
+	case <-t.C:
+		return false
+	case <-r.Context().Done():
+		return false
+	}
 }
 
 func (h *Handler) count(name string, n int) {
@@ -147,8 +203,8 @@ func applyOrigin(w http.ResponseWriter, r *http.Request, key sites.DSNKey) bool 
 
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	pathID, ok := parseRoute(r.URL.Path)
-	if !ok {
+	pathID, kind, ok := parseRoute(r.URL.Path)
+	if !ok || !h.enabled(kind) {
 		http.NotFound(w, r)
 		return
 	}
@@ -186,14 +242,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusUnsupportedMediaType, "content type must be application/x-protobuf or application/json")
 		return
 	}
+	switch kind {
+	case routeMetrics:
+		h.serveMetrics(w, r, site, ct, now)
+		return
+	case routeLogs:
+		h.serveLogs(w, r, site, ct, now)
+		return
+	}
 	if site.App.PerformanceEnabled != nil && !*site.App.PerformanceEnabled {
 		h.respond(w, ct, 0, "")
 		return
 	}
 
-	select {
-	case h.inflight <- struct{}{}:
-	default:
+	if !h.acquire(r) {
 		hdr.Set("Retry-After", "5")
 		fail(w, http.StatusServiceUnavailable, "too many requests in flight")
 		return

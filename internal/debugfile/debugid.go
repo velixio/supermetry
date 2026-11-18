@@ -9,6 +9,7 @@ package debugfile
 
 import (
 	"encoding/hex"
+	"strconv"
 	"strings"
 )
 
@@ -110,3 +111,18 @@ func isHex(s string) bool {
 }
 
 func isHexByte(c byte) bool { return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' }
+
+// BreakpadDebugID converts a Breakpad module id (32 hex digits of GUID plus
+// the age in hex, as in a MODULE line or a symbol-server path) to the debug id
+// form of NormalizeDebugID, dropping an age of 0. It returns "" for anything else.
+func BreakpadDebugID(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if len(s) < 32 || len(s) > 40 || !isHex(s) {
+		return ""
+	}
+	id := s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:32]
+	if age, err := strconv.ParseUint("0"+s[32:], 16, 32); err == nil && age != 0 {
+		return id + "-" + strconv.FormatUint(age, 16)
+	}
+	return id
+}

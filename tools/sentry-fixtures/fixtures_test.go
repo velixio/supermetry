@@ -69,8 +69,13 @@ func TestFixturesAreRawBodiesWithSidecars(t *testing.T) {
 		if !bytes.HasPrefix(body, []byte("{")) {
 			t.Errorf("%s: envelope does not start with a JSON header line", f)
 		}
-		if (sdk == "android" || sdk == "cocoa") != sc.Synthetic {
-			t.Errorf("%s: synthetic flag must be true exactly for android and cocoa", f)
+		// Recorded SDK captures are real; android, cocoa and the transaction
+		// fixtures other than python are built by tools/sentry-fixtures/synthetic,
+		// and the check-in fixtures are hand-built.
+		wantSynthetic := sdk == "android" || sdk == "cocoa" || sdk == "checkins" ||
+			(sdk == "transactions" && filepath.Base(f) != "python.envelope" && filepath.Base(f) != "node-v11-stream.envelope" && filepath.Base(f) != "go-v0.50.envelope" && filepath.Base(f) != "browser-v11-pageload.envelope")
+		if wantSynthetic != sc.Synthetic {
+			t.Errorf("%s: synthetic flag must be true exactly for android, cocoa, check-ins and the built transaction fixtures", f)
 		}
 		if sdk == "python" && !strings.Contains(f, "-br") && enc != "gzip" {
 			t.Errorf("%s: python fixtures other than -br must be gzip", f)

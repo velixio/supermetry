@@ -12,7 +12,9 @@ import (
 	"unicode/utf8"
 
 	"supermetry/internal/api"
+	"supermetry/internal/obsmetrics"
 	"supermetry/internal/query"
+	"supermetry/internal/sites"
 )
 
 // Limits applied to every layout and dashboard.
@@ -48,6 +50,9 @@ const (
 	KindFunnel       = "funnel"
 	KindRetention    = "retention"
 	KindWebVitals    = "web_vitals"
+	// KindObsMetric charts one custom metric of an app project; the
+	// dashboard's time range fills the query's from and to.
+	KindObsMetric = "obs_metric"
 )
 
 // options says which config fields a kind accepts and how many metrics it may list.
@@ -56,6 +61,7 @@ type options struct {
 	minMetrics, maxMetrics           int // 0 maxMetrics: the metrics field is not accepted
 	requireMetric, requireDimension  bool
 	requireFunnel                    bool
+	obs                              bool                // takes config.query and config.chart; app projects only
 	metricSet                        map[api.Metric]bool // nil: any known metric
 }
 
@@ -71,6 +77,7 @@ var kinds = map[string]options{
 	KindFunnel:       {funnel: true, requireFunnel: true},
 	KindRetention:    {},
 	KindWebVitals:    {},
+	KindObsMetric:    {obs: true},
 }
 
 var periods = map[string]bool{
@@ -93,6 +100,13 @@ func ValidateName(name string) (string, error) {
 // the canonical form to store (titles trimmed, nil slices made empty). The
 // result re-encodes within MaxLayoutBytes.
 func NormalizeLayout(layout api.DashboardLayout) (api.DashboardLayout, []byte, error) {
+	return NormalizeLayoutFor(layout, sites.KindWeb)
+}
+
+// NormalizeLayoutFor is NormalizeLayout for a site of the given kind
+// (sites.KindWeb, KindPixel or KindApp): the obs_metric widget is accepted on
+// app projects only.
+func NormalizeLayoutFor(layout api.DashboardLayout, siteKind string) (api.DashboardLayout, []byte, error) {
 	if int(layout.SchemaVersion) != SchemaVersion {
 		return layout, nil, invalid("schema_version must be %d", SchemaVersion)
 	}
@@ -114,7 +128,7 @@ func NormalizeLayout(layout api.DashboardLayout) (api.DashboardLayout, []byte, e
 	seen := make(map[string]bool, len(layout.Widgets))
 	for i := range layout.Widgets {
 		widget := &layout.Widgets[i]
-		if err := normalizeWidget(widget); err != nil {
+		if err := normalizeWidget(widget, siteKind); err != nil {
 			return layout, nil, err
 		}
 		if seen[widget.Id] {
@@ -161,7 +175,7 @@ func validWidgetID(id string) bool {
 	return true
 }
 
-func normalizeWidget(widget *api.DashboardWidget) error {
+func normalizeWidget(widget *api.DashboardWidget, siteKind string) error {
 	if !validWidgetID(widget.Id) {
 		return invalid("widget id %q must be 1 to 40 characters of a-z, 0-9, - or _", widget.Id)
 	}
@@ -176,6 +190,9 @@ func normalizeWidget(widget *api.DashboardWidget) error {
 			return invalid("%s: title must be at most %d characters", where, maxTitleRunes)
 		}
 		widget.Title = &title
+	}
+	if spec.obs && siteKind != sites.KindApp {
+		return invalid("%s: kind %q is available on app projects only", where, widget.Kind)
 	}
 	if widget.X < 0 || widget.X >= GridColumns || widget.W < 1 || widget.X+widget.W > GridColumns {
 		return invalid("%s: x and w must fit the %d-column grid", where, GridColumns)
@@ -243,6 +260,9 @@ func validateConfig(where string, spec options, config *api.DashboardWidgetConfi
 			return invalid("%s: limit must be 1 to 50", where)
 		}
 	}
+	if err := validateObs(where, spec, config); err != nil {
+		return err
+	}
 	if config.FunnelId != nil {
 		if !spec.funnel {
 			return invalid("%s: funnel_id is not accepted by this kind", where)
@@ -252,6 +272,34 @@ func validateConfig(where string, spec options, config *api.DashboardWidgetConfi
 		}
 	} else if spec.requireFunnel {
 		return invalid("%s: funnel_id is required", where)
+	}
+	return nil
+}
+
+// validateObs checks the obs_metric options: a required query that is valid
+// apart from its time range, and a line or bar chart.
+func validateObs(where string, spec options, config *api.DashboardWidgetConfig) error {
+	if !spec.obs {
+		if config.Query != nil || config.Chart != nil {
+			return invalid("%s: query and chart are not accepted by this kind", where)
+		}
+		return nil
+	}
+	if config.Query == nil {
+		return invalid("%s: query is required", where)
+	}
+	q := obsmetrics.MetricQuery{Name: config.Query.Name, Agg: config.Query.Agg, Interval: config.Query.Interval}
+	if config.Query.GroupBy != nil {
+		q.GroupBy = *config.Query.GroupBy
+	}
+	if config.Query.Filters != nil {
+		q.Filters = *config.Query.Filters
+	}
+	if err := q.ValidateShape(); err != nil {
+		return invalid("%s: %v", where, strings.TrimPrefix(err.Error(), obsmetrics.ErrInvalid.Error()+": "))
+	}
+	if config.Chart != nil && *config.Chart != "line" && *config.Chart != "bar" {
+		return invalid("%s: chart must be line or bar", where)
 	}
 	return nil
 }

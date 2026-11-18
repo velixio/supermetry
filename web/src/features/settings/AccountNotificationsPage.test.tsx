@@ -9,7 +9,7 @@ import { privateRequest } from './privateApi'
 vi.mock('./privateApi', () => ({ privateRequest: vi.fn() }))
 const request = vi.mocked(privateRequest)
 
-const site = { site_id: 7, site_name: 'Desktop app', site_slug: 'desktop', org_slug: 'acme', org_name: 'Acme', assigned: true, resolved: false, regressed: true }
+const site = { site_id: 7, site_name: 'Desktop app', site_slug: 'desktop', org_slug: 'acme', org_name: 'Acme', assigned: true, resolved: false, regressed: true, weekly_digest: false }
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -21,7 +21,7 @@ afterEach(cleanup)
 
 describe('account notifications', () => {
   it('shows the defaults and saves only the changed switch for that project', async () => {
-    request.mockImplementation((method) => Promise.resolve(method === 'GET' ? { sites: [site] } : { assigned: true, resolved: true, regressed: true }))
+    request.mockImplementation((method) => Promise.resolve(method === 'GET' ? { sites: [site] } : { assigned: true, resolved: true, regressed: true, weekly_digest: false }))
     mount()
     expect(await screen.findByRole('switch', { name: 'Assigned to me' })).toBeChecked()
     expect(screen.getByRole('switch', { name: 'Regressed' })).toBeChecked()
@@ -29,7 +29,7 @@ describe('account notifications', () => {
     expect(resolved).not.toBeChecked()
     fireEvent.click(resolved)
     await waitFor(() => expect(request).toHaveBeenCalledWith('PUT', '/api/private/me/app-notifications/7', {
-      body: { assigned: true, resolved: true, regressed: true },
+      body: { assigned: true, resolved: true, regressed: true, weekly_digest: false },
     }))
   })
 

@@ -44,6 +44,29 @@ cookies and query strings are scrubbed before storage. See
 The sections below describe Supermetry's own app endpoint and client kits, still
 supported and listed under **Legacy kits** on the Installation page.
 
+## Electron apps and native crashes
+
+An Electron app using `@sentry/electron` needs only the DSN changed. JavaScript errors in the main and renderer processes arrive as events; a **native crash** (a crash of Electron itself, such as `process.crash()` or a segfault in a native module) is saved by Crashpad as a minidump and sent by the SDK on the next start. All of them land in the same app project, each in its own issue, and every event carries a `process` tag (`main`, `renderer`, `gpu`, `utility` or `other`). The issue list has a **Process** filter (the search term `process:renderer` does the same), and an issue's detail page has a **Process** breakdown. Issues are never merged across processes.
+
+```js
+const Sentry = require("@sentry/electron/main");
+Sentry.init({ dsn: "https://<public key>@<your host>/<project id>", release: "my-app@1.0.0" });
+```
+
+If your app drops events in `beforeSend` (for example until the user consents), the SDK routes native crashes through the same hook, so a `beforeSend` that returns `null` sends no crash report either.
+
+Other Crashpad clients can post a dump straight to `POST /api/<project id>/minidump/` as `multipart/form-data` (field `upload_file_minidump`, plus optional `sentry[release]`, `sentry[environment]`, `sentry[dist]`, `sentry[user][id]`, `sentry[tags][<key>]` and Crashpad's `prod`, `ver`, `ptype` and `platform`; every other field is dropped). The DSN public key goes in the `sentry_key` query parameter or an `X-Sentry-Auth` header. A dump may be gzip-compressed and is limited to 16 MiB after decompression (larger is a 413).
+
+**What is stored from a minidump.** A minidump holds raw process memory, so it is read in memory and thrown away; it is never written to the database, the attachment store or a log. Supermetry keeps only what it derives from it: the crash reason and address, the crashing thread's frames (function, source file and line, module file name and offset), and the modules' file names (paths are scrubbed) with their debug ids. Other threads, registers, stack contents and environment variables are not kept. Because the dump is not kept, a crash that arrives before its symbols are available stays unsymbolicated (frames show as `module+0xoffset`) and the issue is regrouped only for new events once the symbols are uploaded. The same module and offset always group into the same issue.
+
+**Symbols.** Frames are resolved with Breakpad `.sym` files for amd64 and arm64 dumps (Linux, macOS and Windows x64):
+
+- **Electron's own binaries** are looked up on Electron's public symbol server (`https://symbols.electronjs.org`, by module file name and debug id) the first time a crash needs them, converted, and cached for every project on the server. Only the module file name and the debug id of Electron's own binaries leave the server; nothing else, and never the dump. A symbol file for the Electron binary is large (about 0.75 GB for Linux x64, about 0.45 GB once converted), and fetching it takes longer than a crash is allowed to wait: the first crash of a new Electron version is stored without symbols (frames as `electron+0xoffset`) while the server fetches in the background, and later crashes of that version are symbolicated. Turn it off for the whole server with `SUPERMETRY_ELECTRON_SYMBOLS=false`, or per project with **Fetch Electron's public symbols** under **Native crashes** in the project's app settings (on by default). `SUPERMETRY_REMOTE_SYMBOLS_MB` (default 4096) caps the on-disk cache of fetched symbols, evicting the least recently used; a module the server does not have is not asked for again for 24 hours.
+- **Your own native modules**: generate a `.sym` file with Breakpad's `dump_syms` and upload it with `sentry-cli debug-files upload`. Your own uploads are always used before the public server and are counted in the organization's storage like other debug files.
+- **Windows**: modules are matched by their PDB id. Upload `.sym` files made with `dump_syms` (reading `.pdb` files directly is not supported yet), or rely on Electron's public symbols for the Electron binaries. Frames of Windows x64 modules are unwound from the `STACK CFI` records of the `.sym` file, then by frame pointer, then by scanning the stack.
+
+`SUPERMETRY_MINIDUMP_INFLIGHT_MB` (default 128) bounds the minidump bytes waiting for or in processing; a dump over the budget is dropped with the event kept and counted as `minidump_skipped` on the **Data health** page. x86 and 32-bit ARM dumps keep their modules and crash reason, but only the crashing frame is shown.
+
 ## Sending reports from desktop and mobile apps
 
 Desktop apps (Electron, Tauri, native), mobile apps and backend services can send
@@ -104,7 +127,7 @@ allowed-hosts check, and a custom User-Agent is not required.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | string, 1 to 64 | Required. Dedup key; a repeat within 15 minutes is dropped as `duplicate`. |
-| `kind` | enum | Required: `crash`, `error`, `hang`, `install_failed`, `install_stalled`, `incompatibility`, `operation_failed`, `session`. |
+| `kind` | enum | Required: `crash`, `error`, `hang`, `install_failed`, `install_stalled`, `incompatibility`, `operation_failed`, `session`, plus the product kinds `screen` and `event` (see [Product analytics](#product-analytics-for-apps)). |
 | `ts` | integer, ms | Time the event happened. Optional (defaults to receive time). More than 5 minutes ahead is clamped to receive time. |
 | `level` | enum | `fatal`, `error`, `warning`. Defaults to `fatal` for a crash and `error` otherwise. |
 | `handled` | boolean | |
@@ -121,6 +144,9 @@ allowed-hosts check, and a custom User-Agent is not required.
 | `occurrences` | integer, 1 to 1,000,000 | For clients that coalesce repeats. |
 | `install_id`, `session_id` | string, up to 128 and 64 | Pseudonymous ids for crash-free users and sessions. Stored only as an HMAC with a per-app secret. |
 | `tags` | object | Up to 20 keys; string, number or boolean values; keys up to 64 characters, values up to 200 bytes. |
+| `screen` | string, 1 to 200 bytes | `screen` kind only, required: the screen name. Shown as `/name` in funnels and journeys. |
+| `name` | string, 1 to 64 | `event` kind only, required: the custom event name. Letters, digits and `_ . : $ - ` and space; must not start with `$`. |
+| `props` | object | `screen` and `event` kinds: up to 20 string values; keys up to 64 characters, not starting with `$`; values up to 200 bytes. |
 
 A wrong type, an over-long value or an unknown enum value drops that event as
 `invalid`. Unknown fields are ignored.
@@ -271,6 +297,114 @@ bytes and values of at most 2000 bytes.
    paths that contain home folders. Strip them from stack frames before
    sending.
 
+## Native and mobile symbols
+
+Android, iOS, macOS and Linux crashes show readable function names, files and
+lines once the matching debug files are uploaded. Upload them with the standard
+Sentry tools; only the server address and token change.
+
+1. In the project's **Settings, Installation**, create an **upload token** (see
+   [Upload source maps](source-maps.md)). It is the only secret you set.
+2. Upload with the tool you already use:
+   - **Android Gradle plugin**: in `build.gradle`, set `sentry { url = "https://<your host>/" }` and
+     provide the token as `SENTRY_AUTH_TOKEN` (or `authToken`). The plugin uploads the ProGuard/R8
+     mapping and, when enabled, the native libraries' symbols.
+   - **Xcode**: the build phase of the Sentry iOS guide runs `sentry-cli debug-files upload`; set
+     `SENTRY_URL`, `SENTRY_AUTH_TOKEN` and `SENTRY_PROJECT` in the phase's environment.
+   - **By hand**: `sentry-cli debug-files upload <dir>` for dSYM bundles, Mach-O and ELF files
+     (shared libraries and executables with DWARF or a symbol table), and
+     `sentry-cli upload-proguard --uuid <uuid> mapping.txt` for ProGuard/R8 mappings.
+3. Open **Settings, Symbols** to see every uploaded file and its state, and the
+   debug files that events asked for and nobody uploaded.
+
+Events are symbolicated as they arrive, so a file uploaded later does not rewrite
+events that are already stored. An event whose symbols are missing shows a banner
+naming the missing file (for example "Missing debug file for libfixture.so") with
+a link to **Symbols** and to this guide; the same list is on that settings page.
+System libraries (`/system`, `/usr/lib`, `/apex`, `libc.so`) are never listed:
+nobody uploads symbols for them.
+
+What is supported:
+
+| File | Used for |
+|---|---|
+| ProGuard / R8 `mapping.txt` | Class, method and line names of Java and Kotlin frames, and the exception class. Matched by the mapping UUID the app reports. |
+| Mach-O (thin or fat) with DWARF, dSYM bundles | iOS and macOS frames. A fat file serves every architecture; the event's own slice is used. |
+| ELF with DWARF or a symbol table | Android NDK and Linux frames. The GNU build ID is the match key. |
+
+Stored but not used for symbolication: bitcode symbol maps, PE/PDB, WASM and
+source bundles (`--include-sources`). Uploads of these succeed so the tool never
+fails a build. Split DWARF (`.dwo`, `.dwp`) gives function names only, without
+lines. Swift and C++ names are shown as the debug info spells them: there is no
+demangler yet.
+
+Limits: each file is capped by `SUPERMETRY_DIF_MAX_MB` (default 512, the whole
+file is parsed in memory while its cache is built, one file at a time), and
+uploaded files count toward the organization's storage cap. The converted caches
+live on disk under the data directory, bounded by `SUPERMETRY_SYMCACHE_DISK_MB`.
+
+Out-of-memory kills and watchdog terminations are listed as their own issue kinds
+(`oom`, `watchdog`), and the project overview breaks events and crash-free rates
+down by platform.
+
+`make sdk-compat-debugfiles` replays the command lines of the Gradle plugin and of
+the Xcode build phase with `sentry-cli` against a real server and checks that each
+file is listed with a usable cache.
+
+## Alerts
+
+App projects notify you through **alert rules** under Settings, Alerts. A rule is a trigger, optional filters and one or more actions. Notices go to the notification channels of your organization (email, Slack, Discord, Telegram, PagerDuty and webhooks; see [Notification channels](notifications.md)).
+
+### Triggers
+
+- **Issue**: an issue is new, regressed or escalated.
+- **Issue events**: an issue gets more than N events (or affects more than N users) in a window of 5 to 1,440 minutes, or spikes against its usual rate for that hour of the day. A rule notifies at most once per issue per frequency period (default 60 minutes).
+- **Metric**: error count, crash-free sessions, crash-free users, transaction count, transaction failure rate, or transaction duration p50, p75, p95 and p99 crosses a threshold, either a static value or a percent change against the same window a day or a week earlier. A warning level and a resolve level are optional. Crash-free and transaction metrics read whole closed hours (windows of 60 to 1,440 minutes in steps of 60) and need a minimum sample, so a quiet hour does not fire. A percent change with no baseline never fires.
+- **Cron monitor**: a monitor misses its check-in, reports an error or runs past its maximum runtime. See [Cron monitors](#cron-monitors).
+
+Metric and monitor rules open an **incident** when the condition starts and resolve it when it ends; the notice says which. Restarting the server never repeats a notice.
+
+### Filters
+
+Environment, release, platform, level and issue kind (and, for issue and event triggers, tags and owner). A filter with no values matches everything.
+
+### Actions
+
+- **Send to channels** and **Call a webhook** deliver the notice to the chosen channels.
+- **Assign the issue** gives a new issue to a member (issue and event triggers only).
+- **Notify the issue owner** emails the issue's owner, with fallback channels for unowned issues (issue and event triggers only).
+
+A site can have up to 100 rules, each with up to 10 actions and 20 tag filters. Owners, admins and editors create and change rules; viewers cannot see them.
+
+### Silences and maintenance windows
+
+Settings, Silences mutes rules, one rule or all of them, for a one-off period or on a weekly schedule in a time zone (for example Sundays 02:00 for two hours, Europe/Berlin; the window keeps its length across a clock change). A muted notice is recorded in the delivery history as **Suppressed** and is never sent later. An incident still open when a silence ends is announced once; one that opens and resolves inside a silence sends nothing.
+
+### Alert history
+
+Settings, History lists every delivery and its status (pending, succeeded, failed, suppressed). Filter by rule to see its incidents: when each opened and resolved, its peak value, and whether a notice went out.
+
+### PagerDuty
+
+Create an **Events API v2** integration on a PagerDuty service, copy its integration key (routing key) and add a PagerDuty channel with it under Notifications. Use the channel in a rule action. Incidents send a `trigger` event, and resolve it with the same deduplication key when they close; other notices send a trigger only. The key is stored encrypted and is never shown again.
+
+### Cron monitors
+
+A monitor is created by the first Sentry check-in that carries a schedule, so no setup is needed beyond the DSN. With the Python SDK:
+
+```python
+import sentry_sdk
+from sentry_sdk.crons import monitor
+
+sentry_sdk.init(dsn="https://<key>@<your-host>/<project>")
+
+@monitor(monitor_slug="nightly-export")
+def nightly_export():
+    ...
+```
+
+Add `monitor_config` (a crontab or an interval, a margin and a maximum runtime) to the decorator to set the schedule. Settings, Cron monitors lists each monitor's status and next expected check-in. In a rule, pick the monitors (or all of them) and whether a missed, failed or timed-out check-in notifies. A check-in that arrives late for a slot already marked missed closes it without a second alert.
+
 ## Checking delivery
 
 The **Data health** page lists every dropped event by reason: bot user agent, host
@@ -364,7 +498,7 @@ The query bar above the issue list takes a search. Terms are separated by spaces
 | `timeout`, `"null pointer"` | A bare word or quoted phrase in the title or culprit (case-insensitive substring) |
 | `is:unresolved` | `unresolved` (open or regressed), `resolved`, `ignored`, `archived`, `snoozed`, `assigned`, `unassigned` |
 | `assigned:me`, `assigned:none`, `assigned:ann@example.com` | Assignee. Owners, admins and editors can search by a member's email; for viewers an email never matches, so emails are not revealed |
-| `release:1.4.0`, `environment:prod`, `platform:linux`, `level:fatal` | Issues that had at least one event with that value (`"quoted value"` if it has spaces) |
+| `release:1.4.0`, `environment:prod`, `platform:linux`, `process:renderer`, `level:fatal` | Issues that had at least one event with that value (`"quoted value"` if it has spaces) |
 | `kind:crash`, `priority:high` | Issue kind and priority |
 | `first-seen:-24h`, `last-seen:+30d`, `first-seen:2026-11-01` | `-` is within the last, `+` is older than that (units `m`, `h`, `d`, `w`); a date is that UTC day |
 | `events:>10`, `users:<=3`, `events:7` | Events or affected users in the selected date range (`>`, `<`, `>=`, `<=`, or equal) |
@@ -378,6 +512,65 @@ An unknown key is an error that names the key and where it is; it is never ignor
 
 The issue list filters by the tags each issue's events carried (release, environment, platform, level, OS version, browser and device class). Those per-issue tag counts are rebuilt by the same rollup as the daily counts, which runs every ten minutes, so a very new event can take up to about ten minutes to be found by a `release:` or `level:` term.
 
+## Releases and deploys
+
+The release commands of `sentry-cli` and the release steps of the Sentry bundler plugins work against Supermetry unchanged. They need an upload token with the `releases:write` scope (see [Upload source maps](source-maps.md)) in `SENTRY_AUTH_TOKEN`, the server in `SENTRY_URL`, and the project in `SENTRY_PROJECT`:
+
+```sh
+sentry-cli releases new 1.4.0
+sentry-cli releases set-commits 1.4.0 --auto
+sentry-cli releases finalize 1.4.0
+sentry-cli deploys new -r 1.4.0 -e production
+```
+
+`releases list`, `releases info`, `releases archive` and `releases delete` work too. Deleting a release removes its commits and deploys only; events keep their release name, so the release still appears in the dashboard.
+
+**Commits come from your local git checkout.** `set-commits --auto` and `--local` read the commits (and the files each one changed) from the repository you run them in and send them, which is all Supermetry needs. Running the command again replaces the release's commit list. Updates that only name a repository and commit (`--commit "repo@sha"` without a checkout) are stored as the release's head commit, but Supermetry does not fetch commits from GitHub or other hosts yet.
+
+In the dashboard:
+
+- **Releases** lists every release with adoption and crash-free rates. Click a release for its page: adoption and crash-free sessions per day, its deploys, the issues first seen in it and the issues that regressed in it, and its commit count. Tick two releases and choose **Compare selected** to see them side by side with the change in crash-free sessions and users (in percentage points) and the issues that appear only in the second.
+- **Deploy markers** appear as dashed lines on the overview chart and on a release's rollout chart, placed on the day of the deploy in the project's time zone. A deploy that names no project applies to the projects of its release.
+- An issue's page shows the release it was **introduced in** and, when that release has commits, up to three **suspect commits** that changed a file on the stack.
+
+An AI assistant can ask for the same data through the MCP tools `get_release_health`, `compare_releases` and `find_regression_release`; commit authors appear by name only.
+
+## Performance
+
+Performance monitoring is on by default for app projects. Turn tracing on in the SDK, with no change on the server: set `tracesSampleRate` (`traces_sample_rate` in Python, `TracesSampleRate` and `EnableTracing` in Go) and, for browsers, add the browser tracing integration. Supermetry accepts the classic `transaction` envelope item and the span container that `@sentry/browser` and `@sentry/node` 11 send by default (span streaming). Live acceptance runs in `make sdk-compat`: Node, browser, Python and Go transactions, and the OpenTelemetry Go and Python exporters, with only the DSN or endpoint changed.
+
+```js
+Sentry.init({
+  dsn: "https://<public key>@<your host>/<project id>",
+  release: "my-app@1.0.0",
+  tracesSampleRate: 0.2,
+});
+```
+
+The **Performance** page lists transactions with throughput, error rate and p50, p75, p90, p95 and p99 durations, plus app start times (cold and warm, from the `app_start_cold` and `app_start_warm` measurements of mobile SDKs). Click a transaction to see its daily series, its slowest child span groups (database queries and outgoing HTTP calls grouped by their parameterised description) and its slowest samples. A sample opens the **trace** as a waterfall with the errors captured inside it, and an error's event page links back to its trace. **Regressions** compares transaction latency between two releases, **Network** lists failing outgoing calls, and a project linked to a web site shows that site's Web Vitals beside the overview. Percentiles are estimates from a fixed log-scale histogram, within 4.9 % of the exact value. Alert rules can use `transaction_p50`, `transaction_p75`, `transaction_p95` and `transaction_p99`. The MCP tools are `get_performance_overview`, `list_slow_transactions`, `get_transaction` and `get_trace`.
+
+### OpenTelemetry traces
+
+Point any OTLP/HTTP trace exporter (protobuf or JSON, gzip allowed) at your project:
+
+```text
+https://<your host>/api/<project id>/otlp/v1/traces
+X-Supermetry-Key: <public key>
+```
+
+`Authorization: Bearer <public key>` works too. A request may hold 4 MiB compressed and 20 MiB decompressed. The same request body sent twice within 10 minutes is stored once. Server spans become transactions (named after `http.route` when there is one; otherwise the path is parameterised), and exception events on spans become errors that group into issues like Sentry errors and link to their trace.
+
+### Limits
+
+- 60,000 spans per project per minute (`SUPERMETRY_SPANS_PER_MIN`). Spans over the limit are dropped and counted, and the reply is `429` with `X-Sentry-Rate-Limits` when nothing in the request was accepted. If the server's span queue is full the reply is `503`.
+- At most 1,000 spans per transaction or span container, and 1,000 distinct transaction names per project per day. Further names are grouped as `<other>`.
+- Raw spans are kept 14 days (setting `span_retention_days`, 1 to 14); hourly rollups for the transaction views follow the project's retention class. Late spans are accepted up to the project's maximum report age (at most 13 days) and update the hours they belong to.
+- Setting `performance_enabled` (default on) turns span ingest off per project; the SDK is then told that transactions are not supported.
+
+### What spans keep and drop
+
+A span keeps its trace, span and parent ids, name, operation, timing, status, HTTP status, release, environment and platform, and a short allowlist of attributes: `http.method`, `http.status_code`, `db.system`, `db.operation`, `server.address` (host only), `messaging.system` and `rpc.method`. Database statements lose their literals (`where email = ?`), URLs lose credentials, query strings and fragments and have ids replaced by `*` (`GET https://api.example.com/v1/items/*`), and IP addresses and emails in free text are scrubbed. Spans never store user ids, IP addresses, cookies, header values or request bodies, and there is nothing to erase for a user, because spans carry no user identifier.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.
@@ -388,12 +581,80 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_events.csv` | Stored events in the range: event id, timestamp, issue id, kind, level, release, dist, environment, platform, SDK name and version, OS version, architecture, device class, runtime, symbolication status, occurrences |
 | `app_releases.csv`, `app_deploys.csv` | Releases and deploys created in the range that apply to the project |
 | `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
+| `app_transactions_hourly.csv`, `app_span_groups.csv` | Hourly transaction counts, errors, p50 and p95 per name, operation, release, environment and platform (local hours), and the parameterised span groups: operation, label and first seen. No trace ids or user data |
 | `app_saved_views.csv` | Shared saved searches: id, name, query, owner id, created. Private views are not exported |
 | `app_issue_activity.csv`, `app_issue_comments.csv` | The issue timeline and the comments written in the range (deleted comments are left out). Authors and actors appear as organisation member ids |
 | `app_feedback.csv` | User feedback written in the range: id, issue id, event id, time, whether a contact address was given, text, page path. Reporter emails are stored only as a hash and are not exported |
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
 The export never includes end-user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
+
+## Product analytics for apps
+
+An app project also answers product questions: who uses the app, which screens and
+features they use, and whether they come back. Open **Sessions & Users** and
+**Events** in the project's sidebar.
+
+### Where the data comes from
+
+- **Sentry SDK sessions.** A Sentry SDK that has `release` set and sends a device id
+  (the mobile and desktop SDKs do; browser SDKs do not) counts one `$app_open` event
+  per session start. Session updates and aggregate session buckets add nothing, and a
+  browser session without a device id is counted on **Data health** as
+  `session_no_install` and creates no product session. Crash-free numbers are not
+  affected either way.
+- **`track()` and `screen()` in the Supermetry kits.** `track("purchase", { plan: "pro" })`
+  records a custom event and `screen("paywall")` a screen view. Both need the kit's
+  `installId`, are batched and queued like every other report (20 per request, offline
+  queue, 7 days), check the name before sending (a name starting with `$` or with
+  characters outside `A-Z a-z 0-9 _ . : $ - ` and space is ignored) and never send a user id.
+  The same events can be sent to the [app events endpoint](#the-app-events-endpoint)
+  with `kind` `screen` or `event`.
+
+### What is counted
+
+The install id is hashed with a per-app secret on arrival (the same HMAC that powers
+crash-free users) and only the hash is stored, so an install is one stable pseudonymous
+visitor across days: there is no daily salt, and an install that reports twice a month
+is the same person both times. Raw install ids, device ids and user ids are never
+stored. A screen is stored as a page (`/home`), the platform as the hostname, and the
+release, device class and locale as reserved `$` properties.
+
+Product hits are accepted up to `max report age` days late (7 by default). A hit for a
+day that has already been rolled up marks the day for recalculation, so the charts
+and rollups catch up; a hit older than the limit is dropped as `too_old`.
+
+| Metric | Definition |
+|---|---|
+| Daily, weekly, monthly active installs | Distinct installs with a hit in the site's local day, in the 7 and 30 local days ending that day. Counts are never summed across days, so a range total is the distinct installs of the range |
+| Stickiness | Mean daily active installs over the range divided by the distinct installs of the range |
+| New installs | Installs whose first active day inside the retention window is that day |
+| Release, platform, country, OS, device adoption | Installs per value and their share of the active installs. An install that used two values in the period counts once in each, so shares can add up to more than 100% |
+| Engagement | Sessions, sessions per install, mean and median session length, screens per session |
+| Funnels | Ordered screens and events inside one session. Count by installs counts the installs with any session that reached the step; count by sessions counts sessions |
+| Retention | Day, week or month cohorts of installs, linked by the stable install id |
+| Journeys | Screen to screen paths, counted in installs |
+| Feature adoption | Installs that sent any event of a named set (up to 20 event names), as a share of the active installs |
+
+Days follow the site's time zone, so a project in Asia/Kolkata or Asia/Kathmandu
+has days that start at local midnight.
+
+Funnels, retention, journeys and the events explorer need the instance's identified
+tracking mode (`SUPERMETRY_TRACKING_MODE`), exactly like web sites: in anonymous mode they return the same
+"history is not available" problem, and screen names are not stored. Active installs,
+adoption and engagement keep working, because they use the hashed install id only.
+
+### API and AI assistants
+
+All reads are under `/api/public/v1/sites/{site_id}/app/product/` and need
+`stats:read`: `active-users`, `adoption?by=release|platform|country|os|device`,
+`engagement`, `features` and `features/{id}/adoption`. They take `range`, `release`,
+`environment` and `platform`, and answer `404` for web sites. Funnels, retention and
+journeys use their existing endpoints, which now also work for app projects.
+
+The MCP server adds `get_product_overview`, `get_active_users`, `get_retention`,
+`get_funnel`, `get_event_breakdown` and `get_user_journey`. They return counts only,
+never install ids, hashes or profile identifiers.
 
 ## Ask your AI assistant
 

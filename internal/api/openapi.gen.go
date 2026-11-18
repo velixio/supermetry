@@ -358,6 +358,135 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 	}
 }
 
+// Defines values for AlertIncidentSeverity.
+const (
+	AlertIncidentSeverityCritical AlertIncidentSeverity = "critical"
+	AlertIncidentSeverityWarning  AlertIncidentSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the AlertIncidentSeverity enum.
+func (e AlertIncidentSeverity) Valid() bool {
+	switch e {
+	case AlertIncidentSeverityCritical:
+		return true
+	case AlertIncidentSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertSilenceKind.
+const (
+	AlertSilenceKindMaintenance AlertSilenceKind = "maintenance"
+	AlertSilenceKindSilence     AlertSilenceKind = "silence"
+)
+
+// Valid indicates whether the value is a known member of the AlertSilenceKind enum.
+func (e AlertSilenceKind) Valid() bool {
+	switch e {
+	case AlertSilenceKindMaintenance:
+		return true
+	case AlertSilenceKindSilence:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertSilenceInputKind.
+const (
+	AlertSilenceInputKindMaintenance AlertSilenceInputKind = "maintenance"
+	AlertSilenceInputKindSilence     AlertSilenceInputKind = "silence"
+)
+
+// Valid indicates whether the value is a known member of the AlertSilenceInputKind enum.
+func (e AlertSilenceInputKind) Valid() bool {
+	switch e {
+	case AlertSilenceInputKindMaintenance:
+		return true
+	case AlertSilenceInputKindSilence:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppAppStartType.
+const (
+	Cold AppAppStartType = "cold"
+	Warm AppAppStartType = "warm"
+)
+
+// Valid indicates whether the value is a known member of the AppAppStartType enum.
+func (e AppAppStartType) Valid() bool {
+	switch e {
+	case Cold:
+		return true
+	case Warm:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppDebugFilesFilesCacheState.
+const (
+	AppDebugFilesFilesCacheStateError       AppDebugFilesFilesCacheState = "error"
+	AppDebugFilesFilesCacheStateOk          AppDebugFilesFilesCacheState = "ok"
+	AppDebugFilesFilesCacheStatePending     AppDebugFilesFilesCacheState = "pending"
+	AppDebugFilesFilesCacheStateUnsupported AppDebugFilesFilesCacheState = "unsupported"
+)
+
+// Valid indicates whether the value is a known member of the AppDebugFilesFilesCacheState enum.
+func (e AppDebugFilesFilesCacheState) Valid() bool {
+	switch e {
+	case AppDebugFilesFilesCacheStateError:
+		return true
+	case AppDebugFilesFilesCacheStateOk:
+		return true
+	case AppDebugFilesFilesCacheStatePending:
+		return true
+	case AppDebugFilesFilesCacheStateUnsupported:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppDebugFilesFilesKind.
+const (
+	AppDebugFilesFilesKindBreakpad     AppDebugFilesFilesKind = "breakpad"
+	AppDebugFilesFilesKindElf          AppDebugFilesFilesKind = "elf"
+	AppDebugFilesFilesKindMacho        AppDebugFilesFilesKind = "macho"
+	AppDebugFilesFilesKindOther        AppDebugFilesFilesKind = "other"
+	AppDebugFilesFilesKindPe           AppDebugFilesFilesKind = "pe"
+	AppDebugFilesFilesKindProguard     AppDebugFilesFilesKind = "proguard"
+	AppDebugFilesFilesKindSourcebundle AppDebugFilesFilesKind = "sourcebundle"
+)
+
+// Valid indicates whether the value is a known member of the AppDebugFilesFilesKind enum.
+func (e AppDebugFilesFilesKind) Valid() bool {
+	switch e {
+	case AppDebugFilesFilesKindBreakpad:
+		return true
+	case AppDebugFilesFilesKindElf:
+		return true
+	case AppDebugFilesFilesKindMacho:
+		return true
+	case AppDebugFilesFilesKindOther:
+		return true
+	case AppDebugFilesFilesKindPe:
+		return true
+	case AppDebugFilesFilesKindProguard:
+		return true
+	case AppDebugFilesFilesKindSourcebundle:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppEventArch.
 const (
 	AppEventArchArm   AppEventArch = "arm"
@@ -631,6 +760,96 @@ func (e AppIssueWebhooksKinds) Valid() bool {
 	}
 }
 
+// Defines values for AppMonitorScheduleType.
+const (
+	Crontab  AppMonitorScheduleType = "crontab"
+	Interval AppMonitorScheduleType = "interval"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorScheduleType enum.
+func (e AppMonitorScheduleType) Valid() bool {
+	switch e {
+	case Crontab:
+		return true
+	case Interval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppMonitorStatus.
+const (
+	AppMonitorStatusDisabled AppMonitorStatus = "disabled"
+	AppMonitorStatusError    AppMonitorStatus = "error"
+	AppMonitorStatusMissed   AppMonitorStatus = "missed"
+	AppMonitorStatusOk       AppMonitorStatus = "ok"
+	AppMonitorStatusTimeout  AppMonitorStatus = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorStatus enum.
+func (e AppMonitorStatus) Valid() bool {
+	switch e {
+	case AppMonitorStatusDisabled:
+		return true
+	case AppMonitorStatusError:
+		return true
+	case AppMonitorStatusMissed:
+		return true
+	case AppMonitorStatusOk:
+		return true
+	case AppMonitorStatusTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppMonitorCheckinStatus.
+const (
+	AppMonitorCheckinStatusError      AppMonitorCheckinStatus = "error"
+	AppMonitorCheckinStatusInProgress AppMonitorCheckinStatus = "in_progress"
+	AppMonitorCheckinStatusMissed     AppMonitorCheckinStatus = "missed"
+	AppMonitorCheckinStatusOk         AppMonitorCheckinStatus = "ok"
+	AppMonitorCheckinStatusTimeout    AppMonitorCheckinStatus = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorCheckinStatus enum.
+func (e AppMonitorCheckinStatus) Valid() bool {
+	switch e {
+	case AppMonitorCheckinStatusError:
+		return true
+	case AppMonitorCheckinStatusInProgress:
+		return true
+	case AppMonitorCheckinStatusMissed:
+		return true
+	case AppMonitorCheckinStatusOk:
+		return true
+	case AppMonitorCheckinStatusTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppReleaseDetailStatus.
+const (
+	AppReleaseDetailStatusArchived AppReleaseDetailStatus = "archived"
+	AppReleaseDetailStatusOpen     AppReleaseDetailStatus = "open"
+)
+
+// Valid indicates whether the value is a known member of the AppReleaseDetailStatus enum.
+func (e AppReleaseDetailStatus) Valid() bool {
+	switch e {
+	case AppReleaseDetailStatusArchived:
+		return true
+	case AppReleaseDetailStatusOpen:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppUserErasureStatus.
 const (
 	AppUserErasureStatusDone    AppUserErasureStatus = "done"
@@ -744,9 +963,10 @@ func (e DashboardLayoutSchemaVersion) Valid() bool {
 
 // Defines values for DeliveryStatus.
 const (
-	DeliveryStatusFailed    DeliveryStatus = "failed"
-	DeliveryStatusPending   DeliveryStatus = "pending"
-	DeliveryStatusSucceeded DeliveryStatus = "succeeded"
+	DeliveryStatusFailed     DeliveryStatus = "failed"
+	DeliveryStatusPending    DeliveryStatus = "pending"
+	DeliveryStatusSucceeded  DeliveryStatus = "succeeded"
+	DeliveryStatusSuppressed DeliveryStatus = "suppressed"
 )
 
 // Valid indicates whether the value is a known member of the DeliveryStatus enum.
@@ -757,6 +977,8 @@ func (e DeliveryStatus) Valid() bool {
 	case DeliveryStatusPending:
 		return true
 	case DeliveryStatusSucceeded:
+		return true
+	case DeliveryStatusSuppressed:
 		return true
 	default:
 		return false
@@ -1281,25 +1503,55 @@ func (e Metric) Valid() bool {
 
 // Defines values for NotificationChannelKind.
 const (
-	Discord  NotificationChannelKind = "discord"
-	Email    NotificationChannelKind = "email"
-	Slack    NotificationChannelKind = "slack"
-	Telegram NotificationChannelKind = "telegram"
-	Webhook  NotificationChannelKind = "webhook"
+	NotificationChannelKindDiscord   NotificationChannelKind = "discord"
+	NotificationChannelKindEmail     NotificationChannelKind = "email"
+	NotificationChannelKindNone      NotificationChannelKind = "none"
+	NotificationChannelKindPagerduty NotificationChannelKind = "pagerduty"
+	NotificationChannelKindSlack     NotificationChannelKind = "slack"
+	NotificationChannelKindTelegram  NotificationChannelKind = "telegram"
+	NotificationChannelKindWebhook   NotificationChannelKind = "webhook"
 )
 
 // Valid indicates whether the value is a known member of the NotificationChannelKind enum.
 func (e NotificationChannelKind) Valid() bool {
 	switch e {
-	case Discord:
+	case NotificationChannelKindDiscord:
 		return true
-	case Email:
+	case NotificationChannelKindEmail:
 		return true
-	case Slack:
+	case NotificationChannelKindNone:
 		return true
-	case Telegram:
+	case NotificationChannelKindPagerduty:
 		return true
-	case Webhook:
+	case NotificationChannelKindSlack:
+		return true
+	case NotificationChannelKindTelegram:
+		return true
+	case NotificationChannelKindWebhook:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ObsMetricInfoKind.
+const (
+	Counter   ObsMetricInfoKind = "counter"
+	Gauge     ObsMetricInfoKind = "gauge"
+	Histogram ObsMetricInfoKind = "histogram"
+	Updown    ObsMetricInfoKind = "updown"
+)
+
+// Valid indicates whether the value is a known member of the ObsMetricInfoKind enum.
+func (e ObsMetricInfoKind) Valid() bool {
+	switch e {
+	case Counter:
+		return true
+	case Gauge:
+		return true
+	case Histogram:
+		return true
+	case Updown:
 		return true
 	default:
 		return false
@@ -2710,6 +2962,76 @@ type AdminUsersResponse struct {
 	Data []AdminUser `json:"data"`
 }
 
+// AlertIncident defines model for AlertIncident.
+type AlertIncident struct {
+	AlertId   int64   `json:"alert_id"`
+	GroupKey  string  `json:"group_key"`
+	Id        int64   `json:"id"`
+	LastValue float64 `json:"last_value"`
+
+	// NotifiedAt Absent when the open notice was never sent (silenced or no channel).
+	NotifiedAt   *time.Time            `json:"notified_at,omitempty"`
+	OpenedAt     time.Time             `json:"opened_at"`
+	PeakValue    float64               `json:"peak_value"`
+	RenotifiedAt *time.Time            `json:"renotified_at,omitempty"`
+	ResolvedAt   *time.Time            `json:"resolved_at,omitempty"`
+	Severity     AlertIncidentSeverity `json:"severity"`
+	SiteId       int32                 `json:"site_id"`
+	Threshold    float64               `json:"threshold"`
+}
+
+// AlertIncidentSeverity defines model for AlertIncident.Severity.
+type AlertIncidentSeverity string
+
+// AlertSilence defines model for AlertSilence.
+type AlertSilence struct {
+	// AlertId Absent for a silence covering every rule of the site.
+	AlertId         *int64           `json:"alert_id,omitempty"`
+	CreatedAt       time.Time        `json:"created_at"`
+	CreatedBy       *int64           `json:"created_by,omitempty"`
+	DurationMinutes *int             `json:"duration_minutes,omitempty"`
+	EndsAt          *time.Time       `json:"ends_at,omitempty"`
+	Id              int64            `json:"id"`
+	Kind            AlertSilenceKind `json:"kind"`
+	Reason          string           `json:"reason"`
+	SiteId          int32            `json:"site_id"`
+
+	// StartTime Maintenance only; HH:MM wall clock in tz.
+	StartTime *string   `json:"start_time,omitempty"`
+	StartsAt  time.Time `json:"starts_at"`
+
+	// Tz IANA time zone of the maintenance window.
+	Tz *string `json:"tz,omitempty"`
+
+	// Weekdays Maintenance only; 0 is Sunday.
+	Weekdays *[]int `json:"weekdays,omitempty"`
+}
+
+// AlertSilenceKind defines model for AlertSilence.Kind.
+type AlertSilenceKind string
+
+// AlertSilenceInput defines model for AlertSilenceInput.
+type AlertSilenceInput struct {
+	AlertId         *int64 `json:"alert_id,omitempty"`
+	DurationMinutes *int   `json:"duration_minutes,omitempty"`
+
+	// EndsAt Required for a silence; optional end of a maintenance recurrence.
+	EndsAt    *time.Time            `json:"ends_at,omitempty"`
+	Kind      AlertSilenceInputKind `json:"kind"`
+	Reason    *string               `json:"reason,omitempty"`
+	StartTime *string               `json:"start_time,omitempty"`
+
+	// StartsAt Defaults to now.
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+
+	// Tz Defaults to the site time zone.
+	Tz       *string `json:"tz,omitempty"`
+	Weekdays *[]int  `json:"weekdays,omitempty"`
+}
+
+// AlertSilenceInputKind defines model for AlertSilenceInput.Kind.
+type AlertSilenceInputKind string
+
 // Annotation defines model for Annotation.
 type Annotation struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -2731,6 +3053,46 @@ type AnnotationPatch struct {
 	Day  *openapi_types.Date `json:"day,omitempty"`
 	Text *string             `json:"text,omitempty"`
 }
+
+// AppActiveUsers defines model for AppActiveUsers.
+type AppActiveUsers struct {
+	Distinct    int64         `json:"distinct"`
+	NewInstalls []AppDayCount `json:"new_installs"`
+	Series      []struct {
+		Dau int64     `json:"dau"`
+		Day time.Time `json:"day"`
+		Mau int64     `json:"mau"`
+		Wau int64     `json:"wau"`
+	} `json:"series"`
+	Stickiness float64 `json:"stickiness"`
+}
+
+// AppAdoption defines model for AppAdoption.
+type AppAdoption struct {
+	By     string           `json:"by"`
+	Series []AppAdoptionRow `json:"series"`
+	Totals []AppAdoptionRow `json:"totals"`
+}
+
+// AppAdoptionRow defines model for AppAdoptionRow.
+type AppAdoptionRow struct {
+	// Day The zero time for range totals.
+	Day      time.Time `json:"day"`
+	Installs int64     `json:"installs"`
+	Share    float64   `json:"share"`
+	Value    string    `json:"value"`
+}
+
+// AppAppStart defines model for AppAppStart.
+type AppAppStart struct {
+	Count int64           `json:"count"`
+	P50Ms float64         `json:"p50_ms"`
+	P95Ms float64         `json:"p95_ms"`
+	Type  AppAppStartType `json:"type"`
+}
+
+// AppAppStartType defines model for AppAppStart.Type.
+type AppAppStartType string
 
 // AppBreakdown defines model for AppBreakdown.
 type AppBreakdown struct {
@@ -2783,6 +3145,55 @@ type AppDSNKeyList struct {
 	Keys []AppDSNKey `json:"keys"`
 }
 
+// AppDayCount defines model for AppDayCount.
+type AppDayCount struct {
+	Count int64     `json:"count"`
+	Day   time.Time `json:"day"`
+}
+
+// AppDebugFiles defines model for AppDebugFiles.
+type AppDebugFiles struct {
+	Files []struct {
+		Arch       string                       `json:"arch"`
+		CacheState AppDebugFilesFilesCacheState `json:"cache_state"`
+		CodeId     string                       `json:"code_id"`
+		CreatedAt  time.Time                    `json:"created_at"`
+		DebugId    string                       `json:"debug_id"`
+		Features   []string                     `json:"features"`
+		Id         int64                        `json:"id"`
+		Kind       AppDebugFilesFilesKind       `json:"kind"`
+		ObjectName string                       `json:"object_name"`
+
+		// OrgWide Serves every project of the organization; only an owner or admin may delete it.
+		OrgWide bool  `json:"org_wide"`
+		Size    int64 `json:"size"`
+	} `json:"files"`
+	Missing []struct {
+		Arch     string    `json:"arch"`
+		CodeFile string    `json:"code_file"`
+		DebugId  string    `json:"debug_id"`
+		Events   int64     `json:"events"`
+		Kind     string    `json:"kind"`
+		LastSeen time.Time `json:"last_seen"`
+	} `json:"missing"`
+}
+
+// AppDebugFilesFilesCacheState defines model for AppDebugFiles.Files.CacheState.
+type AppDebugFilesFilesCacheState string
+
+// AppDebugFilesFilesKind defines model for AppDebugFiles.Files.Kind.
+type AppDebugFilesFilesKind string
+
+// AppDeploy defines model for AppDeploy.
+type AppDeploy struct {
+	At          time.Time `json:"at"`
+	Environment string    `json:"environment"`
+	Id          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Release     string    `json:"release"`
+	Url         string    `json:"url"`
+}
+
 // AppDeploys defines model for AppDeploys.
 type AppDeploys struct {
 	Deploys []struct {
@@ -2793,6 +3204,15 @@ type AppDeploys struct {
 		Release     string    `json:"release"`
 		Url         string    `json:"url"`
 	} `json:"deploys"`
+}
+
+// AppEngagement defines model for AppEngagement.
+type AppEngagement struct {
+	MeanSessionSeconds   float64 `json:"mean_session_seconds"`
+	MedianSessionSeconds float64 `json:"median_session_seconds"`
+	ScreensPerSession    float64 `json:"screens_per_session"`
+	Sessions             int64   `json:"sessions"`
+	SessionsPerUser      float64 `json:"sessions_per_user"`
 }
 
 // AppEvent One app report. Unknown fields are ignored. A wrong type, an over-long value or an unknown enum value drops the event as `invalid`.
@@ -2855,7 +3275,10 @@ type AppEventBody struct {
 	// Body message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.
 	Body    map[string]interface{} `json:"body"`
 	EventId string                 `json:"event_id"`
-	Ts      time.Time              `json:"ts"`
+
+	// TraceId Trace of the event, 32 hex characters; present only when the event is linked to a trace.
+	TraceId *string   `json:"trace_id,omitempty"`
+	Ts      time.Time `json:"ts"`
 }
 
 // AppEventSample defines model for AppEventSample.
@@ -2904,6 +3327,28 @@ type AppEventsResponseDroppedReason string
 
 // AppEventsResponseWarningsReason defines model for AppEventsResponse.Warnings.Reason.
 type AppEventsResponseWarningsReason string
+
+// AppFeatureAdoption defines model for AppFeatureAdoption.
+type AppFeatureAdoption struct {
+	ActiveUsers int64         `json:"active_users"`
+	Series      []AppDayCount `json:"series"`
+	Share       float64       `json:"share"`
+	Users       int64         `json:"users"`
+}
+
+// AppFeatureSet defines model for AppFeatureSet.
+type AppFeatureSet struct {
+	CreatedAt  time.Time `json:"created_at"`
+	EventNames []string  `json:"event_names"`
+	Id         int64     `json:"id"`
+	Name       string    `json:"name"`
+}
+
+// AppFeatureSetInput defines model for AppFeatureSetInput.
+type AppFeatureSetInput struct {
+	EventNames []string `json:"event_names"`
+	Name       string   `json:"name"`
+}
 
 // AppFeedback defines model for AppFeedback.
 type AppFeedback struct {
@@ -3174,6 +3619,66 @@ type AppMergedIssue struct {
 	Title    string    `json:"title"`
 }
 
+// AppMonitor defines model for AppMonitor.
+type AppMonitor struct {
+	CheckinMarginMinutes int       `json:"checkin_margin_minutes"`
+	Environment          string    `json:"environment"`
+	FailureThreshold     int       `json:"failure_threshold"`
+	Id                   int64     `json:"id"`
+	LastCheckinAt        time.Time `json:"last_checkin_at"`
+	MaxRuntimeMinutes    int       `json:"max_runtime_minutes"`
+	NextExpectedAt       time.Time `json:"next_expected_at"`
+	RecoveryThreshold    int       `json:"recovery_threshold"`
+
+	// Schedule A 5-field cron expression, or "N unit" for an interval (unit: minute, hour, day, week, month, year).
+	Schedule     string                 `json:"schedule"`
+	ScheduleType AppMonitorScheduleType `json:"schedule_type"`
+	Slug         string                 `json:"slug"`
+	Status       AppMonitorStatus       `json:"status"`
+	Timezone     string                 `json:"timezone"`
+}
+
+// AppMonitorScheduleType defines model for AppMonitor.ScheduleType.
+type AppMonitorScheduleType string
+
+// AppMonitorStatus defines model for AppMonitor.Status.
+type AppMonitorStatus string
+
+// AppMonitorCheckin defines model for AppMonitorCheckin.
+type AppMonitorCheckin struct {
+	CheckinId  string                  `json:"checkin_id"`
+	DurationMs int64                   `json:"duration_ms"`
+	ExpectedAt time.Time               `json:"expected_at"`
+	Release    string                  `json:"release"`
+	Status     AppMonitorCheckinStatus `json:"status"`
+	Timestamp  time.Time               `json:"timestamp"`
+}
+
+// AppMonitorCheckinStatus defines model for AppMonitorCheckin.Status.
+type AppMonitorCheckinStatus string
+
+// AppMonitorCheckins defines model for AppMonitorCheckins.
+type AppMonitorCheckins struct {
+	Checkins []AppMonitorCheckin `json:"checkins"`
+}
+
+// AppMonitorList defines model for AppMonitorList.
+type AppMonitorList struct {
+	Monitors []AppMonitor `json:"monitors"`
+}
+
+// AppMonitorPatch defines model for AppMonitorPatch.
+type AppMonitorPatch struct {
+	CheckinMarginMinutes *int  `json:"checkin_margin_minutes,omitempty"`
+	Disabled             *bool `json:"disabled,omitempty"`
+	MaxRuntimeMinutes    *int  `json:"max_runtime_minutes,omitempty"`
+}
+
+// AppNetworkFailures defines model for AppNetworkFailures.
+type AppNetworkFailures struct {
+	Failures []AppSpanGroup `json:"failures"`
+}
+
 // AppNotificationPrefs defines model for AppNotificationPrefs.
 type AppNotificationPrefs struct {
 	// Assigned An issue was assigned to me.
@@ -3184,18 +3689,22 @@ type AppNotificationPrefs struct {
 
 	// Resolved An issue assigned to me was resolved by someone else.
 	Resolved bool `json:"resolved"`
+
+	// WeeklyDigest Mail the weekly digest on Monday 09:00 in the project time zone. Optional when saving: absent keeps the current value. Always present in responses.
+	WeeklyDigest *bool `json:"weekly_digest,omitempty"`
 }
 
 // AppNotificationPrefsSite defines model for AppNotificationPrefsSite.
 type AppNotificationPrefsSite struct {
-	Assigned  bool   `json:"assigned"`
-	OrgName   string `json:"org_name"`
-	OrgSlug   string `json:"org_slug"`
-	Regressed bool   `json:"regressed"`
-	Resolved  bool   `json:"resolved"`
-	SiteId    int32  `json:"site_id"`
-	SiteName  string `json:"site_name"`
-	SiteSlug  string `json:"site_slug"`
+	Assigned     bool   `json:"assigned"`
+	OrgName      string `json:"org_name"`
+	OrgSlug      string `json:"org_slug"`
+	Regressed    bool   `json:"regressed"`
+	Resolved     bool   `json:"resolved"`
+	SiteId       int32  `json:"site_id"`
+	SiteName     string `json:"site_name"`
+	SiteSlug     string `json:"site_slug"`
+	WeeklyDigest bool   `json:"weekly_digest"`
 }
 
 // AppOverview defines model for AppOverview.
@@ -3224,31 +3733,134 @@ type AppOverview struct {
 	Users           int64 `json:"users"`
 }
 
+// AppPerformanceOverview defines model for AppPerformanceOverview.
+type AppPerformanceOverview struct {
+	AppStart     []AppAppStart       `json:"app_start"`
+	ErrorRate    float64             `json:"error_rate"`
+	Errors       int64               `json:"errors"`
+	MostFailing  []AppTransactionRow `json:"most_failing"`
+	P50Ms        float64             `json:"p50_ms"`
+	P95Ms        float64             `json:"p95_ms"`
+	Slowest      []AppTransactionRow `json:"slowest"`
+	Transactions int64               `json:"transactions"`
+	VitalsLink   *struct {
+		ClsP75 *float64 `json:"cls_p75,omitempty"`
+		InpP75 *float64 `json:"inp_p75,omitempty"`
+		LcpP75 *float64 `json:"lcp_p75,omitempty"`
+		SiteId int32    `json:"site_id"`
+	} `json:"vitals_link,omitempty"`
+}
+
+// AppPlatforms defines model for AppPlatforms.
+type AppPlatforms struct {
+	Platforms []struct {
+		CrashFreeSessions float64 `json:"crash_free_sessions"`
+		CrashFreeUsers    float64 `json:"crash_free_users"`
+		Crashes           int64   `json:"crashes"`
+		Events            int64   `json:"events"`
+		Missing           int64   `json:"missing"`
+		Platform          string  `json:"platform"`
+		Symbolicated      int64   `json:"symbolicated"`
+	} `json:"platforms"`
+}
+
 // AppRate defines model for AppRate.
 type AppRate = float64
 
+// AppRegressions defines model for AppRegressions.
+type AppRegressions struct {
+	Regressions []struct {
+		BaseCount int64   `json:"base_count"`
+		BaseP95Ms float64 `json:"base_p95_ms"`
+
+		// Delta target p95 / base p95 - 1
+		Delta       float64 `json:"delta"`
+		Name        string  `json:"name"`
+		Op          string  `json:"op"`
+		TargetCount int64   `json:"target_count"`
+		TargetP95Ms float64 `json:"target_p95_ms"`
+	} `json:"regressions"`
+}
+
+// AppReleaseComparison defines model for AppReleaseComparison.
+type AppReleaseComparison struct {
+	A     AppReleaseDetail `json:"a"`
+	B     AppReleaseDetail `json:"b"`
+	Delta struct {
+		CrashFreeSessions float64 `json:"crash_free_sessions"`
+		CrashFreeUsers    float64 `json:"crash_free_users"`
+		NewIssues         int64   `json:"new_issues"`
+	} `json:"delta"`
+	OnlyInB []AppReleaseIssue `json:"only_in_b"`
+}
+
+// AppReleaseDetail defines model for AppReleaseDetail.
+type AppReleaseDetail struct {
+	CommitCount int `json:"commit_count"`
+
+	// Created Null for a release known only from events.
+	Created   time.Time     `json:"created"`
+	Deploys   []AppDeploy   `json:"deploys"`
+	FirstSeen time.Time     `json:"first_seen"`
+	Health    AppReleaseRow `json:"health"`
+
+	// HealthSource sessions or events
+	HealthSource    string            `json:"health_source"`
+	LastSeen        time.Time         `json:"last_seen"`
+	NewIssues       []AppReleaseIssue `json:"new_issues"`
+	Ref             string            `json:"ref"`
+	RegressedIssues []AppReleaseIssue `json:"regressed_issues"`
+	Release         string            `json:"release"`
+
+	// Rollout One point per day the release had sessions; adoption is its share of the project's sessions that day.
+	Rollout []AppRolloutPoint      `json:"rollout"`
+	Status  AppReleaseDetailStatus `json:"status"`
+}
+
+// AppReleaseDetailStatus defines model for AppReleaseDetail.Status.
+type AppReleaseDetailStatus string
+
+// AppReleaseIssue defines model for AppReleaseIssue.
+type AppReleaseIssue struct {
+	Events int64  `json:"events"`
+	Id     int64  `json:"id"`
+	Title  string `json:"title"`
+}
+
+// AppReleaseRow defines model for AppReleaseRow.
+type AppReleaseRow struct {
+	AbnormalSessions  int64     `json:"abnormal_sessions"`
+	Adoption          AppRate   `json:"adoption"`
+	CrashFreeSessions AppRate   `json:"crash_free_sessions"`
+	CrashFreeUsers    AppRate   `json:"crash_free_users"`
+	ErroredSessions   int64     `json:"errored_sessions"`
+	FirstSeen         time.Time `json:"first_seen"`
+	HandledErrors     int64     `json:"handled_errors"`
+
+	// HealthSource sessions (tracked session lifecycles) or events (v1 pings)
+	HealthSource    string    `json:"health_source"`
+	Installs        int64     `json:"installs"`
+	LastSeen        time.Time `json:"last_seen"`
+	NewIssues       int64     `json:"new_issues"`
+	RegressedIssues int64     `json:"regressed_issues"`
+	Release         string    `json:"release"`
+	Sessions        int64     `json:"sessions"`
+	UnhandledErrors int64     `json:"unhandled_errors"`
+	Users           int64     `json:"users"`
+}
+
 // AppReleases defines model for AppReleases.
 type AppReleases struct {
-	Releases []struct {
-		AbnormalSessions  int64     `json:"abnormal_sessions"`
-		Adoption          AppRate   `json:"adoption"`
-		CrashFreeSessions AppRate   `json:"crash_free_sessions"`
-		CrashFreeUsers    AppRate   `json:"crash_free_users"`
-		ErroredSessions   int64     `json:"errored_sessions"`
-		FirstSeen         time.Time `json:"first_seen"`
-		HandledErrors     int64     `json:"handled_errors"`
+	Releases []AppReleaseRow `json:"releases"`
+}
 
-		// HealthSource sessions (tracked session lifecycles) or events (v1 pings)
-		HealthSource    string    `json:"health_source"`
-		Installs        int64     `json:"installs"`
-		LastSeen        time.Time `json:"last_seen"`
-		NewIssues       int64     `json:"new_issues"`
-		RegressedIssues int64     `json:"regressed_issues"`
-		Release         string    `json:"release"`
-		Sessions        int64     `json:"sessions"`
-		UnhandledErrors int64     `json:"unhandled_errors"`
-		Users           int64     `json:"users"`
-	} `json:"releases"`
+// AppRolloutPoint defines model for AppRolloutPoint.
+type AppRolloutPoint struct {
+	Adoption          AppRate            `json:"adoption"`
+	CrashFreeSessions AppRate            `json:"crash_free_sessions"`
+	CrashFreeUsers    AppRate            `json:"crash_free_users"`
+	Day               openapi_types.Date `json:"day"`
+	Sessions          int64              `json:"sessions"`
 }
 
 // AppRules defines model for AppRules.
@@ -3299,7 +3911,9 @@ type AppSavedViewPatch struct {
 
 // AppSettings defines model for AppSettings.
 type AppSettings struct {
-	Environments *[]string `json:"environments,omitempty"`
+	// ElectronSymbols Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on.
+	ElectronSymbols *bool     `json:"electron_symbols,omitempty"`
+	Environments    *[]string `json:"environments,omitempty"`
 
 	// FilterCrawlers Drop events sent by crawlers. Omitted or null means on.
 	FilterCrawlers *bool `json:"filter_crawlers,omitempty"`
@@ -3313,8 +3927,17 @@ type AppSettings struct {
 	// FilterLocalhostDefault The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update.
 	FilterLocalhostDefault *bool `json:"filter_localhost_default,omitempty"`
 
+	// LogDailyQuota Log records accepted per UTC day. Omitted or null means the default of 5,000,000; 0 means unlimited.
+	LogDailyQuota *int64 `json:"log_daily_quota,omitempty"`
+
+	// LogRetentionDays Raw log retention in days. 0 means the default of 7.
+	LogRetentionDays *int `json:"log_retention_days,omitempty"`
+
 	// MaxReportAgeDays 0 means the default of 7.
 	MaxReportAgeDays *int `json:"max_report_age_days,omitempty"`
+
+	// MetricDailyQuota Metric points accepted per UTC day. Omitted or null means the default of 50,000,000; 0 means unlimited.
+	MetricDailyQuota *int64 `json:"metric_daily_quota,omitempty"`
 
 	// PerformanceEnabled Accept transactions and spans. Omitted or null means on.
 	PerformanceEnabled *bool `json:"performance_enabled,omitempty"`
@@ -3322,6 +3945,90 @@ type AppSettings struct {
 	// SpanRetentionDays Raw span retention in days. 0 means the default of 14.
 	SpanRetentionDays *int      `json:"span_retention_days,omitempty"`
 	TagAllowlist      *[]string `json:"tag_allowlist,omitempty"`
+}
+
+// AppSpanGroup defines model for AppSpanGroup.
+type AppSpanGroup struct {
+	AvgMs float64 `json:"avg_ms"`
+	Count int64   `json:"count"`
+
+	// Description Parameterised; never holds literals
+	Description string  `json:"description"`
+	ErrorRate   float64 `json:"error_rate"`
+	Errors      int64   `json:"errors"`
+	Op          string  `json:"op"`
+	P95Ms       float64 `json:"p95_ms"`
+	TotalMs     float64 `json:"total_ms"`
+}
+
+// AppTrace defines model for AppTrace.
+type AppTrace struct {
+	DurationMs float64 `json:"duration_ms"`
+	Errors     []struct {
+		EventId string    `json:"event_id"`
+		IssueId int64     `json:"issue_id"`
+		SpanId  *string   `json:"span_id,omitempty"`
+		Title   string    `json:"title"`
+		Ts      time.Time `json:"ts"`
+	} `json:"errors"`
+	Spans []struct {
+		Depth         int       `json:"depth"`
+		Description   string    `json:"description"`
+		DurationMs    float64   `json:"duration_ms"`
+		HttpStatus    *int      `json:"http_status,omitempty"`
+		IsSegment     bool      `json:"is_segment"`
+		Name          string    `json:"name"`
+		Op            string    `json:"op"`
+		ParentId      *string   `json:"parent_id,omitempty"`
+		Release       *string   `json:"release,omitempty"`
+		SpanId        string    `json:"span_id"`
+		Start         time.Time `json:"start"`
+		StartOffsetMs float64   `json:"start_offset_ms"`
+		Status        string    `json:"status"`
+	} `json:"spans"`
+	TraceId   string `json:"trace_id"`
+	Truncated bool   `json:"truncated"`
+}
+
+// AppTransactionDetail defines model for AppTransactionDetail.
+type AppTransactionDetail struct {
+	AppStart []AppAppStart `json:"app_start"`
+	Name     string        `json:"name"`
+	Series   []struct {
+		Count  int64              `json:"count"`
+		Date   openapi_types.Date `json:"date"`
+		Errors int64              `json:"errors"`
+		P50Ms  float64            `json:"p50_ms"`
+		P95Ms  float64            `json:"p95_ms"`
+	} `json:"series"`
+	Slowest []struct {
+		DurationMs float64   `json:"duration_ms"`
+		Release    string    `json:"release"`
+		Start      time.Time `json:"start"`
+		TraceId    string    `json:"trace_id"`
+	} `json:"slowest"`
+	SpanGroups []AppSpanGroup    `json:"span_groups"`
+	Summary    AppTransactionRow `json:"summary"`
+}
+
+// AppTransactionRow defines model for AppTransactionRow.
+type AppTransactionRow struct {
+	Count            int64   `json:"count"`
+	ErrorRate        float64 `json:"error_rate"`
+	Errors           int64   `json:"errors"`
+	Name             string  `json:"name"`
+	Op               string  `json:"op"`
+	P50Ms            float64 `json:"p50_ms"`
+	P75Ms            float64 `json:"p75_ms"`
+	P90Ms            float64 `json:"p90_ms"`
+	P95Ms            float64 `json:"p95_ms"`
+	P99Ms            float64 `json:"p99_ms"`
+	ThroughputPerMin float64 `json:"throughput_per_min"`
+}
+
+// AppTransactions defines model for AppTransactions.
+type AppTransactions struct {
+	Transactions []AppTransactionRow `json:"transactions"`
 }
 
 // AppUserErase defines model for AppUserErase.
@@ -3605,6 +4312,7 @@ type DashboardWidget struct {
 	// Config Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
 	// `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
 	// (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+	// `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
 	Config *DashboardWidgetConfig `json:"config,omitempty"`
 
 	// Filters Added to the dashboard filters for this widget.
@@ -3628,7 +4336,10 @@ type DashboardWidget struct {
 // DashboardWidgetConfig Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
 // `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
 // (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+// `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
 type DashboardWidgetConfig struct {
+	Chart *string `json:"chart,omitempty"`
+
 	// Dimension A known query dimension, or prop:<key>.
 	Dimension *string `json:"dimension,omitempty"`
 	FunnelId  *int64  `json:"funnel_id,omitempty"`
@@ -3637,6 +4348,9 @@ type DashboardWidgetConfig struct {
 	// Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 	Metric  *Metric   `json:"metric,omitempty"`
 	Metrics *[]Metric `json:"metrics,omitempty"`
+
+	// Query An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+	Query *ObsMetricWidgetQuery `json:"query,omitempty"`
 }
 
 // DateRange defines model for DateRange.
@@ -3669,7 +4383,7 @@ type DeletionResult struct {
 	Scheduled bool       `json:"scheduled"`
 }
 
-// DeliveryStatus defines model for DeliveryStatus.
+// DeliveryStatus suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
 type DeliveryStatus string
 
 // DemoError defines model for DemoError.
@@ -4397,8 +5111,10 @@ type NotificationDelivery struct {
 	Id            int64                   `json:"id"`
 	LastAttemptAt *time.Time              `json:"last_attempt_at,omitempty"`
 	SiteId        int32                   `json:"site_id"`
-	Status        DeliveryStatus          `json:"status"`
-	UpdatedAt     time.Time               `json:"updated_at"`
+
+	// Status suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
+	Status    DeliveryStatus `json:"status"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 // NotificationSettings defines model for NotificationSettings.
@@ -4426,6 +5142,110 @@ type NotificationTemplateList struct {
 	Data      []NotificationTemplate `json:"data"`
 	Settings  NotificationSettings   `json:"settings"`
 	Variables []string               `json:"variables"`
+}
+
+// ObsIngestHealth defines model for ObsIngestHealth.
+type ObsIngestHealth struct {
+	Days []struct {
+		Day             openapi_types.Date `json:"day"`
+		LogsAccepted    int64              `json:"logs_accepted"`
+		LogsRejected    int64              `json:"logs_rejected"`
+		MetricsAccepted int64              `json:"metrics_accepted"`
+		MetricsRejected int64              `json:"metrics_rejected"`
+	} `json:"days"`
+}
+
+// ObsLog defines model for ObsLog.
+type ObsLog struct {
+	Attributes  map[string]interface{} `json:"attributes"`
+	Body        string                 `json:"body"`
+	Environment string                 `json:"environment"`
+	Release     string                 `json:"release"`
+	Service     string                 `json:"service"`
+
+	// Severity OTLP severity number; 0 when unset.
+	Severity int `json:"severity"`
+
+	// SeverityText trace, debug, info, warn, error or fatal; empty when unset.
+	SeverityText string `json:"severity_text"`
+
+	// SpanId 16 hex characters; absent without a span.
+	SpanId *string `json:"span_id,omitempty"`
+
+	// TraceId 32 hex characters; absent without a trace.
+	TraceId   *string   `json:"trace_id,omitempty"`
+	Truncated bool      `json:"truncated"`
+	Ts        time.Time `json:"ts"`
+}
+
+// ObsLogPage defines model for ObsLogPage.
+type ObsLogPage struct {
+	Data       []ObsLog `json:"data"`
+	NextCursor *string  `json:"next_cursor"`
+}
+
+// ObsMetricInfo defines model for ObsMetricInfo.
+type ObsMetricInfo struct {
+	AttributeKeys []string          `json:"attribute_keys"`
+	Kind          ObsMetricInfoKind `json:"kind"`
+	Name          string            `json:"name"`
+
+	// Series Distinct attribute combinations.
+	Series int    `json:"series"`
+	Unit   string `json:"unit"`
+}
+
+// ObsMetricInfoKind defines model for ObsMetricInfo.Kind.
+type ObsMetricInfoKind string
+
+// ObsMetricList defines model for ObsMetricList.
+type ObsMetricList struct {
+	Metrics []ObsMetricInfo `json:"metrics"`
+}
+
+// ObsMetricQuery defines model for ObsMetricQuery.
+type ObsMetricQuery struct {
+	Agg string `json:"agg"`
+
+	// Filters Attribute key to exact value; at most 16.
+	Filters *map[string]string `json:"filters,omitempty"`
+	From    time.Time          `json:"from"`
+
+	// GroupBy Up to two attribute keys.
+	GroupBy  *[]string `json:"group_by,omitempty"`
+	Interval string    `json:"interval"`
+	Name     string    `json:"name"`
+	To       time.Time `json:"to"`
+}
+
+// ObsMetricResult defines model for ObsMetricResult.
+type ObsMetricResult struct {
+	Series []ObsMetricSeries `json:"series"`
+}
+
+// ObsMetricSeries defines model for ObsMetricSeries.
+type ObsMetricSeries struct {
+	// Group The group_by attribute values; empty without group_by.
+	Group  map[string]string      `json:"group"`
+	Points []ObsMetricSeriesPoint `json:"points"`
+}
+
+// ObsMetricSeriesPoint defines model for ObsMetricSeriesPoint.
+type ObsMetricSeriesPoint struct {
+	// Ts Start of the bucket.
+	Ts time.Time `json:"ts"`
+
+	// Value Null when the bucket has no value for the aggregation.
+	Value *float32 `json:"value"`
+}
+
+// ObsMetricWidgetQuery An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+type ObsMetricWidgetQuery struct {
+	Agg      string             `json:"agg"`
+	Filters  *map[string]string `json:"filters,omitempty"`
+	GroupBy  *[]string          `json:"group_by,omitempty"`
+	Interval string             `json:"interval"`
+	Name     string             `json:"name"`
 }
 
 // OpenShareRequest defines model for OpenShareRequest.
@@ -5740,6 +6560,14 @@ type ListReplaysParams struct {
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// ListAlertIncidentsParams defines parameters for ListAlertIncidents.
+type ListAlertIncidentsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Before An incident id; returns older incidents.
+	Before *int64 `form:"before,omitempty" json:"before,omitempty"`
+}
+
 // GetAppCompatibilityParams defines parameters for GetAppCompatibility.
 type GetAppCompatibilityParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
@@ -5773,7 +6601,9 @@ type ListAppFeedbackParams struct {
 type ListAppIssuesParams struct {
 	// Status open, resolved, ignored, regressed or archived.
 	Status *string `form:"status,omitempty" json:"status,omitempty"`
-	Kind   *string `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// Kind crash, error, hang, oom or watchdog. oom and watchdog are crashes ended by the OS (out of memory, watchdog termination); a crash filter includes them.
+	Kind *string `form:"kind,omitempty" json:"kind,omitempty"`
 
 	// Q Case-insensitive prefix of the title or error type.
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
@@ -5781,7 +6611,7 @@ type ListAppIssuesParams struct {
 	// Query Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
 	// `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
 	// (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
-	// email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+	// email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `process` (Electron: main, renderer, gpu, utility), `level`,
 	// `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
 	// `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
 	// A syntax error is a 400 whose `position` is the character offset of the problem.
@@ -5838,8 +6668,111 @@ type ListAppIssueFeedbackParams struct {
 	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
 }
 
+// ListAppMonitorCheckinsParams defines parameters for ListAppMonitorCheckins.
+type ListAppMonitorCheckinsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // GetAppOverviewParams defines parameters for GetAppOverview.
 type GetAppOverviewParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppPerformanceParams defines parameters for GetAppPerformance.
+type GetAppPerformanceParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppNetworkFailuresParams defines parameters for GetAppNetworkFailures.
+type GetAppNetworkFailuresParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppRegressionsParams defines parameters for GetAppRegressions.
+type GetAppRegressionsParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	Base        string          `form:"base" json:"base"`
+	Target      string          `form:"target" json:"target"`
+}
+
+// GetAppPlatformsParams defines parameters for GetAppPlatforms.
+type GetAppPlatformsParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppActiveUsersParams defines parameters for GetAppActiveUsers.
+type GetAppActiveUsersParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppAdoptionParams defines parameters for GetAppAdoption.
+type GetAppAdoptionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	By          string          `form:"by" json:"by"`
+}
+
+// GetAppEngagementParams defines parameters for GetAppEngagement.
+type GetAppEngagementParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppFeatureAdoptionParams defines parameters for GetAppFeatureAdoption.
+type GetAppFeatureAdoptionParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
 	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
 
@@ -5862,12 +6795,89 @@ type GetAppReleasesParams struct {
 	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
 }
 
+// CompareAppReleasesParams defines parameters for CompareAppReleases.
+type CompareAppReleasesParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	A           string          `form:"a" json:"a"`
+	B           string          `form:"b" json:"b"`
+}
+
+// GetAppReleaseParams defines parameters for GetAppRelease.
+type GetAppReleaseParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// ListAppTransactionsParams defines parameters for ListAppTransactions.
+type ListAppTransactionsParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	Sort        *string         `form:"sort,omitempty" json:"sort,omitempty"`
+	Limit       *int            `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetAppTransactionParams defines parameters for GetAppTransaction.
+type GetAppTransactionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	Name        string          `form:"name" json:"name"`
+}
+
 // ListNotificationHistoryParams defines parameters for ListNotificationHistory.
 type ListNotificationHistoryParams struct {
 	Status  *DeliveryStatus          `form:"status,omitempty" json:"status,omitempty"`
 	Channel *NotificationChannelKind `form:"channel,omitempty" json:"channel,omitempty"`
 	AlertId *int64                   `form:"alert_id,omitempty" json:"alert_id,omitempty"`
 	Limit   *int                     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// SearchObsLogsParams defines parameters for SearchObsLogs.
+type SearchObsLogsParams struct {
+	// Q Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+	// case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+	// or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+	// 32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// From Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.
+	To    *time.Time `form:"to,omitempty" json:"to,omitempty"`
+	Limit *int       `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor The `next_cursor` of the previous page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListObsTraceLogsParams defines parameters for ListObsTraceLogs.
+type ListObsTraceLogsParams struct {
+	// Around RFC 3339 centre of the window, usually the time of the error or span.
+	Around *time.Time `form:"around,omitempty" json:"around,omitempty"`
+	Limit  *int       `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // PixelStatsParams defines parameters for PixelStats.
@@ -6003,6 +7013,55 @@ type ListAnnotationsParams struct {
 	To   openapi_types.Date `form:"to" json:"to"`
 }
 
+// GetPublicAppActiveUsersParams defines parameters for GetPublicAppActiveUsers.
+type GetPublicAppActiveUsersParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetPublicAppAdoptionParams defines parameters for GetPublicAppAdoption.
+type GetPublicAppAdoptionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	By          string          `form:"by" json:"by"`
+}
+
+// GetPublicAppEngagementParams defines parameters for GetPublicAppEngagement.
+type GetPublicAppEngagementParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetPublicAppFeatureAdoptionParams defines parameters for GetPublicAppFeatureAdoption.
+type GetPublicAppFeatureAdoptionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
 // ListEventsParams defines parameters for ListEvents.
 type ListEventsParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
@@ -6013,6 +7072,25 @@ type ListEventsParams struct {
 	Filter *Filters `form:"filter,omitempty" json:"filter,omitempty"`
 	Cursor *Cursor  `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *int     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// SearchObsLogsPublicParams defines parameters for SearchObsLogsPublic.
+type SearchObsLogsPublicParams struct {
+	// Q Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+	// case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+	// or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+	// 32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// From Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.
+	To    *time.Time `form:"to,omitempty" json:"to,omitempty"`
+	Limit *int       `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor The `next_cursor` of the previous page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // ListProfilesParams defines parameters for ListProfiles.
@@ -6253,6 +7331,9 @@ type CreateSharedLinkJSONRequestBody = CreateShareRequest
 // ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
 type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
 
+// CreateAlertSilenceJSONRequestBody defines body for CreateAlertSilence for application/json ContentType.
+type CreateAlertSilenceJSONRequestBody = AlertSilenceInput
+
 // UpdateAppLinkJSONRequestBody defines body for UpdateAppLink for application/json ContentType.
 type UpdateAppLinkJSONRequestBody = AppLink
 
@@ -6282,6 +7363,12 @@ type MergeAppIssuesJSONRequestBody = AppIssueMergeInput
 
 // UnmergeAppIssueJSONRequestBody defines body for UnmergeAppIssue for application/json ContentType.
 type UnmergeAppIssueJSONRequestBody = AppIssueUnmergeInput
+
+// UpdateAppMonitorJSONRequestBody defines body for UpdateAppMonitor for application/json ContentType.
+type UpdateAppMonitorJSONRequestBody = AppMonitorPatch
+
+// CreateAppFeatureSetJSONRequestBody defines body for CreateAppFeatureSet for application/json ContentType.
+type CreateAppFeatureSetJSONRequestBody = AppFeatureSetInput
 
 // ReplaceAppRulesJSONRequestBody defines body for ReplaceAppRules for application/json ContentType.
 type ReplaceAppRulesJSONRequestBody = AppRules
@@ -6315,6 +7402,9 @@ type BackfillSiteIntegrationJSONRequestBody = IntegrationBackfillRequest
 
 // ConnectSiteIntegrationJSONRequestBody defines body for ConnectSiteIntegration for application/json ContentType.
 type ConnectSiteIntegrationJSONRequestBody = IntegrationConnectRequest
+
+// QueryObsMetricsJSONRequestBody defines body for QueryObsMetrics for application/json ContentType.
+type QueryObsMetricsJSONRequestBody = ObsMetricQuery
 
 // CreatePixelJSONRequestBody defines body for CreatePixel for application/json ContentType.
 type CreatePixelJSONRequestBody = PixelInput
@@ -6393,6 +7483,9 @@ type CreateFunnelJSONRequestBody = SavedFunnelInput
 
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalInput
+
+// QueryObsMetricsPublicJSONRequestBody defines body for QueryObsMetricsPublic for application/json ContentType.
+type QueryObsMetricsPublicJSONRequestBody = ObsMetricQuery
 
 // CreateSegmentJSONRequestBody defines body for CreateSegment for application/json ContentType.
 type CreateSegmentJSONRequestBody = SegmentInput
@@ -7136,6 +8229,18 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// ListAlertSilences List silences and maintenance windows of a site
+	// (GET /api/private/sites/{site}/alert-silences)
+	ListAlertSilences(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateAlertSilence Create a silence or maintenance window (owner, admin, editor; at most 50 active or future per site)
+	// (POST /api/private/sites/{site}/alert-silences)
+	CreateAlertSilence(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAlertSilence Delete a silence or maintenance window
+	// (DELETE /api/private/sites/{site}/alert-silences/{silence})
+	DeleteAlertSilence(w http.ResponseWriter, r *http.Request, site int32, silence int64)
+	// ListAlertIncidents List the incidents of a metric or monitor rule, newest first
+	// (GET /api/private/sites/{site}/alerts/{alert}/incidents)
+	ListAlertIncidents(w http.ResponseWriter, r *http.Request, site int32, alert int64, params ListAlertIncidentsParams)
 	// GetAppLink Read the app project a web site sends diagnostic reports to
 	// (GET /api/private/sites/{site}/app-link)
 	GetAppLink(w http.ResponseWriter, r *http.Request, site int32)
@@ -7154,6 +8259,12 @@ type ServerInterface interface {
 	// GetAppCompatibility Crash and install counts per platform, OS version, architecture and device class
 	// (GET /api/private/sites/{site}/app/compatibility)
 	GetAppCompatibility(w http.ResponseWriter, r *http.Request, site int32, params GetAppCompatibilityParams)
+	// ListAppDebugFiles Uploaded debug files and the debug images events still miss
+	// (GET /api/private/sites/{site}/app/debug-files)
+	ListAppDebugFiles(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppDebugFile Delete one debug file
+	// (DELETE /api/private/sites/{site}/app/debug-files/{id})
+	DeleteAppDebugFile(w http.ResponseWriter, r *http.Request, site int32, id int64)
 	// GetAppDeploys Deploy markers of the project in the range, newest first
 	// (GET /api/private/sites/{site}/app/deploys)
 	GetAppDeploys(w http.ResponseWriter, r *http.Request, site int32, params GetAppDeploysParams)
@@ -7220,18 +8331,78 @@ type ServerInterface interface {
 	// UnmergeAppIssue Split merged issues back out by fingerprint hash
 	// (POST /api/private/sites/{site}/app/issues/{issue}/unmerge)
 	UnmergeAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// ListAppMonitors The cron monitors of an app project
+	// (GET /api/private/sites/{site}/app/monitors)
+	ListAppMonitors(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppMonitor Delete a cron monitor and its check-ins
+	// (DELETE /api/private/sites/{site}/app/monitors/{monitor})
+	DeleteAppMonitor(w http.ResponseWriter, r *http.Request, site int32, monitor int64)
+	// UpdateAppMonitor Disable, enable or tune a cron monitor
+	// (PATCH /api/private/sites/{site}/app/monitors/{monitor})
+	UpdateAppMonitor(w http.ResponseWriter, r *http.Request, site int32, monitor int64)
+	// ListAppMonitorCheckins The newest check-ins of a cron monitor
+	// (GET /api/private/sites/{site}/app/monitors/{monitor}/checkins)
+	ListAppMonitorCheckins(w http.ResponseWriter, r *http.Request, site int32, monitor int64, params ListAppMonitorCheckinsParams)
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
+	// GetAppPerformance Performance overview of the range
+	// (GET /api/private/sites/{site}/app/performance)
+	GetAppPerformance(w http.ResponseWriter, r *http.Request, site int32, params GetAppPerformanceParams)
+	// GetAppNetworkFailures Outgoing HTTP span groups with errors
+	// (GET /api/private/sites/{site}/app/performance/network)
+	GetAppNetworkFailures(w http.ResponseWriter, r *http.Request, site int32, params GetAppNetworkFailuresParams)
+	// GetAppRegressions Transactions whose p95 grew between two releases
+	// (GET /api/private/sites/{site}/app/performance/regressions)
+	GetAppRegressions(w http.ResponseWriter, r *http.Request, site int32, params GetAppRegressionsParams)
+	// GetAppPlatforms Health and symbolication per platform, busiest first
+	// (GET /api/private/sites/{site}/app/platforms)
+	GetAppPlatforms(w http.ResponseWriter, r *http.Request, site int32, params GetAppPlatformsParams)
+	// GetAppActiveUsers Daily, weekly and monthly active installs, stickiness and new installs
+	// (GET /api/private/sites/{site}/app/product/active-users)
+	GetAppActiveUsers(w http.ResponseWriter, r *http.Request, site int32, params GetAppActiveUsersParams)
+	// GetAppAdoption Installs per release, platform, country, OS or device class
+	// (GET /api/private/sites/{site}/app/product/adoption)
+	GetAppAdoption(w http.ResponseWriter, r *http.Request, site int32, params GetAppAdoptionParams)
+	// GetAppEngagement Product sessions, session length and screens per session
+	// (GET /api/private/sites/{site}/app/product/engagement)
+	GetAppEngagement(w http.ResponseWriter, r *http.Request, site int32, params GetAppEngagementParams)
+	// ListAppFeatureSets Feature sets (named groups of product events)
+	// (GET /api/private/sites/{site}/app/product/features)
+	ListAppFeatureSets(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateAppFeatureSet Create a feature set
+	// (POST /api/private/sites/{site}/app/product/features)
+	CreateAppFeatureSet(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppFeatureSet Delete a feature set
+	// (DELETE /api/private/sites/{site}/app/product/features/{id})
+	DeleteAppFeatureSet(w http.ResponseWriter, r *http.Request, site int32, id int64)
+	// GetAppFeatureAdoption Share of active installs that used a feature set
+	// (GET /api/private/sites/{site}/app/product/features/{id}/adoption)
+	GetAppFeatureAdoption(w http.ResponseWriter, r *http.Request, site int32, id int64, params GetAppFeatureAdoptionParams)
 	// GetAppReleases Releases with events in the range, newest first, with crash-free rates
 	// (GET /api/private/sites/{site}/app/releases)
 	GetAppReleases(w http.ResponseWriter, r *http.Request, site int32, params GetAppReleasesParams)
+	// CompareAppReleases Two releases side by side
+	// (GET /api/private/sites/{site}/app/releases/compare)
+	CompareAppReleases(w http.ResponseWriter, r *http.Request, site int32, params CompareAppReleasesParams)
+	// GetAppRelease One release with its rollout, deploys and issues
+	// (GET /api/private/sites/{site}/app/releases/{release})
+	GetAppRelease(w http.ResponseWriter, r *http.Request, site int32, release string, params GetAppReleaseParams)
 	// GetAppRules An app project's ownership and grouping rules, in evaluation order
 	// (GET /api/private/sites/{site}/app/rules)
 	GetAppRules(w http.ResponseWriter, r *http.Request, site int32)
 	// ReplaceAppRules Replace both rule lists of an app project
 	// (PUT /api/private/sites/{site}/app/rules)
 	ReplaceAppRules(w http.ResponseWriter, r *http.Request, site int32)
+	// GetAppTrace One trace as a waterfall, with the errors captured inside it
+	// (GET /api/private/sites/{site}/app/traces/{trace_id})
+	GetAppTrace(w http.ResponseWriter, r *http.Request, site int32, traceId string)
+	// ListAppTransactions Transactions of the range with throughput, error rate and p50-p99
+	// (GET /api/private/sites/{site}/app/transactions)
+	ListAppTransactions(w http.ResponseWriter, r *http.Request, site int32, params ListAppTransactionsParams)
+	// GetAppTransaction One transaction with its daily series, child span groups and slowest samples
+	// (GET /api/private/sites/{site}/app/transactions/detail)
+	GetAppTransaction(w http.ResponseWriter, r *http.Request, site int32, params GetAppTransactionParams)
 	// EraseAppUser Erase what an app project stores about one end user
 	// (POST /api/private/sites/{site}/app/users/erase)
 	EraseAppUser(w http.ResponseWriter, r *http.Request, site int32)
@@ -7325,6 +8496,21 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+	// GetObsIngestHealth Log records and metric points accepted and rejected per UTC day
+	// (GET /api/private/sites/{site}/obs/ingest)
+	GetObsIngestHealth(w http.ResponseWriter, r *http.Request, site int32)
+	// SearchObsLogs Search an app project's logs, newest first
+	// (GET /api/private/sites/{site}/obs/logs)
+	SearchObsLogs(w http.ResponseWriter, r *http.Request, site int32, params SearchObsLogsParams)
+	// ListObsMetrics List the metric names of an app project
+	// (GET /api/private/sites/{site}/obs/metrics)
+	ListObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
+	// QueryObsMetrics Query one metric as time series
+	// (POST /api/private/sites/{site}/obs/metrics/query)
+	QueryObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
+	// ListObsTraceLogs The logs of one trace, oldest first
+	// (GET /api/private/sites/{site}/obs/traces/{trace_id}/logs)
+	ListObsTraceLogs(w http.ResponseWriter, r *http.Request, site int32, traceId string, params ListObsTraceLogsParams)
 
 	// (GET /api/private/sites/{site}/pixels)
 	ListPixels(w http.ResponseWriter, r *http.Request, site int32)
@@ -7475,6 +8661,21 @@ type ServerInterface interface {
 	// CreateAnnotation Create a chart annotation
 	// (POST /api/public/v1/sites/{site_id}/annotations)
 	CreateAnnotation(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// GetPublicAppActiveUsers Daily, weekly and monthly active installs, stickiness and new installs
+	// (GET /api/public/v1/sites/{site_id}/app/product/active-users)
+	GetPublicAppActiveUsers(w http.ResponseWriter, r *http.Request, siteId SitePathID, params GetPublicAppActiveUsersParams)
+	// GetPublicAppAdoption Installs per release, platform, country, OS or device class
+	// (GET /api/public/v1/sites/{site_id}/app/product/adoption)
+	GetPublicAppAdoption(w http.ResponseWriter, r *http.Request, siteId SitePathID, params GetPublicAppAdoptionParams)
+	// GetPublicAppEngagement Product sessions, session length and screens per session
+	// (GET /api/public/v1/sites/{site_id}/app/product/engagement)
+	GetPublicAppEngagement(w http.ResponseWriter, r *http.Request, siteId SitePathID, params GetPublicAppEngagementParams)
+	// GetPublicAppFeatureSets Feature sets (named groups of product events)
+	// (GET /api/public/v1/sites/{site_id}/app/product/features)
+	GetPublicAppFeatureSets(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// GetPublicAppFeatureAdoption Share of active installs that used a feature set
+	// (GET /api/public/v1/sites/{site_id}/app/product/features/{id}/adoption)
+	GetPublicAppFeatureAdoption(w http.ResponseWriter, r *http.Request, siteId SitePathID, id int64, params GetPublicAppFeatureAdoptionParams)
 	// ListEvents Explore raw pageviews and custom events
 	// (GET /api/public/v1/sites/{site_id}/events)
 	ListEvents(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListEventsParams)
@@ -7490,6 +8691,15 @@ type ServerInterface interface {
 	// CreateGoal Create a goal
 	// (POST /api/public/v1/sites/{site_id}/goals)
 	CreateGoal(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// SearchObsLogsPublic Search an app project's logs, newest first
+	// (GET /api/public/v1/sites/{site_id}/obs/logs)
+	SearchObsLogsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID, params SearchObsLogsPublicParams)
+	// ListObsMetricsPublic List the metric names of an app project
+	// (GET /api/public/v1/sites/{site_id}/obs/metrics)
+	ListObsMetricsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// QueryObsMetricsPublic Query one metric as time series
+	// (POST /api/public/v1/sites/{site_id}/obs/metrics/query)
+	QueryObsMetricsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// ListProfiles List identified profiles
 	// (GET /api/public/v1/sites/{site_id}/profiles)
 	ListProfiles(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListProfilesParams)
@@ -10419,6 +11629,157 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// ListAlertSilences operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertSilences(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertSilences(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAlertSilence operation middleware
+func (siw *ServerInterfaceWrapper) CreateAlertSilence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAlertSilence(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAlertSilence operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAlertSilence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "silence" -------------
+	var silence int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "silence", r.PathValue("silence"), &silence, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "silence", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAlertSilence(w, r, site, silence)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAlertIncidents operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertIncidents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "alert" -------------
+	var alert int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "alert", r.PathValue("alert"), &alert, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "alert", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAlertIncidentsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertIncidents(w, r, site, alert, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppLink operation middleware
 func (siw *ServerInterfaceWrapper) GetAppLink(w http.ResponseWriter, r *http.Request) {
 
@@ -10634,6 +11995,67 @@ func (siw *ServerInterfaceWrapper) GetAppCompatibility(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAppCompatibility(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppDebugFiles operation middleware
+func (siw *ServerInterfaceWrapper) ListAppDebugFiles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppDebugFiles(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppDebugFile operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppDebugFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppDebugFile(w, r, site, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11805,6 +13227,153 @@ func (siw *ServerInterfaceWrapper) UnmergeAppIssue(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ListAppMonitors operation middleware
+func (siw *ServerInterfaceWrapper) ListAppMonitors(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppMonitors(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppMonitor operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppMonitor(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppMonitor(w, r, site, monitor)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppMonitor operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppMonitor(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppMonitor(w, r, site, monitor)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppMonitorCheckins operation middleware
+func (siw *ServerInterfaceWrapper) ListAppMonitorCheckins(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAppMonitorCheckinsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppMonitorCheckins(w, r, site, monitor, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppOverview operation middleware
 func (siw *ServerInterfaceWrapper) GetAppOverview(w http.ResponseWriter, r *http.Request) {
 
@@ -11890,6 +13459,880 @@ func (siw *ServerInterfaceWrapper) GetAppOverview(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAppOverview(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppPerformance operation middleware
+func (siw *ServerInterfaceWrapper) GetAppPerformance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppPerformanceParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppPerformance(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppNetworkFailures operation middleware
+func (siw *ServerInterfaceWrapper) GetAppNetworkFailures(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppNetworkFailuresParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppNetworkFailures(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppRegressions operation middleware
+func (siw *ServerInterfaceWrapper) GetAppRegressions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppRegressionsParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "base" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "base", r.URL.Query(), &params.Base, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "base"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "base", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "target" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "target", r.URL.Query(), &params.Target, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppRegressions(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppPlatforms operation middleware
+func (siw *ServerInterfaceWrapper) GetAppPlatforms(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppPlatformsParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppPlatforms(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppActiveUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetAppActiveUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppActiveUsersParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppActiveUsers(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetAppAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "by" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "by", r.URL.Query(), &params.By, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "by"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "by", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppAdoption(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppEngagement operation middleware
+func (siw *ServerInterfaceWrapper) GetAppEngagement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppEngagementParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppEngagement(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppFeatureSets operation middleware
+func (siw *ServerInterfaceWrapper) ListAppFeatureSets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppFeatureSets(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAppFeatureSet operation middleware
+func (siw *ServerInterfaceWrapper) CreateAppFeatureSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAppFeatureSet(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppFeatureSet operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppFeatureSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppFeatureSet(w, r, site, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppFeatureAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetAppFeatureAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppFeatureAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppFeatureAdoption(w, r, site, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11993,6 +14436,203 @@ func (siw *ServerInterfaceWrapper) GetAppReleases(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// CompareAppReleases operation middleware
+func (siw *ServerInterfaceWrapper) CompareAppReleases(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompareAppReleasesParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "a" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "a", r.URL.Query(), &params.A, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "a"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "a", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "b" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "b", r.URL.Query(), &params.B, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "b"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "b", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompareAppReleases(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppRelease operation middleware
+func (siw *ServerInterfaceWrapper) GetAppRelease(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "release" -------------
+	var release string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "release", r.PathValue("release"), &release, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppReleaseParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppRelease(w, r, site, release, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppRules operation middleware
 func (siw *ServerInterfaceWrapper) GetAppRules(w http.ResponseWriter, r *http.Request) {
 
@@ -12036,6 +14676,268 @@ func (siw *ServerInterfaceWrapper) ReplaceAppRules(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReplaceAppRules(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppTrace operation middleware
+func (siw *ServerInterfaceWrapper) GetAppTrace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "trace_id" -------------
+	var traceId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "trace_id", r.PathValue("trace_id"), &traceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trace_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppTrace(w, r, site, traceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppTransactions operation middleware
+func (siw *ServerInterfaceWrapper) ListAppTransactions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAppTransactionsParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sort"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppTransactions(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppTransaction operation middleware
+func (siw *ServerInterfaceWrapper) GetAppTransaction(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppTransactionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "name" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "name", r.URL.Query(), &params.Name, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "name"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppTransaction(w, r, site, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13005,6 +15907,242 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RetryNotificationDelivery(w, r, site, delivery)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetObsIngestHealth operation middleware
+func (siw *ServerInterfaceWrapper) GetObsIngestHealth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetObsIngestHealth(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchObsLogs operation middleware
+func (siw *ServerInterfaceWrapper) SearchObsLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchObsLogsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchObsLogs(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListObsMetrics operation middleware
+func (siw *ServerInterfaceWrapper) ListObsMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsMetrics(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryObsMetrics operation middleware
+func (siw *ServerInterfaceWrapper) QueryObsMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryObsMetrics(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListObsTraceLogs operation middleware
+func (siw *ServerInterfaceWrapper) ListObsTraceLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "trace_id" -------------
+	var traceId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "trace_id", r.PathValue("trace_id"), &traceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trace_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListObsTraceLogsParams
+
+	// ------------- Optional query parameter "around" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "around", r.URL.Query(), &params.Around, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "around"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "around", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsTraceLogs(w, r, site, traceId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14763,6 +17901,430 @@ func (siw *ServerInterfaceWrapper) CreateAnnotation(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// GetPublicAppActiveUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppActiveUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppActiveUsersParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppActiveUsers(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "by" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "by", r.URL.Query(), &params.By, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "by"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "by", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppAdoption(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppEngagement operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppEngagement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppEngagementParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppEngagement(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppFeatureSets operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppFeatureSets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppFeatureSets(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppFeatureAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppFeatureAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppFeatureAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppFeatureAdoption(w, r, siteId, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListEvents operation middleware
 func (siw *ServerInterfaceWrapper) ListEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -14965,6 +18527,152 @@ func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateGoal(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchObsLogsPublic operation middleware
+func (siw *ServerInterfaceWrapper) SearchObsLogsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchObsLogsPublicParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchObsLogsPublic(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListObsMetricsPublic operation middleware
+func (siw *ServerInterfaceWrapper) ListObsMetricsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsMetricsPublic(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryObsMetricsPublic operation middleware
+func (siw *ServerInterfaceWrapper) QueryObsMetricsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryObsMetricsPublic(w, r, siteId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16308,6 +20016,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.UpdateSite)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.ListGoals)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.CreateGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/logs", wrapper.SearchObsLogsPublic)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/profiles", wrapper.ListProfiles)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sessions/{session_id}", wrapper.GetSession)
@@ -16326,6 +20035,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.CreateFunnel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.DeleteFunnel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.UpdateFunnel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/metrics", wrapper.ListObsMetricsPublic)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/metrics/query", wrapper.QueryObsMetricsPublic)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.ListSegments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.CreateSegment)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/segments/{segment_id}", wrapper.DeleteSegment)
@@ -16346,6 +20057,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erase", wrapper.EraseAppUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/logs", wrapper.SearchObsLogs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/ingest", wrapper.GetObsIngestHealth)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/traces/{trace_id}/logs", wrapper.ListObsTraceLogs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/bulk", wrapper.BulkUpdateAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/views", wrapper.ListAppSavedViews)
@@ -16353,8 +20067,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.DeleteAppSavedView)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.UpdateAppSavedView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/metrics", wrapper.ListObsMetrics)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/obs/metrics/query", wrapper.QueryObsMetrics)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.GetAppRules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.ReplaceAppRules)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors", wrapper.ListAppMonitors)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}", wrapper.DeleteAppMonitor)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}", wrapper.UpdateAppMonitor)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}/checkins", wrapper.ListAppMonitorCheckins)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}", wrapper.GetAppEventAttachment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.GetAppIssue)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.UpdateAppIssue)
@@ -16367,13 +20087,36 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/merged", wrapper.ListMergedAppIssues)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/unmerge", wrapper.UnmergeAppIssue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/feedback", wrapper.ListAppIssueFeedback)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/active-users", wrapper.GetAppActiveUsers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/adoption", wrapper.GetAppAdoption)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/engagement", wrapper.GetAppEngagement)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features", wrapper.ListAppFeatureSets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features", wrapper.CreateAppFeatureSet)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features/{id}", wrapper.DeleteAppFeatureSet)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features/{id}/adoption", wrapper.GetAppFeatureAdoption)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/active-users", wrapper.GetPublicAppActiveUsers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/adoption", wrapper.GetPublicAppAdoption)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/engagement", wrapper.GetPublicAppEngagement)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/features", wrapper.GetPublicAppFeatureSets)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/features/{id}/adoption", wrapper.GetPublicAppFeatureAdoption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/feedback", wrapper.ListAppFeedback)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issue-webhooks", wrapper.GetAppIssueWebhooks)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/issue-webhooks", wrapper.UpdateAppIssueWebhooks)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/assignees", wrapper.ListAppAssignees)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/compatibility", wrapper.GetAppCompatibility)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases", wrapper.GetAppReleases)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases/compare", wrapper.CompareAppReleases)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/releases/{release}", wrapper.GetAppRelease)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/deploys", wrapper.GetAppDeploys)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/performance", wrapper.GetAppPerformance)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/transactions", wrapper.ListAppTransactions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/transactions/detail", wrapper.GetAppTransaction)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/traces/{trace_id}", wrapper.GetAppTrace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/performance/regressions", wrapper.GetAppRegressions)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/performance/network", wrapper.GetAppNetworkFailures)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/platforms", wrapper.GetAppPlatforms)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/debug-files", wrapper.ListAppDebugFiles)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/debug-files/{id}", wrapper.DeleteAppDebugFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.ListPixels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/pixels", wrapper.CreatePixel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/pixels/stats", wrapper.PixelStats)
@@ -16411,6 +20154,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/duplicate", wrapper.DuplicateDashboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/default", wrapper.SetDefaultDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/power-users", wrapper.ListPowerUsers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.ListAlertSilences)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.CreateAlertSilence)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences/{silence}", wrapper.DeleteAlertSilence)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/alerts/{alert}/incidents", wrapper.ListAlertIncidents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)

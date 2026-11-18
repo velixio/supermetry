@@ -10,7 +10,7 @@ import {
   useSaveNotificationSettings, useSaveNotificationTemplate,
 } from './notificationTemplatesApi'
 
-const kinds: ChannelKind[] = ['email', 'slack', 'discord', 'telegram', 'webhook']
+const kinds: ChannelKind[] = ['email', 'slack', 'discord', 'telegram', 'pagerduty', 'webhook']
 
 export function NotificationTemplates({ orgId, canManage }: { orgId: number; canManage: boolean }) {
   const templates = useNotificationTemplates(orgId)

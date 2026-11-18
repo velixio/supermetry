@@ -149,8 +149,8 @@ var wantEvents = map[string]int{
 	"electron/main-exception": 1, "electron/native-crash": 1, "electron/renderer-exception": 1,
 	"go/captured-exception": 1, "go/recovered-panic": 1,
 	"node/captured-message": 1, "node/client-report": 0, "node/session-aggregates": 0, "node/unhandled-exception": 1, "node/unhandled-rejection": 1,
-	"transactions/python": 0, "transactions/javascript-static": 0, "transactions/javascript-v11-stream": 0, "transactions/android-app-start": 0, "transactions/cocoa-app-start": 0,
-	"python/client-report": 0, "python/logging-error": 1, "python/unhandled-exception": 1, "python/unhandled-exception-br": 1, "python/wsgi-sessions": 0,
+	"transactions/python": 0, "transactions/javascript-static": 0, "transactions/javascript-v11-stream": 0, "transactions/node-v11-stream": 0, "transactions/go-v0.50": 0, "transactions/browser-v11-pageload": 0, "transactions/android-app-start": 0, "transactions/cocoa-app-start": 0,
+	"checkins/js": 0, "checkins/python": 0, "python/client-report": 0, "python/logging-error": 1, "python/unhandled-exception": 1, "python/unhandled-exception-br": 1, "python/wsgi-sessions": 0,
 }
 
 // wantSessionRows are the session rows each fixture adds (one per init, or one
@@ -332,7 +332,7 @@ func TestSizeCaps(t *testing.T) {
 		t.Errorf("attachments = %d", w.Code)
 	}
 	snap := e.h.Stats().Snapshot()
-	if snap["attachment_too_large"] != 1 || snap["minidump_deferred"] != 1 || snap["item:transaction"] != 1 || snap["item:unknown"] != 1 {
+	if snap["attachment_too_large"] != 1 || snap["minidump_unprocessed"] != 1 || snap["item:transaction"] != 1 || snap["item:unknown"] != 1 {
 		t.Errorf("stats = %v", snap)
 	}
 }
@@ -604,7 +604,7 @@ func TestMatchesRouterContract(t *testing.T) {
 	e := newEnv(t)
 	for path, want := range map[string]bool{
 		"/api/42/envelope/": true, "/api/42/envelope": true, "/api/7/store/": true, "/api/9/security": true,
-		"/api/private/sites": false, "/api/public/v1/app-events": false, "/api/42/minidump/": false,
+		"/api/private/sites": false, "/api/public/v1/app-events": false, "/api/42/minidump/": true,
 	} {
 		if got := e.h.Matches(httptest.NewRequest(http.MethodPost, path, nil)); got != want {
 			t.Errorf("Matches(%s) = %v", path, got)

@@ -61,7 +61,7 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
                 <Button variant="outline" disabled={test.isPending} onClick={() => sendTest(channel)}>
                   Send test to {channel.name}
                 </Button>
-                {channel.kind === 'email' || channel.kind === 'telegram' ? <Button variant="outline" onClick={() => setEditing(channel)}>Edit</Button> : null}
+                {channel.kind === 'email' || channel.kind === 'telegram' || channel.kind === 'pagerduty' ? <Button variant="outline" onClick={() => setEditing(channel)}>Edit</Button> : null}
                 <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(channel.id)}>Delete</Button>
               </div>
             ) : null}
@@ -98,13 +98,16 @@ function ChannelDialog({ channel, error, pending, onClose, onSave }: {
       enabled: channel.enabled,
       config: channel.kind === 'telegram'
         ? { bot_token: '', chat_id: channel.config.chat_id ?? '' }
-        : { recipients: channel.config.recipients ?? [] },
+        : channel.kind === 'pagerduty'
+          ? { routing_key: '' }
+          : { recipients: channel.config.recipients ?? [] },
     } : blank)
   }, [channel])
 
   if (channel === undefined) return null
   const needsURL = input.kind === 'webhook' || input.kind === 'slack' || input.kind === 'discord'
   const isTelegram = input.kind === 'telegram'
+  const isPagerDuty = input.kind === 'pagerduty'
   function submit(event: FormEvent) {
     event.preventDefault()
     void onSave(input).catch(() => undefined)
@@ -121,7 +124,7 @@ function ChannelDialog({ channel, error, pending, onClose, onSave }: {
             <Field>
               <FieldLabel htmlFor="channel-kind">Channel type</FieldLabel>
               <select id="channel-kind" disabled={Boolean(channel)} className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput({ kind: event.target.value as ChannelKind, name: input.name, enabled: input.enabled, config: {} })}>
-                <option value="email">Email</option><option value="webhook">Webhook</option><option value="slack">Slack</option><option value="discord">Discord</option><option value="telegram">Telegram</option>
+                <option value="email">Email</option><option value="webhook">Webhook</option><option value="slack">Slack</option><option value="discord">Discord</option><option value="telegram">Telegram</option><option value="pagerduty">PagerDuty</option>
               </select>
             </Field>
             <Field>
@@ -162,6 +165,13 @@ function ChannelDialog({ channel, error, pending, onClose, onSave }: {
                   <FieldDescription>Use a numeric chat ID, including a leading minus sign, or an @channel username.</FieldDescription>
                 </Field>
               </>
+            ) : null}
+            {isPagerDuty ? (
+              <Field>
+                <FieldLabel htmlFor="channel-routing-key">Integration key</FieldLabel>
+                <Input id="channel-routing-key" autoComplete="new-password" required={!channel?.config.configured} type="password" value={input.config.routing_key ?? ''} onChange={(event) => setInput((value) => ({ ...value, config: { ...value.config, routing_key: event.target.value } }))} />
+                <FieldDescription>{channel?.config.configured ? 'Key configured. Leave blank to keep it, or enter a replacement.' : 'Add an Events API v2 integration to a PagerDuty service and paste its integration key. It is encrypted and never shown again.'}</FieldDescription>
+              </Field>
             ) : null}
             <Field orientation="horizontal">
               <input id="channel-enabled" checked={input.enabled} type="checkbox" onChange={(event) => setInput((value) => ({ ...value, enabled: event.target.checked }))} />

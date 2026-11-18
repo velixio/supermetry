@@ -13,7 +13,7 @@ const w = (id: string, width: number, height = 4, extra: Partial<DashboardWidget
 const text: IssueText = {
   name: 'name', tooMany: (max) => `max ${max}`, tooLarge: 'large', tooTall: 'tall', title: (l) => `title ${l}`,
   filters: (max) => `filters ${max}`, metrics: (l) => `metrics ${l}`, dimension: (l) => `dimension ${l}`,
-  funnel: (l) => `funnel ${l}`, limit: (l) => `limit ${l}`,
+  funnel: (l) => `funnel ${l}`, limit: (l) => `limit ${l}`, metricName: (l) => `metric ${l}`,
 }
 const label = (widget: DashboardWidget) => widget.id
 const draft = (widgets: DashboardWidget[]): Draft => ({ name: 'Mine', layout: { schema_version: 1, widgets: packWidgets(widgets) } })

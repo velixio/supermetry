@@ -239,6 +239,35 @@ func TestTelegramChannelCRUDAcceptsWriteOnlyTokenAndDisabledState(t *testing.T) 
 	}
 }
 
+func TestPagerDutyChannelInputRules(t *testing.T) {
+	key := "R0UT1NGKEYabcdefghijklmnopqrstuv"
+	for _, tt := range []struct {
+		name, method, path, body string
+		status                   int
+	}{
+		{"create with key", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{"routing_key":"` + key + `"}}`, http.StatusCreated},
+		{"create without key", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{}}`, http.StatusBadRequest},
+		{"create with short key", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{"routing_key":"abc"}}`, http.StatusBadRequest},
+		{"create with url", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{"routing_key":"` + key + `","url":"https://x.test"}}`, http.StatusBadRequest},
+		{"edit keeps the key", http.MethodPatch, "/api/private/orgs/1/channels/7", `{"kind":"pagerduty","name":"On call","config":{}}`, http.StatusOK},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &fakeAlertsService{}
+			handler := platformhttp.New(platformhttp.Deps{
+				Authenticator: actorAuthenticator{"admin": {UserID: 2, OrgID: 1, Role: authz.RoleAdmin}},
+				Alerts:        service,
+			})
+			response := requestAs(t, handler, "admin", tt.method, tt.path, tt.body)
+			if response.Code != tt.status {
+				t.Fatalf("status=%d body=%s, want %d", response.Code, response.Body.String(), tt.status)
+			}
+			if strings.Contains(response.Body.String(), key) {
+				t.Fatalf("response echoes the routing key: %s", response.Body.String())
+			}
+		})
+	}
+}
+
 func TestTelegramChannelAuthorizationAndTenantIsolation(t *testing.T) {
 	service := &fakeAlertsService{}
 	handler := platformhttp.New(platformhttp.Deps{
@@ -431,34 +460,28 @@ func TestWebAlertKindOnAppSiteIsBadRequest(t *testing.T) {
 	}
 }
 
-func TestAppAlertInputIsValidatedAndDefaulted(t *testing.T) {
-	bad := []string{
-		`{"kind":"app_crash_free_below","threshold":40,"channel_ids":[1]}`,
-		`{"kind":"app_crash_free_below","threshold":101,"channel_ids":[1]}`,
-		`{"kind":"app_crash_free_below","config":{"metric":"devices"},"channel_ids":[1]}`,
-		`{"kind":"app_new_issue","config":{"kinds":["bogus"]},"channel_ids":[1]}`,
-		`{"kind":"app_new_issue","config":{"metric":"users"},"channel_ids":[1]}`,
-		`{"kind":"app_issue_spike","config":{"kinds":["crash"]},"channel_ids":[1]}`,
-		`{"kind":"app_issue_spike","goal_id":3,"channel_ids":[1]}`,
-	}
-	for _, body := range bad {
+func TestV1AppKindsAskForAppRule(t *testing.T) {
+	for _, kind := range []string{"app_new_issue", "app_issue_regressed", "app_crash_free_below", "app_issue_spike"} {
 		service := &fakeAlertsService{}
-		response := requestAs(t, appAlertHandler(service), "editor", http.MethodPost, "/api/private/sites/11/alerts", body)
-		if response.Code != http.StatusBadRequest || service.alertCall != 0 {
-			t.Errorf("%s: status=%d calls=%d", body, response.Code, service.alertCall)
+		response := requestAs(t, appAlertHandler(service), "editor", http.MethodPost, "/api/private/sites/11/alerts", fmt.Sprintf(`{"kind":%q,"threshold":99,"channel_ids":[1]}`, kind))
+		if response.Code != http.StatusBadRequest || service.alertCall != 0 || !strings.Contains(response.Body.String(), "use kind app_rule") {
+			t.Errorf("%s: status=%d calls=%d body=%s", kind, response.Code, service.alertCall, response.Body.String())
 		}
 	}
+}
+
+func TestAppRuleIsPassedToTheServiceAndNotAllowedOnWebSites(t *testing.T) {
+	body := `{"kind":"app_rule","name":"New crashes","rule":{"trigger":{"type":"issue","issue":{"on":["new"]}},"filters":{"kinds":["crash"]},"actions":[{"type":"channel","channel_ids":[1]}]}}`
 	service := &fakeAlertsService{}
-	response := requestAs(t, appAlertHandler(service), "editor", http.MethodPost, "/api/private/sites/11/alerts", `{"kind":"app_crash_free_below","channel_ids":[1]}`)
-	if response.Code != http.StatusCreated {
-		t.Fatalf("defaults: status=%d body=%s", response.Code, response.Body.String())
-	}
-	if in := service.alertIn; in.Threshold != 99 || in.Config == nil || in.Config.Metric != "users" {
-		t.Fatalf("crash-free defaults = %+v", in)
+	response := requestAs(t, appAlertHandler(service), "editor", http.MethodPost, "/api/private/sites/11/alerts", body)
+	in := service.alertIn
+	if response.Code != http.StatusCreated || in.Kind != "app_rule" || in.Name != "New crashes" || in.Rule == nil ||
+		in.Rule.Trigger.Type != "issue" || len(in.Rule.Filters.Kinds) != 1 || in.Rule.Actions[0].ChannelIDs[0] != 1 {
+		t.Fatalf("status=%d input=%+v body=%s", response.Code, in, response.Body.String())
 	}
 	service = &fakeAlertsService{}
-	response = requestAs(t, appAlertHandler(service), "editor", http.MethodPost, "/api/private/sites/11/alerts", `{"kind":"app_new_issue","config":{"kinds":["crash","hang"]},"channel_ids":[1]}`)
-	if response.Code != http.StatusCreated || service.alertIn.Threshold != 1 || len(service.alertIn.Config.Kinds) != 2 {
-		t.Fatalf("new issue: status=%d input=%+v", response.Code, service.alertIn)
+	response = requestAs(t, appAlertHandler(service), "editor", http.MethodPost, "/api/private/sites/10/alerts", body)
+	if response.Code != http.StatusBadRequest || service.alertCall != 0 {
+		t.Fatalf("rule on web site: status=%d calls=%d", response.Code, service.alertCall)
 	}
 }

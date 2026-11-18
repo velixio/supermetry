@@ -5,12 +5,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Period } from '@/lib/search'
 
 import { useAppReleases } from './api'
-import { APP_PERIODS, APP_PLATFORMS, type AppSearch } from './search'
+import { APP_PERIODS, APP_PLATFORMS, APP_PROCESSES, type AppSearch } from './search'
 
 const ALL = '__all__'
 
-/** Period, release, environment and platform filters shared by every app page; state lives in the URL. */
-export function AppFilters<T extends AppSearch>({ siteId, timezone, search, onSearch, hidePlatform = false }: { siteId: number; timezone: string; search: T; onSearch: (next: T) => void; hidePlatform?: boolean }) {
+/** Period, release, environment and platform filters (and, where `showProcess` is set, the Electron process) shared by every app page; state lives in the URL. */
+export function AppFilters<T extends AppSearch>({ siteId, timezone, search, onSearch, hidePlatform = false, showProcess = false }: { siteId: number; timezone: string; search: T; onSearch: (next: T) => void; hidePlatform?: boolean; showProcess?: boolean }) {
   // Release options come from the unfiltered releases list for the same period.
   const releases = useAppReleases(siteId, { period: search.period }, timezone)
   const [environment, setEnvironment] = useState(search.environment ?? '')
@@ -32,6 +32,10 @@ export function AppFilters<T extends AppSearch>({ siteId, timezone, search, onSe
         <SelectTrigger aria-label="Platform"><SelectValue /></SelectTrigger>
         <SelectContent><SelectItem value={ALL}>All platforms</SelectItem>{APP_PLATFORMS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
       </Select>}
+      {showProcess ? <Select value={search.process ?? ALL} onValueChange={(value) => set({ process: value === ALL ? undefined : value })}>
+        <SelectTrigger aria-label="Process"><SelectValue /></SelectTrigger>
+        <SelectContent><SelectItem value={ALL}>All processes</SelectItem>{APP_PROCESSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+      </Select> : null}
       <Input
         aria-label="Environment" className="w-40" placeholder="Any environment" value={environment}
         onChange={(event) => setEnvironment(event.target.value)} onBlur={commitEnvironment}

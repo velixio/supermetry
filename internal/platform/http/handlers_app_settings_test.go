@@ -16,7 +16,7 @@ func TestAppSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("defaults = %d %s", res.Code, res.Body)
 	}
 	put := f.request(t, "owner", http.MethodPut, path, `{"tag_allowlist":["Source","source"],"max_report_age_days":14,"environments":["Beta","beta"]}`)
-	want := `{"tag_allowlist":["source"],"max_report_age_days":14,"environments":["beta"],"filter_extensions":true,"filter_crawlers":true,"filter_localhost":null,"performance_enabled":true,"span_retention_days":14,"filter_localhost_default":false}`
+	want := `{"tag_allowlist":["source"],"max_report_age_days":14,"environments":["beta"],"filter_extensions":true,"filter_crawlers":true,"filter_localhost":null,"performance_enabled":true,"span_retention_days":14,"log_retention_days":7,"electron_symbols":true,"log_daily_quota":5000000,"metric_daily_quota":50000000,"filter_localhost_default":false}`
 	if put.Code != http.StatusOK || strings.TrimSpace(put.Body.String()) != want {
 		t.Fatalf("put = %d %s", put.Code, put.Body)
 	}
@@ -30,6 +30,24 @@ func TestAppSettingsRoundTrip(t *testing.T) {
 	var audits int
 	if err := f.pool.QueryRow(context.Background(), `select count(*) from audit_log where action='site.app_settings_changed'`).Scan(&audits); err != nil || audits != 1 {
 		t.Fatalf("audits=%d err=%v", audits, err)
+	}
+}
+
+func TestAppSettingsLogLimits(t *testing.T) {
+	f := newAppKeyFixture(t)
+	path := fmt.Sprintf("/api/private/sites/%d/app-settings", f.siteID)
+	put := f.request(t, "owner", http.MethodPut, path, `{"log_retention_days":3,"log_daily_quota":1000,"metric_daily_quota":0}`)
+	if put.Code != http.StatusOK || !strings.Contains(put.Body.String(), `"log_retention_days":3`) || !strings.Contains(put.Body.String(), `"log_daily_quota":1000,"metric_daily_quota":0`) {
+		t.Fatalf("put = %d %s", put.Code, put.Body)
+	}
+	site, _ := f.registry.Site(f.siteID)
+	if site.App.LogDailyQuota != 1000 || site.App.MetricDailyQuota != 0 {
+		t.Fatalf("registry limits = %+v", site.App)
+	}
+	for _, body := range []string{`{"log_retention_days":31}`, `{"log_daily_quota":-1}`} {
+		if res := f.request(t, "owner", http.MethodPut, path, body); res.Code != http.StatusBadRequest {
+			t.Fatalf("%s = %d %s", body, res.Code, res.Body)
+		}
 	}
 }
 

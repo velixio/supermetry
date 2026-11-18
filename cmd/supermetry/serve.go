@@ -24,15 +24,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
+	"supermetry/internal/appdebug"
 	"supermetry/internal/appingest"
 	"supermetry/internal/appissues"
+	"supermetry/internal/appmonitors"
 	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
 	"supermetry/internal/appsessions"
+	"supermetry/internal/breakpad"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
@@ -53,6 +57,9 @@ import (
 	"supermetry/internal/integrations/stripe"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
+	"supermetry/internal/obslogs"
+	"supermetry/internal/obsmetrics"
+	"supermetry/internal/obsquota"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
@@ -90,6 +97,8 @@ import (
 	"supermetry/internal/spanrollup"
 	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
+	"supermetry/internal/symcache"
+	"supermetry/internal/symsource"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
 )
@@ -236,6 +245,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := ensureSpanPartitions(ctx, pool, now, 13); err != nil {
 		return fmt.Errorf("ensure startup span partitions: %w", err)
 	}
+	if err := ensureLogPartitions(ctx, pool, now); err != nil {
+		return fmt.Errorf("ensure startup log partitions: %w", err)
+	}
 	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead)); err != nil {
 		return fmt.Errorf("ensure startup partitions: %w", err)
 	}
@@ -318,6 +330,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	webhookClient := alerts.NewWebhookClient(alerts.WebhookOptions{AllowPrivate: cfg.AllowPrivateWebhooks})
 	telegramClient := alerts.NewTelegramClient(alerts.TelegramOptions{})
 	alertDispatcher := alerts.NewDispatcher(sender, webhookClient, telegramClient)
+	alertDispatcher.SetPagerDuty("", cfg.BaseURL)
 	alertService := alerts.New(platformStore, alertBox, alertDispatcher)
 	alertMetrics := alerts.NewEngineSource(engine, definitionService)
 	alertEvaluator := alerts.NewEvaluator(alertService, alertMetrics, registry, sessions, alertDispatcher, settings.clock.Now,
@@ -504,11 +517,31 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	ipRate, siteRate, globalRate := clampIngestRates(slog.Default(), cfg.IngestRateIP, cfg.IngestRateSite, cfg.IngestRateGlobal)
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
+	nativeCache := sentryapi.CacheBuilder{Version: symcache.Version, Build: symcache.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
 		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20,
-		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}}})
+		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}, "breakpad": {Version: 1, Build: breakpad.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}, "elf": nativeCache, "macho": nativeCache}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
+	// Electron's public symbol server: fetched on a symbolication miss by the
+	// native crash path, never on the ingest path. nil when no blob store.
+	var electronSymbols *symsource.Electron
+	if replayStore != nil {
+		electronSymbols = symsource.NewElectron(pool, replayStore, symsource.NewHTTPClient(), symsource.ElectronConfig{
+			Enabled: cfg.ElectronSymbols,
+			SiteEnabled: func(siteID int32) bool {
+				site, ok := registry.Site(siteID)
+				return ok && (site.App == nil || site.App.ElectronSymbols == nil || *site.App.ElectronSymbols)
+			},
+			TmpDir: filepath.Join(cfg.DataDir, "symcache-tmp"),
+		})
+		defer electronSymbols.Close()
+	}
+	// A typed nil pointer in an interface is not nil, so only a built fetcher is passed on.
+	var remoteSymbols sentryingest.RemoteSymbols
+	if electronSymbols != nil {
+		remoteSymbols = electronSymbols
+	}
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
 	appProduct := appproduct.New(w, sessions, dictionary, dropRecorder, settings.clock.Now)
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
@@ -532,23 +565,49 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		}
 	})
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
+	// The log writer starts its own flush goroutine; the OTLP and Sentry log
+	// front doors enqueue into it. Close flushes it before the pool closes.
+	logWriter := obslogs.NewWriter(pool, obslogs.WriterConfig{Now: settings.clock.Now}, obslogs.HealthStats{})
+	// The daily quota tracker is primed once from today's counters and then
+	// served from memory; it flushes its deltas every minute.
+	obsQuota := obsquota.New(pool, settings.clock.Now)
+	if err := obsQuota.Prime(ctx); err != nil {
+		return err
+	}
+	metricRegistry, err := obsmetrics.LoadRegistry(ctx, pool, obsmetrics.DefaultSeriesCap)
+	if err != nil {
+		return fmt.Errorf("load metric series: %w", err)
+	}
+	metricRollup := obsmetrics.NewRollup(pool, settings.clock.Now)
+	metricWriter := obsmetrics.NewWriter(pool, metricRegistry, obsmetrics.WriterConfig{OnWritten: metricRollup.NoteLate}, obsmetrics.HealthStats{})
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
+	var symbolMisses *appdebug.MissRecorder
 	var appSessions *appsessions.Writer
+	var appCheckins *appmonitors.Writer
+	appMonitorStore := appmonitors.NewStore(pool, settings.clock.Now)
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+		symbolMisses = appdebug.NewMissRecorder(pool, 10*time.Second, appdebug.DefaultMaxKeys)
+		symbolMisses.SetStats(sentryHandler.Stats())
+		symbolMisses.Start()
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
-			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
+			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, MinidumpInflightBytes: int64(cfg.MinidumpInflightMB) << 20, Remote: remoteSymbols, Stats: sentryHandler.Stats(),
 			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
-			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
+			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver(), sentryingest.MinidumpResolver(), sentryingest.NativeResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
+			Misses: symbolMisses,
 		})
-		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
+		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget).WithLogs(logWriter, obsQuota)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
-		sentryHandler.WithSessions(appSessions)
+		sentryHandler.WithSessions(appSessions).WithProductSessions(appProduct)
+		appCheckins = appmonitors.NewWriter(appMonitorStore, 0, sentryHandler.Stats())
+		sentryHandler.WithCheckIns(appCheckins)
 		sentryIngest = sentryHandler
-		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now)
+		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now).
+			WithMetrics(metricWriter, obsQuota, obsmetrics.HealthStats{}).
+			WithLogs(logWriter, obsQuota, obslogs.HealthStats{})
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -589,7 +648,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), AppIssues: appissues.New(pool, settings.clock.Now), Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appQuerier(pool, settings.clock.Now, engine), AppIssues: appissues.New(pool, settings.clock.Now), AppLogs: &obslogs.Reader{Pool: pool, Now: settings.clock.Now}, Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
 		StripeAttribution: &stripe.AttributionHandler{
@@ -637,6 +696,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	spanWriterCtx, cancelSpanWriter := context.WithCancel(context.Background())
 	spanWriterDone := make(chan error, 1)
 	go func() { spanWriterDone <- spanWriter.Run(spanWriterCtx) }()
+	metricWriterCtx, cancelMetricWriter := context.WithCancel(context.Background())
+	metricWriterDone := make(chan error, 1)
+	go func() { metricWriterDone <- metricWriter.Run(metricWriterCtx) }()
+	obsQuota.Start()
 	appBodiesDone := make(chan error, 1)
 	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
 	appReportsDone := make(chan error, 1)
@@ -675,13 +738,19 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, cfg.OpenCounters, settings.clock, engine.InvalidateSite)
+	if replayStore != nil {
+		jobs = append(jobs, scheduler.Job{Name: "remote-symbols-sweep", Every: time.Hour, Run: func(ctx context.Context) error {
+			_, err := sentryapi.SweepRemoteSymbols(ctx, pool, replayStore, settings.clock.Now(), int64(cfg.RemoteSymbolsMB)<<20)
+			return err
+		}})
+	}
 	storageStore := storageusage.NewStore(pool)
 	storageScanners := []storageusage.Scanner{storageusage.NewPostgresScanner(pool, cfg.QueryTimeout), storageusage.NewArtifactScanner(pool)}
 	if replayStore != nil {
 		storageScanners = append(storageScanners, storageusage.NewReplayScanner(pool, replayStore))
 	}
 	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
-	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
+	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock), metricRollup.Job(registry))
 	jobs = append(jobs, issueWebhookJob(appissues.New(pool, settings.clock.Now), issueWebhookSender{channels: alertService, dispatcher: alertDispatcher}, cfg.BaseURL))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob(), stripeService.RetentionJob())
 	starService.AlertChannels = alertService
@@ -690,9 +759,21 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	ruleEvaluator := alerts.NewRuleEvaluator(alertService, alertService, appAlertStore, appAlertStore, alertDispatcher, registry, settings.clock.Now,
+		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
+			health.AlertDeliveryFailures.Add(1)
+			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
+		})
+	issueNotifier := appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now)
+	ruleEvaluator.WithActions(appissues.New(pool, settings.clock.Now), issueNotifier)
+	ruleEvaluator.SetMetricSource(alerts.NewMetricStore(pool, alerts.NewPerfStore(pool), registry))
+	ruleEvaluator.WithMonitors(appMonitorStore)
+	ruleEvaluator.SetSilences(alertService)
+	jobs = append(jobs, ruleEvaluator.Job(), appmonitors.Job(appMonitorStore))
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
-		appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
+		issueNotifier.Job(),
+		appissues.NewDigester(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
@@ -801,13 +882,24 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if symbolicator != nil {
 		symbolicator.Close()
 	}
+	// Workers may report misses until the queue drains; write what is left.
+	if symbolMisses != nil {
+		symbolMisses.Close()
+	}
 	// Session updates are queued by the handler too; flush them first.
 	if appSessions != nil {
 		appSessions.Close()
 	}
+	if appCheckins != nil {
+		appCheckins.Close()
+	}
 	// Stop the span writer: it drains on cancel, before the app writer.
 	cancelSpanWriter()
 	cause = errors.Join(cause, <-spanWriterDone)
+	logWriter.Close()
+	cancelMetricWriter()
+	cause = errors.Join(cause, <-metricWriterDone)
+	obsQuota.Close()
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
@@ -1255,6 +1347,9 @@ func scheduledJobs(
 			if err := ensureSpanPartitions(ctx, pool, now, 1); err != nil {
 				return err
 			}
+			if err := ensureLogPartitions(ctx, pool, now); err != nil {
+				return err
+			}
 			return db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead))
 		}},
 		{Name: "retention", Every: time.Hour, Run: func(ctx context.Context) error {
@@ -1632,11 +1727,39 @@ func civilDay(value time.Time) time.Time {
 	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// ensureSpanPartitions pre-creates the daily spans partitions from daysBack
+// ensureSpanPartitions pre-creates the daily spans and metric_points partitions from daysBack
 // days ago to 3 days ahead. Startup goes 13 days back (late spans are accepted
 // that long); the hourly job only 1, so retention is not undone every hour.
 // The span writer never runs DDL: a span whose day has no partition is dropped
 // and counted.
 func ensureSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, daysBack int) error {
-	return db.EnsureDailyPartitions(ctx, pool, "spans", now.AddDate(0, 0, -daysBack), now.AddDate(0, 0, 3))
+	from, to := now.AddDate(0, 0, -daysBack), now.AddDate(0, 0, 3)
+	if err := db.EnsureDailyPartitions(ctx, pool, "spans", from, to); err != nil {
+		return err
+	}
+	return db.EnsureDailyPartitions(ctx, pool, "metric_points", from, to)
+}
+
+// ensureLogPartitions pre-creates the daily logs partitions from yesterday to
+// 3 days ahead. The log writer never runs DDL: a record whose day has no
+// partition is dropped and counted.
+func ensureLogPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	return db.EnsureDailyPartitions(ctx, pool, "logs", now.AddDate(0, 0, -1), now.AddDate(0, 0, 3))
+}
+
+// appQuerier builds the app read querier and lets the performance overview
+// show the 75th percentile Web Vitals of a linked web site.
+func appQuerier(pool *pgxpool.Pool, now func() time.Time, engine interface {
+	Vitals(ctx context.Context, req api.VitalsRequest) (api.VitalsResponse, error)
+}) *appquery.Querier {
+	return appquery.New(pool, now).WithVitals(func(ctx context.Context, siteID int32, f appquery.Filter) (*float64, *float64, *float64, error) {
+		res, err := engine.Vitals(ctx, api.VitalsRequest{
+			SiteId:    siteID,
+			DateRange: api.DateRange{From: openapi_types.Date{Time: f.From}, To: openapi_types.Date{Time: f.To}},
+		})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return res.Overall.Lcp.P75, res.Overall.Inp.P75, res.Overall.Cls.P75, nil
+	})
 }

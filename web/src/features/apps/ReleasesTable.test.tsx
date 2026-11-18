@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { privateRequest } = vi.hoisted(() => ({ privateRequest: vi.fn() }))
@@ -49,7 +49,15 @@ describe('ReleasesTable', () => {
     expect(sessionsRow).not.toHaveTextContent('from error events')
     expect(screen.getByText('1.2.0').closest('tr')).toHaveTextContent('from error events')
     const href = screen.getByRole('link', { name: '1.1.0' }).getAttribute('href')!
-    expect(href.startsWith('/app/acme/desk?')).toBe(true)
-    expect(href).toContain('release=1.1.0')
+    expect(href).toBe('/app/acme/desk/releases/1.1.0?period=30d')
+  })
+
+  it('compares two ticked releases', async () => {
+    renderWithQuery(<ReleasesTable org="acme" site="desk" siteId={7} timezone="UTC" search={{ period: '30d' }} onSearch={vi.fn()} />)
+    await screen.findByText('1.2.0')
+    expect(screen.queryByRole('link', { name: 'Compare selected' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Compare 1.1.0' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Compare 1.2.0' }))
+    expect(screen.getByRole('link', { name: 'Compare selected' })).toHaveAttribute('href', '/app/acme/desk/releases/compare?period=30d&a=1.1.0&b=1.2.0')
   })
 })

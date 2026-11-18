@@ -87,6 +87,7 @@ export function SiteIconSettings({
 const settingsTabs = [
   ['general', 'General', '/app/$org/$site/settings/general'],
   ['installation', 'Installation', '/app/$org/$site/settings/installation'],
+  ['symbols', 'Symbols', '/app/$org/$site/settings/symbols'],
   ['integrations', 'Integrations', '/app/$org/$site/settings/integrations'],
   ['tracking', 'Tracking', '/app/$org/$site/settings/tracking'],
   ['replay', 'Replay', '/app/$org/$site/settings/replay'],
@@ -95,13 +96,15 @@ const settingsTabs = [
   ['shares', 'Shares', '/app/$org/$site/settings/shares'],
   ['reports', 'Reports', '/app/$org/$site/settings/reports'],
   ['alerts', 'Alerts', '/app/$org/$site/settings/alerts'],
+  ['alert-silences', 'Silences', '/app/$org/$site/settings/alert-silences'],
+  ['monitors', 'Cron monitors', '/app/$org/$site/settings/monitors'],
   ['notification-history', 'History', '/app/$org/$site/settings/notification-history'],
   ['imports', 'Imports & export', '/app/$org/$site/settings/imports'],
   ['app', 'App', '/app/$org/$site/settings/app'],
 ] as const
 
 /** Tabs that apply to an app: general settings (name, time zone, retention, danger zone), alerts and its own page. */
-const appSettingsTabs: readonly string[] = ['general', 'installation', 'alerts', 'app']
+const appSettingsTabs: readonly string[] = ['general', 'installation', 'symbols', 'alerts', 'alert-silences', 'monitors', 'app']
 
 export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false, kind }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean; kind?: string }) {
   return (

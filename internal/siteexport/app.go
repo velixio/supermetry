@@ -146,6 +146,30 @@ order by f.at,f.id`
 		return err
 	}
 
+	// Cron monitors are configuration, exported whole; check-ins follow the window.
+	monitors := `
+select m.id,m.slug,m.environment,m.schedule_type,m.schedule,m.tz,m.checkin_margin_minutes,m.max_runtime_minutes,
+ m.failure_threshold,m.recovery_threshold,m.status,` + utc("m.last_checkin_at") + `,` + utc("m.next_expected_at") + `
+from app_monitors m
+where m.site_id=$1
+order by m.id`
+	if err := e.writeRows(ctx, archive, "app_monitors.csv", []string{
+		"monitor_id", "slug", "environment", "schedule_type", "schedule", "timezone", "checkin_margin_minutes",
+		"max_runtime_minutes", "failure_threshold", "recovery_threshold", "status", "last_checkin", "next_expected",
+	}, monitors, siteID); err != nil {
+		return err
+	}
+	checkins := `
+select c.monitor_id,c.checkin_id::text,` + utc("c.ts") + `,c.status,` + utc("c.expected_at") + `,coalesce(c.duration_ms::text,''),coalesce(c.release,'')
+from app_checkins c
+where c.site_id=$1 and ` + inWindow("c.ts") + `
+order by c.ts,c.checkin_id`
+	if err := e.writeRows(ctx, archive, "app_checkins.csv", []string{
+		"monitor_id", "checkin_id", "timestamp", "status", "expected_at", "duration_ms", "release",
+	}, checkins, siteID, f, t, tz); err != nil {
+		return err
+	}
+
 	deploys := `
 select d.id,r.version,d.environment,d.name,d.url,` + utc("d.date_started") + `,` + utc("d.date_finished") + `,` + utc("d.date_created") + `
 from app_deploys d join app_releases r on r.id=d.release_id
@@ -183,6 +207,20 @@ order by c.day,c.reason,c.category`
 	if err := e.writeRows(ctx, archive, "app_client_reports.csv",
 		[]string{"day", "reason", "category", "quantity"},
 		reports, siteID, f, t); err != nil {
+		return err
+	}
+
+	// Metric series registry: names, kinds, units and (privacy-filtered)
+	// attributes; the points themselves are not exported.
+	series := `
+select s.id,s.name,s.kind,s.unit,s.attrs::text,` + utc("s.first_seen") + `,` + utc("s.last_seen") + `
+from metric_series s
+where s.site_id=$1 and s.last_seen >= ($2::date)::timestamp at time zone $4
+  and s.first_seen < (($3::date)+1)::timestamp at time zone $4
+order by s.id`
+	if err := e.writeRows(ctx, archive, "metric_series.csv",
+		[]string{"series_id", "name", "kind", "unit", "attributes", "first_seen", "last_seen"},
+		series, siteID, f, t, tz); err != nil {
 		return err
 	}
 
@@ -254,7 +292,29 @@ from app_debug_files d
 join app_dif_uploads u on u.id=d.upload_id
 where d.org_id=$5 and (d.site_id is null or d.site_id=$1) and ` + inWindow("d.created_at") + `
 order by d.id`
-	return e.writeRows(ctx, archive, "app_debug_files.csv",
+	if err := e.writeRows(ctx, archive, "app_debug_files.csv",
 		[]string{"file_id", "kind", "debug_id", "code_id", "arch", "object_name", "features", "cache_state", "size_bytes", "created"},
-		debugFiles, siteID, f, t, tz, orgID)
+		debugFiles, siteID, f, t, tz, orgID); err != nil {
+		return err
+	}
+
+	// Logs: inside the window and inside the site's own log retention
+	// (partitions are shared by all projects, so older rows can still exist).
+	// Never user_hash, span ids or the source.
+	var hasLogs bool
+	if err := e.pool.QueryRow(ctx, `select to_regclass('logs') is not null`).Scan(&hasLogs); err != nil {
+		return fmt.Errorf("check logs: %w", err)
+	}
+	if !hasLogs {
+		return nil
+	}
+	logs := `
+select ` + utc("l.ts") + `,l.severity,l.service,l.environment,l.release,coalesce(encode(l.trace_id,'hex'),''),l.body,l.attributes::text
+from logs l
+where l.site_id=$1 and ` + inWindow("l.ts") + `
+  and l.ts >= $5::timestamptz - make_interval(days => coalesce(nullif((select settings->'app'->>'log_retention_days' from sites where id=$1)::int,0),7))
+order by l.ts,l.rid`
+	return e.writeRows(ctx, archive, "logs.csv", []string{
+		"timestamp", "severity", "service", "environment", "release", "trace_id", "body", "attributes",
+	}, logs, siteID, f, t, tz, e.clock())
 }

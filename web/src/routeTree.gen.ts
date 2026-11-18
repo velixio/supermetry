@@ -52,6 +52,7 @@ import { Route as AppOrgSiteRetentionRouteImport } from './routes/app.$org.$site
 import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.revenue'
 import { Route as AppOrgSiteSessionsRouteImport } from './routes/app.$org.$site.sessions'
 import { Route as AppOrgSiteSettingsRouteImport } from './routes/app.$org.$site.settings'
+import { Route as AppOrgSiteUsersRouteImport } from './routes/app.$org.$site.users'
 import { Route as AppOrgSiteVitalsRouteImport } from './routes/app.$org.$site.vitals'
 import { Route as AppOrgGithubStarsIndexRouteImport } from './routes/app.$org.github-stars.index'
 import { Route as AppOrgSettingsIndexRouteImport } from './routes/app.$org.settings.index'
@@ -72,10 +73,17 @@ import { Route as AppOrgSiteIssuesIssueRouteImport } from './routes/app.$org.$si
 import { Route as AppOrgSiteLinksIndexRouteImport } from './routes/app.$org.$site.links.index'
 import { Route as AppOrgSiteLinksIdRouteImport } from './routes/app.$org.$site.links.$id'
 import { Route as AppOrgSiteLinksPixelRouteImport } from './routes/app.$org.$site.links.pixel'
+import { Route as AppOrgSiteObsLogsRouteImport } from './routes/app.$org.$site.obs.logs'
+import { Route as AppOrgSiteObsMetricsRouteImport } from './routes/app.$org.$site.obs.metrics'
+import { Route as AppOrgSitePerformanceIndexRouteImport } from './routes/app.$org.$site.performance.index'
+import { Route as AppOrgSitePerformanceTransactionRouteImport } from './routes/app.$org.$site.performance.$transaction'
 import { Route as AppOrgSiteProfilesIndexRouteImport } from './routes/app.$org.$site.profiles.index'
 import { Route as AppOrgSiteProfilesIdRouteImport } from './routes/app.$org.$site.profiles.$id'
+import { Route as AppOrgSiteReleasesReleaseRouteImport } from './routes/app.$org.$site.releases_.$release'
+import { Route as AppOrgSiteReleasesCompareRouteImport } from './routes/app.$org.$site.releases_.compare'
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
 import { Route as AppOrgSiteReplaysIdRouteImport } from './routes/app.$org.$site.replays.$id'
+import { Route as AppOrgSiteSettingsAlertSilencesRouteImport } from './routes/app.$org.$site.settings.alert-silences'
 import { Route as AppOrgSiteSettingsAlertsRouteImport } from './routes/app.$org.$site.settings.alerts'
 import { Route as AppOrgSiteSettingsAppRouteImport } from './routes/app.$org.$site.settings.app'
 import { Route as AppOrgSiteSettingsFunnelsRouteImport } from './routes/app.$org.$site.settings.funnels'
@@ -84,11 +92,14 @@ import { Route as AppOrgSiteSettingsGoalsRouteImport } from './routes/app.$org.$
 import { Route as AppOrgSiteSettingsImportsRouteImport } from './routes/app.$org.$site.settings.imports'
 import { Route as AppOrgSiteSettingsInstallationRouteImport } from './routes/app.$org.$site.settings.installation'
 import { Route as AppOrgSiteSettingsIntegrationsRouteImport } from './routes/app.$org.$site.settings.integrations'
+import { Route as AppOrgSiteSettingsMonitorsRouteImport } from './routes/app.$org.$site.settings.monitors'
 import { Route as AppOrgSiteSettingsNotificationHistoryRouteImport } from './routes/app.$org.$site.settings.notification-history'
 import { Route as AppOrgSiteSettingsReplayRouteImport } from './routes/app.$org.$site.settings.replay'
 import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org.$site.settings.reports'
 import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.$site.settings.shares'
+import { Route as AppOrgSiteSettingsSymbolsRouteImport } from './routes/app.$org.$site.settings.symbols'
 import { Route as AppOrgSiteSettingsTrackingRouteImport } from './routes/app.$org.$site.settings.tracking'
+import { Route as AppOrgSiteTracesTraceRouteImport } from './routes/app.$org.$site.traces.$trace'
 import { Route as AppOrgGithubStarsOwnerNameRouteImport } from './routes/app.$org.github-stars.$owner.$name'
 import { Route as AppOrgSiteLinksPixelIdRouteImport } from './routes/app.$org.$site.links.pixel_.$id'
 import { Route as AppOrgSiteIssuesIssueEventsEventRouteImport } from './routes/app.$org.$site.issues_.$issue.events.$event'
@@ -308,6 +319,11 @@ const AppOrgSiteSettingsRoute = AppOrgSiteSettingsRouteImport.update({
   path: '/$site/settings',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteUsersRoute = AppOrgSiteUsersRouteImport.update({
+  id: '/$site/users',
+  path: '/$site/users',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgSiteVitalsRoute = AppOrgSiteVitalsRouteImport.update({
   id: '/$site/vitals',
   path: '/$site/vitals',
@@ -411,6 +427,28 @@ const AppOrgSiteLinksPixelRoute = AppOrgSiteLinksPixelRouteImport.update({
   path: '/$site/links/pixel',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteObsLogsRoute = AppOrgSiteObsLogsRouteImport.update({
+  id: '/$site/obs/logs',
+  path: '/$site/obs/logs',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteObsMetricsRoute = AppOrgSiteObsMetricsRouteImport.update({
+  id: '/$site/obs/metrics',
+  path: '/$site/obs/metrics',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSitePerformanceIndexRoute =
+  AppOrgSitePerformanceIndexRouteImport.update({
+    id: '/$site/performance/',
+    path: '/$site/performance/',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
+const AppOrgSitePerformanceTransactionRoute =
+  AppOrgSitePerformanceTransactionRouteImport.update({
+    id: '/$site/performance/$transaction',
+    path: '/$site/performance/$transaction',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
 const AppOrgSiteProfilesIndexRoute = AppOrgSiteProfilesIndexRouteImport.update({
   id: '/$site/profiles/',
   path: '/$site/profiles/',
@@ -421,6 +459,18 @@ const AppOrgSiteProfilesIdRoute = AppOrgSiteProfilesIdRouteImport.update({
   path: '/$site/profiles/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteReleasesReleaseRoute =
+  AppOrgSiteReleasesReleaseRouteImport.update({
+    id: '/$site/releases_/$release',
+    path: '/$site/releases/$release',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
+const AppOrgSiteReleasesCompareRoute =
+  AppOrgSiteReleasesCompareRouteImport.update({
+    id: '/$site/releases_/compare',
+    path: '/$site/releases/compare',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
 const AppOrgSiteReplaysIndexRoute = AppOrgSiteReplaysIndexRouteImport.update({
   id: '/$site/replays/',
   path: '/$site/replays/',
@@ -431,6 +481,12 @@ const AppOrgSiteReplaysIdRoute = AppOrgSiteReplaysIdRouteImport.update({
   path: '/$site/replays/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteSettingsAlertSilencesRoute =
+  AppOrgSiteSettingsAlertSilencesRouteImport.update({
+    id: '/alert-silences',
+    path: '/alert-silences',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 const AppOrgSiteSettingsAlertsRoute =
   AppOrgSiteSettingsAlertsRouteImport.update({
     id: '/alerts',
@@ -477,6 +533,12 @@ const AppOrgSiteSettingsIntegrationsRoute =
     path: '/integrations',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteSettingsMonitorsRoute =
+  AppOrgSiteSettingsMonitorsRouteImport.update({
+    id: '/monitors',
+    path: '/monitors',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 const AppOrgSiteSettingsNotificationHistoryRoute =
   AppOrgSiteSettingsNotificationHistoryRouteImport.update({
     id: '/notification-history',
@@ -501,12 +563,23 @@ const AppOrgSiteSettingsSharesRoute =
     path: '/shares',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteSettingsSymbolsRoute =
+  AppOrgSiteSettingsSymbolsRouteImport.update({
+    id: '/symbols',
+    path: '/symbols',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 const AppOrgSiteSettingsTrackingRoute =
   AppOrgSiteSettingsTrackingRouteImport.update({
     id: '/tracking',
     path: '/tracking',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteTracesTraceRoute = AppOrgSiteTracesTraceRouteImport.update({
+  id: '/$site/traces/$trace',
+  path: '/$site/traces/$trace',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgGithubStarsOwnerNameRoute =
   AppOrgGithubStarsOwnerNameRouteImport.update({
     id: '/$owner/$name',
@@ -568,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -586,8 +660,14 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/obs/logs': typeof AppOrgSiteObsLogsRoute
+  '/app/$org/$site/obs/metrics': typeof AppOrgSiteObsMetricsRoute
+  '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/releases/$release': typeof AppOrgSiteReleasesReleaseRoute
+  '/app/$org/$site/releases/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alert-silences': typeof AppOrgSiteSettingsAlertSilencesRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
@@ -596,15 +676,19 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
   '/app/$org/$site/settings/integrations': typeof AppOrgSiteSettingsIntegrationsRoute
+  '/app/$org/$site/settings/monitors': typeof AppOrgSiteSettingsMonitorsRoute
   '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/traces/$trace': typeof AppOrgSiteTracesTraceRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/issues/': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
+  '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
@@ -650,6 +734,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -668,8 +753,14 @@ export interface FileRoutesByTo {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/obs/logs': typeof AppOrgSiteObsLogsRoute
+  '/app/$org/$site/obs/metrics': typeof AppOrgSiteObsMetricsRoute
+  '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/releases/$release': typeof AppOrgSiteReleasesReleaseRoute
+  '/app/$org/$site/releases/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alert-silences': typeof AppOrgSiteSettingsAlertSilencesRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
@@ -678,15 +769,19 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
   '/app/$org/$site/settings/integrations': typeof AppOrgSiteSettingsIntegrationsRoute
+  '/app/$org/$site/settings/monitors': typeof AppOrgSiteSettingsMonitorsRoute
   '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/traces/$trace': typeof AppOrgSiteTracesTraceRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/issues': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links': typeof AppOrgSiteLinksIndexRoute
+  '/app/$org/$site/performance': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
@@ -736,6 +831,7 @@ export interface FileRoutesById {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -754,8 +850,14 @@ export interface FileRoutesById {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/obs/logs': typeof AppOrgSiteObsLogsRoute
+  '/app/$org/$site/obs/metrics': typeof AppOrgSiteObsMetricsRoute
+  '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/releases_/$release': typeof AppOrgSiteReleasesReleaseRoute
+  '/app/$org/$site/releases_/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alert-silences': typeof AppOrgSiteSettingsAlertSilencesRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
@@ -764,15 +866,19 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/imports': typeof AppOrgSiteSettingsImportsRoute
   '/app/$org/$site/settings/installation': typeof AppOrgSiteSettingsInstallationRoute
   '/app/$org/$site/settings/integrations': typeof AppOrgSiteSettingsIntegrationsRoute
+  '/app/$org/$site/settings/monitors': typeof AppOrgSiteSettingsMonitorsRoute
   '/app/$org/$site/settings/notification-history': typeof AppOrgSiteSettingsNotificationHistoryRoute
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/traces/$trace': typeof AppOrgSiteTracesTraceRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/issues/': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
+  '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel_/$id': typeof AppOrgSiteLinksPixelIdRoute
@@ -823,6 +929,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -841,8 +948,14 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/obs/logs'
+    | '/app/$org/$site/obs/metrics'
+    | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/releases/$release'
+    | '/app/$org/$site/releases/compare'
     | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alert-silences'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
@@ -851,15 +964,19 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
     | '/app/$org/$site/settings/integrations'
+    | '/app/$org/$site/settings/monitors'
     | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/traces/$trace'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
     | '/app/$org/$site/issues/'
     | '/app/$org/$site/links/'
+    | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
     | '/app/$org/$site/links/pixel/$id'
@@ -905,6 +1022,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -923,8 +1041,14 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/obs/logs'
+    | '/app/$org/$site/obs/metrics'
+    | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/releases/$release'
+    | '/app/$org/$site/releases/compare'
     | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alert-silences'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
@@ -933,15 +1057,19 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
     | '/app/$org/$site/settings/integrations'
+    | '/app/$org/$site/settings/monitors'
     | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/traces/$trace'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels'
     | '/app/$org/$site/issues'
     | '/app/$org/$site/links'
+    | '/app/$org/$site/performance'
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
     | '/app/$org/$site/links/pixel/$id'
@@ -990,6 +1118,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -1008,8 +1137,14 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/obs/logs'
+    | '/app/$org/$site/obs/metrics'
+    | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/releases_/$release'
+    | '/app/$org/$site/releases_/compare'
     | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alert-silences'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
@@ -1018,15 +1153,19 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/imports'
     | '/app/$org/$site/settings/installation'
     | '/app/$org/$site/settings/integrations'
+    | '/app/$org/$site/settings/monitors'
     | '/app/$org/$site/settings/notification-history'
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/traces/$trace'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
     | '/app/$org/$site/issues/'
     | '/app/$org/$site/links/'
+    | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
     | '/app/$org/$site/links/pixel_/$id'
@@ -1349,6 +1488,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/users': {
+      id: '/app/$org/$site/users'
+      path: '/$site/users'
+      fullPath: '/app/$org/$site/users'
+      preLoaderRoute: typeof AppOrgSiteUsersRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/vitals': {
       id: '/app/$org/$site/vitals'
       path: '/$site/vitals'
@@ -1489,6 +1635,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteLinksPixelRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/obs/logs': {
+      id: '/app/$org/$site/obs/logs'
+      path: '/$site/obs/logs'
+      fullPath: '/app/$org/$site/obs/logs'
+      preLoaderRoute: typeof AppOrgSiteObsLogsRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/obs/metrics': {
+      id: '/app/$org/$site/obs/metrics'
+      path: '/$site/obs/metrics'
+      fullPath: '/app/$org/$site/obs/metrics'
+      preLoaderRoute: typeof AppOrgSiteObsMetricsRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/performance/': {
+      id: '/app/$org/$site/performance/'
+      path: '/$site/performance'
+      fullPath: '/app/$org/$site/performance/'
+      preLoaderRoute: typeof AppOrgSitePerformanceIndexRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/performance/$transaction': {
+      id: '/app/$org/$site/performance/$transaction'
+      path: '/$site/performance/$transaction'
+      fullPath: '/app/$org/$site/performance/$transaction'
+      preLoaderRoute: typeof AppOrgSitePerformanceTransactionRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/profiles/': {
       id: '/app/$org/$site/profiles/'
       path: '/$site/profiles'
@@ -1501,6 +1675,20 @@ declare module '@tanstack/react-router' {
       path: '/$site/profiles/$id'
       fullPath: '/app/$org/$site/profiles/$id'
       preLoaderRoute: typeof AppOrgSiteProfilesIdRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/releases_/$release': {
+      id: '/app/$org/$site/releases_/$release'
+      path: '/$site/releases/$release'
+      fullPath: '/app/$org/$site/releases/$release'
+      preLoaderRoute: typeof AppOrgSiteReleasesReleaseRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/releases_/compare': {
+      id: '/app/$org/$site/releases_/compare'
+      path: '/$site/releases/compare'
+      fullPath: '/app/$org/$site/releases/compare'
+      preLoaderRoute: typeof AppOrgSiteReleasesCompareRouteImport
       parentRoute: typeof AppOrgRoute
     }
     '/app/$org/$site/replays/': {
@@ -1516,6 +1704,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/$org/$site/replays/$id'
       preLoaderRoute: typeof AppOrgSiteReplaysIdRouteImport
       parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/settings/alert-silences': {
+      id: '/app/$org/$site/settings/alert-silences'
+      path: '/alert-silences'
+      fullPath: '/app/$org/$site/settings/alert-silences'
+      preLoaderRoute: typeof AppOrgSiteSettingsAlertSilencesRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
     }
     '/app/$org/$site/settings/alerts': {
       id: '/app/$org/$site/settings/alerts'
@@ -1573,6 +1768,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsIntegrationsRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
+    '/app/$org/$site/settings/monitors': {
+      id: '/app/$org/$site/settings/monitors'
+      path: '/monitors'
+      fullPath: '/app/$org/$site/settings/monitors'
+      preLoaderRoute: typeof AppOrgSiteSettingsMonitorsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/notification-history': {
       id: '/app/$org/$site/settings/notification-history'
       path: '/notification-history'
@@ -1601,12 +1803,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsSharesRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
+    '/app/$org/$site/settings/symbols': {
+      id: '/app/$org/$site/settings/symbols'
+      path: '/symbols'
+      fullPath: '/app/$org/$site/settings/symbols'
+      preLoaderRoute: typeof AppOrgSiteSettingsSymbolsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/tracking': {
       id: '/app/$org/$site/settings/tracking'
       path: '/tracking'
       fullPath: '/app/$org/$site/settings/tracking'
       preLoaderRoute: typeof AppOrgSiteSettingsTrackingRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
+    }
+    '/app/$org/$site/traces/$trace': {
+      id: '/app/$org/$site/traces/$trace'
+      path: '/$site/traces/$trace'
+      fullPath: '/app/$org/$site/traces/$trace'
+      preLoaderRoute: typeof AppOrgSiteTracesTraceRouteImport
+      parentRoute: typeof AppOrgRoute
     }
     '/app/$org/github-stars/$owner/$name': {
       id: '/app/$org/github-stars/$owner/$name'
@@ -1672,6 +1888,7 @@ const AppOrgSettingsRouteWithChildren = AppOrgSettingsRoute._addFileChildren(
 )
 
 interface AppOrgSiteSettingsRouteChildren {
+  AppOrgSiteSettingsAlertSilencesRoute: typeof AppOrgSiteSettingsAlertSilencesRoute
   AppOrgSiteSettingsAlertsRoute: typeof AppOrgSiteSettingsAlertsRoute
   AppOrgSiteSettingsAppRoute: typeof AppOrgSiteSettingsAppRoute
   AppOrgSiteSettingsFunnelsRoute: typeof AppOrgSiteSettingsFunnelsRoute
@@ -1680,14 +1897,17 @@ interface AppOrgSiteSettingsRouteChildren {
   AppOrgSiteSettingsImportsRoute: typeof AppOrgSiteSettingsImportsRoute
   AppOrgSiteSettingsInstallationRoute: typeof AppOrgSiteSettingsInstallationRoute
   AppOrgSiteSettingsIntegrationsRoute: typeof AppOrgSiteSettingsIntegrationsRoute
+  AppOrgSiteSettingsMonitorsRoute: typeof AppOrgSiteSettingsMonitorsRoute
   AppOrgSiteSettingsNotificationHistoryRoute: typeof AppOrgSiteSettingsNotificationHistoryRoute
   AppOrgSiteSettingsReplayRoute: typeof AppOrgSiteSettingsReplayRoute
   AppOrgSiteSettingsReportsRoute: typeof AppOrgSiteSettingsReportsRoute
   AppOrgSiteSettingsSharesRoute: typeof AppOrgSiteSettingsSharesRoute
+  AppOrgSiteSettingsSymbolsRoute: typeof AppOrgSiteSettingsSymbolsRoute
   AppOrgSiteSettingsTrackingRoute: typeof AppOrgSiteSettingsTrackingRoute
 }
 
 const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
+  AppOrgSiteSettingsAlertSilencesRoute: AppOrgSiteSettingsAlertSilencesRoute,
   AppOrgSiteSettingsAlertsRoute: AppOrgSiteSettingsAlertsRoute,
   AppOrgSiteSettingsAppRoute: AppOrgSiteSettingsAppRoute,
   AppOrgSiteSettingsFunnelsRoute: AppOrgSiteSettingsFunnelsRoute,
@@ -1696,11 +1916,13 @@ const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
   AppOrgSiteSettingsImportsRoute: AppOrgSiteSettingsImportsRoute,
   AppOrgSiteSettingsInstallationRoute: AppOrgSiteSettingsInstallationRoute,
   AppOrgSiteSettingsIntegrationsRoute: AppOrgSiteSettingsIntegrationsRoute,
+  AppOrgSiteSettingsMonitorsRoute: AppOrgSiteSettingsMonitorsRoute,
   AppOrgSiteSettingsNotificationHistoryRoute:
     AppOrgSiteSettingsNotificationHistoryRoute,
   AppOrgSiteSettingsReplayRoute: AppOrgSiteSettingsReplayRoute,
   AppOrgSiteSettingsReportsRoute: AppOrgSiteSettingsReportsRoute,
   AppOrgSiteSettingsSharesRoute: AppOrgSiteSettingsSharesRoute,
+  AppOrgSiteSettingsSymbolsRoute: AppOrgSiteSettingsSymbolsRoute,
   AppOrgSiteSettingsTrackingRoute: AppOrgSiteSettingsTrackingRoute,
 }
 
@@ -1723,6 +1945,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteRevenueRoute: typeof AppOrgSiteRevenueRoute
   AppOrgSiteSessionsRoute: typeof AppOrgSiteSessionsRoute
   AppOrgSiteSettingsRoute: typeof AppOrgSiteSettingsRouteWithChildren
+  AppOrgSiteUsersRoute: typeof AppOrgSiteUsersRoute
   AppOrgSiteVitalsRoute: typeof AppOrgSiteVitalsRoute
   AppOrgSitesNewRoute: typeof AppOrgSitesNewRoute
   AppOrgSiteIndexRoute: typeof AppOrgSiteIndexRoute
@@ -1731,11 +1954,18 @@ interface AppOrgRouteChildren {
   AppOrgSiteIssuesIssueRoute: typeof AppOrgSiteIssuesIssueRoute
   AppOrgSiteLinksIdRoute: typeof AppOrgSiteLinksIdRoute
   AppOrgSiteLinksPixelRoute: typeof AppOrgSiteLinksPixelRoute
+  AppOrgSiteObsLogsRoute: typeof AppOrgSiteObsLogsRoute
+  AppOrgSiteObsMetricsRoute: typeof AppOrgSiteObsMetricsRoute
+  AppOrgSitePerformanceTransactionRoute: typeof AppOrgSitePerformanceTransactionRoute
   AppOrgSiteProfilesIdRoute: typeof AppOrgSiteProfilesIdRoute
+  AppOrgSiteReleasesReleaseRoute: typeof AppOrgSiteReleasesReleaseRoute
+  AppOrgSiteReleasesCompareRoute: typeof AppOrgSiteReleasesCompareRoute
   AppOrgSiteReplaysIdRoute: typeof AppOrgSiteReplaysIdRoute
+  AppOrgSiteTracesTraceRoute: typeof AppOrgSiteTracesTraceRoute
   AppOrgSiteFunnelsIndexRoute: typeof AppOrgSiteFunnelsIndexRoute
   AppOrgSiteIssuesIndexRoute: typeof AppOrgSiteIssuesIndexRoute
   AppOrgSiteLinksIndexRoute: typeof AppOrgSiteLinksIndexRoute
+  AppOrgSitePerformanceIndexRoute: typeof AppOrgSitePerformanceIndexRoute
   AppOrgSiteProfilesIndexRoute: typeof AppOrgSiteProfilesIndexRoute
   AppOrgSiteReplaysIndexRoute: typeof AppOrgSiteReplaysIndexRoute
   AppOrgSiteLinksPixelIdRoute: typeof AppOrgSiteLinksPixelIdRoute
@@ -1758,6 +1988,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteRevenueRoute: AppOrgSiteRevenueRoute,
   AppOrgSiteSessionsRoute: AppOrgSiteSessionsRoute,
   AppOrgSiteSettingsRoute: AppOrgSiteSettingsRouteWithChildren,
+  AppOrgSiteUsersRoute: AppOrgSiteUsersRoute,
   AppOrgSiteVitalsRoute: AppOrgSiteVitalsRoute,
   AppOrgSitesNewRoute: AppOrgSitesNewRoute,
   AppOrgSiteIndexRoute: AppOrgSiteIndexRoute,
@@ -1766,11 +1997,18 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteIssuesIssueRoute: AppOrgSiteIssuesIssueRoute,
   AppOrgSiteLinksIdRoute: AppOrgSiteLinksIdRoute,
   AppOrgSiteLinksPixelRoute: AppOrgSiteLinksPixelRoute,
+  AppOrgSiteObsLogsRoute: AppOrgSiteObsLogsRoute,
+  AppOrgSiteObsMetricsRoute: AppOrgSiteObsMetricsRoute,
+  AppOrgSitePerformanceTransactionRoute: AppOrgSitePerformanceTransactionRoute,
   AppOrgSiteProfilesIdRoute: AppOrgSiteProfilesIdRoute,
+  AppOrgSiteReleasesReleaseRoute: AppOrgSiteReleasesReleaseRoute,
+  AppOrgSiteReleasesCompareRoute: AppOrgSiteReleasesCompareRoute,
   AppOrgSiteReplaysIdRoute: AppOrgSiteReplaysIdRoute,
+  AppOrgSiteTracesTraceRoute: AppOrgSiteTracesTraceRoute,
   AppOrgSiteFunnelsIndexRoute: AppOrgSiteFunnelsIndexRoute,
   AppOrgSiteIssuesIndexRoute: AppOrgSiteIssuesIndexRoute,
   AppOrgSiteLinksIndexRoute: AppOrgSiteLinksIndexRoute,
+  AppOrgSitePerformanceIndexRoute: AppOrgSitePerformanceIndexRoute,
   AppOrgSiteProfilesIndexRoute: AppOrgSiteProfilesIndexRoute,
   AppOrgSiteReplaysIndexRoute: AppOrgSiteReplaysIndexRoute,
   AppOrgSiteLinksPixelIdRoute: AppOrgSiteLinksPixelIdRoute,

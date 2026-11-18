@@ -3,12 +3,15 @@ package otlpingest
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/appquery"
 	"supermetry/internal/db"
 	"supermetry/internal/sites"
+	"supermetry/internal/spanrollup"
 	"supermetry/internal/spans"
 	"supermetry/internal/testpg"
 )
@@ -71,5 +74,47 @@ values(42,1,'appsite00042','App','UTC',30,'app')`); err != nil {
 	var desc string
 	if err := pool.QueryRow(ctx, `select description from spans where site_id=42 and op='db'`).Scan(&desc); err != nil || desc != "select * from users where email = ? and id = ?" {
 		t.Fatalf("stored description %q (%v)", desc, err)
+	}
+
+	// Rollup and read side: the closed hour 11:00 holds both transactions once,
+	// the trace of the Go fixture is a tree under its server span, and nothing
+	// sensitive from the requests survived into the stored rows.
+	if err := spanrollup.RecomputeHour(ctx, pool, 42, time.UTC, time.Date(2026, 11, 18, 11, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	q := appquery.New(pool, func() time.Time { return testNow })
+	scope := appquery.Scope{SiteID: 42, OrgID: 1, TZ: time.UTC, RetentionDays: 30}
+	day := time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)
+	rows, err := q.Transactions(ctx, scope, appquery.Filter{From: day, To: day}, "count", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := map[string]int64{}
+	for _, r := range rows {
+		counts[r.Name] = r.Count
+	}
+	if len(counts) != 2 || counts["GET /users/{id}"] != 1 || counts["GET /orders/*/items"] != 1 {
+		t.Fatalf("transactions = %v, want one GET /users/{id} and one GET /orders/*/items", counts)
+	}
+	var tid [16]byte
+	copy(tid[:], id16(1))
+	tr, err := q.Trace(ctx, scope, tid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tr.Spans) != 3 || tr.Spans[0].Depth != 0 || tr.Spans[1].Depth != 1 || tr.Spans[2].Depth != 1 ||
+		tr.Spans[1].ParentID != tr.Spans[0].SpanID || tr.Spans[2].ParentID != tr.Spans[0].SpanID {
+		t.Fatalf("trace = %+v", tr.Spans)
+	}
+	var dump string
+	if err := pool.QueryRow(ctx, `select coalesce((select string_agg(s::text, E'\n') from spans s), '')
+|| coalesce((select string_agg(h::text, E'\n') from span_hourly h), '')
+|| coalesce((select string_agg(a::text, E'\n') from app_events a), '')`).Scan(&dump); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"@b.c", "SECRET", "token=", "user:pw", "#frag", "12345?", "9f8b7c6d5e4f3a2b", "/orders/9f8"} {
+		if strings.Contains(dump, bad) {
+			t.Errorf("stored rows contain %q", bad)
+		}
 	}
 }

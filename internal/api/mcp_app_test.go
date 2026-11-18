@@ -20,6 +20,9 @@ type appReaderStub struct {
 	hitsLim int
 	issueID int64
 	events  int
+	cmpA    string
+	cmpB    string
+	minDrop float64
 }
 
 func (s *appReaderStub) Overview(_ context.Context, _ appquery.Scope, f appquery.Filter) (appquery.Overview, error) {
@@ -54,6 +57,30 @@ func (s *appReaderStub) Compatibility(_ context.Context, _ appquery.Scope, f app
 func (s *appReaderStub) Releases(_ context.Context, _ appquery.Scope, f appquery.Filter) ([]appquery.ReleaseRow, error) {
 	s.filter = f
 	return []appquery.ReleaseRow{{Release: "1.4.0"}}, nil
+}
+
+func (s *appReaderStub) ReleaseDetail(_ context.Context, _ appquery.Scope, f appquery.Filter, release string) (appquery.ReleaseDetail, error) {
+	s.filter = f
+	if release == "0.0.0" {
+		return appquery.ReleaseDetail{}, appquery.ErrNotFound
+	}
+	v := 0.97
+	return appquery.ReleaseDetail{Release: release, Status: "open", CommitCount: 3, Health: appquery.ReleaseRow{Release: release, CrashFreeSessions: &v},
+		Rollout: []appquery.RolloutPoint{{Day: "2026-10-07", Sessions: 12}}}, nil
+}
+
+func (s *appReaderStub) CompareReleases(_ context.Context, _ appquery.Scope, f appquery.Filter, a, b string) (appquery.ReleaseComparison, error) {
+	s.filter, s.cmpA, s.cmpB = f, a, b
+	var out appquery.ReleaseComparison
+	d := -0.03
+	out.Delta.CrashFreeSessions = &d
+	out.OnlyInB = []appquery.TopIssue{{ID: 9, Title: "Only in b", Events: 2}}
+	return out, nil
+}
+
+func (s *appReaderStub) FindRegressionRelease(_ context.Context, _ appquery.Scope, f appquery.Filter, minDrop float64) (*appquery.RegressionHit, error) {
+	s.filter, s.minDrop = f, minDrop
+	return &appquery.RegressionHit{Release: "1.2.0", Previous: "1.1.0", NewIssues: []appquery.TopIssue{}}, nil
 }
 
 const (
@@ -102,7 +129,7 @@ func mcpErrorOf(t *testing.T, response *httptest.ResponseRecorder) (int, string)
 	return out.Error.Code, detail
 }
 
-var appToolNames = []string{"get_app_overview", "list_app_issues", "get_app_issue", "get_app_compatibility", "list_app_releases", "search_app_events"}
+var appToolNames = []string{"get_app_overview", "list_app_issues", "get_app_issue", "get_app_compatibility", "list_app_releases", "search_app_events", "get_release_health", "compare_releases", "find_regression_release"}
 
 func TestMCPAppToolsListed(t *testing.T) {
 	handler := mcpAppHandler(privacy.Identified, &appReaderStub{})
@@ -146,6 +173,8 @@ func TestMCPAppToolsCall(t *testing.T) {
 		{"get_app_issue", `{"site":4,"issue_id":4,"period":"7d"}`, `Null pointer in Save`},
 		{"get_app_compatibility", `{"site":4,"period":"7d"}`, `os_version`},
 		{"list_app_releases", `{"site":4,"period":"7d"}`, `1.4.0`},
+		{"compare_releases", `{"site":4,"period":"7d","a":"1.3.0","b":"1.4.0"}`, `Only in b`},
+		{"find_regression_release", `{"site":4,"period":"7d","min_drop":0.02}`, `1.2.0`},
 	} {
 		t.Run(test.tool, func(t *testing.T) {
 			stub.filter = appquery.Filter{}
@@ -223,8 +252,13 @@ func TestMCPAppToolsRejectWrongKind(t *testing.T) {
 	handler := mcpAppHandler(privacy.Identified, &appReaderStub{})
 	for _, tool := range appToolNames {
 		arguments := `{"site":1,"period":"7d"}`
-		if tool == "get_app_issue" {
+		switch tool {
+		case "get_app_issue":
 			arguments = `{"site":1,"issue_id":1,"period":"7d"}`
+		case "get_release_health":
+			arguments = `{"site":1,"period":"7d","release":"1.0.0"}`
+		case "compare_releases":
+			arguments = `{"site":1,"period":"7d","a":"1.0.0","b":"1.1.0"}`
 		}
 		code, detail := mcpErrorOf(t, callMCPApp(handler, tool, arguments))
 		if code != -32602 || detail != "site is not an app; use get_summary and the other analytics tools" {
@@ -292,5 +326,35 @@ func TestMCPAppToolsValidateInput(t *testing.T) {
 	from := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, -366)
 	if code, _ := mcpErrorOf(t, callMCPApp(handler, "get_app_overview", `{"site":4,"date_from":"`+from.Format(time.DateOnly)+`","date_to":"2026-10-01"}`)); code != 0 {
 		t.Fatalf("366 days rejected: %d", code)
+	}
+}
+
+func TestMCPReleaseTools(t *testing.T) {
+	stub := &appReaderStub{}
+	handler := mcpAppHandler(privacy.Identified, stub)
+	response := callMCPApp(handler, "get_release_health", `{"site":4,"period":"7d","release":"1.4.0"}`)
+	if body := response.Body.String(); !strings.Contains(body, `commit_count`) || stub.filter.Release != "1.4.0" {
+		t.Fatalf("get_release_health: %s filter=%+v", body, stub.filter)
+	}
+	callMCPApp(handler, "compare_releases", `{"site":4,"period":"7d","a":"1.3.0","b":"1.4.0"}`)
+	if stub.cmpA != "1.3.0" || stub.cmpB != "1.4.0" {
+		t.Fatalf("compare args = %q %q", stub.cmpA, stub.cmpB)
+	}
+	callMCPApp(handler, "find_regression_release", `{"site":4,"period":"7d","min_drop":0.02}`)
+	if stub.minDrop != 0.02 {
+		t.Fatalf("min_drop = %v", stub.minDrop)
+	}
+	if code, detail := mcpErrorOf(t, callMCPApp(handler, "get_release_health", `{"site":4,"period":"7d","release":"0.0.0"}`)); code != -32602 || detail != "release not found" {
+		t.Fatalf("unknown release: %d %q", code, detail)
+	}
+	for name, test := range map[string]struct{ tool, arguments string }{
+		"release missing": {"get_release_health", `{"site":4,"period":"7d"}`},
+		"a missing":       {"compare_releases", `{"site":4,"period":"7d","b":"1.4.0"}`},
+		"drop too big":    {"find_regression_release", `{"site":4,"period":"7d","min_drop":2}`},
+		"release long":    {"get_release_health", `{"site":4,"period":"7d","release":"` + strings.Repeat("x", 65) + `"}`},
+	} {
+		if code, _ := mcpErrorOf(t, callMCPApp(handler, test.tool, test.arguments)); code != -32602 {
+			t.Fatalf("%s: code=%d, want -32602", name, code)
+		}
 	}
 }

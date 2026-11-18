@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.javascript.node/11.13.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.javascript.node/11.13.0"
+  },
+  "sdk": "node",
+  "sdk_version": "11.13.0",
+  "synthetic": false,
+  "notes": "RECORDED from @sentry/node 11.13.0 (tracesSampleRate 1, default span streaming) posting to a local capture server. Timestamps shifted to the test clock; host attributes (device, os, culture, process runtime, integrations list) removed by hand; span names are invented (example.com, a fixture email and token in the span names to exercise scrubbing). The item header carries no length and the container has no ingest_settings."
+}

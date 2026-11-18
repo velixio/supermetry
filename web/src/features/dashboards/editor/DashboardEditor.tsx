@@ -36,6 +36,8 @@ export type EditorMode = { kind: 'edit'; id: number } | { kind: 'new'; template:
 export type DashboardEditorProps = {
   mode: EditorMode
   siteId: number
+  /** web, pixel or app; custom metric widgets are offered on app projects only. */
+  siteKind?: string
   orgId?: number
   canWrite: boolean
   anonymous: boolean
@@ -124,7 +126,7 @@ type BodyProps = DashboardEditorProps & {
   start: Start
 }
 
-function EditorBody({ siteId, orgId, anonymous, base, timezone, dashboards, refetch, start, onOpen, onExit, onDeleted }: BodyProps) {
+function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashboards, refetch, start, onOpen, onExit, onDeleted }: BodyProps) {
   const [draft, dispatch] = useReducer(reduceDraft, start.draft)
   const [baseline, setBaseline] = useState<Draft>(start.draft)
   const [current, setCurrent] = useState({ id: start.id, version: start.version })
@@ -445,6 +447,7 @@ function EditorBody({ siteId, orgId, anonymous, base, timezone, dashboards, refe
           key={dialog.widget.id + dialog.mode}
           mode={dialog.mode}
           siteId={siteId}
+          siteKind={siteKind}
           widget={dialog.widget}
           onClose={() => setDialog(null)}
           onSubmit={(widget) => {

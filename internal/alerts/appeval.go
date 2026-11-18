@@ -40,6 +40,24 @@ type AppIssue struct {
 	Events      int64
 	FirstSeen   time.Time
 	RegressedAt time.Time
+	LastSeen    time.Time
+	Status      string
+	Culprit     string
+	// Level, Environment and Platform describe the issue for filters and
+	// messages; the last two come from the issue's tag rollup (the most
+	// frequent value), empty until the rollup has run.
+	Level, Environment, Platform string
+	// AssigneeUserID is 0 for an unassigned issue.
+	AssigneeUserID int64
+	// ActivityID is the activity row behind an escalated candidate.
+	ActivityID  int64
+	EscalatedAt time.Time
+}
+
+// IssueCount is an issue with its event or user count in a window.
+type IssueCount struct {
+	AppIssue
+	Count int64
 }
 
 // AppRelease is the newest release with enough installs, with crash-free
@@ -67,11 +85,22 @@ type AppNotification struct {
 	IssueTitle string  `json:"issue_title,omitempty"`
 	IssueKind  string  `json:"issue_kind,omitempty"`
 	IssueURL   string  `json:"issue_url,omitempty"`
+	IssueLevel string  `json:"issue_level,omitempty"`
+	IssueState string  `json:"issue_status,omitempty"`
+	Culprit    string  `json:"culprit,omitempty"`
+	FirstSeen  string  `json:"first_seen,omitempty"`
+	LastSeen   string  `json:"last_seen,omitempty"`
 	Release    string  `json:"release,omitempty"`
 	Metric     string  `json:"metric,omitempty"`
 	Events     int64   `json:"events,omitempty"`
 	Installs   int64   `json:"installs,omitempty"`
 	Baseline   float64 `json:"baseline,omitempty"`
+
+	// Cron monitor alerts: the monitor's slug and environment, and the check-in
+	// status that opened the failure (error, missed or timeout).
+	MonitorSlug        string `json:"monitor_slug,omitempty"`
+	MonitorEnvironment string `json:"monitor_environment,omitempty"`
+	MonitorStatus      string `json:"monitor_status,omitempty"`
 }
 
 // AppSource reads the candidates the app alerts evaluate.
@@ -84,8 +113,17 @@ type AppSource interface {
 	// LatestRelease returns the newest release with at least minInstalls installs
 	// since the given time, or nil.
 	LatestRelease(ctx context.Context, siteID int32, since time.Time, minInstalls int64) (*AppRelease, error)
-	// IssueHours lists issues with at least minEvents events in the UTC hour.
-	IssueHours(ctx context.Context, siteID int32, hour time.Time, minEvents int64) ([]IssueHour, error)
+	// IssueHours lists issues with at least minEvents events in the UTC hour;
+	// BaselineSum adds the same hour of the previous baselineDays days.
+	IssueHours(ctx context.Context, siteID int32, hour time.Time, minEvents int64, baselineDays int) ([]IssueHour, error)
+	// EscalatedIssues lists issues with an escalated activity at or after since.
+	EscalatedIssues(ctx context.Context, siteID int32, since time.Time, limit int) ([]AppIssue, error)
+	// IssueWindowCounts lists issues with at least min events (measure
+	// "events") or distinct users (measure "users") in [from, to) that match
+	// the filters, busiest first.
+	IssueWindowCounts(ctx context.Context, siteID int32, from, to time.Time, f Filters, measure string, min int64, limit int) ([]IssueCount, error)
+	// MatchIssue reports which of the issues match the filters.
+	MatchIssue(ctx context.Context, siteID int32, issueIDs []int64, f Filters) (map[int64]bool, error)
 }
 
 // AppDedup remembers which app notifications an alert already sent.
@@ -93,6 +131,8 @@ type AppDedup interface {
 	AppFired(ctx context.Context, alertID int64, keys []string) (map[string]time.Time, error)
 	RecordAppFired(ctx context.Context, alertID int64, key string, at time.Time) error
 	ForgetAppFired(ctx context.Context, alertID int64, key string) error
+	// LastFired returns when the newest key starting with prefix fired.
+	LastFired(ctx context.Context, alertID int64, prefix string) (time.Time, bool, error)
 }
 
 // WithApp enables the app alert kinds.
@@ -157,7 +197,7 @@ func (e *Evaluator) evaluateApp(ctx context.Context, alert Alert, site sites.Sit
 		}
 	case AlertAppIssueSpike:
 		hour := now.UTC().Truncate(time.Hour).Add(-time.Hour)
-		rows, err := e.app.IssueHours(ctx, site.ID, hour, spikeMinEvents)
+		rows, err := e.app.IssueHours(ctx, site.ID, hour, spikeMinEvents, spikeBaselineDays)
 		if err != nil {
 			return err
 		}

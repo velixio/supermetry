@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/dropstats"
 	"supermetry/internal/ingest"
 	"supermetry/internal/links"
+	"supermetry/internal/obslogs"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
@@ -97,6 +98,7 @@ type Deps struct {
 	PrivateAuth         Authenticator
 	AppQuery            *appquery.Querier  // App Health reads for the MCP tools; nil disables them
 	AppIssues           *appissues.Service // issue timeline and impact for the MCP tools; nil disables them
+	AppLogs             *obslogs.Reader    // log search for the MCP tools; nil disables them
 	Sites               sites.Registry     // resolves site ownership for every site-scoped request
 	UI                  http.Handler       // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter         ingest.RateLimiter
@@ -164,9 +166,13 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.AppQuery != nil {
 		mcpDeps.AppHealth = deps.AppQuery
+		mcpDeps.AppProduct = deps.AppQuery
 	}
 	if deps.AppIssues != nil {
 		mcpDeps.AppIssues = deps.AppIssues
+	}
+	if deps.AppLogs != nil {
+		mcpDeps.AppLogs = deps.AppLogs
 	}
 	mcp := NewMCPHandler(mcpDeps)
 	mux.Handle("POST "+publicPrefix+"/mcp", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, true, mcp))
@@ -359,6 +365,11 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PATCH " + publicPrefix + "/sites/{site}",
 		"DELETE " + publicPrefix + "/sites/{site}",
 		"GET " + publicPrefix + "/sites/{site}/goals",
+		"GET " + publicPrefix + "/sites/{site}/app/product/active-users",
+		"GET " + publicPrefix + "/sites/{site}/app/product/adoption",
+		"GET " + publicPrefix + "/sites/{site}/app/product/engagement",
+		"GET " + publicPrefix + "/sites/{site}/app/product/features",
+		"GET " + publicPrefix + "/sites/{site}/app/product/features/{id}/adoption",
 		"POST " + publicPrefix + "/sites/{site}/goals",
 		"PATCH " + publicPrefix + "/goals/{goal}",
 		"DELETE " + publicPrefix + "/goals/{goal}",
@@ -370,10 +381,13 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + publicPrefix + "/sites/{site}/funnels",
 		"PATCH " + publicPrefix + "/funnels/{funnel}",
 		"DELETE " + publicPrefix + "/funnels/{funnel}",
+		"GET " + publicPrefix + "/sites/{site}/obs/metrics",
+		"POST " + publicPrefix + "/sites/{site}/obs/metrics/query",
 		"GET " + publicPrefix + "/sites/{site}/segments",
 		"POST " + publicPrefix + "/sites/{site}/segments",
 		"PATCH " + publicPrefix + "/segments/{segment}",
 		"DELETE " + publicPrefix + "/segments/{segment}",
+		"GET " + publicPrefix + "/sites/{site}/obs/logs",
 		"GET " + publicPrefix + "/sites/{site}/profiles",
 		"GET " + publicPrefix + "/profiles/{profile}",
 		"GET " + publicPrefix + "/erasures/{erasure}",
@@ -491,6 +505,10 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/sites/{site}/alerts",
 		"PATCH " + privatePrefix + "/sites/{site}/alerts/{alert}",
 		"DELETE " + privatePrefix + "/sites/{site}/alerts/{alert}",
+		"GET " + privatePrefix + "/sites/{site}/alerts/{alert}/incidents",
+		"GET " + privatePrefix + "/sites/{site}/alert-silences",
+		"POST " + privatePrefix + "/sites/{site}/alert-silences",
+		"DELETE " + privatePrefix + "/sites/{site}/alert-silences/{silence}",
 		"GET " + privatePrefix + "/sites/{site}/notification-history",
 		"POST " + privatePrefix + "/sites/{site}/notification-history/{delivery}/retry",
 		"GET " + privatePrefix + "/orgs/{org}/notification-templates",
@@ -549,6 +567,11 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"GET " + privatePrefix + "/sites/{site}/app-link",
 		"PUT " + privatePrefix + "/sites/{site}/app-link",
 		"GET " + privatePrefix + "/sites/{site}/app/overview",
+		"GET " + privatePrefix + "/sites/{site}/obs/metrics",
+		"POST " + privatePrefix + "/sites/{site}/obs/metrics/query",
+		"GET " + privatePrefix + "/sites/{site}/obs/logs",
+		"GET " + privatePrefix + "/sites/{site}/obs/ingest",
+		"GET " + privatePrefix + "/sites/{site}/obs/traces/{trace_id}/logs",
 		"GET " + privatePrefix + "/sites/{site}/app/issues",
 		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}",
 		"PATCH " + privatePrefix + "/sites/{site}/app/issues/{issue}",
@@ -572,11 +595,26 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"GET " + privatePrefix + "/sites/{site}/app/assignees",
 		"GET " + privatePrefix + "/sites/{site}/app/rules",
 		"PUT " + privatePrefix + "/sites/{site}/app/rules",
+		"GET " + privatePrefix + "/sites/{site}/app/monitors",
+		"GET " + privatePrefix + "/sites/{site}/app/monitors/{monitor}/checkins",
+		"PATCH " + privatePrefix + "/sites/{site}/app/monitors/{monitor}",
+		"DELETE " + privatePrefix + "/sites/{site}/app/monitors/{monitor}",
 		"GET " + privatePrefix + "/sites/{site}/app/events/{event_id}",
 		"GET " + privatePrefix + "/sites/{site}/app/events/{event_id}/attachments/{idx}",
 		"GET " + privatePrefix + "/sites/{site}/app/compatibility",
 		"GET " + privatePrefix + "/sites/{site}/app/releases",
+		"GET " + privatePrefix + "/sites/{site}/app/releases/compare",
+		"GET " + privatePrefix + "/sites/{site}/app/releases/{release}",
 		"GET " + privatePrefix + "/sites/{site}/app/deploys",
+		"GET " + privatePrefix + "/sites/{site}/app/platforms",
+		"GET " + privatePrefix + "/sites/{site}/app/debug-files",
+		"DELETE " + privatePrefix + "/sites/{site}/app/debug-files/{id}",
+		"GET " + privatePrefix + "/sites/{site}/app/performance",
+		"GET " + privatePrefix + "/sites/{site}/app/transactions",
+		"GET " + privatePrefix + "/sites/{site}/app/transactions/detail",
+		"GET " + privatePrefix + "/sites/{site}/app/traces/{trace_id}",
+		"GET " + privatePrefix + "/sites/{site}/app/performance/regressions",
+		"GET " + privatePrefix + "/sites/{site}/app/performance/network",
 		"GET " + privatePrefix + "/sites/{site}/ingest-keys",
 		"POST " + privatePrefix + "/sites/{site}/ingest-keys",
 		"GET " + privatePrefix + "/sites/{site}/app/dsn-keys",
@@ -584,6 +622,13 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"DELETE " + privatePrefix + "/sites/{site}/app/dsn-keys/{prefix}",
 		"POST " + privatePrefix + "/sites/{site}/app/users/erase",
 		"GET " + privatePrefix + "/sites/{site}/app/users/erasures/{erasure}",
+		"GET " + privatePrefix + "/sites/{site}/app/product/active-users",
+		"GET " + privatePrefix + "/sites/{site}/app/product/adoption",
+		"GET " + privatePrefix + "/sites/{site}/app/product/engagement",
+		"GET " + privatePrefix + "/sites/{site}/app/product/features",
+		"POST " + privatePrefix + "/sites/{site}/app/product/features",
+		"DELETE " + privatePrefix + "/sites/{site}/app/product/features/{id}",
+		"GET " + privatePrefix + "/sites/{site}/app/product/features/{id}/adoption",
 		"GET " + privatePrefix + "/sites/{site}/pixels",
 		"POST " + privatePrefix + "/sites/{site}/pixels",
 		"GET " + privatePrefix + "/sites/{site}/pixels/stats",

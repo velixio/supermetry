@@ -11,6 +11,9 @@ const (
 	ChannelSlack    ChannelKind = "slack"
 	ChannelDiscord  ChannelKind = "discord"
 	ChannelTelegram ChannelKind = "telegram"
+	// ChannelPagerDuty pages through the PagerDuty Events API v2; its routing
+	// key is a secret stored sealed like a webhook secret.
+	ChannelPagerDuty ChannelKind = "pagerduty"
 )
 
 type ChannelConfig struct {
@@ -37,7 +40,10 @@ type ChannelInput struct {
 	Secret     string      `json:"secret,omitempty"`
 	BotToken   string      `json:"bot_token,omitempty"`
 	ChatID     string      `json:"chat_id,omitempty"`
-	Enabled    *bool       `json:"enabled,omitempty"`
+	// RoutingKey is the PagerDuty integration key. Write-only: it is never
+	// returned, logged or put in delivery history.
+	RoutingKey string `json:"routing_key,omitempty"`
+	Enabled    *bool  `json:"enabled,omitempty"`
 }
 
 type AlertKind string
@@ -55,6 +61,8 @@ type Alert struct {
 	Threshold     float64        `json:"threshold"`
 	GoalID        *int64         `json:"goal_id,omitempty"`
 	Config        *AlertConfig   `json:"config,omitempty"`
+	Name          string         `json:"name,omitempty"`
+	Rule          *Rule          `json:"rule,omitempty"`
 	ChannelIDs    []int64        `json:"channel_ids"`
 	Enabled       bool           `json:"enabled"`
 	LastFiredAt   *time.Time     `json:"last_fired_at,omitempty"`
@@ -67,6 +75,8 @@ type AlertInput struct {
 	Threshold  float64      `json:"threshold"`
 	GoalID     *int64       `json:"goal_id,omitempty"`
 	Config     *AlertConfig `json:"config,omitempty"`
+	Name       string       `json:"name,omitempty"`
+	Rule       *Rule        `json:"rule,omitempty"`
 	ChannelIDs []int64      `json:"channel_ids"`
 	Enabled    *bool        `json:"enabled,omitempty"`
 }
@@ -82,6 +92,7 @@ type DeliveryChannel struct {
 	Secret     string
 	BotToken   string
 	ChatID     string
+	RoutingKey string
 	Template   TemplateInput
 }
 
@@ -96,6 +107,8 @@ type Notification struct {
 	FiredAt   time.Time `json:"fired_at"`
 	// App carries the app-alert details; nil for traffic and goal alerts.
 	App *AppNotification `json:"app,omitempty"`
+	// Rule carries the rule context of an app_rule alert; nil for other kinds.
+	Rule *RuleNotification `json:"rule,omitempty"`
 }
 
 // DeliveryState is the durable progress for one fired evaluation. ChannelIDs

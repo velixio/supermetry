@@ -24,6 +24,11 @@ export const kinds: readonly Kind[] = [
   'kpi_strip', 'time_series', 'breakdown', 'map', 'weekly_rhythm', 'goals', 'funnel', 'retention', 'web_vitals',
 ]
 
+/** The widget kinds a site can add: obs_metric (a custom metric chart) exists on app projects only. */
+export function kindsFor(siteKind?: string): readonly Kind[] {
+  return siteKind === 'app' ? [...kinds, 'obs_metric'] : kinds
+}
+
 export const allMetrics: readonly Metric[] = [
   'visitors', 'visits', 'pageviews', 'views_per_visit', 'bounce_rate', 'visit_duration', 'engagement_time',
   'exit_rate', 'time_on_page', 'scroll_depth', 'events', 'conversions', 'conversion_rate', 'total_revenue', 'average_revenue',
@@ -41,7 +46,7 @@ export const periods: readonly WidgetPeriod[] = [
 export const compares = ['off', 'previous_period', 'previous_year'] as const
 
 /** Per-kind metric rules, mirroring the server's table of accepted config fields. */
-export const kindRules: Record<Kind, { metrics?: [number, number]; metric?: 'any' | 'traffic'; dimension?: boolean; limit?: boolean; funnel?: boolean }> = {
+export const kindRules: Record<Kind, { metrics?: [number, number]; metric?: 'any' | 'traffic'; dimension?: boolean; limit?: boolean; funnel?: boolean; obs?: boolean }> = {
   kpi_strip: { metrics: [1, 6] },
   time_series: { metric: 'any' },
   breakdown: { metrics: [1, 4], dimension: true, limit: true },
@@ -51,6 +56,7 @@ export const kindRules: Record<Kind, { metrics?: [number, number]; metric?: 'any
   funnel: { funnel: true },
   retention: {},
   web_vitals: {},
+  obs_metric: { obs: true },
 }
 
 const sizes: Record<Kind, { w: number; h: number; minW: number }> = {
@@ -63,6 +69,7 @@ const sizes: Record<Kind, { w: number; h: number; minW: number }> = {
   funnel: { w: 6, h: 4, minW: 3 },
   retention: { w: 6, h: 5, minW: 4 },
   web_vitals: { w: 6, h: 4, minW: 3 },
+  obs_metric: { w: 6, h: 4, minW: 3 },
 }
 
 export function defaultSize(kind: Kind): { w: number; h: number } {
@@ -114,6 +121,7 @@ export function defaultConfig(kind: Kind, funnelId?: number): DashboardWidget['c
     case 'weekly_rhythm': return { metric: 'visitors' }
     case 'goals': return { limit: 5 }
     case 'funnel': return funnelId === undefined ? {} : { funnel_id: funnelId }
+    case 'obs_metric': return { query: { name: '', agg: 'avg', interval: '1h' }, chart: 'line' }
     default: return undefined
   }
 }
@@ -192,6 +200,7 @@ export type IssueText = {
   dimension: (label: string) => string
   funnel: (label: string) => string
   limit: (label: string) => string
+  metricName: (label: string) => string
 }
 
 export function byteLength(layout: DashboardLayout): number {
@@ -219,6 +228,7 @@ export function validateDraft(draft: Draft, text: IssueText, label: (widget: Das
     }
     if (rule.dimension && !config.dimension) issues.push({ field: widget.id, message: text.dimension(name) })
     if (rule.funnel && !config.funnel_id) issues.push({ field: widget.id, message: text.funnel(name) })
+    if (rule.obs && !config.query?.name) issues.push({ field: widget.id, message: text.metricName(name) })
     if (rule.limit && config.limit !== undefined && (!Number.isInteger(config.limit) || config.limit < 1 || config.limit > 50)) {
       issues.push({ field: widget.id, message: text.limit(name) })
     }

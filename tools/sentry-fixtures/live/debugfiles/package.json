@@ -1,0 +1,8 @@
+{
+  "name": "sentry-fixtures-live-debugfiles",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sentry/cli": "3.8.2"
+  }
+}

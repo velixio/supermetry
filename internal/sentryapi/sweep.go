@@ -246,3 +246,78 @@ func sweepChunks(ctx context.Context, pool *pgxpool.Pool, blobs replay.BlobStore
 	}
 	return nil
 }
+
+// RemoteSymbolsNegativeTTL is how long a missing or failed remote symbol lookup
+// is remembered before its row is dropped: the retry times (24 h and 1 h) are
+// far shorter, this only bounds the table.
+const RemoteSymbolsNegativeTTL = 7 * 24 * time.Hour
+
+// SweepRemoteSymbols keeps the global remote symbol cache (app_remote_symbols
+// and its blobs) within maxBytes: negative rows older than
+// RemoteSymbolsNegativeTTL go first, then the least recently used positive
+// rows until the cached bytes fit. It returns the number of cached symbol
+// files evicted. Safe to run on several instances at once.
+func SweepRemoteSymbols(ctx context.Context, pool *pgxpool.Pool, blobs replay.BlobStore, now time.Time, maxBytes int64) (int, error) {
+	if blobs == nil || maxBytes <= 0 {
+		return 0, nil
+	}
+	if _, err := pool.Exec(ctx, `delete from app_remote_symbols where state <> 'ok' and fetched_at < $1`, now.Add(-RemoteSymbolsNegativeTTL)); err != nil {
+		return 0, fmt.Errorf("delete stale negative remote symbols: %w", err)
+	}
+	var total int64
+	if err := pool.QueryRow(ctx, `select coalesce(sum(size), 0) from app_remote_symbols where state = 'ok'`).Scan(&total); err != nil {
+		return 0, fmt.Errorf("sum remote symbols: %w", err)
+	}
+	evicted := 0
+	for total > maxBytes {
+		rows, err := pool.Query(ctx, `
+			select source, debug_file, debug_id, coalesce(cache_key, ''), size
+			from app_remote_symbols where state = 'ok'
+			order by last_used_at, source, debug_file, debug_id
+			limit 100`)
+		if err != nil {
+			return evicted, fmt.Errorf("list remote symbols: %w", err)
+		}
+		type victim struct {
+			source, file, id, key string
+			size                  int64
+		}
+		var victims []victim
+		for rows.Next() {
+			var v victim
+			if err := rows.Scan(&v.source, &v.file, &v.id, &v.key, &v.size); err != nil {
+				rows.Close()
+				return evicted, fmt.Errorf("scan remote symbol: %w", err)
+			}
+			victims = append(victims, v)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return evicted, fmt.Errorf("list remote symbols: %w", err)
+		}
+		if len(victims) == 0 {
+			break
+		}
+		for _, v := range victims {
+			if total <= maxBytes {
+				break
+			}
+			// Row first: a lookup racing the sweep then misses and refetches
+			// instead of being handed a key whose blob is about to vanish.
+			if _, err := pool.Exec(ctx, `delete from app_remote_symbols where source = $1 and debug_file = $2 and debug_id = $3`, v.source, v.file, v.id); err != nil {
+				return evicted, fmt.Errorf("evict remote symbol: %w", err)
+			}
+			if v.key != "" {
+				if _, err := blobs.Delete(ctx, v.key); err != nil {
+					return evicted, fmt.Errorf("delete remote symbol blob: %w", err)
+				}
+			}
+			total -= v.size
+			evicted++
+		}
+	}
+	if evicted > 0 {
+		slog.Info("sentryapi: evicted remote symbols", "files", evicted, "bytes_left", total)
+	}
+	return evicted, nil
+}

@@ -222,3 +222,60 @@ def test_shutdown_flushes_then_ignores():
     client.capture_event("hang")
     client.flush()
     assert len(server.accepted) == 1
+
+
+def test_track_sends_event_kind_with_name_and_props():
+    server, client, _, _ = setup(install_id="inst-1")
+    client.track("purchase", {"plan": "pro", "$release": "9", "n": 5})
+    client.flush()
+    e = server.accepted[0]
+    assert e["kind"] == "event" and e["name"] == "purchase"
+    assert e["props"] == {"plan": "pro"}
+    assert e["install_id"] == "inst-1"
+    assert "screen" not in e and "level" not in e and "handled" not in e and "user_id" not in e
+
+
+def test_screen_sends_screen_kind():
+    server, client, _, _ = setup(install_id="inst-1")
+    client.screen("paywall", {"from": "home"})
+    client.flush()
+    e = server.accepted[0]
+    assert e["kind"] == "screen" and e["screen"] == "paywall" and e["props"] == {"from": "home"}
+    assert "name" not in e and "level" not in e
+
+
+def test_track_and_screen_reject_invalid_names_and_missing_install_id():
+    server, client, _, _ = setup(install_id="inst-1")
+    for bad in ("$app_open", "", "bad/name", "x" * 65):
+        client.track(bad)
+    client.screen("")
+    client.flush()
+    assert server.requests == []
+    server2, anon, _, _ = setup()
+    anon.track("purchase")
+    anon.screen("home")
+    anon.flush()
+    assert server2.requests == []
+
+
+def test_props_capped_at_20_keys_and_200_bytes():
+    server, client, _, _ = setup(install_id="inst-1")
+    client.track("many", {f"k{i}": "v" * 300 for i in range(25)})
+    client.flush()
+    props = server.accepted[0]["props"]
+    assert len(props) == 20 and len(props["k0"]) == 200
+
+
+def test_product_events_batch_by_20():
+    server, client, _, _ = setup(install_id="inst-1")
+    for i in range(25):
+        client.track(f"e{i}")
+    client.flush()
+    assert [len(r["parsed"]["events"]) for r in server.requests] == [20, 5]
+
+
+def test_disabled_client_records_no_product_events():
+    server, client, _, _ = setup(install_id="inst-1", enabled=False)
+    client.track("purchase")
+    client.flush()
+    assert server.requests == []

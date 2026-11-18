@@ -45,6 +45,7 @@ type channelRequest struct {
 		Secret     string   `json:"secret,omitempty"`
 		BotToken   string   `json:"bot_token,omitempty"`
 		ChatID     string   `json:"chat_id,omitempty"`
+		RoutingKey string   `json:"routing_key,omitempty"`
 	} `json:"config"`
 }
 
@@ -53,6 +54,8 @@ type alertRequest struct {
 	Threshold  float64             `json:"threshold"`
 	GoalID     *int64              `json:"goal_id,omitempty"`
 	Config     *alerts.AlertConfig `json:"config,omitempty"`
+	Name       string              `json:"name,omitempty"`
+	Rule       *alerts.Rule        `json:"rule,omitempty"`
 	ChannelIDs []int64             `json:"channel_ids"`
 	Enabled    *bool               `json:"enabled,omitempty"`
 }
@@ -170,7 +173,7 @@ func decodeChannelInput(w http.ResponseWriter, r *http.Request) (alerts.ChannelI
 	input := alerts.ChannelInput{
 		Kind: request.Kind, Name: strings.TrimSpace(request.Name),
 		Recipients: request.Config.Recipients, URL: strings.TrimSpace(request.Config.URL), Secret: request.Config.Secret,
-		BotToken: request.Config.BotToken, ChatID: strings.TrimSpace(request.Config.ChatID), Enabled: request.Enabled,
+		BotToken: request.Config.BotToken, ChatID: strings.TrimSpace(request.Config.ChatID), RoutingKey: strings.TrimSpace(request.Config.RoutingKey), Enabled: request.Enabled,
 	}
 	if !validChannelInput(input, r.Method == http.MethodPatch) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "notification channel fields are invalid")
@@ -205,6 +208,9 @@ func validChannelInput(input alerts.ChannelInput, update bool) bool {
 		return len(input.Recipients) == 0 && input.URL == "" && input.Secret == "" &&
 			alerts.ValidTelegramChatID(input.ChatID) &&
 			((update && input.BotToken == "") || alerts.ValidTelegramToken(input.BotToken))
+	case alerts.ChannelPagerDuty:
+		return len(input.Recipients) == 0 && input.URL == "" && input.Secret == "" && input.BotToken == "" && input.ChatID == "" &&
+			((update && input.RoutingKey == "") || alerts.ValidPagerDutyRoutingKey(input.RoutingKey))
 	default:
 		return false
 	}
@@ -317,7 +323,7 @@ func (h *handler) listNotificationHistory(w http.ResponseWriter, r *http.Request
 		}
 		filter.Limit = limit
 	}
-	if filter.Status != "" && filter.Status != alerts.DeliveryPending && filter.Status != alerts.DeliverySucceeded && filter.Status != alerts.DeliveryFailed {
+	if filter.Status != "" && filter.Status != alerts.DeliveryPending && filter.Status != alerts.DeliverySucceeded && filter.Status != alerts.DeliveryFailed && filter.Status != alerts.DeliverySuppressed {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "status is invalid")
 		return
 	}
@@ -335,7 +341,7 @@ func (h *handler) listNotificationHistory(w http.ResponseWriter, r *http.Request
 
 func validHistoryChannel(kind alerts.ChannelKind) bool {
 	switch kind {
-	case alerts.ChannelEmail, alerts.ChannelWebhook, alerts.ChannelSlack, alerts.ChannelDiscord, alerts.ChannelTelegram:
+	case alerts.ChannelEmail, alerts.ChannelWebhook, alerts.ChannelSlack, alerts.ChannelDiscord, alerts.ChannelTelegram, alerts.ChannelPagerDuty, "none":
 		return true
 	default:
 		return false
@@ -452,19 +458,19 @@ func decodeAlertInput(w http.ResponseWriter, r *http.Request, siteKind string) (
 	}
 	input := alerts.AlertInput{
 		Kind: request.Kind, Threshold: request.Threshold, GoalID: request.GoalID,
-		Config: request.Config, ChannelIDs: request.ChannelIDs, Enabled: request.Enabled,
+		Config: request.Config, Name: request.Name, Rule: request.Rule, ChannelIDs: request.ChannelIDs, Enabled: request.Enabled,
+	}
+	if input.Kind.IsApp() {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "use kind app_rule")
+		return alerts.AlertInput{}, false
 	}
 	if !input.Kind.AllowedOnSiteKind(siteKind) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "this alert kind is not available for this project type")
 		return alerts.AlertInput{}, false
 	}
-	if input.Kind.IsApp() {
-		normalized, valid := alerts.NormalizeAppInput(input)
-		if !valid {
-			writeProblem(w, http.StatusBadRequest, "Bad request", "alert fields are invalid")
-			return alerts.AlertInput{}, false
-		}
-		input = normalized
+	if input.Kind == alerts.AlertRule {
+		// The service validates the rule document and names the bad field.
+		return input, true
 	}
 	if !validAlertInput(input) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "alert fields are invalid")
@@ -490,8 +496,6 @@ func validAlertInput(input alerts.AlertInput) bool {
 		return input.GoalID != nil && *input.GoalID > 0
 	case alerts.AlertTrafficSpike, alerts.AlertTrafficDrop:
 		return input.GoalID == nil && input.Config == nil
-	case alerts.AlertAppNewIssue, alerts.AlertAppIssueRegressed, alerts.AlertAppCrashFreeBelow, alerts.AlertAppIssueSpike:
-		return true
 	default:
 		return false
 	}

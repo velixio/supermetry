@@ -11,9 +11,15 @@ import (
 const (
 	defaultMaxReportAgeDays  = 7
 	defaultSpanRetentionDays = 14
-	maxReportAgeDaysLimit    = 30
-	maxTagKeys               = 50
-	maxEnvironments          = 20
+	defaultLogRetentionDays  = 7
+	maxLogRetentionDays      = 30
+	// DefaultLogDailyQuota and DefaultMetricDailyQuota are the daily intake
+	// quotas per app project.
+	DefaultLogDailyQuota    int64 = 5_000_000
+	DefaultMetricDailyQuota int64 = 50_000_000
+	maxReportAgeDaysLimit         = 30
+	maxTagKeys                    = 50
+	maxEnvironments               = 20
 )
 
 var (
@@ -36,6 +42,17 @@ type AppSettings struct {
 	PerformanceEnabled *bool `json:"performance_enabled"`
 	// SpanRetentionDays is the raw span life, 1..14; 0 means the default 14.
 	SpanRetentionDays int `json:"span_retention_days"`
+	// LogRetentionDays is the raw log life, 1..30; 0 means the default 7.
+	LogRetentionDays int `json:"log_retention_days"`
+	// ElectronSymbols turns the fetch of Electron's public symbols on or off.
+	// A nil pointer means on; the server switch SUPERMETRY_ELECTRON_SYMBOLS can
+	// still turn it off for every project.
+	ElectronSymbols *bool `json:"electron_symbols"`
+	// LogDailyQuota and MetricDailyQuota cap log records and metric points per
+	// UTC day. A nil pointer means the default; 0 means unlimited (self-hosting
+	// admins, Cloud plan overrides).
+	LogDailyQuota    *int64 `json:"log_daily_quota"`
+	MetricDailyQuota *int64 `json:"metric_daily_quota"`
 }
 
 // ParseAppSettings decodes stored settings; empty or missing input gives the defaults.
@@ -69,11 +86,31 @@ func (a AppSettings) Normalize() (AppSettings, error) {
 	if a.PerformanceEnabled == nil {
 		a.PerformanceEnabled = &on
 	}
+	if a.ElectronSymbols == nil {
+		a.ElectronSymbols = &on
+	}
 	if a.SpanRetentionDays == 0 {
 		a.SpanRetentionDays = defaultSpanRetentionDays
 	}
 	if a.SpanRetentionDays < 1 || a.SpanRetentionDays > defaultSpanRetentionDays {
 		return AppSettings{}, fmt.Errorf("span_retention_days must be between 1 and %d", defaultSpanRetentionDays)
+	}
+	if a.LogRetentionDays == 0 {
+		a.LogRetentionDays = defaultLogRetentionDays
+	}
+	if a.LogRetentionDays < 1 || a.LogRetentionDays > maxLogRetentionDays {
+		return AppSettings{}, fmt.Errorf("log_retention_days must be between 1 and %d", maxLogRetentionDays)
+	}
+	if a.LogDailyQuota == nil {
+		q := DefaultLogDailyQuota
+		a.LogDailyQuota = &q
+	}
+	if a.MetricDailyQuota == nil {
+		q := DefaultMetricDailyQuota
+		a.MetricDailyQuota = &q
+	}
+	if *a.LogDailyQuota < 0 || *a.MetricDailyQuota < 0 {
+		return AppSettings{}, fmt.Errorf("daily quotas must be 0 (unlimited) or more")
 	}
 	if a.MaxReportAgeDays == 0 {
 		a.MaxReportAgeDays = defaultMaxReportAgeDays

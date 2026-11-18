@@ -401,6 +401,22 @@ func TestInflightBound(t *testing.T) {
 	}
 }
 
+// A slot that frees up within the wait lets the request through instead of
+// bouncing it: short stalls must not become 503s at a sustained rate.
+func TestInflightWaitsBrieflyForASlot(t *testing.T) {
+	r := newRig(t, 0)
+	for i := 0; i < maxInflight; i++ {
+		r.h.inflight <- struct{}{}
+	}
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		<-r.h.inflight
+	}()
+	if w := r.post(path42, marshalRequest(goHTTP()), nil); w.Code != 200 {
+		t.Fatalf("status %d, want 200 once a slot freed", w.Code)
+	}
+}
+
 func TestDigestSetBounds(t *testing.T) {
 	s := newDigestSet(2, time.Minute)
 	d := func(b byte) [32]byte { return [32]byte{b} }

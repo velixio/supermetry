@@ -35,13 +35,27 @@ describe('primary sidebar navigation', () => {
   })
 
   it('limits app sites to the app navigation set', () => {
-    const items = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site)
+    const identified = { id: 1, name: 'D', kind: 'app', tracking_policy: { instance_mode: 'identified', effective_mode: 'identified', configured_profiles_enabled: true, restrictions: [] } } as Site
+    const items = visibleNavigation('owner', true, undefined, identified)
     expect(items.map((item) => item.suffix)).toEqual(APP_NAV_SUFFIXES.filter((suffix) => suffix !== '/settings'))
+    expect(items.find((item) => item.suffix === '/users')?.label).toBe('Sessions & Users')
+    // Anonymous instances keep the install-keyed pages and hide the detailed-history ones.
+    const anonymous = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)
+    expect(anonymous).toEqual(expect.arrayContaining(['/users', '/issues']))
+    expect(anonymous).not.toContain('/retention')
     expect(replaysAvailable({ capabilities: ['replay.read'] } as never, { id: 1, name: 'D', kind: 'app' } as Site)).toBe(false)
   })
 
+  it('offers Logs and Metrics to app projects only', () => {
+    const app = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)
+    expect(app).toEqual(expect.arrayContaining(['/obs/logs', '/obs/metrics']))
+    for (const kind of ['web', 'pixel'] as const) {
+      expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind } as Site).map((item) => item.suffix)).not.toContain('/obs/logs')
+    }
+  })
+
   it('offers Issues, Compatibility and Releases to app projects only', () => {
-    const pages = ['/issues', '/compatibility', '/releases']
+    const pages = ['/issues', '/compatibility', '/releases', '/users']
     expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)).toEqual(expect.arrayContaining(pages))
     for (const kind of ['web', 'pixel'] as const) {
       const suffixes = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind } as Site).map((item) => item.suffix)

@@ -108,11 +108,14 @@ func TestMCPAppOutputHasNoIdentifiers(t *testing.T) {
 	key := env.APIKey(t, org, "stats:read")
 	base := `"site":` + site.String() + `,"period":"30d"`
 	for tool, arguments := range map[string]string{
-		"get_app_overview":      `{` + base + `}`,
-		"list_app_issues":       `{` + base + `,"status":"all"}`,
-		"get_app_issue":         `{` + base + `,"issue_id":` + itoa(seed.issue) + `}`,
-		"get_app_compatibility": `{` + base + `}`,
-		"list_app_releases":     `{` + base + `}`,
+		"get_app_overview":        `{` + base + `}`,
+		"list_app_issues":         `{` + base + `,"status":"all"}`,
+		"get_app_issue":           `{` + base + `,"issue_id":` + itoa(seed.issue) + `}`,
+		"get_app_compatibility":   `{` + base + `}`,
+		"list_app_releases":       `{` + base + `}`,
+		"get_release_health":      `{` + base + `,"release":"1.0.0"}`,
+		"compare_releases":        `{` + base + `,"a":"1.0.0","b":"1.0.0"}`,
+		"find_regression_release": `{` + base + `}`,
 	} {
 		r := mcpCall(t, env, key, tool, arguments)
 		var out struct {
@@ -126,7 +129,7 @@ func TestMCPAppOutputHasNoIdentifiers(t *testing.T) {
 			t.Fatalf("%s failed: %s", tool, text)
 		}
 		lower := strings.ToLower(text)
-		for _, banned := range []string{seed.rawID, "deadbeef", "feedface", "3q2+78r+AADerb7vyv4AAA==", "/u36zv7tAAD+7frO/u0AAA==", "install_hash", "session_hash", "smk_", key} {
+		for _, banned := range []string{seed.rawID, "deadbeef", "feedface", "3q2+78r+AADerb7vyv4AAA==", "/u36zv7tAAD+7frO/u0AAA==", "install_hash", "session_hash", "smk_", "@", key} {
 			if strings.Contains(lower, strings.ToLower(banned)) {
 				t.Fatalf("%s output contains %q: %s", tool, banned, text)
 			}

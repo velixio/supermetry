@@ -97,6 +97,28 @@ export function DsnKeys({ orgId, siteId, keys }: { orgId: number; siteId: number
   )
 }
 
+/** OpenTelemetry endpoint and key beside the DSN. The key is the DSN public key (it can only send), so it is shown in full. */
+export function OtlpSetup({ endpoint, apiKey }: { endpoint: string; apiKey: string | undefined }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-2">
+        <span className="text-sm font-medium">OTLP endpoint</span>
+        <code className="min-w-0 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm select-all" aria-label="OTLP endpoint">{endpoint}</code>
+        <CopyButton value={endpoint} label="Copy OTLP URL" />
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <span className="text-sm font-medium">OTLP key</span>
+        {apiKey
+          ? <><code className="min-w-0 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm select-all" aria-label="OTLP key">{apiKey}</code><CopyButton value={apiKey} label="Copy OTLP key" /></>
+          : <p className="text-sm text-muted-foreground">Create a DSN key below; its public key is the OTLP key.</p>}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        OpenTelemetry: set <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> to this URL and <code>OTEL_EXPORTER_OTLP_HEADERS</code> to <code>authorization=Bearer {apiKey ?? '<key>'}</code>. Sentry SDKs: set <code>tracesSampleRate</code> to send transactions.
+      </p>
+    </div>
+  )
+}
+
 export function PrimaryDsn({ dsn }: { dsn: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-2">

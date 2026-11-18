@@ -9,6 +9,11 @@
   },
   "sdk": "electron",
   "sdk_version": "sentry.javascript.electron@8.4.0",
-  "notes": "@sentry/electron 8.4.0 native crash: envelope as sent on next start (electron 40.10.6, xvfb). The minidump attachment payload is SYNTHETIC (32-byte MDMP header, no streams): the recorded dump captured the recording machine's environment. Re-record with an empty environment (env -i) when Phase 2d needs a real dump.",
-  "synthetic_attachment": true
+  "notes": "@sentry/electron 8.4.0 native crash: process.crash() in the main process, envelope as sent on the next start (electron 40.10.6, linux x64, xvfb). The event.minidump attachment is a REAL Crashpad dump (302 KB), recorded with tools/sentry-fixtures/electron/native-crash.sh under env -i HOME=/tmp/fixture-home from /tmp/fixture-app, so the dump holds no machine data. Crashing module: electron, amd64, debug id 5e0613c6-60b3-b982-9f56-f37e73e29b29 (Breakpad 5E0613C660B3B9829F56F37E73E29B290), code id c613065eb36082b99f56f37e73e29b29f3ade3db; top frame offset 0x2c1a0d4 = electron::ElectronBindings::Crash(). electron-excerpt.sym is cut from the public symbol file by tools/sentry-fixtures/electron/sym-excerpt.py.",
+  "electron": {
+    "version": "40.10.6",
+    "arch": "x64",
+    "crashing_module": "electron",
+    "debug_id": "5e0613c6-60b3-b982-9f56-f37e73e29b29"
+  }
 }

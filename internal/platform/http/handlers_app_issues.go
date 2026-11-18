@@ -377,6 +377,8 @@ func (h *handler) putAppNotificationPrefs(w http.ResponseWriter, r *http.Request
 		Assigned  *bool `json:"assigned"`
 		Resolved  *bool `json:"resolved"`
 		Regressed *bool `json:"regressed"`
+		// WeeklyDigest is optional: absent leaves the digest switch as it is.
+		WeeklyDigest *bool `json:"weekly_digest"`
 	}
 	if !decodeJSON(w, r, &in) {
 		return
@@ -390,7 +392,18 @@ func (h *handler) putAppNotificationPrefs(w http.ResponseWriter, r *http.Request
 		appIssueError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, prefs)
+	if in.WeeklyDigest != nil {
+		if err := appissues.SetWeeklyDigest(r.Context(), h.deps.Store.Pool, principal.UserID, int32(id), *in.WeeklyDigest); err != nil {
+			appIssueError(w, err)
+			return
+		}
+	}
+	saved, err := appissues.GetPrefs(r.Context(), h.deps.Store.Pool, principal.UserID, int32(id))
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, saved)
 }
 
 func (h *handler) listAppIssueFeedback(w http.ResponseWriter, r *http.Request) {

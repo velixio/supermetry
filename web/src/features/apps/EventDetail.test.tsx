@@ -83,6 +83,19 @@ describe('EventDetail', () => {
     expect(privateRequest).toHaveBeenCalledWith('GET', '/api/private/sites/7/app/events/abc123')
   })
 
+  it('offers "View trace" only when the event has a trace id', async () => {
+    privateRequest.mockResolvedValue({ event_id: 'abc123', ts: '2026-11-14T10:00:00Z', trace_id: 'a'.repeat(32), body })
+    const first = renderWithQuery(<EventDetail org="acme" site="web" siteId={7} issueId={3} eventId="abc123" />)
+    expect(await screen.findByRole('link', { name: 'View trace' })).toHaveAttribute('href', '/app/$org/$site/traces/$trace')
+    expect(screen.getByRole('link', { name: 'View logs' })).toHaveAttribute('href', '/app/$org/$site/obs/logs')
+    first.unmount()
+    privateRequest.mockResolvedValue({ event_id: 'def456', ts: '2026-11-14T10:00:00Z', body })
+    renderWithQuery(<EventDetail org="acme" site="web" siteId={7} issueId={3} eventId="def456" />)
+    expect(await screen.findByText('checkout failed')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'View trace' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'View logs' })).not.toBeInTheDocument()
+  })
+
   it('explains an event whose body has aged out', async () => {
     privateRequest.mockRejectedValue(new Error('event not found'))
     renderWithQuery(<EventDetail org="acme" site="web" siteId={7} issueId={3} eventId="old" />)

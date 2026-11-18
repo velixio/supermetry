@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, screen } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { privateRequest } = vi.hoisted(() => ({ privateRequest: vi.fn() }))
@@ -21,6 +21,8 @@ const overview = (over = {}) => ({
 function mock(data: ReturnType<typeof overview>) {
   privateRequest.mockImplementation((_method: string, path: string) => {
     if (path.includes('/overview')) return Promise.resolve(data)
+    if (path.includes('/platforms')) return Promise.resolve({ platforms: [{ platform: 'android', events: 100, crashes: 10, crash_free_users: 0.9, crash_free_sessions: null, symbolicated: 40, missing: 5 }, { platform: 'ios', events: 50, crashes: 0, crash_free_users: 1, crash_free_sessions: 1, symbolicated: 0, missing: 0 }] })
+    if (path.includes('/deploys')) return Promise.resolve({ deploys: [{ id: 1, release: '1.2.0', environment: 'production', name: '', url: '', at: '2026-11-14T10:00:00Z' }] })
     if (path.includes('/issues')) return Promise.resolve({ issues: [issueRow()], total: 1, next_offset: null })
     return Promise.resolve({ releases: [] })
   })
@@ -37,16 +39,33 @@ describe('AppOverview', () => {
     expect(await screen.findByText('98.7%')).toBeInTheDocument()
     expect(screen.getByText('95.0%')).toBeInTheDocument()
     expect(screen.getByText('1,200')).toBeInTheDocument()
-    expect(screen.getByText('Crashes').nextSibling).toHaveTextContent('30')
+    expect(within(screen.getByLabelText('Key figures')).getByText('Crashes').nextSibling).toHaveTextContent('30')
     expect(screen.getByText('New issues').nextSibling).toHaveTextContent('4')
     expect(screen.getByText('Regressed issues').nextSibling).toHaveTextContent('2')
     expect(await screen.findByRole('link', { name: 'Segfault in renderer' })).toHaveAttribute('href', '/app/acme/desk/issues/11')
   })
 
+  it('lists the deploys shown as markers on the chart', async () => {
+    mock(overview())
+    renderWithQuery(<AppOverview {...props} />)
+    expect(await screen.findByRole('list', { name: 'Deploys' })).toHaveTextContent('1.2.0 2026-11-14 · production')
+  })
+
+  it('breaks health and symbolication down per platform', async () => {
+    mock(overview())
+    renderWithQuery(<AppOverview {...props} />)
+    const table = await screen.findByRole('table', { name: 'Platforms' })
+    const rows = within(table).getAllByRole('row')
+    expect(rows[1]).toHaveTextContent('android')
+    expect(rows[1]).toHaveTextContent('90.0%')
+    expect(rows[1]).toHaveTextContent('n/a')
+    expect(rows[2]).toHaveTextContent('ios')
+  })
+
   it('shows n/a with a hint when crash-free sessions are null', async () => {
     mock(overview({ crash_free_sessions: null }))
     renderWithQuery(<AppOverview {...props} />)
-    const na = await screen.findByText('n/a')
+    const na = await within(await screen.findByLabelText('Key figures')).findByText('n/a')
     expect(na).toHaveAttribute('title', 'Send a session event at app start to measure this')
   })
 

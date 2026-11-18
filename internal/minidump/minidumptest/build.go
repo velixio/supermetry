@@ -59,9 +59,9 @@ type exception struct {
 	ctx         *minidump.Context
 }
 
-// AddModule adds an ELF module with a build id (a BpEL CodeView record).
+// AddModule adds an ELF module with a build id (a CodeView record with the "BpEL" signature, stored as the bytes LEpB).
 func (b *Builder) AddModule(name string, base, size uint64, buildID []byte) {
-	cv := append([]byte{'B', 'p', 'E', 'L'}, buildID...)
+	cv := append([]byte{'L', 'E', 'p', 'B'}, buildID...)
 	b.modules = append(b.modules, module{name: name, base: base, size: uint32(size), cv: cv})
 }
 
@@ -150,7 +150,7 @@ func (b *Builder) Bytes() []byte {
 	// System info.
 	si := make([]byte, 56)
 	le.PutUint16(si, map[string]uint16{"x86": 0, "arm": 5, "amd64": 9, "arm64": 12}[cpu])
-	le.PutUint32(si[24:], map[string]uint32{"windows": 2, "mac": 0x8101, "ios": 0x8102, "linux": 0x8201, "android": 0x8203}[osName])
+	le.PutUint32(si[20:], map[string]uint32{"windows": 2, "mac": 0x8101, "ios": 0x8102, "linux": 0x8201, "android": 0x8203}[osName])
 	dir = append(dir, dirent{7, 56, w.put(si)})
 
 	// Threads.

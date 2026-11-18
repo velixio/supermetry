@@ -67,8 +67,8 @@ const messages: MessageTree = {
     creatingAccount: 'অ্যাকাউন্ট তৈরি হচ্ছে…', signupError: 'অ্যাকাউন্ট তৈরি ব্যর্থ হয়েছে। তথ্য পরীক্ষা করে আবার চেষ্টা করুন।', inviteOnly: 'শুধু আমন্ত্রণে নিবন্ধন করা যায়।', backToLogin: 'সাইন ইন',
   },
   navigation: {
-    dashboard: 'ড্যাশবোর্ড', events: 'ইভেন্ট', sessions: 'সেশন', journeys: 'যাত্রাপথ', retention: 'ধরে রাখা', profiles: 'প্রোফাইল', cohorts: 'কোহর্ট',
-    heatmaps: 'হিটম্যাপ', vitals: 'Web Vitals', funnels: 'ফানেল', realtime: 'রিয়েলটাইম', issues: 'সমস্যা', compatibility: 'সামঞ্জস্য', releases: 'রিলিজ', goals: 'লক্ষ্য', revenue: 'আয়', settings: 'সাইট সেটিংস',
+    dashboard: 'ড্যাশবোর্ড', events: 'ইভেন্ট', sessions: 'সেশন', usersAndSessions: 'সেশন ও ব্যবহারকারী', journeys: 'যাত্রাপথ', retention: 'ধরে রাখা', profiles: 'প্রোফাইল', cohorts: 'কোহর্ট',
+    heatmaps: 'হিটম্যাপ', vitals: 'Web Vitals', funnels: 'ফানেল', realtime: 'রিয়েলটাইম', issues: 'সমস্যা', compatibility: 'সামঞ্জস্য', releases: 'রিলিজ', performance: 'পারফরম্যান্স', logs: 'লগ', metrics: 'মেট্রিক্স', goals: 'লক্ষ্য', revenue: 'আয়', settings: 'সাইট সেটিংস',
     organizationSettings: 'প্রতিষ্ঠানের সেটিংস', sites: 'সাইট', addSite: '+ সাইট যোগ করুন', health: 'ডেটার স্বাস্থ্য', organization: 'প্রতিষ্ঠান',
     organizations: 'প্রতিষ্ঠান', addOrganization: '+ প্রতিষ্ঠান যোগ করুন', projects: 'প্রকল্প', brand: 'Supermetry', site: 'সাইট',
     collapse: 'সাইডবার টগল করুন', sidebarTitle: 'সাইডবার', sidebarDescription: 'ড্যাশবোর্ড নেভিগেশন।',
