@@ -219,13 +219,13 @@ order by c.day,c.reason,c.category`
 	// (privacy-filtered) attributes. The hourly rollups follow; raw points are
 	// not exported (like raw spans: high volume, short retention).
 	series := `
-select s.id,s.name,s.kind,s.unit,coalesce(array_to_string(s.bounds,' '),''),s.attrs::text,` + utc("s.first_seen") + `,` + utc("s.last_seen") + `
+select s.id,s.name,s.kind,s.unit,s.attrs::text,` + utc("s.first_seen") + `,` + utc("s.last_seen") + `,coalesce(array_to_string(s.bounds,' '),'')
 from metric_series s
 where s.site_id=$1 and s.last_seen >= ($2::date)::timestamp at time zone $4
   and s.first_seen < (($3::date)+1)::timestamp at time zone $4
 order by s.id`
 	if err := e.writeRows(ctx, archive, "metric_series.csv",
-		[]string{"series_id", "name", "kind", "unit", "bounds", "attributes", "first_seen", "last_seen"},
+		[]string{"series_id", "name", "kind", "unit", "attributes", "first_seen", "last_seen", "bounds"},
 		series, siteID, f, t, tz); err != nil {
 		return err
 	}

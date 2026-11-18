@@ -115,8 +115,8 @@ insert into metric_hourly(site_id,series_id,hour,samples,value_sum,value_min,val
 		{"2", "2026-10-02T10:00", "6", "", "3", "200", "", "6", "420.5", "1 3 2"},
 	})
 	checkCSV(t, files, "metric_series.csv", [][]string{
-		{"series_id", "name", "kind", "unit", "bounds", "attributes", "first_seen", "last_seen"},
-		{"1", "queue.depth", "gauge", "1", "", "{}", "2026-10-02T09:00:00.000Z", "2026-10-02T10:00:00.000Z"},
-		{"2", "http.latency", "histogram", "ms", "10 100", "{}", "2026-10-02T09:00:00.000Z", "2026-10-02T10:00:00.000Z"},
+		{"series_id", "name", "kind", "unit", "attributes", "first_seen", "last_seen", "bounds"},
+		{"1", "queue.depth", "gauge", "1", "{}", "2026-10-02T09:00:00.000Z", "2026-10-02T10:00:00.000Z", ""},
+		{"2", "http.latency", "histogram", "ms", "{}", "2026-10-02T09:00:00.000Z", "2026-10-02T10:00:00.000Z", "10 100"},
 	})
 }
