@@ -67,7 +67,7 @@ function trafficMetric(widget: DashboardWidget): 'visitors' | 'pageviews' {
 /** Titled card used by the widgets that have no card of their own. */
 function WidgetCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-xl border bg-card text-card-foreground" role="region">
+    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-lg border bg-card text-card-foreground" role="region">
       <header className="flex min-h-12 items-center border-b px-4">
         <h2 className="truncate text-sm font-medium">{title}</h2>
       </header>
@@ -281,7 +281,7 @@ export class WidgetBoundary extends Component<{ title: string; children: ReactNo
   render() {
     if (!this.state.failed) return this.props.children
     return (
-      <div className="flex min-h-24 flex-col items-start gap-2 rounded-xl border bg-card p-4" role="alert">
+      <div className="flex min-h-24 flex-col items-start gap-2 rounded-lg border bg-card p-4" role="alert">
         <p className="text-sm text-muted-foreground">{t.widgetFailed(this.props.title)}</p>
         <Button className="max-sm:min-h-11" size="sm" type="button" variant="outline" onClick={() => this.setState({ failed: false })}>{t.retry}</Button>
       </div>

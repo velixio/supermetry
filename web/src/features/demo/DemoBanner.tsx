@@ -108,11 +108,11 @@ export function DemoBanner({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="ghost"
             aria-label={`${title} ${chipLabel === 'Demo' ? '' : `(${chipLabel})`}`.trim()}
             className={cn(
-              'h-7 gap-1.5 rounded-full px-2.5 text-xs font-medium shadow-none',
-              failed ? 'border-destructive/40 text-destructive' : 'border-chart-1/40 text-foreground',
+              'gap-1.5 rounded-md px-2 text-sm font-normal',
+              failed ? 'text-destructive hover:text-destructive' : 'text-muted-foreground hover:text-foreground',
             )}
             data-testid="demo-chip"
           >

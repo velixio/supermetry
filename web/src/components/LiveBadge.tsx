@@ -28,7 +28,7 @@ export function LiveBadge({
     </>
   )
   const className = cn(
-    'inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm outline-none hover:bg-accent aria-pressed:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
     muted && 'text-muted-foreground',
   )
 

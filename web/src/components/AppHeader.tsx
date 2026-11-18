@@ -121,8 +121,9 @@ export function AppHeader({
           <Button
             ref={paletteTriggerRef}
             type="button"
-            variant="outline"
-            className="justify-start gap-2 border-border bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:border-transparent max-md:bg-transparent max-md:dark:bg-transparent max-md:dark:hover:bg-accent max-md:px-0 max-md:hover:bg-accent md:w-64 md:pr-16 lg:w-72 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:w-9 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:justify-center lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:px-0"
+            variant="ghost"
+            size="sm"
+            className="justify-start gap-2 px-3 text-sm font-normal text-muted-foreground max-md:w-8 max-md:justify-center max-md:px-0 md:w-64 md:pr-16 lg:w-72 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:w-8 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:justify-center lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:px-0"
             aria-haspopup="dialog"
             aria-keyshortcuts="Control+K Meta+K"
             aria-label={ui.palette.searchField}
@@ -131,7 +132,7 @@ export function AppHeader({
             <SearchIcon aria-hidden="true" />
             <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">{ui.palette.searchField}</span>
           </Button>
-          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">
+          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded-sm border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
         </span>

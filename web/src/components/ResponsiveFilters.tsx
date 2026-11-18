@@ -21,7 +21,7 @@ export function ResponsiveFilters({ children, className, lead, trailing }: { chi
     <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
     <Sheet>
       <SheetTrigger asChild>
-        <Button className="max-sm:min-h-11 shrink-0" type="button" variant="outline"><ListFilterIcon data-icon="inline-start" />{en.polish.filters}</Button>
+        <Button className="max-sm:min-h-11 shrink-0" size="sm" type="button" variant="ghost"><ListFilterIcon data-icon="inline-start" />{en.polish.filters}</Button>
       </SheetTrigger>
       <SheetContent className="w-[min(23rem,100vw)] overflow-y-auto" side="right">
         <SheetHeader>

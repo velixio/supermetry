@@ -36,16 +36,16 @@ export function DashboardViewer(props: DashboardViewerProps) {
   if (dashboards.isPending) {
     return (
       <div aria-busy="true" aria-label={t.loading(t.switcherLabel)} className="grid grid-cols-1 gap-4 md:grid-cols-2" role="status">
-        <Skeleton className="h-40 rounded-xl md:col-span-2" />
-        <Skeleton className="h-64 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-40 rounded-lg md:col-span-2" />
+        <Skeleton className="h-64 rounded-lg" />
+        <Skeleton className="h-64 rounded-lg" />
       </div>
     )
   }
   const dashboard = dashboards.data.find((item) => item.id === props.dashboardId)
   if (!dashboard) {
     return (
-      <section className="flex flex-col items-start gap-3 rounded-xl border bg-card p-5" role="status">
+      <section className="flex flex-col items-start gap-3 rounded-lg border bg-card p-5" role="status">
         <h2 className="font-medium">{t.missingTitle}</h2>
         <p className="text-sm text-muted-foreground">{t.missingBody}</p>
         <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={props.onOpenStandard}>{t.openStandard}</Button>
@@ -55,7 +55,7 @@ export function DashboardViewer(props: DashboardViewerProps) {
   const layout = dashboard.layout
   if (layout.widgets.length === 0) {
     return (
-      <section className="flex flex-col items-start gap-2 rounded-xl border bg-card p-5" role="status">
+      <section className="flex flex-col items-start gap-2 rounded-lg border bg-card p-5" role="status">
         <h2 className="font-medium">{t.emptyTitle}</h2>
         <p className="text-sm text-muted-foreground">{t.emptyBody}</p>
       </section>

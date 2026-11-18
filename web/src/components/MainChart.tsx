@@ -283,10 +283,10 @@ function AnnotationMarkers({
             <AnnotationTooltip key={day}>
               <TooltipTrigger asChild>
                 <Button
-                  className="pointer-events-auto absolute -translate-x-1/2"
+                  className="pointer-events-auto absolute -translate-x-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground"
                   style={{ left: `${left}%` }}
                   size="icon-xs"
-                  variant="secondary"
+                  variant="ghost"
                   aria-label={`${items.length} ${items.length === 1 ? 'annotation' : 'annotations'} on ${label}`}
                 >
                   <FlagIcon />
@@ -426,7 +426,7 @@ export function MainChart({
       aria-label={label}
       data-interval={resolvedInterval}
       data-last-bucket={lastBucket}
-      className={embedded ? 'group/chart p-4 text-card-foreground' : 'rounded-xl border bg-card p-4 text-card-foreground shadow-xs'}
+      className={embedded ? 'group/chart p-4 text-card-foreground' : 'rounded-lg border bg-card p-4 text-card-foreground'}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <ul aria-label="Chart notes" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">

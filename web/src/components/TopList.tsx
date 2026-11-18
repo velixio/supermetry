@@ -8,7 +8,7 @@ import { dashboardView } from '@/messages/dashboardView'
 
 /** The share bar behind a row's label. Every top-N panel draws it the same way. */
 export function TopListBar({ width }: { width: string }) {
-  return <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-chart-1/10 dark:bg-chart-1/15" data-slot="top-list-bar" style={{ width }} />
+  return <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-chart-1/15 group-hover/row:bg-chart-1/25" data-slot="top-list-bar" style={{ width }} />
 }
 
 export function barWidth(value: number, maximum: number): string {
@@ -16,7 +16,7 @@ export function barWidth(value: number, maximum: number): string {
 }
 
 /** Row class shared by the list and the table layouts: hover and keyboard focus read the same. */
-export const topListRowClass = 'group/row relative rounded-lg hover:bg-muted/50 focus-within:bg-muted/50'
+export const topListRowClass = 'group/row relative rounded-md hover:bg-muted/50 focus-within:bg-muted/50'
 
 /**
  * Actions at the end of a row. Revealed on hover and keyboard focus (always shown where there is no hover),

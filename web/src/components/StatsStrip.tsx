@@ -215,8 +215,8 @@ export function StatsStrip({
     const delta = comparison.data && current.data ? deltaValue(value, comparison.data.totals[metric] ?? 0) : undefined
     const isSelected = selected === metric
     const className = tabs
-      ? 'relative flex h-full min-w-0 flex-col items-start gap-1 bg-card px-4 py-3 text-left text-card-foreground'
-      : 'flex h-full min-w-0 flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left text-card-foreground shadow-sm'
+      ? 'relative flex h-full min-w-0 flex-col items-start gap-1 px-4 py-3 text-left text-card-foreground'
+      : 'flex h-full min-w-0 flex-col items-start gap-2 rounded-lg border bg-card p-4 text-left text-card-foreground'
     const content = (
       <>
         <span className={`w-full truncate text-muted-foreground ${tabs ? 'text-xs font-medium' : 'text-sm'}`}>{metricLabel(metric)}</span>
@@ -236,9 +236,8 @@ export function StatsStrip({
         aria-label={cardAriaLabel(metric, valueText, delta, referenceText)}
         aria-pressed={isSelected}
         className={tabs
-          // The selected tab carries the chart's own line colour on its top edge, tying the figure to the line below.
-          ? `${className} outline-none transition-colors before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-transparent hover:bg-muted/40 focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset aria-pressed:bg-muted/40 aria-pressed:before:bg-chart-1`
-          : `${className} outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:border-foreground/30 aria-pressed:bg-muted/50`}
+                    ? `${className} outline-none transition-colors hover:bg-accent/40 focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset aria-pressed:bg-accent/60`
+          : `${className} outline-none transition-colors hover:bg-accent/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:bg-accent/60`}
         data-priority={primary ? 'primary' : 'secondary'}
         type="button"
         onClick={() => onSelectMetric(metric)}
@@ -288,7 +287,7 @@ export function StatsStrip({
           {toggle}
           {footnote ?? <span className="flex-1" />}
           <span className="flex shrink-0 items-center gap-2 px-2 text-xs text-muted-foreground" data-testid="kpi-reference">
-            {importedIncluded ? <span className="rounded-full border px-2 py-0.5">{dashboardView.importedChip}</span> : null}
+            {importedIncluded ? <span className="rounded-sm bg-muted px-2 py-0.5">{dashboardView.importedChip}</span> : null}
             {dashboardView.kpi.changesVs(referenceText)}
           </span>
         </div>
@@ -299,7 +298,7 @@ export function StatsStrip({
   return (
     <div aria-label={dashboardView.kpi.groupLabel} className="flex flex-col gap-3" role="group">
       {importedIncluded ? (
-        <p className="self-start rounded-full border px-2 py-0.5 text-xs text-muted-foreground">{dashboardView.importedChip}</p>
+        <p className="self-start rounded-sm bg-muted px-2 py-0.5 text-xs text-muted-foreground">{dashboardView.importedChip}</p>
       ) : null}
       <section aria-busy={current.isLoading || comparison.isLoading} className={grid}>
         {shown.map(card)}

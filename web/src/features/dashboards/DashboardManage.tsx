@@ -39,7 +39,7 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew, n
   return (
     <div className="flex flex-wrap items-center gap-2">
       {currentId !== undefined ? (
-        <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={() => onEdit(currentId)}>
+        <Button className="max-sm:min-h-11" size="sm" type="button" variant="ghost" onClick={() => onEdit(currentId)}>
           <PencilIcon />{t.edit}
         </Button>
       ) : null}

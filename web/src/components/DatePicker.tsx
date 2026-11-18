@@ -99,7 +99,7 @@ export function DatePicker({ search, dateRange, labels, onChange, showCompare = 
     <div className="-m-1 flex max-w-full min-w-0 items-center gap-2 overflow-x-auto p-1 [&>*]:shrink-0">
       <Popover>
         <PopoverTrigger asChild>
-          <Button aria-label={`${en.polish.chooseRange}: ${rangeLabel(search, labels, dateRange)}`} className="max-sm:min-h-11 justify-start" type="button" variant="outline">
+          <Button aria-label={`${en.polish.chooseRange}: ${rangeLabel(search, labels, dateRange)}`} className="max-sm:min-h-11 justify-start" size="sm" type="button" variant="ghost">
             <CalendarDaysIcon data-icon="inline-start" />
             {rangeLabel(search, labels, dateRange)}
           </Button>

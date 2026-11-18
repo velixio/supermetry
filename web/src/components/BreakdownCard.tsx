@@ -105,7 +105,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
   }
 
   return (
-    <section aria-label={title} className="min-w-0 rounded-xl border bg-card text-card-foreground" role="region">
+    <section aria-label={title} className="min-w-0 rounded-lg border bg-card text-card-foreground" role="region">
       <header className="flex min-h-12 items-center justify-between gap-3 border-b px-4 py-1.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <h2 className="shrink-0 truncate text-sm font-medium">{title}</h2>
@@ -178,7 +178,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                         <div className="relative flex min-w-0 items-center gap-1">
                           <button
                             aria-describedby={`${filterDescriptionId}-${index}`}
-                            className="min-w-0 flex-1 rounded-lg px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="h-8 min-w-0 flex-1 rounded-md px-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             type="button"
                             onClick={() => onFilter({
                               dimension: activeTab.dimension,
@@ -222,7 +222,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
               <li key={`${label}:${index}`} className="min-w-0">
                 {label === '' || !allowFilter || placeWithoutCountry ? (
                   <div className={`${topListRowClass} flex w-full min-w-0 items-center gap-1`}>
-                    <div className="relative grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-2 py-2 text-left text-foreground">
+                    <div className="relative grid h-8 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-2 text-left text-foreground">
                       <TopListBar width={width} />
                       <span className="relative flex min-w-0 items-center gap-2 text-sm text-foreground">
                         {icon}
@@ -240,7 +240,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
                   <div className={`${topListRowClass} flex min-w-0 items-center gap-1`}>
                     <button
                       aria-describedby={`${filterDescriptionId}-${index}`}
-                      className="relative grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="relative grid h-8 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md px-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       type="button"
                       onClick={() =>
                         onFilter({

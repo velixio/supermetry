@@ -175,7 +175,7 @@ function WebDashboardStateRoute() {
   if (!site) return <PageContainer><PageHeader title={en.navigation.dashboard} /><p className="sr-only">{en.loadingDashboard}</p></PageContainer>
 
   if (!trackingPolicyKnown(site)) {
-    return <PageContainer><PageHeader title={en.navigation.dashboard} /><section className="rounded-xl border bg-card p-5 space-y-3" role="status">
+    return <PageContainer><PageHeader title={en.navigation.dashboard} /><section className="rounded-lg border bg-card p-5 space-y-3" role="status">
       <h2 className="font-medium">Tracking policy is unavailable</h2>
       <p className="text-sm text-muted-foreground">Reload the policy before opening analytics. No dashboard data has been requested.</p>
       <Button variant="outline" onClick={() => void me.refetch()}>Reload tracking policy</Button>
@@ -183,7 +183,7 @@ function WebDashboardStateRoute() {
   }
   const anonymous = isAnonymousTracking(site)
   if (anonymous && filters.some((filter) => !isAnonymousFilterAllowed(filter))) {
-    return <PageContainer><PageHeader title={en.navigation.dashboard} /><section className="rounded-xl border bg-card p-5 space-y-3" role="status">
+    return <PageContainer><PageHeader title={en.navigation.dashboard} /><section className="rounded-lg border bg-card p-5 space-y-3" role="status">
       <h2 className="font-medium">These filters are unavailable in anonymous mode</h2>
       <p className="text-sm text-muted-foreground">The saved URL includes filters that could reveal identifying data. Clear them to view safe aggregate analytics.</p>
       <Button variant="outline" onClick={() => updateSearch(replaceFilters(search, filters.filter(isAnonymousFilterAllowed)))}>Clear unavailable filters</Button>
@@ -362,7 +362,7 @@ function WebDashboardStateRoute() {
         href={`/app/${org}/${siteSlug}/settings/installation`}
       />
       {edit ? (
-        <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
+        <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
           <DashboardEditor
             anonymous={anonymous}
             base={query}
@@ -378,7 +378,7 @@ function WebDashboardStateRoute() {
           />
         </Suspense>
       ) : dashboardId !== undefined ? (
-        <Suspense fallback={<Skeleton className="h-64 w-full rounded-xl" />}>
+        <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
           <DashboardViewer
             anonymous={anonymous}
             base={query}
@@ -416,7 +416,7 @@ function WebDashboardStateRoute() {
           main={
             <>
               {/* Figures and chart are one block: the figures are the chart's tabs. */}
-              <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs" data-testid="kpi-chart">
+              <div className="overflow-hidden rounded-lg border bg-card text-card-foreground shadow-xs" data-testid="kpi-chart">
               <StatsStrip
                 query={query}
                 compare={search.compare}
@@ -458,7 +458,7 @@ function WebDashboardStateRoute() {
               />
               </div>
               <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
-                <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
+                <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-lg" />}>
                   <DashboardBelowFold
                     allowedHosts={site.allowed_hosts}
                     anonymous={anonymous}

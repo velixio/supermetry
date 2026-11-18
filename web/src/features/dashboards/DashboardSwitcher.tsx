@@ -52,7 +52,7 @@ export function DashboardSwitcher({ siteId, value, onChange, onDefault, canWrite
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button aria-label={`${dashboardView.switcher.trigger}: ${currentName}`} className="max-sm:min-h-11 max-sm:shrink min-w-0 max-w-full justify-between gap-1.5 px-2.5 text-muted-foreground hover:text-foreground data-[state=open]:text-foreground sm:min-h-9 sm:max-w-64" type="button" variant="ghost">
+        <Button aria-label={`${dashboardView.switcher.trigger}: ${currentName}`} className="max-sm:min-h-11 max-sm:shrink min-w-0 max-w-full justify-between gap-1.5 px-2 text-muted-foreground hover:text-foreground data-[state=open]:text-foreground sm:max-w-64" size="sm" type="button" variant="ghost">
           <LayoutDashboardIcon aria-hidden="true" className="sm:hidden" />
           <span className="truncate max-sm:sr-only">{currentName}</span>
           <ChevronDownIcon aria-hidden="true" className="shrink-0 max-sm:hidden" />
