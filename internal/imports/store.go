@@ -28,6 +28,7 @@ const (
 	SourceGA4       Source = "ga4"
 	SourceMixpanel  Source = "mixpanel"
 	SourceAmplitude Source = "amplitude"
+	SourceMatomo    Source = "matomo"
 )
 
 type Status string
@@ -52,6 +53,10 @@ type Import struct {
 	CreatedBy   *int64     `json:"created_by"`
 	CreatedAt   time.Time  `json:"created_at"`
 	CompletedAt *time.Time `json:"completed_at"`
+	// Method and Progress are set only for pull imports (data fetched from
+	// another service's API); file imports leave them empty.
+	Method   string    `json:"method,omitempty"`
+	Progress *Progress `json:"progress,omitempty"`
 }
 
 type CreateInput struct {
@@ -105,7 +110,8 @@ func (s *Store) Create(ctx context.Context, input CreateInput) (Import, error) {
 		insert into imports(site_id,source,file_name,created_by,file_hash,replace_existing)
 		values ($1,$2,$3,$4,$5,$6)
 		returning id,site_id,source,status,file_name,date_from,date_to,rows,error,
-		          created_by,created_at,completed_at`,
+		          created_by,created_at,completed_at,
+		          null::text,null::int,null::int,null::bigint,null::bigint,null::date,null::timestamptz`,
 		input.SiteID, input.Source, input.FileName, input.CreatedBy, hash, input.Replace)
 	created, err := scanImport(row)
 	if err != nil {
@@ -119,9 +125,8 @@ func (s *Store) Create(ctx context.Context, input CreateInput) (Import, error) {
 
 func (s *Store) Get(ctx context.Context, id int64) (Import, error) {
 	value, err := scanImport(s.pool.QueryRow(ctx, `
-		select id,site_id,source,status,file_name,date_from,date_to,rows,error,
-		       created_by,created_at,completed_at
-		from imports where id=$1`, id))
+		select `+importColumns+`
+		from imports i left join import_pulls p on p.import_id=i.id where i.id=$1`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Import{}, ErrNotFound
 	}
@@ -130,9 +135,9 @@ func (s *Store) Get(ctx context.Context, id int64) (Import, error) {
 
 func (s *Store) List(ctx context.Context, siteID int32) ([]Import, error) {
 	rows, err := s.pool.Query(ctx, `
-		select id,site_id,source,status,file_name,date_from,date_to,rows,error,
-		       created_by,created_at,completed_at
-		from imports where site_id=$1 order by created_at desc,id desc`, siteID)
+		select `+importColumns+`
+		from imports i left join import_pulls p on p.import_id=i.id
+		where i.site_id=$1 order by i.created_at desc,i.id desc`, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -197,6 +202,10 @@ func (s *Store) SetFailed(ctx context.Context, id int64, cause error) error {
 	if err != nil {
 		return err
 	}
+	// A failed pull never resumes, so its stored credentials are dropped.
+	if _, err := s.pool.Exec(ctx, `update import_pulls set credentials=null where import_id=$1`, id); err != nil {
+		return err
+	}
 	if tag.RowsAffected() != 1 {
 		return ErrNotFound
 	}
@@ -222,14 +231,17 @@ func (s *Store) ImportLocation(ctx context.Context, id int64) (*time.Location, e
 	return location, nil
 }
 
-// FailRunningAtStartup marks imports a previous process left pending or
+// FailRunningAtStartup marks file imports a previous process left pending or
 // running as failed: their jobs lived only in that process's in-memory queue.
+// Pull imports are skipped because they resume from their stored cursor (see
+// RecoverInterruptedPulls).
 // It assumes a single application instance; a second instance starting while
 // another is importing would mark that live import failed.
 func (s *Store) FailRunningAtStartup(ctx context.Context) error {
 	_, err := s.pool.Exec(ctx, `
 		update imports set status='failed',error='import interrupted by server restart',completed_at=now()
-		where status in ('pending','running')`)
+		where status in ('pending','running')
+		  and not exists (select 1 from import_pulls p where p.import_id=imports.id)`)
 	return err
 }
 
@@ -274,40 +286,11 @@ func (s *Store) Complete(ctx context.Context, id int64, aggregate Aggregate, sta
 		return err
 	}
 
-	days := sortedDays(aggregate.Days)
-	affectedDays = append(affectedDays, days...)
-	if len(days) > 0 {
-		_, err = tx.CopyFrom(ctx, pgx.Identifier{"imported_day"},
-			[]string{"site_id", "import_id", "day", "visitors", "visits", "pageviews", "bounces", "visit_duration_s"},
-			pgx.CopyFromSlice(len(days), func(index int) ([]any, error) {
-				day := days[index]
-				metrics := aggregate.Days[day]
-				return []any{siteID, id, day, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS}, nil
-			}))
-		if err != nil {
-			return fmt.Errorf("copy imported days: %w", err)
-		}
+	inserted, err := insertAggregate(ctx, tx, siteID, id, aggregate)
+	if err != nil {
+		return err
 	}
-	dimensions := sortedDimensions(aggregate.Dimensions)
-	for _, key := range dimensions {
-		affectedDays = append(affectedDays, key.Day)
-	}
-	if len(dimensions) > 0 {
-		_, err = tx.CopyFrom(ctx, pgx.Identifier{"imported_day_dim"},
-			[]string{"site_id", "import_id", "day", "dim", "value", "visitors", "visits", "pageviews", "bounces", "visit_duration_s", "events"},
-			pgx.CopyFromSlice(len(dimensions), func(index int) ([]any, error) {
-				key := dimensions[index]
-				metrics := aggregate.Dimensions[key]
-				dim, value := key.Dim, key.Value
-				if dim == DimEvent {
-					dim, value = DimPage, EventValuePrefix+value
-				}
-				return []any{siteID, id, key.Day, dim, value, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS, metrics.Events}, nil
-			}))
-		if err != nil {
-			return fmt.Errorf("copy imported dimensions: %w", err)
-		}
-	}
+	affectedDays = append(affectedDays, inserted...)
 	from, to := aggregateRange(aggregate)
 	var warning *string
 	if stats.BadRows > 0 {
@@ -392,12 +375,37 @@ func (s *Store) invalidate(siteID int32) {
 	}
 }
 
+// importColumns lists the imports columns plus the pull progress columns of
+// the left-joined import_pulls row (aliases i and p).
+const importColumns = `i.id,i.site_id,i.source,i.status,i.file_name,i.date_from,i.date_to,i.rows,i.error,
+	i.created_by,i.created_at,i.completed_at,
+	p.method,p.total_days,p.done_days,p.rows_done,p.bad_rows,p.cursor_day,p.updated_at`
+
 func scanImport(row pgx.Row) (Import, error) {
 	var value Import
+	var method *string
+	var total, done *int32
+	var rows, bad *int64
+	var cursor, updated *time.Time
 	err := row.Scan(&value.ID, &value.SiteID, &value.Source, &value.Status, &value.FileName,
 		&value.DateFrom, &value.DateTo, &value.Rows, &value.Error, &value.CreatedBy,
-		&value.CreatedAt, &value.CompletedAt)
-	return value, err
+		&value.CreatedAt, &value.CompletedAt, &method, &total, &done, &rows, &bad, &cursor, &updated)
+	if err != nil {
+		return value, err
+	}
+	if method != nil {
+		value.Method = *method
+		progress := Progress{TotalDays: int(*total), DoneDays: int(*done), Rows: *rows, BadRows: *bad}
+		if cursor != nil {
+			text := cursor.Format(time.DateOnly)
+			progress.CursorDay = &text
+		}
+		if updated != nil {
+			progress.UpdatedAt = *updated
+		}
+		value.Progress = &progress
+	}
+	return value, nil
 }
 
 func sortedDays(values map[time.Time]Metrics) []time.Time {
@@ -446,4 +454,46 @@ func aggregateRange(aggregate Aggregate) (*time.Time, *time.Time) {
 		return nil, nil
 	}
 	return &from, &to
+}
+
+// insertAggregate copies an aggregate into the import tables inside tx and
+// returns every day it touched. It is the single place that maps the logical
+// event dimension onto the stored layout, shared by file and pull imports.
+func insertAggregate(ctx context.Context, tx pgx.Tx, siteID int32, id int64, aggregate Aggregate) ([]time.Time, error) {
+	var affected []time.Time
+	days := sortedDays(aggregate.Days)
+	affected = append(affected, days...)
+	if len(days) > 0 {
+		_, err := tx.CopyFrom(ctx, pgx.Identifier{"imported_day"},
+			[]string{"site_id", "import_id", "day", "visitors", "visits", "pageviews", "bounces", "visit_duration_s"},
+			pgx.CopyFromSlice(len(days), func(index int) ([]any, error) {
+				day := days[index]
+				metrics := aggregate.Days[day]
+				return []any{siteID, id, day, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS}, nil
+			}))
+		if err != nil {
+			return nil, fmt.Errorf("copy imported days: %w", err)
+		}
+	}
+	dimensions := sortedDimensions(aggregate.Dimensions)
+	for _, key := range dimensions {
+		affected = append(affected, key.Day)
+	}
+	if len(dimensions) > 0 {
+		_, err := tx.CopyFrom(ctx, pgx.Identifier{"imported_day_dim"},
+			[]string{"site_id", "import_id", "day", "dim", "value", "visitors", "visits", "pageviews", "bounces", "visit_duration_s", "events"},
+			pgx.CopyFromSlice(len(dimensions), func(index int) ([]any, error) {
+				key := dimensions[index]
+				metrics := aggregate.Dimensions[key]
+				dim, value := key.Dim, key.Value
+				if dim == DimEvent {
+					dim, value = DimPage, EventValuePrefix+value
+				}
+				return []any{siteID, id, key.Day, dim, value, metrics.Visitors, metrics.Visits, metrics.Pageviews, metrics.Bounces, metrics.VisitDurationS, metrics.Events}, nil
+			}))
+		if err != nil {
+			return nil, fmt.Errorf("copy imported dimensions: %w", err)
+		}
+	}
+	return affected, nil
 }
