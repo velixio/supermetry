@@ -63,7 +63,9 @@ func newExportEnv(t *testing.T) (http.Handler, int64, int64) {
 	registry := sitesvc.NewRegistry(data, time.Hour)
 	t.Cleanup(registry.Close)
 	now := func() time.Time { return time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC) }
-	member := func(n string, r authz.Role, org int64) authz.Principal { return authz.Principal{UserID: ids[n], OrgID: org, Role: r} }
+	member := func(n string, r authz.Role, org int64) authz.Principal {
+		return authz.Principal{UserID: ids[n], OrgID: org, Role: r}
+	}
 	handler := platformhttp.New(platformhttp.Deps{
 		Authenticator: actorAuthenticator{
 			"owner": member("owner", authz.RoleOwner, org1), "admin": member("admin", authz.RoleAdmin, org1),
