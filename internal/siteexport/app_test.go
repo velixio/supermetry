@@ -151,8 +151,8 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 		}
 	}
 	check("app_issues.csv", [][]string{
-		{"issue_id", "title", "culprit", "level", "status", "kind", "error_type", "first_seen", "last_seen", "occurrences", "first_release", "last_release", "resolved_in_release", "priority", "assignee_id", "github_url"},
-		{"1", "Boom: =cmd", "app.js", "error", "open", "crash", "TypeError", "2026-10-01T10:00:00.000Z", "2026-10-02T11:00:00.000Z", "3", "1.0.0", "1.1.0", "", "medium", "", ""},
+		{"issue_id", "title", "culprit", "level", "status", "kind", "error_type", "first_seen", "last_seen", "occurrences", "first_release", "last_release", "resolved_in_release", "priority", "assignee_id", "github_url", "merged_into"},
+		{"1", "Boom: =cmd", "app.js", "error", "open", "crash", "TypeError", "2026-10-01T10:00:00.000Z", "2026-10-02T11:00:00.000Z", "3", "1.0.0", "1.1.0", "", "medium", "", "", ""},
 	})
 	check("app_issue_activity.csv", [][]string{
 		{"activity_id", "issue_id", "at", "kind", "actor_id", "data"},

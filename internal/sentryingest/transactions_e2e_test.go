@@ -43,7 +43,7 @@ var txE2ECases = []txE2E{
 	}},
 	{file: "javascript-static", trace: e2eTrace, name: "/users/*", spans: 4, tree: []string{
 		"0 pageload",
-		"1 browser.request GET /users/1234",
+		"1 browser.request GET /users/*",
 		"1 resource.script https://app.example.com/assets/index-3f2a9c.js",
 		"1 http.client GET https://api.example.com/v1/me",
 	}},
@@ -128,12 +128,9 @@ values($1,1,'appsite00042','App','UTC',30,'app')`, fdSite); err != nil {
 
 			e := newEnv(t)
 			e.h.WithSpans(w, spans.NewBudget(60000))
-			// The same envelope twice: a retried transaction is stored once
-			// (span containers have no event id, so those are sent once).
-			sends := 1
-			if !strings.Contains(c.file, "v11") {
-				sends = 2
-			}
+			// The same envelope twice: a retried transaction (event id) or span
+			// container (per-span keys) is stored once and counted once.
+			sends := 2
 			for i := 0; i < sends; i++ {
 				var hdr map[string]string
 				if len(raw) > 2 && raw[0] == 0x1f && raw[1] == 0x8b {

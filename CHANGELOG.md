@@ -6,6 +6,10 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Fixed
+
+- The app project export now carries the data App Monitoring added later: `app_issues.csv` gains `merged_into`, event attachments come as `app_event_attachments.csv` with their bytes under `app_attachments/`, and `metric_hourly.csv` holds the hourly metric rollups (`metric_series.csv` gains the histogram `bounds`). See [Exporting your data](docs/guide/apps.md#exporting-your-data).
+
 ## v0.1.27 (2026-11-18)
 
 ### Added
