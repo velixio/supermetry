@@ -52,6 +52,7 @@ import { Route as AppOrgSiteRetentionRouteImport } from './routes/app.$org.$site
 import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.revenue'
 import { Route as AppOrgSiteSessionsRouteImport } from './routes/app.$org.$site.sessions'
 import { Route as AppOrgSiteSettingsRouteImport } from './routes/app.$org.$site.settings'
+import { Route as AppOrgSiteUsersRouteImport } from './routes/app.$org.$site.users'
 import { Route as AppOrgSiteVitalsRouteImport } from './routes/app.$org.$site.vitals'
 import { Route as AppOrgGithubStarsIndexRouteImport } from './routes/app.$org.github-stars.index'
 import { Route as AppOrgSettingsIndexRouteImport } from './routes/app.$org.settings.index'
@@ -306,6 +307,11 @@ const AppOrgSiteSessionsRoute = AppOrgSiteSessionsRouteImport.update({
 const AppOrgSiteSettingsRoute = AppOrgSiteSettingsRouteImport.update({
   id: '/$site/settings',
   path: '/$site/settings',
+  getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteUsersRoute = AppOrgSiteUsersRouteImport.update({
+  id: '/$site/users',
+  path: '/$site/users',
   getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgSiteVitalsRoute = AppOrgSiteVitalsRouteImport.update({
@@ -568,6 +574,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -650,6 +657,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -736,6 +744,7 @@ export interface FileRoutesById {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -823,6 +832,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -905,6 +915,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -990,6 +1001,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -1347,6 +1359,13 @@ declare module '@tanstack/react-router' {
       path: '/$site/settings'
       fullPath: '/app/$org/$site/settings'
       preLoaderRoute: typeof AppOrgSiteSettingsRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/users': {
+      id: '/app/$org/$site/users'
+      path: '/$site/users'
+      fullPath: '/app/$org/$site/users'
+      preLoaderRoute: typeof AppOrgSiteUsersRouteImport
       parentRoute: typeof AppOrgRoute
     }
     '/app/$org/$site/vitals': {
@@ -1723,6 +1742,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteRevenueRoute: typeof AppOrgSiteRevenueRoute
   AppOrgSiteSessionsRoute: typeof AppOrgSiteSessionsRoute
   AppOrgSiteSettingsRoute: typeof AppOrgSiteSettingsRouteWithChildren
+  AppOrgSiteUsersRoute: typeof AppOrgSiteUsersRoute
   AppOrgSiteVitalsRoute: typeof AppOrgSiteVitalsRoute
   AppOrgSitesNewRoute: typeof AppOrgSitesNewRoute
   AppOrgSiteIndexRoute: typeof AppOrgSiteIndexRoute
@@ -1758,6 +1778,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteRevenueRoute: AppOrgSiteRevenueRoute,
   AppOrgSiteSessionsRoute: AppOrgSiteSessionsRoute,
   AppOrgSiteSettingsRoute: AppOrgSiteSettingsRouteWithChildren,
+  AppOrgSiteUsersRoute: AppOrgSiteUsersRoute,
   AppOrgSiteVitalsRoute: AppOrgSiteVitalsRoute,
   AppOrgSitesNewRoute: AppOrgSitesNewRoute,
   AppOrgSiteIndexRoute: AppOrgSiteIndexRoute,
