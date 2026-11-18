@@ -56,4 +56,11 @@ describe('IssuesTable', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     await waitFor(() => expect(issueCalls().some((path) => path.includes('offset=50'))).toBe(true))
   })
+
+  it('filters by Electron process through the search query', async () => {
+    renderWithQuery(<Harness initial={parseAppIssuesSearch({ process: 'renderer', query: 'level:fatal' })} />)
+    await screen.findByRole('link', { name: 'Segfault in renderer' })
+    expect(new URLSearchParams(issueCalls()[0].split('?')[1]).get('query')).toBe('level:fatal process:renderer')
+    expect(screen.getByRole('combobox', { name: 'Process' })).toBeInTheDocument()
+  })
 })

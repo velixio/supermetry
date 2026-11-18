@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { appQuery, parseAppIssuesSearch, parseAppSearch } from './search'
+import { appQuery, issueSearchQuery, parseAppIssuesSearch, parseAppSearch } from './search'
 
 describe('app search', () => {
   it('defaults and drops invalid values', () => {
@@ -19,5 +19,18 @@ describe('issue query parameter', () => {
     expect(parseAppIssuesSearch({ query: 'a'.repeat(300) }).query).toHaveLength(200)
     expect(parseAppIssuesSearch({ query: '' }).query).toBeUndefined()
     expect(parseAppIssuesSearch({ query: 7 }).query).toBeUndefined()
+  })
+})
+
+describe('process filter', () => {
+  it('keeps only known Electron process types and never sends them as a parameter', () => {
+    expect(parseAppSearch({ process: 'renderer' }).process).toBe('renderer')
+    expect(parseAppSearch({ process: 'nope' }).process).toBeUndefined()
+    expect(appQuery({ period: '7d', process: 'main' }, 'UTC', {}, new Date('2026-11-15T12:00:00Z')).toString()).toBe('from=2026-11-09&to=2026-11-15')
+  })
+  it('appends a process term to the issue search text', () => {
+    expect(issueSearchQuery({})).toBeUndefined()
+    expect(issueSearchQuery({ process: 'gpu' })).toBe('process:gpu')
+    expect(issueSearchQuery({ query: ' is:unresolved ', process: 'main' })).toBe('is:unresolved process:main')
   })
 })

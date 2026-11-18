@@ -67,7 +67,7 @@ func Compile(q Query, now time.Time, me int64, lookupMember func(email string) (
 			}
 		case "priority":
 			c = "i.priority = " + arg(t.Value)
-		case "release", "environment", "platform", "level":
+		case "release", "environment", "platform", "process", "level":
 			k, v := arg(t.Key), arg(t.Value)
 			c = "exists (select 1 from app_issue_tags t where t.issue_id = i.id and t.key = " + k + " and t.value = " + v + ")"
 		case "events", "users":

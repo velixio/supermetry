@@ -46,7 +46,7 @@ func (d *Dump) parseSystemInfo(s []byte) error {
 	case archARM64, archARM64Old:
 		d.CPU = "arm64"
 	}
-	switch le.Uint32(s[24:]) {
+	switch le.Uint32(s[20:]) { // PlatformId follows the 4-byte build number
 	case platWindowsNT:
 		d.OS = "windows"
 	case platMac:
