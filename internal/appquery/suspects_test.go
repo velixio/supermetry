@@ -65,6 +65,47 @@ func TestMatchSuspectsSegmentBoundaryAndTies(t *testing.T) {
 	}
 }
 
+func TestSuspectCommitsRespectReleaseSites(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	exec := func(sql string, args ...any) {
+		t.Helper()
+		if _, err := e.f.Pool.Exec(ctx, sql, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.scope.OrgID = 1
+	exec(`insert into sites(id,org_id,public_id,name,timezone,retention_class,kind) overriding system value values(8,1,'appfix000002','B','UTC',90,'app')`)
+	id := e.f.Issues["I2"]
+	exec(`update app_issues set first_release='1.0' where id=$1`, id)
+	var rel, repo, c int64
+	if err := e.f.Pool.QueryRow(ctx, `insert into app_releases(org_id,version,site_ids) values(1,'1.0','{8}') returning id`).Scan(&rel); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.f.Pool.QueryRow(ctx, `insert into app_repositories(org_id,name) values(1,'acme/app') returning id`).Scan(&repo); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.f.Pool.QueryRow(ctx, `insert into app_commits(org_id,repository_id,sha,message,author_name) values(1,$1,'abc1234','fix pay','Dev') returning id`, repo).Scan(&c); err != nil {
+		t.Fatal(err)
+	}
+	exec(`insert into app_commit_files(commit_id,path) values($1,'src/pay.ts')`, c)
+	exec(`insert into app_release_commits(release_id,commit_id,position) values($1,$2,0)`, rel, c)
+	det, err := e.q.Issue(ctx, e.scope, id, full())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := det.LatestEvents[0]
+	exec(`insert into app_event_bodies(site_id,ts,event_id,body) values($1,$2,$3,$4)`, e.f.SiteID, ev.TS, ev.EventID,
+		`{"exceptions":[{"frames":[{"filename":"app:///src/pay.ts","in_app":true}]}]}`)
+	if det, err = e.q.Issue(ctx, e.scope, id, full()); err != nil || len(det.SuspectCommits) != 0 {
+		t.Fatalf("release of another site leaked commits: %+v %v", det.SuspectCommits, err)
+	}
+	exec(`update app_releases set site_ids='{}' where id=$1`, rel)
+	if det, err = e.q.Issue(ctx, e.scope, id, full()); err != nil || len(det.SuspectCommits) != 1 {
+		t.Fatalf("org-wide release suspects = %+v %v", det.SuspectCommits, err)
+	}
+}
+
 func TestIssueDetailIntroducedIn(t *testing.T) {
 	e := setup(t)
 	ctx := context.Background()

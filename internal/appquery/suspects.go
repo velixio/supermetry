@@ -207,7 +207,7 @@ where d.org_id = $1 and r.version = $2
 	}
 	var has bool
 	if err := q.pool.QueryRow(ctx, `select exists (select 1 from app_releases r join app_release_commits rc on rc.release_id = r.id
-where r.org_id = $1 and r.version = $2)`, scope.OrgID, d.FirstRelease).Scan(&has); err != nil || !has {
+where r.org_id = $1 and r.version = $2 and (cardinality(r.site_ids) = 0 or $3 = any(r.site_ids)))`, scope.OrgID, d.FirstRelease, scope.SiteID).Scan(&has); err != nil || !has {
 		return err
 	}
 	ev, err := q.Event(ctx, scope, d.LatestEvents[0].EventID)
@@ -217,7 +217,7 @@ where r.org_id = $1 and r.version = $2)`, scope.OrgID, d.FirstRelease).Scan(&has
 		}
 		return err
 	}
-	commits, err := q.loadCommits(ctx, scope.OrgID, d.FirstRelease, suspectCommitCap)
+	commits, err := q.loadCommits(ctx, scope, d.FirstRelease, suspectCommitCap)
 	if err != nil {
 		return err
 	}
@@ -236,15 +236,15 @@ type CommitRef struct {
 
 // loadCommits returns up to limit commits of an org's release, newest first
 // (payload order), each with at most 1,000 changed paths.
-func (q *Querier) loadCommits(ctx context.Context, orgID int64, version string, limit int) ([]CommitRef, error) {
+func (q *Querier) loadCommits(ctx context.Context, scope Scope, version string, limit int) ([]CommitRef, error) {
 	rows, err := q.pool.Query(ctx, `
 select c.id, c.sha, r.name, c.message, c.author_name, c.committed_at
 from app_releases rel
 join app_release_commits rc on rc.release_id = rel.id
 join app_commits c on c.id = rc.commit_id
 join app_repositories r on r.id = c.repository_id
-where rel.org_id = $1 and rel.version = $2
-order by rc.position limit $3`, orgID, version, limit)
+where rel.org_id = $1 and rel.version = $2 and (cardinality(rel.site_ids) = 0 or $4 = any(rel.site_ids))
+order by rc.position limit $3`, scope.OrgID, version, limit, scope.SiteID)
 	if err != nil {
 		return nil, err
 	}
