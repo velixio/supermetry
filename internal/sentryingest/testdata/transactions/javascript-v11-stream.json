@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.javascript/fixture,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.javascript/fixture"
+  },
+  "sdk": "javascript",
+  "sdk_version": "",
+  "synthetic": true,
+  "notes": "SYNTHETIC. Span v2 container (default traceLifecycle 'stream' in v11). Item shape per JS/core/src/tracing/spans/envelope.ts as summarised in the research notes; the per-span field names are INFERRED from the protocol, not captured."
+}

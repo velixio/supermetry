@@ -16,6 +16,7 @@ import (
 	"supermetry/internal/dropstats"
 	"supermetry/internal/salts"
 	"supermetry/internal/sites"
+	"supermetry/internal/spans"
 )
 
 // NormaliseFunc turns the JSON of one Sentry event item into the narrow
@@ -64,7 +65,21 @@ type Handler struct {
 	ips       *ipLimiter
 	inflight  chan struct{}
 	localhost bool // drop events raised on localhost (off by default)
+	spans     SpanSink
+	budget    *spans.Budget
+	names     *spans.NameCaps
 }
+
+// SpanSink takes parsed spans for storage; Enqueue is all or nothing and
+// reports false when the queue cannot take the whole batch. *spans.Writer is
+// the production one.
+type SpanSink interface {
+	Enqueue([]spans.Span) bool
+}
+
+// MaxTransactionNames is the per-site per-local-day cap on distinct
+// transaction names; further names are stored as "<other>".
+const MaxTransactionNames = 1000
 
 // NewHandler builds the front door. bodies, geo and now may be nil.
 func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueue, geo GeoLookup, trusted []netip.Prefix, now func() time.Time) *Handler {
@@ -74,6 +89,27 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 	return &Handler{sites: reg, intake: intake, bodies: bodies, geo: geo, trusted: trusted, now: now,
 		spike: newSpikeGuard(DefaultSpikePerMinute), stats: &Stats{}, normalise: Normalise,
 		ips: newIPLimiter(DefaultIPPerMinute), inflight: make(chan struct{}, DefaultMaxInflight)}
+}
+
+// WithSpans turns performance ingest on: transaction items and span v2
+// containers go to sink, limited by budget (nil budget = unlimited). Without
+// it, or for a project with performance off, they are counted and dropped and
+// the SDK is told they are not supported.
+func (h *Handler) WithSpans(sink SpanSink, budget *spans.Budget) *Handler {
+	h.spans, h.budget = sink, budget
+	if h.names == nil {
+		h.names = spans.NewNameCaps(MaxTransactionNames)
+	}
+	return h
+}
+
+// perfOn reports whether this handler stores spans for the site; the site's
+// performance_enabled setting defaults to on.
+func (h *Handler) perfOn(site sites.Site) bool {
+	if h.spans == nil {
+		return false
+	}
+	return site.App == nil || site.App.PerformanceEnabled == nil || *site.App.PerformanceEnabled
 }
 
 // WithClientReports sets where client-report counts go; nil discards them.
@@ -321,10 +357,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, http.StatusServiceUnavailable, "ingest queue full")
 	case out.accepted == 0 && out.rateLimited > 0:
 		hdr.Set("Retry-After", "60")
-		hdr.Set("X-Sentry-Rate-Limits", budgetLimits)
+		if out.rateLimited == out.spanLimited {
+			hdr.Set("X-Sentry-Rate-Limits", spanLimits)
+		} else {
+			hdr.Set("X-Sentry-Rate-Limits", budgetLimits)
+		}
 		h.fail(w, http.StatusTooManyRequests, "rate limited")
 	default:
-		hdr.Set("X-Sentry-Rate-Limits", rejectUnsupported)
+		limits := unsupportedLimits(h.perfOn(site))
+		if out.spanLimited > 0 {
+			limits += "," + spanLimits
+		}
+		hdr.Set("X-Sentry-Rate-Limits", limits)
 		if out.eventID != "" {
 			writeJSON(w, http.StatusOK, `{"id":`+strconv.Quote(out.eventID)+`}`)
 		} else {
@@ -335,6 +379,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type outcome struct {
 	accepted, rateLimited, queueFull int
+	spanLimited                      int // items over the span budget (also counted in rateLimited when nothing fit)
 	eventID                          string
 }
 
@@ -369,8 +414,24 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 		}
 	}
 	prep := h.prepareAttachments(env.Items)
+	perf := h.perfOn(site)
 	for _, it := range env.Items {
 		switch it.Type {
+		case "transaction":
+			if !perf {
+				h.stats.Add("item:transaction", 1)
+				continue
+			}
+			if out.eventID == "" {
+				out.eventID = env.Header.EventID
+			}
+			h.ingestSpans(&out, site, it, ctx, now, env.Header.EventID, parseTransaction)
+		case "span":
+			if !perf || !strings.HasPrefix(it.ContentType, "application/vnd.sentry.items.span.v2") {
+				h.stats.Add("item:span", 1)
+				continue
+			}
+			h.ingestSpans(&out, site, it, ctx, now, "", parseSpanV2)
 		case "event":
 			if out.eventID == "" {
 				out.eventID = env.Header.EventID

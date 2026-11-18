@@ -533,7 +533,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
 			Disk: debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
 		})
-		sentryHandler.WithSymbolicator(symbolicator)
+		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
 		sentryHandler.WithSessions(appSessions)
 		sentryIngest = sentryHandler

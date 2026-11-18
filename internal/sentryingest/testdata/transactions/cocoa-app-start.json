@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.cocoa/fixture,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.cocoa/fixture"
+  },
+  "sdk": "cocoa",
+  "sdk_version": "",
+  "synthetic": true,
+  "notes": "SYNTHETIC. Warm app start transaction with measurements.app_start_warm = 0.62 s (the unit is converted to 620 ms)."
+}
