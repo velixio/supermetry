@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps envelope-bench bench-otlp-metrics bench bench-full bench-compare
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps sdk-compat-debugfiles envelope-bench bench-otlp-metrics bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -25,6 +25,11 @@ sdk-compat:
 # Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat-sourcemaps
 sdk-compat-sourcemaps:
 	bash tools/sentry-fixtures/live/sourcemaps.sh
+
+# Live debug file upload acceptance (sentry-cli 3.8.2 with the Gradle plugin and Xcode build phase command lines).
+# Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat-debugfiles
+sdk-compat-debugfiles:
+	bash tools/sentry-fixtures/live/debugfiles.sh
 
 # Sentry envelope endpoint load test: ENVELOPE_BENCH_MINUTES=5 make envelope-bench
 envelope-bench:
