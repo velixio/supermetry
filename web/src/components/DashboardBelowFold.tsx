@@ -45,6 +45,7 @@ export function DashboardBelowFold({
       query={page ? { ...query, includeImported: false } : query}
       onFilter={onFilter}
       inspect={inspect}
+      allowedHosts={allowedHosts}
       allowSearch={!anonymous}
       allowFilter={!page}
       verifiedPaths={page}
