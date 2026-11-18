@@ -451,6 +451,141 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/orgs/{org}/export-schedules:
+    get:
+      operationId: orgListExportSchedules
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      summary: List scheduled exports to S3-compatible storage
+      description: Owners and admins only. The secret is never returned; secret_set says whether one is stored. Sensitive; the step-up re-authentication check applies when enabled.
+      responses:
+        '200': { description: Schedules., content: { application/json: { schema: { type: object, required: [schedules], properties: { schedules: { type: array, items: { $ref: '#/components/schemas/ExportSchedule' } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: orgCreateExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      summary: Create a scheduled export
+      description: site_id omitted exports every site of the organization. Endpoints on private or loopback addresses, and plain http, are refused unless the operator sets SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS. First run is at the next 03:00 UTC window; days are the site's closed days.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportScheduleInput' }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/ExportSchedule' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}:
+    patch:
+      operationId: orgUpdateExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Change a scheduled export
+      description: Omitted fields are kept. An empty or omitted secret keeps the stored secret.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportSchedulePatch' }
+      responses:
+        '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/ExportSchedule' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: orgDeleteExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Delete a scheduled export and its history
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}/run:
+    post:
+      operationId: orgRunExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Queue a run now
+      description: The scheduler starts it within a minute. Enabled schedules only.
+      responses:
+        '202': { description: Queued., content: { application/json: { schema: { type: object, properties: { status: { type: string } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}/test:
+    post:
+      operationId: orgTestExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Check the destination by writing and deleting a small object
+      responses:
+        '200': { description: Result; ok false carries the error text., content: { application/json: { schema: { type: object, required: [ok], properties: { ok: { type: boolean }, error: { type: string } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}/runs:
+    get:
+      operationId: orgListExportRuns
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      summary: Run history, newest first
+      responses:
+        '200': { description: Runs., content: { application/json: { schema: { type: object, required: [runs], properties: { runs: { type: array, items: { $ref: '#/components/schemas/ExportRun' } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/settings-export:
+    get:
+      operationId: orgExportSettings
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      summary: Download the organization's settings as a JSON bundle
+      description: Sites, goals, funnels, segments, supported alerts, share-link settings and member emails with roles. No secrets, tokens or channel configuration. Owners and admins only; audited. Sensitive.
+      responses:
+        '200': { description: The bundle (attachment)., content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/settings-import:
+    post:
+      operationId: orgImportSettings
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: dry_run, in: query, schema: { type: boolean }, description: Report what would happen and write nothing. }
+        - { name: invite_members, in: query, schema: { type: boolean }, description: Invite the bundle's members (never owners). Off by default. }
+      summary: Recreate a settings bundle in this organization
+      description: Sites that already exist (same slug, or same name and kind) are left unchanged. Share links and alert rules are never recreated; alerts whose channel is missing arrive disabled. Body up to 8 MiB. Owners and admins only. Sensitive.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Import report., content: { application/json: { schema: { $ref: '#/components/schemas/SettingsImportReport' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/orgs/{org}/github-stars/repos:
     get:
       operationId: orgListGitHubStarsRepos
@@ -5282,6 +5417,103 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    ExportSchedule:
+      type: object
+      required: [id, org_id, site_id, name, frequency, incremental, enabled, endpoint, region, bucket, prefix, access_key_id, secret_set, path_style, next_run_at, last_run_at, last_status, last_error, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        org_id: { type: integer, format: int64 }
+        site_id: { type: [integer, 'null'], format: int32, description: Null means every site of the organization. }
+        name: { type: string }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        incremental: { type: boolean, description: After the first full export only new days are written. }
+        enabled: { type: boolean }
+        endpoint: { type: string }
+        region: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        access_key_id: { type: string }
+        secret_set: { type: boolean }
+        path_style: { type: boolean }
+        next_run_at: { type: string, format: date-time }
+        last_run_at: { type: [string, 'null'], format: date-time }
+        last_status: { type: [string, 'null'], enum: [succeeded, failed, skipped, null] }
+        last_error: { type: string }
+        created_at: { type: string, format: date-time }
+    ExportScheduleInput:
+      type: object
+      required: [name, frequency, endpoint, region, bucket, access_key_id, secret]
+      properties:
+        name: { type: string, maxLength: 80 }
+        site_id: { type: [integer, 'null'], format: int32 }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        incremental: { type: boolean, description: Defaults to true. }
+        endpoint: { type: string, description: 'Bare https://host[:port], no path.' }
+        region: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        access_key_id: { type: string }
+        secret: { type: string, writeOnly: true }
+        path_style: { type: boolean }
+    ExportSchedulePatch:
+      type: object
+      properties:
+        name: { type: string }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        incremental: { type: boolean }
+        enabled: { type: boolean }
+        endpoint: { type: string }
+        region: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        access_key_id: { type: string }
+        secret: { type: string, writeOnly: true }
+        path_style: { type: boolean }
+    ExportRun:
+      type: object
+      required: [id, schedule_id, site_id, started_at, finished_at, status, from_day, to_day, bytes, object_key, error]
+      properties:
+        id: { type: integer, format: int64 }
+        schedule_id: { type: integer, format: int64 }
+        site_id: { type: [integer, 'null'], format: int32 }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
+        status: { type: string, enum: [running, succeeded, failed, skipped] }
+        from_day: { type: [string, 'null'], format: date }
+        to_day: { type: [string, 'null'], format: date }
+        bytes: { type: integer, format: int64 }
+        object_key: { type: string }
+        error: { type: string }
+    SettingsImportReport:
+      type: object
+      required: [dry_run, sites, members, warnings]
+      properties:
+        dry_run: { type: boolean }
+        sites:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              slug: { type: string }
+              action: { type: string, enum: [create, created, skip_exists, failed] }
+              goals: { type: integer }
+              funnels: { type: integer }
+              segments: { type: integer }
+              alerts: { type: integer }
+              alerts_disabled: { type: integer }
+              share_links_not_recreated: { type: integer }
+              error: { type: string }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: string }
+              role: { type: string }
+              action: { type: string, enum: [listed_only, would_invite, invited, already_member, not_invited, failed] }
+              note: { type: string }
+        warnings: { type: array, items: { type: string } }
     AppSettings:
       type: object
       properties:
