@@ -1306,6 +1306,30 @@ func (e NotificationChannelKind) Valid() bool {
 	}
 }
 
+// Defines values for ObsMetricInfoKind.
+const (
+	Counter   ObsMetricInfoKind = "counter"
+	Gauge     ObsMetricInfoKind = "gauge"
+	Histogram ObsMetricInfoKind = "histogram"
+	Updown    ObsMetricInfoKind = "updown"
+)
+
+// Valid indicates whether the value is a known member of the ObsMetricInfoKind enum.
+func (e ObsMetricInfoKind) Valid() bool {
+	switch e {
+	case Counter:
+		return true
+	case Gauge:
+		return true
+	case Histogram:
+		return true
+	case Updown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OrderByDirection.
 const (
 	Asc  OrderByDirection = "asc"
@@ -3605,6 +3629,7 @@ type DashboardWidget struct {
 	// Config Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
 	// `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
 	// (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+	// `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
 	Config *DashboardWidgetConfig `json:"config,omitempty"`
 
 	// Filters Added to the dashboard filters for this widget.
@@ -3628,7 +3653,10 @@ type DashboardWidget struct {
 // DashboardWidgetConfig Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
 // `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
 // (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+// `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
 type DashboardWidgetConfig struct {
+	Chart *string `json:"chart,omitempty"`
+
 	// Dimension A known query dimension, or prop:<key>.
 	Dimension *string `json:"dimension,omitempty"`
 	FunnelId  *int64  `json:"funnel_id,omitempty"`
@@ -3637,6 +3665,9 @@ type DashboardWidgetConfig struct {
 	// Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 	Metric  *Metric   `json:"metric,omitempty"`
 	Metrics *[]Metric `json:"metrics,omitempty"`
+
+	// Query An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+	Query *ObsMetricWidgetQuery `json:"query,omitempty"`
 }
 
 // DateRange defines model for DateRange.
@@ -4426,6 +4457,70 @@ type NotificationTemplateList struct {
 	Data      []NotificationTemplate `json:"data"`
 	Settings  NotificationSettings   `json:"settings"`
 	Variables []string               `json:"variables"`
+}
+
+// ObsMetricInfo defines model for ObsMetricInfo.
+type ObsMetricInfo struct {
+	AttributeKeys []string          `json:"attribute_keys"`
+	Kind          ObsMetricInfoKind `json:"kind"`
+	Name          string            `json:"name"`
+
+	// Series Distinct attribute combinations.
+	Series int    `json:"series"`
+	Unit   string `json:"unit"`
+}
+
+// ObsMetricInfoKind defines model for ObsMetricInfo.Kind.
+type ObsMetricInfoKind string
+
+// ObsMetricList defines model for ObsMetricList.
+type ObsMetricList struct {
+	Metrics []ObsMetricInfo `json:"metrics"`
+}
+
+// ObsMetricQuery defines model for ObsMetricQuery.
+type ObsMetricQuery struct {
+	Agg string `json:"agg"`
+
+	// Filters Attribute key to exact value; at most 16.
+	Filters *map[string]string `json:"filters,omitempty"`
+	From    time.Time          `json:"from"`
+
+	// GroupBy Up to two attribute keys.
+	GroupBy  *[]string `json:"group_by,omitempty"`
+	Interval string    `json:"interval"`
+	Name     string    `json:"name"`
+	To       time.Time `json:"to"`
+}
+
+// ObsMetricResult defines model for ObsMetricResult.
+type ObsMetricResult struct {
+	Series []ObsMetricSeries `json:"series"`
+}
+
+// ObsMetricSeries defines model for ObsMetricSeries.
+type ObsMetricSeries struct {
+	// Group The group_by attribute values; empty without group_by.
+	Group  map[string]string      `json:"group"`
+	Points []ObsMetricSeriesPoint `json:"points"`
+}
+
+// ObsMetricSeriesPoint defines model for ObsMetricSeriesPoint.
+type ObsMetricSeriesPoint struct {
+	// Ts Start of the bucket.
+	Ts time.Time `json:"ts"`
+
+	// Value Null when the bucket has no value for the aggregation.
+	Value *float32 `json:"value"`
+}
+
+// ObsMetricWidgetQuery An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+type ObsMetricWidgetQuery struct {
+	Agg      string             `json:"agg"`
+	Filters  *map[string]string `json:"filters,omitempty"`
+	GroupBy  *[]string          `json:"group_by,omitempty"`
+	Interval string             `json:"interval"`
+	Name     string             `json:"name"`
 }
 
 // OpenShareRequest defines model for OpenShareRequest.
@@ -6316,6 +6411,9 @@ type BackfillSiteIntegrationJSONRequestBody = IntegrationBackfillRequest
 // ConnectSiteIntegrationJSONRequestBody defines body for ConnectSiteIntegration for application/json ContentType.
 type ConnectSiteIntegrationJSONRequestBody = IntegrationConnectRequest
 
+// QueryObsMetricsJSONRequestBody defines body for QueryObsMetrics for application/json ContentType.
+type QueryObsMetricsJSONRequestBody = ObsMetricQuery
+
 // CreatePixelJSONRequestBody defines body for CreatePixel for application/json ContentType.
 type CreatePixelJSONRequestBody = PixelInput
 
@@ -6393,6 +6491,9 @@ type CreateFunnelJSONRequestBody = SavedFunnelInput
 
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalInput
+
+// QueryObsMetricsPublicJSONRequestBody defines body for QueryObsMetricsPublic for application/json ContentType.
+type QueryObsMetricsPublicJSONRequestBody = ObsMetricQuery
 
 // CreateSegmentJSONRequestBody defines body for CreateSegment for application/json ContentType.
 type CreateSegmentJSONRequestBody = SegmentInput
@@ -7325,6 +7426,12 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+	// ListObsMetrics List the metric names of an app project
+	// (GET /api/private/sites/{site}/obs/metrics)
+	ListObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
+	// QueryObsMetrics Query one metric as time series
+	// (POST /api/private/sites/{site}/obs/metrics/query)
+	QueryObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
 
 	// (GET /api/private/sites/{site}/pixels)
 	ListPixels(w http.ResponseWriter, r *http.Request, site int32)
@@ -7490,6 +7597,12 @@ type ServerInterface interface {
 	// CreateGoal Create a goal
 	// (POST /api/public/v1/sites/{site_id}/goals)
 	CreateGoal(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// ListObsMetricsPublic List the metric names of an app project
+	// (GET /api/public/v1/sites/{site_id}/obs/metrics)
+	ListObsMetricsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// QueryObsMetricsPublic Query one metric as time series
+	// (POST /api/public/v1/sites/{site_id}/obs/metrics/query)
+	QueryObsMetricsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// ListProfiles List identified profiles
 	// (GET /api/public/v1/sites/{site_id}/profiles)
 	ListProfiles(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListProfilesParams)
@@ -13014,6 +13127,58 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
+// ListObsMetrics operation middleware
+func (siw *ServerInterfaceWrapper) ListObsMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsMetrics(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryObsMetrics operation middleware
+func (siw *ServerInterfaceWrapper) QueryObsMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryObsMetrics(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPixels operation middleware
 func (siw *ServerInterfaceWrapper) ListPixels(w http.ResponseWriter, r *http.Request) {
 
@@ -14974,6 +15139,58 @@ func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListObsMetricsPublic operation middleware
+func (siw *ServerInterfaceWrapper) ListObsMetricsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsMetricsPublic(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryObsMetricsPublic operation middleware
+func (siw *ServerInterfaceWrapper) QueryObsMetricsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryObsMetricsPublic(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListProfiles operation middleware
 func (siw *ServerInterfaceWrapper) ListProfiles(w http.ResponseWriter, r *http.Request) {
 
@@ -16326,6 +16543,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.CreateFunnel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.DeleteFunnel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.UpdateFunnel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/metrics", wrapper.ListObsMetricsPublic)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/metrics/query", wrapper.QueryObsMetricsPublic)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.ListSegments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.CreateSegment)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/segments/{segment_id}", wrapper.DeleteSegment)
@@ -16353,6 +16572,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.DeleteAppSavedView)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.UpdateAppSavedView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/metrics", wrapper.ListObsMetrics)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/obs/metrics/query", wrapper.QueryObsMetrics)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.GetAppRules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.ReplaceAppRules)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}", wrapper.GetAppEventAttachment)

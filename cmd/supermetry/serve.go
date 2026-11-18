@@ -537,7 +537,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err != nil {
 		return fmt.Errorf("load metric series: %w", err)
 	}
-	metricWriter := obsmetrics.NewWriter(pool, metricRegistry, obsmetrics.WriterConfig{}, obsmetrics.HealthStats{})
+	metricRollup := obsmetrics.NewRollup(pool, settings.clock.Now)
+	metricWriter := obsmetrics.NewWriter(pool, metricRegistry, obsmetrics.WriterConfig{OnWritten: metricRollup.NoteLate}, obsmetrics.HealthStats{})
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
@@ -691,7 +692,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		storageScanners = append(storageScanners, storageusage.NewReplayScanner(pool, replayStore))
 	}
 	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
-	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
+	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock), metricRollup.Job(registry))
 	jobs = append(jobs, issueWebhookJob(appissues.New(pool, settings.clock.Now), issueWebhookSender{channels: alertService, dispatcher: alertDispatcher}, cfg.BaseURL))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob(), stripeService.RetentionJob())
 	starService.AlertChannels = alertService

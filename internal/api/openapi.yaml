@@ -2607,6 +2607,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/obs/metrics:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listObsMetricsPublic
+      summary: List the metric names of an app project
+      description: Requires the stats:read API-key scope for the requested site, which must be an app project.
+      responses:
+        '200': { description: Metric names, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricList' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/public/v1/sites/{site_id}/obs/metrics/query:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    post:
+      operationId: queryObsMetricsPublic
+      summary: Query one metric as time series
+      description: Same as the private query. Requires the stats:read API-key scope for the requested site.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricQuery' } } }
+      responses:
+        '200': { description: Result series, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/public/v1/sites/{site_id}/segments:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -3105,6 +3135,39 @@ paths:
         unknown event is a 404. Fields can be missing: clients must tolerate that.
       responses:
         '200': { description: Event body, content: { application/json: { schema: { $ref: '#/components/schemas/AppEventBody' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/metrics:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listObsMetrics
+      tags: [Apps]
+      summary: List the metric names of an app project
+      description: Names with kind, unit, series count and attribute keys, read from the series registry. Every member role may read.
+      responses:
+        '200': { description: Metric names, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricList' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/metrics/query:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    post:
+      operationId: queryObsMetrics
+      tags: [Apps]
+      summary: Query one metric as time series
+      description: |
+        Raw points serve ranges up to 48 hours with a 1m or 5m interval; the hourly rollup serves everything else
+        (1m and 5m are then answered as 1h). Hours and days are the site's local hours and days, so a 1d bucket
+        starts at local midnight (including +05:30 and +05:45 zones). At most 50 groups are returned, the rest
+        merged into one group whose attribute values are `other`. A query holds at most 1,500 buckets. `rate` is
+        the sum (counter) or count (histogram) per second; `p50` to `p99` need a histogram.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricQuery' } } }
+      responses:
+        '200': { description: Result series, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/rules:
@@ -5900,6 +5963,60 @@ components:
       nullable: true
       minimum: 0
       maximum: 1
+    ObsMetricInfo:
+      type: object
+      required: [name, kind, unit, series, attribute_keys]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [gauge, counter, updown, histogram] }
+        unit: { type: string }
+        series: { type: integer, description: Distinct attribute combinations. }
+        attribute_keys: { type: array, items: { type: string } }
+    ObsMetricList:
+      type: object
+      required: [metrics]
+      properties:
+        metrics: { type: array, items: { $ref: '#/components/schemas/ObsMetricInfo' } }
+    ObsMetricQuery:
+      type: object
+      additionalProperties: false
+      required: [name, agg, from, to, interval]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        agg: { type: string, x-go-type: string, enum: [avg, sum, min, max, last, rate, p50, p75, p90, p95, p99] }
+        group_by: { type: array, maxItems: 2, items: { type: string, maxLength: 128 }, description: Up to two attribute keys. }
+        filters: { type: object, additionalProperties: { type: string, maxLength: 256 }, description: Attribute key to exact value; at most 16. }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        interval: { type: string, x-go-type: string, enum: ['1m', '5m', '1h', '1d'] }
+    ObsMetricWidgetQuery:
+      type: object
+      additionalProperties: false
+      required: [name, agg, interval]
+      description: An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        agg: { type: string, x-go-type: string, enum: [avg, sum, min, max, last, rate, p50, p75, p90, p95, p99] }
+        group_by: { type: array, maxItems: 2, items: { type: string, maxLength: 128 } }
+        filters: { type: object, additionalProperties: { type: string, maxLength: 256 } }
+        interval: { type: string, x-go-type: string, enum: ['1m', '5m', '1h', '1d'] }
+    ObsMetricSeriesPoint:
+      type: object
+      required: [ts, value]
+      properties:
+        ts: { type: string, format: date-time, description: Start of the bucket. }
+        value: { type: [number, 'null'], description: Null when the bucket has no value for the aggregation. }
+    ObsMetricSeries:
+      type: object
+      required: [group, points]
+      properties:
+        group: { type: object, additionalProperties: { type: string }, description: The group_by attribute values; empty without group_by. }
+        points: { type: array, items: { $ref: '#/components/schemas/ObsMetricSeriesPoint' } }
+    ObsMetricResult:
+      type: object
+      required: [series]
+      properties:
+        series: { type: array, items: { $ref: '#/components/schemas/ObsMetricSeries' } }
     AppOverview:
       type: object
       required: [events, crashes, new_issues, regressed_issues, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, handled_errors, unhandled_errors, health_source, series]
@@ -6973,12 +7090,15 @@ components:
         Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
         `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
         (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+        `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
       properties:
         metric: { $ref: '#/components/schemas/Metric' }
         metrics: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/Metric' } }
         dimension: { type: string, maxLength: 60, description: 'A known query dimension, or prop:<key>.' }
         limit: { type: integer, minimum: 1, maximum: 50 }
         funnel_id: { type: integer, format: int64, minimum: 1 }
+        query: { $ref: '#/components/schemas/ObsMetricWidgetQuery' }
+        chart: { type: string, x-go-type: string, enum: [line, bar] }
     DashboardWidget:
       type: object
       additionalProperties: false
@@ -6986,7 +7106,7 @@ components:
       description: A widget on a 12-column grid. Widgets may be placed in any order; clients reflow overlaps.
       properties:
         id: { type: string, minLength: 1, maxLength: 40, pattern: '^[a-z0-9][a-z0-9_-]*$', description: Unique within the layout. }
-        kind: { type: string, x-go-type: string, enum: [kpi_strip, time_series, breakdown, map, weekly_rhythm, goals, funnel, retention, web_vitals] }
+        kind: { type: string, x-go-type: string, enum: [kpi_strip, time_series, breakdown, map, weekly_rhythm, goals, funnel, retention, web_vitals, obs_metric] }
         title: { type: string, maxLength: 80 }
         x: { type: integer, minimum: 0, maximum: 11 }
         y: { type: integer, minimum: 0, maximum: 199 }
