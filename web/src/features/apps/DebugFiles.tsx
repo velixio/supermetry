@@ -1,3 +1,4 @@
+import { InfoTip } from '@/components/InfoTip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,8 +29,7 @@ export function DebugFiles({ siteId, role }: { siteId: number; role?: string }) 
     <div className="flex min-w-0 flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Missing symbols</CardTitle>
-          <CardDescription>Debug files and ProGuard mappings that recent events needed and no upload covered. A row disappears when the file is uploaded.</CardDescription>
+          <CardTitle>Missing symbols <InfoTip label="About missing symbols">Debug files and ProGuard mappings that recent events needed and no upload covered. A row disappears when the file is uploaded.</InfoTip></CardTitle>
         </CardHeader>
         <CardContent>
           {missing.length === 0 ? <p className="text-sm text-muted-foreground">Nothing is missing.</p> : (

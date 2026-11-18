@@ -9,6 +9,7 @@ import {
   TabletIcon,
 } from 'lucide-react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
@@ -246,8 +247,7 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
         <Card className="overflow-hidden bg-primary/[0.03]" data-testid="live-visitors-card">
           <CardHeader className="sr-only">
-            <CardTitle>Live visitors</CardTitle>
-            <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>
+            <CardTitle>Live visitors <InfoTip label="About live visitors">Visitor counts from the last 5 and 30 minutes.</InfoTip></CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
@@ -296,7 +296,7 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
             {chartPending ? <Skeleton aria-label={`Loading ${chartCopy.title.toLowerCase()}`} className="h-44 w-full" /> : null}
             {chartError ? <ErrorState detail={historical.error?.detail} onRetry={() => void historical.refetch()} /> : null}
             {!chartPending && !chartError && chartPoints.every((point) => point.visitors === 0) ? (
-              <p className="flex h-44 w-full items-center justify-center rounded-md border border-dashed px-4 text-center text-sm text-muted-foreground" data-testid="realtime-empty">
+              <p className="flex h-44 w-full items-center justify-center rounded-md bg-muted/50 px-4 text-center text-sm text-muted-foreground" data-testid="realtime-empty">
                 {en.uiFix.realtimeEmpty}
               </p>
             ) : null}

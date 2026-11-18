@@ -13,7 +13,7 @@ export function ReplayRecordingNotice({ settings, pending, error, onRetry, org, 
 }) {
   if (!pending && !error && settings?.enabled) return null
 
-  const strip = 'flex h-9 items-center gap-2 rounded-md border bg-muted/40 px-3 text-sm'
+  const strip = 'flex h-9 items-center gap-2 rounded-md bg-muted/50 px-3 text-sm'
   const settingsLink = <a className="shrink-0 font-medium underline underline-offset-4" href={`/app/${encodeURIComponent(org)}/${encodeURIComponent(site)}/settings/replay`}>Replay settings</a>
 
   if (pending) return <aside className={strip} aria-label="Recording status"><p role="status" className="min-w-0 flex-1">Loading recording settings…</p>{settingsLink}</aside>
@@ -21,7 +21,7 @@ export function ReplayRecordingNotice({ settings, pending, error, onRetry, org, 
     <div role="alert" className="flex min-w-0 flex-1 items-center gap-2">
       <p className="shrink-0 font-medium">Recording settings could not be loaded.</p>
       <p className="min-w-0 truncate text-muted-foreground" title={error.message}>{error.message}</p>
-      <Button className="ml-auto h-7" variant="outline" size="sm" onClick={onRetry}>Retry recording settings</Button>
+      <Button className="ml-auto h-7" variant="secondary" size="sm" onClick={onRetry}>Retry recording settings</Button>
     </div>
     {settingsLink}
   </aside>

@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react'
+import { InfoTip } from '@/components/InfoTip'
 import { useCapability, AccessDenied } from '@/lib/authorization'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -53,8 +54,7 @@ function ProfileErasureState({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile deletion</CardTitle>
-        <CardDescription>The erasure request is processed in the background and remains safe across restarts.</CardDescription>
+        <CardTitle>Profile deletion <InfoTip label="About profile deletion">The erasure request is processed in the background and remains safe across restarts.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col items-start gap-3">
         <Badge variant={failed ? 'destructive' : done ? 'outline' : 'secondary'}>
@@ -166,8 +166,7 @@ function ProfileDetailPageContent({
       />
       <Card>
         <CardHeader>
-          <CardTitle>Traits</CardTitle>
-          <CardDescription>Latest properties supplied by identify.</CardDescription>
+          <CardTitle>Traits <InfoTip label="About traits">Latest properties supplied by identify.</InfoTip></CardTitle>
         </CardHeader>
         <CardContent>
           {Object.keys(profile.data.traits).length === 0 ? (

@@ -65,7 +65,7 @@ export function DashboardSettings({ layout, siteId, orgId, anonymous, dateRange,
             {filters.length === 0 ? <FieldDescription>{t.filtersNone}</FieldDescription> : (
               <ul className="flex flex-wrap gap-2">
                 {filters.map((filter, index) => (
-                  <li className="flex items-center gap-1 rounded-lg border bg-background py-0.5 pl-3 text-sm" key={`${describe(filter)}-${index}`}>
+                  <li className="flex items-center gap-1 rounded-md bg-muted/40 py-0.5 pl-3 text-sm" key={`${describe(filter)}-${index}`}>
                     <span className="min-w-0 break-words">{describe(filter)}</span>
                     <Button
                       aria-label={t.removeFilter(describe(filter))}

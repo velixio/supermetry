@@ -83,7 +83,7 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
                 <h2 className="text-base font-medium" id="pixel-snippet">{t.pixelInstallTitle}</h2>
                 <div>
                   <Label htmlFor="pixel-html">{t.pixelSnippet}</Label>
-                  <pre className="mt-1 overflow-x-auto rounded-lg border bg-muted/40 p-3 text-sm" id="pixel-html" tabIndex={0}>
+                  <pre className="mt-1 overflow-x-auto rounded-md bg-muted/40 p-3 text-sm" id="pixel-html" tabIndex={0}>
                     <code>{pixel.data.html}</code>
                   </pre>
                   <div className="mt-2">
@@ -92,7 +92,7 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
                 </div>
                 <div>
                   <Label htmlFor="pixel-url">{t.pixelUrl}</Label>
-                  <p className="mt-1 break-all rounded-lg border bg-muted/40 p-3 font-mono text-sm" id="pixel-url">{pixel.data.gif_url}</p>
+                  <p className="mt-1 break-all rounded-md bg-muted/40 p-3 font-mono text-sm" id="pixel-url">{pixel.data.gif_url}</p>
                   <div className="mt-2">
                     <CopyButton label={t.pixelCopyUrl} text={pixel.data.gif_url}>{t.pixelCopyUrl}</CopyButton>
                   </div>

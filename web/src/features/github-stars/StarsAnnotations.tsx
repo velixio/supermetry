@@ -44,9 +44,9 @@ export function StarsAnnotations({ repoId, annotations }: { repoId: number; anno
       </form> : null}
       <ErrorLine error={add.error ?? remove.error} />
       {annotations.length === 0 ? <p className="text-sm text-muted-foreground">{en.githubStars.annotationsEmpty}</p> : (
-        <ul className="flex flex-col divide-y rounded-lg border">
+        <ul className="flex flex-col">
           {annotations.map((annotation) => (
-            <li key={annotation.id} className="flex items-center justify-between gap-3 px-3 py-1">
+            <li key={annotation.id} className="flex items-center border-b last:border-b-0 justify-between gap-3 px-3 py-1">
               <span className="min-w-0 break-words text-sm"><strong className="font-medium">{annotation.label}</strong> <span className="text-muted-foreground">{formatDate(annotation.at)}</span></span>
               {canManage ? <Button type="button" variant="ghost" size="icon" className="max-sm:size-11 shrink-0" disabled={remove.isPending}
                 aria-label={en.githubStars.annotationDelete(annotation.label)} onClick={() => remove.mutate(annotation.id)}>

@@ -103,7 +103,7 @@ function ConditionRow({
 }) {
   const id = useId()
   return (
-    <fieldset className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-3">
+    <fieldset className="flex min-w-0 flex-col gap-3 rounded-md bg-muted/40 p-3">
       <legend className="px-1 text-sm font-medium">{t.conditionLabel(position)}</legend>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field>

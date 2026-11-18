@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -60,7 +61,7 @@ export function PerformanceOverview({ org, site, siteId, timezone, search, onSea
       </div>
       {link ? (
         <Card>
-          <CardHeader><CardTitle>Web Vitals</CardTitle><CardDescription>75th percentile on the linked website.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Web Vitals <InfoTip label="About web vitals">75th percentile on the linked website.</InfoTip></CardTitle></CardHeader>
           <CardContent className="flex flex-wrap items-center gap-6 text-sm">
             <span>LCP {vital(link.lcp_p75)}</span>
             <span>INP {vital(link.inp_p75)}</span>
@@ -80,7 +81,7 @@ export function PerformanceOverview({ org, site, siteId, timezone, search, onSea
         </Card>
       ) : null}
       <Card>
-        <CardHeader><CardTitle>Transactions</CardTitle><CardDescription>Slowest first; click a column to sort.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Transactions <InfoTip label="About transactions">Slowest first; click a column to sort.</InfoTip></CardTitle></CardHeader>
         <CardContent>
           {transactions.isError ? <p role="alert" className="text-sm text-destructive">{transactions.error.message}</p> : null}
           <TransactionsTable org={org} site={site} rows={transactions.data?.transactions ?? data.slowest} search={search} />
@@ -94,7 +95,7 @@ export function PerformanceOverview({ org, site, siteId, timezone, search, onSea
       ) : null}
       {network.data && network.data.failures.length > 0 ? (
         <Card>
-          <CardHeader><CardTitle>Network failures</CardTitle><CardDescription>Outgoing HTTP calls that failed, by parameterised URL.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Network failures <InfoTip label="About network failures">Outgoing HTTP calls that failed, by parameterised URL.</InfoTip></CardTitle></CardHeader>
           <CardContent><SpanGroupsTable groups={network.data.failures} label="Network failures" /></CardContent>
         </Card>
       ) : null}

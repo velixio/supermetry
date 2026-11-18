@@ -275,7 +275,7 @@ export function SessionsPage({
         <SheetContent className="overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Session timeline</SheetTitle>
-            <SheetDescription>Anonymous session IDs reset daily and cannot link a visitor across days.</SheetDescription>
+            <SheetDescription>Session IDs reset daily.</SheetDescription>
           </SheetHeader>
           {detail.isError ? (
             <div className="px-4"><ErrorState detail={detail.error?.detail} onRetry={() => void detail.refetch()} /></div>

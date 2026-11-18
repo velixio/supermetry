@@ -10,7 +10,7 @@ const waitingPollMs = 10_000
 
 export function NoDataBanner({ href }: { href: string }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/50 px-4 py-3 text-sm" role="status">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm" role="status">
       <span className="flex items-center gap-2 font-medium">
         <span aria-hidden="true" className="relative flex size-2.5">
           <span className="absolute inline-flex size-full rounded-full bg-amber-500 opacity-75 motion-safe:animate-ping" />
@@ -49,7 +49,7 @@ export function DashboardNoDataBanner({ siteId, orgId, href, enabled = true }: {
   }, [installStatus, queryClient, siteId])
 
   if (arrived) {
-    return <p role="status" className="rounded-lg border bg-emerald-500/5 px-4 py-3 text-sm font-medium">{uiFlows.install.firstEvent}</p>
+    return <p role="status" className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium">{uiFlows.install.firstEvent}</p>
   }
   if (installStatus !== 'waiting') return null
   return <NoDataBanner href={href} />

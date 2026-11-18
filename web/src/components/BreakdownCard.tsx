@@ -129,7 +129,7 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
         ) : null}
       </header>
       <div id={panelId} role="tabpanel">
-      {description ? <p className="border-b px-4 py-3 text-sm text-muted-foreground">{description}</p> : null}
+      {description ? <p className="px-4 py-2 text-xs text-muted-foreground">{description}</p> : null}
       {result.isError ? (
         <ErrorState detail={result.error?.detail} onRetry={() => void result.refetch()} />
       ) : result.isPending || result.isLoading ? (

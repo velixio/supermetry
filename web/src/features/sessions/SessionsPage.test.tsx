@@ -79,7 +79,7 @@ describe('SessionsPage', () => {
     expect(screen.getByRole('dialog', { name: 'Session timeline' })).toBeVisible()
     expect(screen.getByText('signup')).toBeVisible()
     expect(screen.getByText('plan: pro')).toBeVisible()
-    expect(screen.getByText(/anonymous session IDs reset daily/i)).toBeVisible()
+    expect(screen.getByText(/session IDs reset daily/i)).toBeVisible()
   })
 
   it('renders every session dimension in an accessible mobile card', () => {

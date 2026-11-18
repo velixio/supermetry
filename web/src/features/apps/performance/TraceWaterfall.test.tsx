@@ -40,7 +40,7 @@ describe('TraceWaterfall', () => {
     trace.truncated = true
     render(<TraceWaterfall org="acme" site="desk" trace={trace} />)
     expect(screen.getAllByRole('listitem')[2]).toHaveAttribute('data-failed', 'true')
-    expect(screen.getByRole('status')).toHaveTextContent('more spans than can be shown')
+    expect(screen.getByRole('status')).toHaveTextContent('Showing the first 10,000 spans')
   })
 
   it('keeps bars inside the track and visible for tiny spans', () => {

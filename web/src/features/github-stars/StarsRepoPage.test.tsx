@@ -196,7 +196,7 @@ describe('StarsRepoPage', () => {
     expect(erase.mutate).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Erase events' }))
     expect(erase.mutate).toHaveBeenCalledWith('alice', expect.any(Object))
-    expect(within(dialog).getByText(/future stars are ignored/)).toBeVisible()
+    expect(within(dialog).getByText(/ignores their future stars/)).toBeVisible()
   })
 
   it('validates the login before opening the erase dialog', () => {
@@ -379,7 +379,7 @@ describe('StarsRepoPage', () => {
     ready({ repos: [repo({ public_counter: false })], updateRepo })
     render(<Detail />)
     const status = screen.getByRole('region', { name: 'Status of velixio/supermetry' })
-    expect(within(status).getByText(/The star count is private/)).toBeVisible()
+    expect(within(status).getByText(/Star count is private/)).toBeVisible()
     expect(within(status).queryByText('Public count URL')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
     const dialog = screen.getByRole('dialog', { name: 'Settings for velixio/supermetry' })
@@ -401,7 +401,7 @@ describe('StarsRepoPage', () => {
     expect(screen.queryByRole('switch', { name: 'Enabled' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('GitHub login')).not.toBeInTheDocument()
     expect(screen.queryByText('Payload URL')).not.toBeInTheDocument()
-    expect(screen.getByText(/Only organization owners and admins can change repositories/)).toBeVisible()
+    expect(screen.getByText(/Owners and admins can change repositories/)).toBeVisible()
   })
 
   it('offers a month mode with per-month gain figures', () => {

@@ -56,7 +56,7 @@ export function HealthPage({ orgId, version = "dev", appSites = [] }: { orgId?: 
       {instanceScope && health.data?.rollup_backfill.status === "running" ? (
         <p
           role="status"
-          className="rounded-lg border bg-primary/5 px-4 py-3 text-sm"
+          className="rounded-md bg-muted/50 px-3 py-2 text-sm"
         >
           Updating historical breakdowns:{" "}
           {health.data.rollup_backfill.days_done} of{" "}

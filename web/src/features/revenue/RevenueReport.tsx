@@ -84,7 +84,7 @@ function Trend({ query, currency }: { query: ReturnType<typeof useStats>; curren
           {comparisonRows[index] ? <div className="min-w-0 flex-1 rounded-t bg-muted-foreground/30" style={{ height: `${Math.max(2, numeric(comparisonRows[index].total_revenue) / maximum * 100)}%` }} /> : null}
         </div>)}
       </div>
-      {comparisonRows.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">Solid bars show the selected range; muted bars show the comparison range.</p> : null}
+      {comparisonRows.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">Muted bars: comparison range.</p> : null}
       <div className="overflow-x-auto" tabIndex={0}>
         <table className="sr-only" aria-label="Revenue over time">
           <thead><tr><th scope="col">Date</th><th scope="col">Revenue</th>{comparisonRows.length > 0 ? <th scope="col">Comparison revenue</th> : null}</tr></thead>
@@ -113,7 +113,7 @@ function Breakdown({
       <CardDescription>Top 10 by event-time revenue</CardDescription>
     </CardHeader>
     {query.isError ? <ErrorState detail={query.error?.detail} onRetry={() => void query.refetch()} /> : <CardContent className="space-y-3">
-      {limited ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground" role="status">Available attributed revenue only. Some legacy closed events have no event-time attribution and are excluded from this breakdown.</p> : null}
+      {limited ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground" role="status">Partial: legacy events are excluded.</p> : null}
       <div className="overflow-x-auto" tabIndex={0}>
         <table className="w-full min-w-72 text-sm">
           <thead><tr className="border-b text-left text-muted-foreground"><th className="pb-2 font-medium" scope="col">{title}</th><th className="pb-2 text-right font-medium" scope="col">Revenue</th><th className="pb-2 text-right font-medium" scope="col">Average</th></tr></thead>
@@ -163,7 +163,7 @@ export function RevenueReport(props: RevenueReportProps) {
 
   return <PageContainer>
     <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
-    {trendLimited ? <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">Available attributed revenue only. The selected attribution filters exclude legacy closed events without event-time attribution from the headline and trend.</p> : null}
+    {trendLimited ? <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">Partial: legacy events are excluded.</p> : null}
     {trend.data && trend.data.rows.length === 0 && props.filters.length === 0 ? <FeatureEmptyState kind="revenue" /> : <>
     <div className="grid gap-3 sm:grid-cols-2">
       <MetricCard label="Total revenue" value={numeric(totals?.total_revenue)} previous={numeric(comparison?.total_revenue)} formatter={formatter} compare={props.compare} />

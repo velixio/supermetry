@@ -43,7 +43,7 @@ function SecretField({ label, value }: { label: string; value: string }) {
     <div className="flex min-w-0 flex-col gap-1">
       <span className="text-sm font-medium">{label}</span>
       <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 break-all rounded-md border bg-muted px-2 py-2 text-xs">{value}</code>
+        <code className="min-w-0 flex-1 break-all rounded-md bg-muted/60 px-2 py-2 text-xs">{value}</code>
         <CopyButton text={value} label={t.copyLabel(label)} />
       </div>
     </div>
@@ -53,7 +53,7 @@ function SecretField({ label, value }: { label: string; value: string }) {
 /** The one-time panel with the webhook URL and secret and the GitHub setup steps. */
 export function RevealPanel({ reveal, onDismiss }: { reveal: Reveal; onDismiss: () => void }) {
   return (
-    <section aria-labelledby="stars-reveal" className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/40 p-4">
+    <section aria-labelledby="stars-reveal" className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
       <h2 id="stars-reveal" className="text-base font-semibold">{t.revealTitle(reveal.repo)}</h2>
       <p role="alert" className="text-sm">{t.revealWarn}</p>
       <SecretField label={t.webhookUrl} value={reveal.webhook_url} />
@@ -250,7 +250,7 @@ export function RepoPanel({ repo, onReveal, onRemoved }: { repo: StarsRepo; onRe
   const [dialog, setDialog] = useState<'settings' | 'rotate' | 'remove' | null>(null)
   const switchId = `stars-enabled-${repo.id}`
   return (
-    <section aria-label={t.statusTitle(repo.repo)} className="flex min-w-0 flex-col gap-3 rounded-lg border p-3">
+    <section aria-label={t.statusTitle(repo.repo)} className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-3">
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <div><dt className="inline text-muted-foreground">{t.lastWebhook}: </dt><dd className="inline">{repo.last_webhook_at ? formatDate(repo.last_webhook_at) : t.neverWebhook}</dd></div>
         <div><dt className="inline text-muted-foreground">{t.lastSync}: </dt><dd className="inline">{repo.last_reconcile_at ? formatDate(repo.last_reconcile_at) : t.neverSynced}</dd></div>
@@ -261,7 +261,7 @@ export function RepoPanel({ repo, onReveal, onRemoved }: { repo: StarsRepo; onRe
         <div className="flex min-w-0 flex-col gap-1">
           <span className="text-sm text-muted-foreground">{t.publicCountUrl}</span>
           <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 break-all rounded-md border bg-muted px-2 py-2 text-xs">{repo.public_count_url}</code>
+            <code className="min-w-0 flex-1 break-all rounded-md bg-muted/60 px-2 py-2 text-xs">{repo.public_count_url}</code>
             <CopyButton text={repo.public_count_url} label={t.copyLabel(t.publicCountUrl)} />
           </div>
           <span className="text-xs text-muted-foreground">{t.publicCountHint}</span>

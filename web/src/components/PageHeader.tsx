@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 import { HeaderToolbar, useHeaderToolbar } from './HeaderToolbar'
@@ -80,10 +82,11 @@ function InlinePageHeader({ title, description, actions, className, titleId, inl
 }) {
   return (
     <header className={cn('flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-3', className)}>
-      {/* One line: the title and, while it fits, its description; the full description stays available as a tooltip. */}
-      <div className={cn('flex min-w-0 flex-1 items-baseline gap-x-3', inlineActions && 'max-sm:shrink-0')}>
+      {/* The title, with its description one hover, focus or tap away in an InfoTip (D104). */}
+      <div className={cn('flex min-w-0 flex-1 items-center gap-x-2', inlineActions && 'max-sm:shrink-0')}>
         <h1 id={titleId} className="min-w-0 shrink-0 wrap-anywhere text-base leading-tight font-semibold tracking-tight">{title}</h1>
-        {description ? <p className="min-w-0 truncate text-sm text-muted-foreground max-md:hidden" title={typeof description === 'string' ? description : undefined}>{description}</p> : null}
+        {typeof description === 'string' && description ? <TooltipProvider><InfoTip label={typeof title === 'string' ? `About ${title}` : undefined}>{description}</InfoTip></TooltipProvider> : null}
+        {description && typeof description !== 'string' ? <div className="min-w-0 truncate text-sm text-muted-foreground max-md:hidden">{description}</div> : null}
       </div>
       {actions ? (
         <div className={cn('flex flex-wrap items-center gap-2 empty:hidden', inlineActions && 'max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:justify-end')} data-slot="page-header-actions">

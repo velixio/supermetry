@@ -74,7 +74,7 @@ export function DashboardExportMenu({ query, anonymous = false }: { query: Stats
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {anonymous ? <p className="max-w-64 px-2 py-1.5 text-xs text-muted-foreground">Exports include safe aggregate categories. Verified pages exclude imports and unverified history and require no active filters.</p> : null}
+        {anonymous ? <p className="max-w-64 px-2 py-1.5 text-xs text-muted-foreground">Safe aggregate categories only.</p> : null}
         <DropdownMenuGroup>
           {exportOptions.filter((option) => !anonymous || isAnonymousDimensionAllowed(option.dimension) || option.dimension === 'page').map((option) => (
             <DropdownMenuItem

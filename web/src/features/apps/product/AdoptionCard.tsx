@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -19,8 +20,7 @@ export function AdoptionCard({ siteId, search, timezone }: { siteId: number; sea
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Adoption</CardTitle>
-        <CardDescription>Installs active in this period. An install reporting two values counts in each, so shares can add up to more than 100%.</CardDescription>
+        <CardTitle>Adoption <InfoTip label="About adoption">Installs active in this period. An install reporting two values counts in each, so shares can add up to more than 100%.</InfoTip></CardTitle>
         <Tabs value={by} onValueChange={(value) => setBy(value as AdoptionDimension)}>
           <TabsList aria-label="Adoption by">
             {DIMENSIONS.map(([value, label]) => <TabsTrigger key={value} value={value}>{label}</TabsTrigger>)}

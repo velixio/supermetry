@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2Icon, CircleIcon, XIcon } from 'lucide-react'
+import { CheckCircle2Icon, ChevronDownIcon, CircleIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useCreateDemo } from '@/features/demo/useDemo'
 import { useGoals } from '@/features/goals/api'
 import { privateRequest, type ListResponse } from '@/features/settings/privateApi'
 import type { ManagedSite as SiteDetails } from '@/features/sites/types'
+import { en } from '@/messages/en'
 import { uiOnboarding } from '@/messages/uiOnboarding'
 
 import { checklistItems, checklistProgress, readDismissed, writeDismissed, type ChecklistId, type ChecklistKey } from './checklist'
@@ -25,6 +26,7 @@ type Props = {
 
 export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, userId, canManage, isDemo = false }: Props) {
   const [dismissed, setDismissed] = useState(() => readDismissed(userId, siteId))
+  const [open, setOpen] = useState(false)
   const active = canManage && !isDemo && !dismissed
   const status = useQuery({
     queryKey: ['tracking-status', siteId],
@@ -72,60 +74,81 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
     mcp: `/app/${orgSlug}/settings/api-keys?create=1`,
   }
   const text = uiOnboarding.checklist
+  const strip = en.setupStrip
   const firstEventMissing = items.find((item) => item.id === 'firstEvent')?.done === false
+  const next = items.find((item) => !item.done)
+  const nextCopy = next ? text.items[next.id] : null
 
   return (
-    <section aria-labelledby="getting-started-title" className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h2 id="getting-started-title" className="text-base font-semibold">{text.title}</h2>
-          <p className="text-sm text-muted-foreground" data-testid="checklist-progress">
-            {text.progress.replace('{done}', String(progress.done)).replace('{total}', String(progress.total))}
+    <section aria-labelledby="getting-started-title" className="rounded-lg border bg-card px-4 py-2 text-card-foreground">
+      <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1">
+        <h2 id="getting-started-title" className="text-sm font-medium" data-testid="checklist-progress">
+          {strip.progress.replace('{done}', String(progress.done)).replace('{total}', String(progress.total))}
+        </h2>
+        {next && nextCopy ? (
+          <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {strip.next.replace('{step}', nextCopy.title)}
           </p>
-        </div>
+        ) : <span className="flex-1" />}
+        {next && nextCopy ? (
+          <Button asChild size="sm" variant="secondary" className="max-sm:min-h-11">
+            <Link to={hrefs[next.id]}>{nextCopy.action}</Link>
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="max-sm:min-h-11"
+          aria-expanded={open}
+          aria-controls="getting-started-list"
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? strip.hideAll : strip.showAll}
+          <ChevronDownIcon aria-hidden="true" className={open ? 'rotate-180' : undefined} />
+        </Button>
         <Button
           type="button"
           size="icon-sm"
           variant="ghost"
+          className="max-sm:size-11"
           aria-label={text.dismiss}
           onClick={() => { writeDismissed(userId, siteId); setDismissed(true) }}
         >
           <XIcon />
         </Button>
       </div>
-      <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary motion-safe:transition-[width]" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
-      </div>
-      <ul aria-label={text.listLabel} className="flex flex-col divide-y">
-        {items.map((item) => {
-          const copy = text.items[item.id]
-          return (
-            <li key={item.id} className="flex flex-wrap items-center gap-3 py-2">
-              {item.done
-                ? <CheckCircle2Icon aria-hidden="true" className="size-4 shrink-0 text-success" />
-                : <CircleIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
-              <div className="flex min-w-0 flex-1 flex-col max-sm:flex-[1_1_calc(100%-1.75rem)]">
-                <span className={item.done ? 'text-sm font-medium text-muted-foreground' : 'text-sm font-medium'}>
-                  {copy.title}
-                  <span className="sr-only"> ({item.done ? text.done : text.todo})</span>
-                </span>
-                {item.done ? null : <span className="text-xs text-muted-foreground">{copy.hint}</span>}
-              </div>
-              {item.done ? null : (
-                <Button asChild size="sm" variant="outline" className="max-sm:ml-auto max-sm:min-h-11">
-                  <Link to={hrefs[item.id]}>{copy.action}</Link>
-                </Button>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      {firstEventMissing ? (
-        <div>
-          <Button type="button" variant="ghost" size="sm" disabled={demo.isPending} onClick={() => demo.mutate()}>
-            {text.sampleData}
-          </Button>
-          {demo.isError ? <p role="alert" className="text-xs text-destructive">{demo.error instanceof Error ? demo.error.message : ''}</p> : null}
+      {open ? (
+        <div id="getting-started-list" className="flex flex-col gap-2 pt-2">
+          <ul aria-label={text.listLabel} className="flex flex-col">
+            {items.map((item) => {
+              const copy = text.items[item.id]
+              return (
+                <li key={item.id} className="flex min-h-8 flex-wrap items-center gap-3 py-1">
+                  {item.done
+                    ? <CheckCircle2Icon aria-hidden="true" className="size-4 shrink-0 text-success" />
+                    : <CircleIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
+                  <span className={item.done ? 'min-w-0 flex-1 text-sm text-muted-foreground' : 'min-w-0 flex-1 text-sm'}>
+                    {copy.title}
+                    <span className="sr-only"> ({item.done ? text.done : text.todo})</span>
+                  </span>
+                  {item.done ? null : (
+                    <Button asChild size="sm" variant="ghost" className="max-sm:min-h-11">
+                      <Link to={hrefs[item.id]}>{copy.action}</Link>
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+          {firstEventMissing ? (
+            <div>
+              <Button type="button" variant="ghost" size="sm" disabled={demo.isPending} onClick={() => demo.mutate()}>
+                {text.sampleData}
+              </Button>
+              {demo.isError ? <p role="alert" className="text-xs text-destructive">{demo.error instanceof Error ? demo.error.message : ''}</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

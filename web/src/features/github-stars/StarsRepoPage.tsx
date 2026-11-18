@@ -53,7 +53,7 @@ function GainSummary({ points, granularity, timeZone }: { points: StarsPoint[]; 
     ...(stats.peak ? [[labels.peak, `${signed(stats.peak.net)} · ${bucketLabel(stats.peak.bucket, granularity, timeZone)}`] as [string, string]] : []),
   ]
   return (
-    <dl role="group" aria-label={labels.group} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
+    <dl role="group" aria-label={labels.group} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md bg-muted/40 p-3 text-sm sm:grid-cols-4">
       {items.map(([label, value]) => (
         <div key={label} className="flex min-w-0 flex-col">
           <dt className="text-xs text-muted-foreground">{label}</dt>

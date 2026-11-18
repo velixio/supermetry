@@ -21,7 +21,7 @@ function windowName(s: TrendingSighting) {
 function Episode({ s, language }: { s: TrendingSighting; language: string }) {
   const name = listName(s, language)
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+    <li className="flex flex-wrap border-b last:border-b-0 items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
       <Badge variant="secondary" className="tabular-nums" aria-label={t.rankLabel(name, windowName(s), s.last_rank)}>
         {t.rank(s.last_rank)}
       </Badge>
@@ -74,7 +74,7 @@ export function StarsTrending({ repoId }: { repoId: number }) {
                 <section aria-labelledby="trending-now" className="flex flex-col gap-1">
                   <h3 id="trending-now" className="text-sm font-medium">{t.current}</h3>
                   {data.current.length === 0 ? <p className="text-sm text-muted-foreground">{t.nowEmpty}</p> : (
-                    <ul className="flex flex-col divide-y rounded-lg border">
+                    <ul className="flex flex-col">
                       {data.current.map((s) => <Episode key={s.id} s={s} language={data.language} />)}
                     </ul>
                   )}
@@ -82,7 +82,7 @@ export function StarsTrending({ repoId }: { repoId: number }) {
                 <section aria-labelledby="trending-history" className="flex flex-col gap-1">
                   <h3 id="trending-history" className="text-sm font-medium">{t.history}</h3>
                   {history.length === 0 ? <p className="text-sm text-muted-foreground">{t.historyEmpty}</p> : (
-                    <ul className="flex flex-col divide-y rounded-lg border">
+                    <ul className="flex flex-col">
                       {history.map((s) => <Episode key={s.id} s={s} language={data.language} />)}
                     </ul>
                   )}

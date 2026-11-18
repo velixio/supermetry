@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
@@ -130,7 +131,7 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
       {archive.isError ? <p role="alert" className="text-sm text-destructive">{archive.error.message}</p> : null}
       <IssueWorkflow siteId={siteId} issue={data} canEdit={canEdit} />
       <Card>
-        <CardHeader><CardTitle>Events per day</CardTitle><CardDescription>Occurrences of this issue in the selected period.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Events per day <InfoTip label="About events per day">Occurrences of this issue in the selected period.</InfoTip></CardTitle></CardHeader>
         <CardContent>
           {data.series.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No events in this period.</p> : (
             <div className="h-56" role="img" aria-label="Daily events for this issue">
@@ -158,7 +159,7 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
       ) : null}
       {(data.suspect_commits ?? []).length > 0 ? (
         <Card>
-          <CardHeader><CardTitle>Suspect commits</CardTitle><CardDescription>Commits of the introducing release that changed a file on the stack.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Suspect commits <InfoTip label="About suspect commits">Commits of the introducing release that changed a file on the stack.</InfoTip></CardTitle></CardHeader>
           <CardContent>
             <ul aria-label="Suspect commits" className="space-y-2 text-sm">
               {(data.suspect_commits ?? []).map((c) => (
@@ -172,7 +173,7 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
         </Card>
       ) : null}
       <Card>
-        <CardHeader><CardTitle>Latest events</CardTitle><CardDescription>Scrubbed stack frames; no personal identifiers are stored.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Latest events <InfoTip label="About latest events">Scrubbed stack frames; no personal identifiers are stored.</InfoTip></CardTitle></CardHeader>
         <CardContent>
           {data.latest_events.length === 0 ? <p className="text-sm text-muted-foreground">No events in this period.</p> : <ul>{data.latest_events.map((event) => <EventRow key={event.ts + event.release} event={event} org={org} site={site} issueId={issueId} />)}</ul>}
         </CardContent>

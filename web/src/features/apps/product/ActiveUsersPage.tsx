@@ -1,5 +1,6 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -46,7 +47,7 @@ export function ActiveUsersPage({ siteId, timezone, search, onSearch, canEdit }:
         <Tile label="New installs">{fmt.number(newInstalls)}</Tile>
       </div>
       <Card>
-        <CardHeader><CardTitle>Active installs</CardTitle><CardDescription>Distinct installs per day, over the last 7 days and over the last 30 days.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Active installs <InfoTip label="About active installs">Distinct installs per day, over the last 7 days and over the last 30 days.</InfoTip></CardTitle></CardHeader>
         <CardContent>
           {chart.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No activity in this period.</p> : (
             <div className="h-64" role="img" aria-label="Daily, weekly and monthly active installs">

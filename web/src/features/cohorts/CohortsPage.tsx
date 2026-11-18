@@ -75,7 +75,7 @@ function ResultPanel({ siteId, subject, title }: { siteId: number; subject: Eval
         ) : evaluation.data.sample.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.sampleEmpty}</p>
         ) : (
-          <div className="min-w-0 overflow-x-auto rounded-lg border" tabIndex={0}>
+          <div className="min-w-0 overflow-x-auto" tabIndex={0}>
             <Table aria-label={t.sampleTitle}>
               <TableHeader>
                 <TableRow>

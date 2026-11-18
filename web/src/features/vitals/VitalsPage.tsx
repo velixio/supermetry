@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { InfoTip } from '@/components/InfoTip'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { GaugeIcon } from 'lucide-react'
 import {
@@ -134,7 +135,7 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
   return (
     <Card aria-label="Web Vitals trend" role="region">
       <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-        <div><CardTitle>Daily trend</CardTitle><CardDescription>Project-timezone p50, p75, and p95 from retained raw samples.</CardDescription></div>
+        <div><CardTitle>Daily trend <InfoTip label="About daily trend">p50, p75 and p95 per day in the project time zone, from retained raw samples.</InfoTip></CardTitle></div>
         <Tabs className="w-full sm:w-auto" value={metric} onValueChange={(value) => setMetric(value as VitalMetricName)}>
           <TabsList aria-label="Vitals trend metric" className="grid h-auto w-full grid-cols-3 sm:grid-cols-5 sm:w-auto">
             {metrics.map((item) => <TabsTrigger key={item.key} value={item.key}>{item.short}</TabsTrigger>)}

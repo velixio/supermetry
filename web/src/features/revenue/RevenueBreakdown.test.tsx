@@ -84,7 +84,7 @@ describe('RevenueBreakdown', () => {
     cleanup()
     fetchMock.mockImplementation(() => reply(409, { detail: 'mixed' }))
     mount()
-    expect(await screen.findByText(/more than one currency/i)).toBeVisible()
+    expect(await screen.findByText(/use several currencies/i)).toBeVisible()
     cleanup()
     fetchMock.mockImplementation(() => reply(500, { detail: 'boom' }))
     mount()

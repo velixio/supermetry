@@ -86,6 +86,7 @@ import { Route as AppOrgSiteReleasesReleaseRouteImport } from './routes/app.$org
 import { Route as AppOrgSiteReleasesCompareRouteImport } from './routes/app.$org.$site.releases_.compare'
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
 import { Route as AppOrgSiteReplaysIdRouteImport } from './routes/app.$org.$site.replays.$id'
+import { Route as AppOrgSiteSettingsIndexRouteImport } from './routes/app.$org.$site.settings.index'
 import { Route as AppOrgSiteSettingsAlertSilencesRouteImport } from './routes/app.$org.$site.settings.alert-silences'
 import { Route as AppOrgSiteSettingsAlertsRouteImport } from './routes/app.$org.$site.settings.alerts'
 import { Route as AppOrgSiteSettingsAppRouteImport } from './routes/app.$org.$site.settings.app'
@@ -499,6 +500,11 @@ const AppOrgSiteReplaysIdRoute = AppOrgSiteReplaysIdRouteImport.update({
   path: '/$site/replays/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteSettingsIndexRoute = AppOrgSiteSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppOrgSiteSettingsRoute,
+} as any)
 const AppOrgSiteSettingsAlertSilencesRoute =
   AppOrgSiteSettingsAlertSilencesRouteImport.update({
     id: '/alert-silences',
@@ -712,6 +718,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
+  '/app/$org/$site/settings/': typeof AppOrgSiteSettingsIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
   '/app/$org/$site/issues/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
@@ -754,7 +761,6 @@ export interface FileRoutesByTo {
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
-  '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
   '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
@@ -807,6 +813,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/performance': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
+  '/app/$org/$site/settings': typeof AppOrgSiteSettingsIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
   '/app/$org/$site/issues/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
@@ -907,6 +914,7 @@ export interface FileRoutesById {
   '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
+  '/app/$org/$site/settings/': typeof AppOrgSiteSettingsIndexRoute
   '/app/$org/$site/links/pixel_/$id': typeof AppOrgSiteLinksPixelIdRoute
   '/app/$org/$site/issues_/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
@@ -1008,6 +1016,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
+    | '/app/$org/$site/settings/'
     | '/app/$org/$site/links/pixel/$id'
     | '/app/$org/$site/issues/$issue/events/$event'
   fileRoutesByTo: FileRoutesByTo
@@ -1050,7 +1059,6 @@ export interface FileRouteTypes {
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
-    | '/app/$org/$site/settings'
     | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
@@ -1103,6 +1111,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/performance'
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
+    | '/app/$org/$site/settings'
     | '/app/$org/$site/links/pixel/$id'
     | '/app/$org/$site/issues/$issue/events/$event'
   id:
@@ -1202,6 +1211,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
+    | '/app/$org/$site/settings/'
     | '/app/$org/$site/links/pixel_/$id'
     | '/app/$org/$site/issues_/$issue/events/$event'
   fileRoutesById: FileRoutesById
@@ -1760,6 +1770,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteReplaysIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/settings/': {
+      id: '/app/$org/$site/settings/'
+      path: '/'
+      fullPath: '/app/$org/$site/settings/'
+      preLoaderRoute: typeof AppOrgSiteSettingsIndexRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/alert-silences': {
       id: '/app/$org/$site/settings/alert-silences'
       path: '/alert-silences'
@@ -1963,6 +1980,7 @@ interface AppOrgSiteSettingsRouteChildren {
   AppOrgSiteSettingsSharesRoute: typeof AppOrgSiteSettingsSharesRoute
   AppOrgSiteSettingsSymbolsRoute: typeof AppOrgSiteSettingsSymbolsRoute
   AppOrgSiteSettingsTrackingRoute: typeof AppOrgSiteSettingsTrackingRoute
+  AppOrgSiteSettingsIndexRoute: typeof AppOrgSiteSettingsIndexRoute
 }
 
 const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
@@ -1983,6 +2001,7 @@ const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
   AppOrgSiteSettingsSharesRoute: AppOrgSiteSettingsSharesRoute,
   AppOrgSiteSettingsSymbolsRoute: AppOrgSiteSettingsSymbolsRoute,
   AppOrgSiteSettingsTrackingRoute: AppOrgSiteSettingsTrackingRoute,
+  AppOrgSiteSettingsIndexRoute: AppOrgSiteSettingsIndexRoute,
 }
 
 const AppOrgSiteSettingsRouteWithChildren =

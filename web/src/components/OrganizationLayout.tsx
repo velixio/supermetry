@@ -20,7 +20,9 @@ export function OrganizationLayout() {
 function OrganizationNotFound({ me }: { me: Me }) {
   return (
     <PageContainer width="narrow">
-      <PageHeader title="Not found" description="We could not find that organisation" />
+      <PageHeader title="Not found" />
+      {/* The explanation is the content of this page, so it stays visible rather than in a tip. */}
+      <p className="text-sm text-muted-foreground">We could not find that organisation</p>
       {me.memberships.length > 0 ? (
         <nav aria-label="Available organisations">
           <p className="mb-2 text-sm font-medium">Available organisations</p>

@@ -72,7 +72,7 @@ export function StarsEvents({ repoId }: { repoId: number }) {
         </Button>
       ) : null}
 
-      {canManage ? <form className="flex flex-col gap-2 rounded-lg border p-3" onSubmit={submit}>
+      {canManage ? <form className="flex flex-col gap-2 rounded-md bg-muted/40 p-3" onSubmit={submit}>
         <h3 className="text-sm font-semibold">{en.githubStars.erase}</h3>
         <p className="text-sm text-muted-foreground">{en.githubStars.eraseDescription}</p>
         <div className="flex flex-wrap items-end gap-2">

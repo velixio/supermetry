@@ -57,7 +57,7 @@ describe('RevenueReport', () => {
     expect(screen.getAllByText('+25% vs previous period')).toHaveLength(2)
     expect(screen.getByRole('table', { name: 'Revenue over time' })).toHaveTextContent('Mar 8, 2026$60.00')
     expect(screen.getAllByText('Newsletter')).toHaveLength(3)
-    expect(screen.queryByText(/available attributed revenue/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/partial: legacy events are excluded/i)).not.toBeInTheDocument()
   })
 
   it('labels incomplete legacy attribution without reducing the full trend total', () => {
@@ -71,7 +71,7 @@ describe('RevenueReport', () => {
     })
     render(<RevenueReport {...base} />)
     expect(screen.getAllByText('$100.00')).not.toHaveLength(0)
-    expect(screen.getAllByText(/available attributed revenue/i)).toHaveLength(3)
+    expect(screen.getAllByText(/partial: legacy events are excluded/i)).toHaveLength(3)
   })
 
   it('labels headline totals when selected attribution filters make the trend available-only', () => {
@@ -81,7 +81,7 @@ describe('RevenueReport', () => {
       return { data, isPending: false, isError: false, refetch: vi.fn() }
     })
     render(<RevenueReport {...base} filters={[{ dimension: 'source', operator: 'is', values: ['Newsletter'] }]} />)
-    expect(screen.getByText(/selected attribution filters exclude legacy/i)).toBeVisible()
+    expect(screen.getByText(/partial: legacy events are excluded/i)).toBeVisible()
   })
 
   it('renders genuine zero and a retryable error', () => {

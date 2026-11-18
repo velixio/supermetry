@@ -94,7 +94,7 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
         <>
           <dl className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={t.pixelPeriodCards}>
             {([[t.pixelToday, stats.data.summary.today], [t.last7, stats.data.summary.last_7], [t.last30, stats.data.summary.last_30], [t.pixelAllTime, stats.data.summary.total]] as const).map(([label, value]) => (
-              <div className="rounded-lg border p-3" key={label}>
+              <div className="rounded-md bg-muted/40 p-3" key={label}>
                 <dt className="text-xs text-muted-foreground">{label}</dt>
                 <dd className="text-2xl font-semibold tabular-nums">{fmt.number(value)}</dd>
               </div>

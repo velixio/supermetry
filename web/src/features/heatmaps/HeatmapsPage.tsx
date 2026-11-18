@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { InfoTip } from '@/components/InfoTip'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
@@ -136,10 +137,10 @@ function Preview({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-muted/30 p-3">
+    <div className="overflow-x-auto rounded-md bg-muted/40 p-3">
       <div className="mx-auto" style={{ width: `${width}px`, maxWidth: '100%' }}>
         {frameState === 'blocked' || source === '' ? (
-          <div className="mb-3 rounded-lg border bg-card p-4 text-sm">
+          <div className="mb-3 rounded-md bg-muted/50 px-3 py-2 text-sm">
             <p className="font-medium">Page preview blocked</p>
             <p className="mt-1 text-muted-foreground">
               The website may block embedding with X-Frame-Options or CSP. Allow Supermetry&apos;s host in the website&apos;s frame-ancestors directive to show the live page.
@@ -240,8 +241,7 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange,
       />
       <Card>
         <CardHeader>
-          <CardTitle>Page preview</CardTitle>
-          <CardDescription>Choose a popular page and viewport.</CardDescription>
+          <CardTitle>Page preview <InfoTip label="About page preview">Choose a popular page and viewport.</InfoTip></CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-4">
           <Field className="min-w-56 flex-1">

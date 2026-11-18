@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
@@ -65,9 +66,9 @@ function SourceMapsBanner({ status, release }: { status: string; release: string
   if (status !== 'missing' && status !== 'partial') return null
   const where = release ? `release ${release}` : 'this release'
   return (
-    <div role="status" aria-label="Source maps" className="rounded-lg border bg-amber-500/10 px-4 py-3 text-sm">
+    <div role="status" aria-label="Source maps" className="rounded-md bg-muted/50 px-3 py-2 text-sm">
       {status === 'missing' ? <p className="font-medium">Source maps missing for {where}</p> : <p className="font-medium">Some frames could not be resolved: source maps are missing or incomplete for {where}</p>}
-      <p className="mt-1 text-muted-foreground">Stack frames show the minified code. Events that arrive after you upload the maps resolve; stored events are not rewritten. <a className="font-medium text-foreground underline" href={sourceMapsGuideURL}>Upload source maps</a></p>
+      <p className="mt-1 text-muted-foreground">Frames show minified code until maps are uploaded. <a className="font-medium text-foreground underline" href={sourceMapsGuideURL}>Upload source maps</a></p>
     </div>
   )
 }
@@ -80,7 +81,7 @@ const shortId = (id: string) => `${id.slice(0, 8)}…`
 /** Native and JVM events: names the debug files or ProGuard mappings that were not uploaded. */
 function MissingSymbolsBanner({ missing, status, settings }: { missing: { kind?: string; debug_id?: string; code_file?: string }[]; status: string; settings?: { org: string; site: string } }) {
   return (
-    <div role="status" aria-label="Missing symbols" className="rounded-lg border bg-amber-500/10 px-4 py-3 text-sm">
+    <div role="status" aria-label="Missing symbols" className="rounded-md bg-muted/50 px-3 py-2 text-sm">
       <p className="font-medium">{status === 'partial' ? 'Some frames could not be resolved: symbols are missing' : 'Stack frames are not symbolicated: symbols are missing'}</p>
       <ul className="mt-1 flex flex-col gap-1">
         {missing.map((m) => (
@@ -91,7 +92,7 @@ function MissingSymbolsBanner({ missing, status, settings }: { missing: { kind?:
           </li>
         ))}
       </ul>
-      <p className="mt-1 text-muted-foreground">Events that arrive after the upload resolve; stored events are not rewritten. {settings ? <><Link className="font-medium text-foreground underline" to="/app/$org/$site/settings/symbols" params={settings}>Symbols settings</Link>{' · '}</> : null}<a className="font-medium text-foreground underline" href={debugFilesGuideURL}>Upload guide</a></p>
+      <p className="mt-1 text-muted-foreground">New events resolve after upload. {settings ? <><Link className="font-medium text-foreground underline" to="/app/$org/$site/settings/symbols" params={settings}>Symbols settings</Link>{' · '}</> : null}<a className="font-medium text-foreground underline" href={debugFilesGuideURL}>Upload guide</a></p>
     </div>
   )
 }
@@ -118,7 +119,7 @@ export function EventBodyView({ body, source, settings }: { body: unknown; sourc
       {view.exceptions.map((exception, i) => <ExceptionBlock key={i} exception={exception} index={i} total={view.exceptions.length} />)}
       {view.breadcrumbs.length > 0 ? (
         <Card>
-          <CardHeader><CardTitle className="text-base">Breadcrumbs</CardTitle><CardDescription>What happened before the event, oldest first.</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="text-base">Breadcrumbs <InfoTip label="About breadcrumbs">What happened before the event, oldest first.</InfoTip></CardTitle></CardHeader>
           <CardContent>
             <ol className="flex flex-col divide-y text-sm" aria-label="Breadcrumbs">
               {view.breadcrumbs.map((crumb, i) => (

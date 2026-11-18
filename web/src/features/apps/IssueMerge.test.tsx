@@ -51,6 +51,6 @@ describe('IssueMerge', () => {
   it('shows viewers the list without any control', async () => {
     renderWithQuery(<IssueMerge siteId={7} issueId={11} canEdit={false} />)
     expect(await screen.findByText('Old crash')).toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('button').filter((button) => button.getAttribute('data-slot') !== 'info-tip')).toHaveLength(0)
   })
 })

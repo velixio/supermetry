@@ -45,7 +45,7 @@ describe('MonitorsPage', () => {
     cleanup()
     privateRequest.mockResolvedValue({ monitors: [] })
     renderPage()
-    expect(await screen.findByText(/No cron monitors yet/)).toBeInTheDocument()
+    expect(await screen.findByText(/No monitors yet/)).toBeInTheDocument()
   })
 
   it('describes schedules', () => {

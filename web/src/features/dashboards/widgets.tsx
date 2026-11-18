@@ -257,7 +257,7 @@ function VitalsWidget({ title, query }: { title: string; query: StatsQuery }) {
           const needs = Math.round(value.needs_improvement * 100)
           const poor = Math.round(value.poor * 100)
           return (
-            <div className="min-w-0 rounded-lg border px-3 py-2" key={key}>
+            <div className="min-w-0 rounded-md bg-muted/40 px-3 py-2" key={key}>
               <dt className="truncate text-xs text-muted-foreground">{name}</dt>
               <dd className="text-lg font-semibold tabular-nums">{value.samples > 0 && value.p75 !== undefined ? formatP75(key, value.p75) : '—'}</dd>
               <dd className="text-xs text-muted-foreground">{t.vitalsShares(good, needs, poor)} · {t.vitalsSamples(value.samples)}</dd>
