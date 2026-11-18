@@ -14,6 +14,7 @@ import { useAppIssue, useSetIssueStatus, useUpdateIssue, type AppIssueDetailData
 import { IssueActivity } from './IssueActivity'
 import { IssueComments } from './IssueComments'
 import { IssueFeedback } from './IssueFeedback'
+import { IssueMerge } from './IssueMerge'
 import { IssueWorkflow } from './IssueWorkflow'
 import { formatDay } from './format'
 import type { AppSearch } from './search'
@@ -153,6 +154,7 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
         </CardContent>
       </Card>
       <IssueFeedback siteId={siteId} issueId={issueId} />
+      <IssueMerge siteId={siteId} issueId={issueId} canEdit={canEdit} />
       <IssueComments siteId={siteId} issueId={issueId} canEdit={canEdit} />
       <IssueActivity siteId={siteId} issueId={issueId} />
     </PageContainer>

@@ -319,6 +319,17 @@ Sentry SDKs can ask people what went wrong: `Sentry.captureFeedback(...)`, the f
 ## GitHub link
 
 An issue can carry one link to an existing GitHub issue, `https://github.com/<owner>/<repo>/issues/<number>`. Other addresses are refused. Supermetry stores the link and never calls GitHub. Linking (not unlinking) can also be sent as a `github_linked` issue webhook.
+### Merging and unmerging issues
+
+Two issues that are really the same bug can be merged. Open the issue you want to keep, type the ids of the others in "Merged issues" and choose Merge. Owners, admins and editors can merge; viewers can read the list.
+
+- The merged issues' events, fingerprints and daily and hourly counts move to the kept issue, whose counts are recomputed from its events. The merged issues disappear from the issue list, and their detail page says which issue they were merged into.
+- New events that arrive with a merged issue's fingerprint land on the kept issue; they never create the old issue again. Merging a kept issue into a third one moves everything to the third, so a merge is always one level deep.
+- All issues must belong to the same project. A merged issue cannot be merged again until it is unmerged.
+- **Unmerge** splits one merged issue back out by its fingerprint hash, shown beside it in the list. Its events, including those that arrived after the merge, return to it, it reappears in the list, and both issues' counts and rollups are recomputed from events. Counts older than your retention period cannot be attributed to a fingerprint and stay with the kept issue.
+- Both issues get a "merged" or "unmerged" row on their activity timeline.
+
+Through the private API: `POST .../issues/{issue}/merge` with `{"source_ids": [..]}`, `GET .../issues/{issue}/merged`, and `POST .../issues/{issue}/unmerge` with `{"hashes": ["<64 hex characters>"]}`.
 
 ## Exporting your data
 

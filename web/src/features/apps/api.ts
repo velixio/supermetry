@@ -14,6 +14,7 @@ export type AppIssueChange = components['schemas']['AppIssueChange']
 export type AppIssueComment = components['schemas']['AppIssueComment']
 export type AppIssueActivity = components['schemas']['AppIssueActivity']
 export type AppFeedback = components['schemas']['AppFeedback']
+export type AppMergedIssue = components['schemas']['AppMergedIssue']
 export type AppCompatibilityData = components['schemas']['AppCompatibility']
 export type AppReleasesData = components['schemas']['AppReleases']
 
@@ -141,4 +142,25 @@ export function useIssueFeedback(siteId: number, issueId: number) {
     queryFn: ({ pageParam }) => privateRequest<{ feedback: AppFeedback[] }>('GET', `${base(siteId)}/issues/${issueId}/feedback?limit=${FEEDBACK_PAGE}${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ''}`),
     getNextPageParam: (last) => (last.feedback?.length === FEEDBACK_PAGE ? last.feedback[last.feedback.length - 1].at : undefined),
   })
+}
+
+export function useMergedIssues(siteId: number, issueId: number) {
+  return useQuery({ queryKey: ['app-issue-merged', siteId, issueId], queryFn: () => privateRequest<{ merged: AppMergedIssue[] }>('GET', `${base(siteId)}/issues/${issueId}/merged`) })
+}
+
+/** Merge other issues into this one, or split merged ones back out by fingerprint hash. */
+export function useMergeMutations(siteId: number, issueId: number) {
+  const client = useQueryClient()
+  const refresh = () => Promise.all([
+    client.invalidateQueries({ queryKey: ['app-issue', siteId] }),
+    client.invalidateQueries({ queryKey: ['app-issues', siteId] }),
+    client.invalidateQueries({ queryKey: ['app-overview', siteId] }),
+    client.invalidateQueries({ queryKey: ['app-issue-merged', siteId, issueId] }),
+    client.invalidateQueries({ queryKey: ['app-issue-activity', siteId, issueId] }),
+  ])
+  const path = `${base(siteId)}/issues/${issueId}`
+  return {
+    merge: useMutation({ mutationFn: (sourceIds: number[]) => privateRequest<{ merged: number[] }>('POST', `${path}/merge`, { body: { source_ids: sourceIds } }), onSuccess: refresh }),
+    unmerge: useMutation({ mutationFn: (hash: string) => privateRequest<{ issue_id: number }>('POST', `${path}/unmerge`, { body: { hashes: [hash] } }), onSuccess: refresh }),
+  }
 }

@@ -8,6 +8,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Added
 
+- App issues can be merged into one another and split apart again by fingerprint. Events, daily and hourly counts move with the merge, new events with a merged fingerprint land on the kept issue, and unmerging recomputes both issues from their events.
 - App issues can be assigned to a project member, given a priority (high, medium, low), snoozed, archived until they escalate, and linked to a GitHub issue. Team members can comment, and every change, regression and first sighting appears on the issue's activity timeline. The site export gains `app_issue_activity.csv` and `app_issue_comments.csv`.
 - App projects can send **issue webhooks** (new issue, resolved, regressed, assigned, escalated, GitHub linked) to your existing notification channels, signed like alert webhooks and retried from an outbox. Sentry SDK **user feedback** (`captureFeedback`, the widget and user reports) is now stored, scrubbed, shown on the issue it belongs to, and exported; reporter emails are kept only as a hash and names are not kept. The MCP server gains `get_issue_timeline` and `get_issue_impact`.
 

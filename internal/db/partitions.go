@@ -86,8 +86,61 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 	if err := ensureAppEventBodyPartitions(ctx, tx, from, to); err != nil {
 		return err
 	}
+	if err := ensureDailyIfTable(ctx, tx, "spans", from, to); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit partition creation: %w", err)
+	}
+	return nil
+}
+
+// EnsureDailyPartitions creates the UTC-day partitions (<table>_YYYYMMDD) of a
+// table partitioned by a timestamptz column and covering [from, to). Writers
+// never call it: a scheduler job and startup pre-create the days ahead.
+func EnsureDailyPartitions(ctx context.Context, pool *pgxpool.Pool, table string, from, to time.Time) error {
+	if !from.Before(to) {
+		return nil
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin %s partition creation: %w", table, err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
+		return fmt.Errorf("lock partition creation: %w", err)
+	}
+	if err := ensureDailyTimestampPartitions(ctx, tx, table, from, to); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// ensureDailyIfTable skips tables that older migration-test schemas lack.
+func ensureDailyIfTable(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+	var has bool
+	if err := tx.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&has); err != nil {
+		return fmt.Errorf("check %s: %w", table, err)
+	}
+	if !has {
+		return nil
+	}
+	return ensureDailyTimestampPartitions(ctx, tx, table, from, to)
+}
+
+func ensureDailyTimestampPartitions(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+	for lower := utcDay(from); lower.Before(to); lower = lower.AddDate(0, 0, 1) {
+		name := table + "_" + lower.Format("20060102")
+		sql := fmt.Sprintf(
+			"CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
+			pgx.Identifier{name}.Sanitize(),
+			pgx.Identifier{table}.Sanitize(),
+			lower.Format(time.RFC3339),
+			lower.AddDate(0, 0, 1).Format(time.RFC3339),
+		)
+		if _, err := tx.Exec(ctx, sql); err != nil {
+			return fmt.Errorf("create %s partition for %s: %w", name, lower.Format(time.DateOnly), err)
+		}
 	}
 	return nil
 }

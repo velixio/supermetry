@@ -2316,6 +2316,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/issues/{issue}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge other issues into this one
+         * @description Moves the source issues' events, fingerprint hashes and rollups into the issue in the path and recomputes its
+         *     counts. The sources are hidden; later events with their fingerprints land on this issue. A source or target
+         *     that is already merged, or an id that is not an issue of the project, is rejected as a whole. Owner, admin or
+         *     editor only.
+         */
+        post: operations["mergeAppIssues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/merged": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        /** The issues merged into this one, each with the hash to unmerge it by */
+        get: operations["listMergedAppIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issues/{issue}/unmerge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Split merged issues back out by fingerprint hash
+         * @description Moves the events whose fingerprint hash is given back to the issue that was merged in, makes it visible again
+         *     and recomputes both issues' counts and rollups from events. Owner, admin or editor only.
+         */
+        post: operations["unmergeAppIssue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/issues/{issue}/feedback": {
         parameters: {
             query?: never;
@@ -3332,6 +3402,10 @@ export interface components {
             filter_crawlers?: boolean | null;
             /** @description Drop events raised on localhost. Null means the server default (filter_localhost_default). */
             filter_localhost?: boolean | null;
+            /** @description Accept transactions and spans. Omitted or null means on. */
+            performance_enabled?: boolean | null;
+            /** @description Raw span retention in days. 0 means the default of 14. */
+            span_retention_days?: number;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
         };
@@ -4504,6 +4578,24 @@ export interface components {
             /** @enum {string} */
             priority: "high" | "medium" | "low";
         };
+        AppIssueMergeInput: {
+            source_ids: number[];
+        };
+        AppIssueUnmergeInput: {
+            /** @description sha256 of the fingerprint, hex, as listed by the merged issues endpoint. */
+            hashes: string[];
+        };
+        AppMergedIssue: {
+            /** Format: int64 */
+            issue_id: number;
+            hash: string;
+            title: string;
+            kind: string;
+            /** Format: int64 */
+            events: number;
+            /** Format: date-time */
+            last_seen: string;
+        };
         AppIssueList: {
             issues: components["schemas"]["AppIssueRow"][];
             total: number;
@@ -4577,6 +4669,11 @@ export interface components {
             snooze_users: number | null;
             archived_until_escalating: boolean;
             github_url: string | null;
+            /**
+             * Format: int64
+             * @description Set when this issue was merged into another; its events and counts now belong to that issue.
+             */
+            merged_into?: number | null;
             series: {
                 /** Format: date */
                 day: string;
@@ -10935,6 +11032,98 @@ export interface operations {
                 content: {
                     "application/json": {
                         activity: components["schemas"]["AppIssueActivity"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    mergeAppIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueMergeInput"];
+            };
+        };
+        responses: {
+            /** @description Merged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        merged: number[];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMergedAppIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Merged issues */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        merged: components["schemas"]["AppMergedIssue"][];
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    unmergeAppIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueUnmergeInput"];
+            };
+        };
+        responses: {
+            /** @description The reinstated issue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        issue_id: number;
                     };
                 };
             };

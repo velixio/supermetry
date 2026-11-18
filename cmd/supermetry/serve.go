@@ -83,6 +83,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
@@ -222,6 +223,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		return fmt.Errorf("load salts: %w", err)
 	}
 	now := settings.clock.Now()
+	if err := ensureSpanPartitions(ctx, pool, now, 13); err != nil {
+		return fmt.Errorf("ensure startup span partitions: %w", err)
+	}
 	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead)); err != nil {
 		return fmt.Errorf("ensure startup partitions: %w", err)
 	}
@@ -499,6 +503,16 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appBodies := appingest.NewBodyWriter(pool, appingest.BodyWriterConfig{})
 	appReports := appingest.NewClientReports(pool, 0)
 	appFeedback := appissues.NewFeedbackWriter(pool, 0)
+	spanWriter := spans.NewWriter(pool, spans.WriterConfig{
+		Location: func(id int32) *time.Location {
+			if site, ok := registry.Site(id); ok {
+				return site.TZ
+			}
+			return nil
+		},
+	}, spans.HealthStats{}, nil)
+	spanBudget := spans.NewBudget(cfg.SpansPerMin)
+	_, _ = spanWriter, spanBudget // handed to the Sentry and OTLP front doors by the next tasks
 	var sentryIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
@@ -594,6 +608,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appWriterCtx, cancelAppWriter := context.WithCancel(context.Background())
 	appWriterDone := make(chan error, 1)
 	go func() { appWriterDone <- appWriter.Run(appWriterCtx) }()
+	spanWriterCtx, cancelSpanWriter := context.WithCancel(context.Background())
+	spanWriterDone := make(chan error, 1)
+	go func() { spanWriterDone <- spanWriter.Run(spanWriterCtx) }()
 	appBodiesDone := make(chan error, 1)
 	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
 	appReportsDone := make(chan error, 1)
@@ -755,6 +772,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if symbolicator != nil {
 		symbolicator.Close()
 	}
+	// Stop the span writer first: it drains on cancel, before the app writer.
+	cancelSpanWriter()
+	cause = errors.Join(cause, <-spanWriterDone)
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
@@ -1198,6 +1218,9 @@ func scheduledJobs(
 		}},
 		{Name: "partitions", Every: time.Hour, Run: func(ctx context.Context) error {
 			now := clk.Now()
+			if err := ensureSpanPartitions(ctx, pool, now, 1); err != nil {
+				return err
+			}
 			return db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead))
 		}},
 		{Name: "retention", Every: time.Hour, Run: func(ctx context.Context) error {
@@ -1573,4 +1596,13 @@ func closedDayKey(siteID int32, day time.Time) string {
 func civilDay(value time.Time) time.Time {
 	value = value.UTC()
 	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// ensureSpanPartitions pre-creates the daily spans partitions from daysBack
+// days ago to 3 days ahead. Startup goes 13 days back (late spans are accepted
+// that long); the hourly job only 1, so retention is not undone every hour.
+// The span writer never runs DDL: a span whose day has no partition is dropped
+// and counted.
+func ensureSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, daysBack int) error {
+	return db.EnsureDailyPartitions(ctx, pool, "spans", now.AddDate(0, 0, -daysBack), now.AddDate(0, 0, 3))
 }
