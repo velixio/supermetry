@@ -58,7 +58,7 @@ async function sidebarHrefs(membership: Membership, requestedSite?: string) {
   )
   await screen.findByRole('navigation', { name: 'Settings' })
   const links: Record<string, string | null> = {}
-  for (const name of ['Analyze', 'Behaviour', 'Conversion', 'Manage', 'Settings']) {
+  for (const name of ['Analyze', 'Behavior', 'Conversion', 'Manage', 'Settings']) {
     const nav = screen.queryByRole('navigation', { name })
     if (nav) Object.assign(links, hrefs(nav))
   }

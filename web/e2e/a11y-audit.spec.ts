@@ -261,7 +261,7 @@ test('captures the dashboard and grouped sidebar at the requested breakpoints', 
   await owner.login(page, dashboard + fixtureRange)
   await waitForDashboard(page)
 
-  for (const name of ['Analyze', 'Behaviour', 'Conversion', 'Manage', 'Settings']) {
+  for (const name of ['Analyze', 'Behavior', 'Conversion', 'Manage', 'Settings']) {
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
   }
   await screenshot(page, 'dashboard-1440-light.png')

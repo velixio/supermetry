@@ -297,7 +297,7 @@ export const en = {
     sidebarSections: {
       analyze: 'Analyze',
       appMonitoring: 'App monitoring',
-      behaviour: 'Behaviour',
+      behaviour: 'Behavior',
       conversion: 'Conversion',
       manage: 'Manage',
     },

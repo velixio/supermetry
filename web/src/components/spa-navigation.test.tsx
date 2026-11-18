@@ -129,7 +129,7 @@ describe('SPA navigation', () => {
 
     const expected = {
       Analyze: ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays'],
-      Behaviour: ['Journeys', 'Retention', 'Profiles', 'Cohorts', 'Heatmaps', 'Web Vitals'],
+      Behavior: ['Journeys', 'Retention', 'Profiles', 'Cohorts', 'Heatmaps', 'Web Vitals'],
       Conversion: ['Funnels', 'Goals', 'Revenue'],
       Manage: ['Projects', 'Links and pixels', 'Data health', 'GitHub stars'],
     }
@@ -220,7 +220,7 @@ describe('SPA navigation', () => {
     await screen.findByRole('link', { name: 'Realtime' })
     const base = 'period=30d&compare=off&f=%5B%5D&metric=visitors&include_imported=true'
     const site = '/app/acme/docs-public'
-    const links = ['Analyze', 'Behaviour', 'Conversion', 'Manage'].flatMap((name) =>
+    const links = ['Analyze', 'Behavior', 'Conversion', 'Manage'].flatMap((name) =>
       Array.from(screen.getByRole('navigation', { name }).querySelectorAll('a')).map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
     )
     expect(links).toEqual([
@@ -270,7 +270,7 @@ describe('sidebar groups, pinning and scope', () => {
     renderSidebar('/app/acme/docs-public/realtime', { seed: false })
     await screen.findByRole('link', { name: 'Realtime' })
     expect(groupButton('Analyze')).toHaveAttribute('aria-expanded', 'true')
-    for (const name of ['Behaviour', 'Conversion', 'Manage']) {
+    for (const name of ['Behavior', 'Conversion', 'Manage']) {
       expect(groupButton(name)).toHaveAttribute('aria-expanded', 'false')
       expect(groupButton(name)).toHaveAttribute('aria-controls')
     }
@@ -281,7 +281,7 @@ describe('sidebar groups, pinning and scope', () => {
   it('opens a collapsed group by click, Enter or Space, and remembers it per user', async () => {
     renderSidebar('/app/acme/docs-public/realtime', { seed: false })
     await screen.findByRole('link', { name: 'Realtime' })
-    fireEvent.click(groupButton('Behaviour'))
+    fireEvent.click(groupButton('Behavior'))
     expect(await screen.findByRole('link', { name: 'Journeys' })).toBeInTheDocument()
     expect(stored().open.behaviour).toBe(true)
     // A native button toggles on Enter and Space through click; check the semantics the keys rely on.
@@ -309,8 +309,8 @@ describe('sidebar groups, pinning and scope', () => {
     try {
       renderSidebar('/app/acme/docs-public/realtime', { seed: false })
       await screen.findByRole('link', { name: 'Realtime' })
-      fireEvent.click(groupButton('Behaviour'))
-      expect(groupButton('Behaviour')).toHaveAttribute('aria-expanded', 'true')
+      fireEvent.click(groupButton('Behavior'))
+      expect(groupButton('Behavior')).toHaveAttribute('aria-expanded', 'true')
     } finally {
       Storage.prototype.getItem = getItem
       Storage.prototype.setItem = setItem
@@ -321,7 +321,7 @@ describe('sidebar groups, pinning and scope', () => {
     const router = renderSidebar('/app/acme/docs-public/realtime', { seed: { behaviour: false } })
     await screen.findByRole('link', { name: 'Realtime' })
     await router.navigate({ to: '/app/acme/docs-public/journeys' as never })
-    await waitFor(() => expect(groupButton('Behaviour')).toHaveAttribute('aria-expanded', 'true'))
+    await waitFor(() => expect(groupButton('Behavior')).toHaveAttribute('aria-expanded', 'true'))
   })
 
   it('pins an item into a Pinned group at the top and unpins it again', async () => {
