@@ -164,6 +164,7 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.AppQuery != nil {
 		mcpDeps.AppHealth = deps.AppQuery
+		mcpDeps.AppProduct = deps.AppQuery
 	}
 	if deps.AppIssues != nil {
 		mcpDeps.AppIssues = deps.AppIssues
