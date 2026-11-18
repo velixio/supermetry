@@ -1848,6 +1848,50 @@ export interface paths {
         patch: operations["updateFunnel"];
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/obs/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List the metric names of an app project
+         * @description Requires the stats:read API-key scope for the requested site, which must be an app project.
+         */
+        get: operations["listObsMetricsPublic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/obs/metrics/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query one metric as time series
+         * @description Same as the private query. Requires the stats:read API-key scope for the requested site.
+         */
+        post: operations["queryObsMetricsPublic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/sites/{site_id}/segments": {
         parameters: {
             query?: never;
@@ -2333,6 +2377,54 @@ export interface paths {
         get: operations["getAppEvent"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/obs/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the metric names of an app project
+         * @description Names with kind, unit, series count and attribute keys, read from the series registry. Every member role may read.
+         */
+        get: operations["listObsMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/obs/metrics/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query one metric as time series
+         * @description Raw points serve ranges up to 48 hours with a 1m or 5m interval; the hourly rollup serves everything else
+         *     (1m and 5m are then answered as 1h). Hours and days are the site's local hours and days, so a 1d bucket
+         *     starts at local midnight (including +05:30 and +05:45 zones). At most 50 groups are returned, the rest
+         *     merged into one group whose attribute values are `other`. A query holds at most 1,500 buckets. `rate` is
+         *     the sum (counter) or count (histogram) per second; `p50` to `p99` need a histogram.
+         */
+        post: operations["queryObsMetrics"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5492,6 +5584,66 @@ export interface components {
         };
         /** Format: double */
         AppRate: number | null;
+        ObsMetricInfo: {
+            name: string;
+            /** @enum {string} */
+            kind: "gauge" | "counter" | "updown" | "histogram";
+            unit: string;
+            /** @description Distinct attribute combinations. */
+            series: number;
+            attribute_keys: string[];
+        };
+        ObsMetricList: {
+            metrics: components["schemas"]["ObsMetricInfo"][];
+        };
+        ObsMetricQuery: {
+            name: string;
+            /** @enum {string} */
+            agg: "avg" | "sum" | "min" | "max" | "last" | "rate" | "p50" | "p75" | "p90" | "p95" | "p99";
+            /** @description Up to two attribute keys. */
+            group_by?: string[];
+            /** @description Attribute key to exact value; at most 16. */
+            filters?: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** @enum {string} */
+            interval: "1m" | "5m" | "1h" | "1d";
+        };
+        /** @description An ObsMetricQuery without from and to; the dashboard's time range supplies them. */
+        ObsMetricWidgetQuery: {
+            name: string;
+            /** @enum {string} */
+            agg: "avg" | "sum" | "min" | "max" | "last" | "rate" | "p50" | "p75" | "p90" | "p95" | "p99";
+            group_by?: string[];
+            filters?: {
+                [key: string]: string;
+            };
+            /** @enum {string} */
+            interval: "1m" | "5m" | "1h" | "1d";
+        };
+        ObsMetricSeriesPoint: {
+            /**
+             * Format: date-time
+             * @description Start of the bucket.
+             */
+            ts: string;
+            /** @description Null when the bucket has no value for the aggregation. */
+            value: number | null;
+        };
+        ObsMetricSeries: {
+            /** @description The group_by attribute values; empty without group_by. */
+            group: {
+                [key: string]: string;
+            };
+            points: components["schemas"]["ObsMetricSeriesPoint"][];
+        };
+        ObsMetricResult: {
+            series: components["schemas"]["ObsMetricSeries"][];
+        };
         AppOverview: {
             /** Format: int64 */
             events: number;
@@ -6789,6 +6941,7 @@ export interface components {
          * @description Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
          *     `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
          *     (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+         *     `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
          */
         DashboardWidgetConfig: {
             metric?: components["schemas"]["Metric"];
@@ -6798,13 +6951,16 @@ export interface components {
             limit?: number;
             /** Format: int64 */
             funnel_id?: number;
+            query?: components["schemas"]["ObsMetricWidgetQuery"];
+            /** @enum {string} */
+            chart?: "line" | "bar";
         };
         /** @description A widget on a 12-column grid. Widgets may be placed in any order; clients reflow overlaps. */
         DashboardWidget: {
             /** @description Unique within the layout. */
             id: string;
             /** @enum {string} */
-            kind: "kpi_strip" | "time_series" | "breakdown" | "map" | "weekly_rhythm" | "goals" | "funnel" | "retention" | "web_vitals";
+            kind: "kpi_strip" | "time_series" | "breakdown" | "map" | "weekly_rhythm" | "goals" | "funnel" | "retention" | "web_vitals" | "obs_metric";
             title?: string;
             x: number;
             y: number;
@@ -11657,6 +11813,63 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listObsMetricsPublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metric names */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    queryObsMetricsPublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsMetricQuery"];
+            };
+        };
+        responses: {
+            /** @description Result series */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     listSegments: {
         parameters: {
             query?: never;
@@ -12481,6 +12694,59 @@ export interface operations {
                     "application/json": components["schemas"]["AppEventBody"];
                 };
             };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listObsMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metric names */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricList"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    queryObsMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsMetricQuery"];
+            };
+        };
+        responses: {
+            /** @description Result series */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };

@@ -52,6 +52,7 @@ var eraseTables = []string{
 	"spans",
 	"logs",
 	"metric_points",
+	"metric_hourly",
 	"events",
 	"sessions",
 	"profiles",
@@ -171,6 +172,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		return nil, err
 	}
 	expired = append(expired, metricPartitions...)
+	hourlyPartitions, err := expiredMetricHourlyPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, hourlyPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -575,6 +581,33 @@ func expiredMetricPartitions(ctx context.Context, pool *pgxpool.Pool, now time.T
 		return nil, fmt.Errorf("list metric partitions: %w", err)
 	}
 	cutoff := now.AddDate(0, 0, -metricPointRetentionDays-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
+// metricHourlyRetentionDays is the life of hourly metric rollups.
+const metricHourlyRetentionDays = 90
+
+// expiredMetricHourlyPartitions returns the monthly metric_hourly partitions
+// that lie wholly before the 90-day retention, plus one day of closing slack.
+func expiredMetricHourlyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('metric_hourly') is not null`).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check metric_hourly: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "metric_hourly")
+	if err != nil {
+		return nil, fmt.Errorf("list metric hourly partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -metricHourlyRetentionDays-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {

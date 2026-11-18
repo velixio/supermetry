@@ -335,6 +335,7 @@ function WebDashboardStateRoute() {
             mode={edit}
             orgId={membership?.org.id}
             siteId={site.id}
+            siteKind={site.kind}
             timezone={timezone}
             onDeleted={() => { setEdit(null); openDashboard('builtin') }}
             onExit={() => setEdit(null)}

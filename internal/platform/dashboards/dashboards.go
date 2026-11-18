@@ -104,11 +104,25 @@ func (s *Service) Create(ctx context.Context, principal authz.Principal, siteID 
 	if err != nil {
 		return api.Dashboard{}, err
 	}
-	_, encoded, err := NormalizeLayout(layout)
+	kind, err := s.siteKind(ctx, siteID)
+	if err != nil {
+		return api.Dashboard{}, err
+	}
+	_, encoded, err := NormalizeLayoutFor(layout, kind)
 	if err != nil {
 		return api.Dashboard{}, err
 	}
 	return s.insert(ctx, principal, siteID, name, encoded, "dashboard.created", nil)
+}
+
+// siteKind reads the kind of the site that owns the dashboard, which decides
+// the widget kinds a layout may use.
+func (s *Service) siteKind(ctx context.Context, siteID int32) (string, error) {
+	var kind string
+	if err := s.store.Pool.QueryRow(ctx, `select kind from sites where id=$1`, siteID).Scan(&kind); err != nil {
+		return "", err
+	}
+	return kind, nil
 }
 
 func (s *Service) insert(ctx context.Context, principal authz.Principal, siteID int32, name string, layout []byte, action string, extra map[string]any) (api.Dashboard, error) {
@@ -149,7 +163,11 @@ func (s *Service) Update(ctx context.Context, principal authz.Principal, siteID 
 	if err != nil {
 		return api.Dashboard{}, err
 	}
-	_, encoded, err := NormalizeLayout(layout)
+	kind, err := s.siteKind(ctx, siteID)
+	if err != nil {
+		return api.Dashboard{}, err
+	}
+	_, encoded, err := NormalizeLayoutFor(layout, kind)
 	if err != nil {
 		return api.Dashboard{}, err
 	}
@@ -199,7 +217,11 @@ func (s *Service) Duplicate(ctx context.Context, principal authz.Principal, site
 	if err != nil {
 		return api.Dashboard{}, err
 	}
-	_, encoded, err := NormalizeLayout(source.Layout)
+	kind, err := s.siteKind(ctx, siteID)
+	if err != nil {
+		return api.Dashboard{}, err
+	}
+	_, encoded, err := NormalizeLayoutFor(source.Layout, kind)
 	if err != nil {
 		return api.Dashboard{}, err
 	}

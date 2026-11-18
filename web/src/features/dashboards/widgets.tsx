@@ -10,6 +10,7 @@ import { FunnelChart } from '@/features/funnels/FunnelChart'
 import { useFunnelResult, useFunnels } from '@/features/funnels/api'
 import { useGoals } from '@/features/goals/api'
 import { WeeklyRhythmCard } from '@/features/map/WeeklyRhythmCard'
+import { ObsMetricWidget } from '@/features/obs/metrics/ObsMetricWidget'
 import { WhereCard } from '@/features/map/WhereCard'
 import { RetentionHeatmap } from '@/features/retention/RetentionHeatmap'
 import { useRetentionReport } from '@/features/retention/api'
@@ -43,11 +44,13 @@ const kindTitles: Record<DashboardWidget['kind'], string> = {
   funnel: t.funnel,
   retention: t.retention,
   web_vitals: t.vitals,
+  obs_metric: 'Custom metric',
 }
 
 export function widgetTitle(widget: DashboardWidget): string {
   if (widget.title) return widget.title
   if (widget.kind === 'breakdown') return dimensionLabel(widget.config?.dimension ?? '')
+  if (widget.kind === 'obs_metric' && widget.config?.query?.name) return widget.config.query.name
   return kindTitles[widget.kind]
 }
 
@@ -142,6 +145,8 @@ export function WidgetBody(props: WidgetContext) {
       return anonymous ? <Restricted title={title} /> : <RetentionWidget title={title} query={query} />
     case 'web_vitals':
       return <VitalsWidget title={title} query={query} />
+    case 'obs_metric':
+      return <ObsMetricWidget chart={config.chart === 'bar' ? 'bar' : 'line'} dateRange={query.dateRange} query={config.query} siteId={query.siteId} timezone={query.timezone ?? 'UTC'} title={title} />
   }
 }
 

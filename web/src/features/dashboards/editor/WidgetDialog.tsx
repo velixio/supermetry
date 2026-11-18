@@ -7,12 +7,15 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet 
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useFunnels } from '@/features/funnels/api'
+import { useObsMetrics } from '@/features/obs/metrics/api'
+import { aggsByKind, intervals, type Agg, type Interval, type ObsMetricWidgetQuery } from '@/features/obs/metrics/metricQuery'
 import { dashEdit } from '@/messages/dashEdit'
 import { en } from '@/messages/en'
+import { obsMetrics } from '@/messages/obsMetrics'
 
 import type { DashboardWidget } from '../api'
 import {
-  allMetrics, defaultConfig, defaultSize, dimensions, kindRules, kinds, periods, trafficMetrics, validateDraft,
+  allMetrics, defaultConfig, defaultSize, dimensions, kindRules, kindsFor, periods, trafficMetrics, validateDraft,
   type Kind, type Metric,
 } from './model'
 import { humanize, issueText, widgetLabel } from './text'
@@ -23,6 +26,7 @@ const property = '__property'
 
 type WidgetDialogProps = {
   siteId: number
+  siteKind?: string
   mode: 'add' | 'edit'
   /** The widget being added (with a fresh id) or edited. */
   widget: DashboardWidget
@@ -53,8 +57,9 @@ function Pick({ id, label, value, onChange, options }: {
 }
 
 /** Dialog for the kind-specific options of one widget; used to add a widget and to edit it. */
-export function WidgetDialog({ siteId, mode, widget, onSubmit, onClose }: WidgetDialogProps) {
+export function WidgetDialog({ siteId, siteKind, mode, widget, onSubmit, onClose }: WidgetDialogProps) {
   const funnels = useFunnels(siteId)
+  const obsMetricList = useObsMetrics(siteId, draftIsObs(widget, siteKind))
   const [draft, setDraft] = useState<DashboardWidget>(widget)
   const [propKey, setPropKey] = useState(widget.config?.dimension?.startsWith('prop:') ? widget.config.dimension.slice(5) : '')
   const [errors, setErrors] = useState<string[]>([])
@@ -103,7 +108,7 @@ export function WidgetDialog({ siteId, mode, widget, onSubmit, onClose }: Widget
           <FieldGroup>
             {mode === 'add' ? (
               <Pick id="widget-kind" label={t.kindLabel} value={draft.kind} onChange={(value) => changeKind(value as Kind)}
-                options={kinds.map((kind) => ({ value: kind, label: t.kinds[kind] }))} />
+                options={kindsFor(siteKind).map((kind) => ({ value: kind, label: t.kinds[kind] }))} />
             ) : null}
             <Field>
               <FieldLabel htmlFor="widget-title">{t.titleLabel}</FieldLabel>
@@ -180,6 +185,7 @@ export function WidgetDialog({ siteId, mode, widget, onSubmit, onClose }: Widget
                 </Field>
               )
             ) : null}
+            {rule.obs ? <ObsFields config={config} metrics={obsMetricList.data ?? []} onChange={(query, chart) => setConfig({ query, chart })} /> : null}
           </FieldGroup>
           {errors.length > 0 ? (
             <ul className="list-disc pl-5 text-sm text-destructive" role="alert">{errors.map((message) => <li key={message}>{message}</li>)}</ul>
@@ -191,5 +197,45 @@ export function WidgetDialog({ siteId, mode, widget, onSubmit, onClose }: Widget
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Custom metric widgets exist on app projects; the metric list is only loaded there. */
+function draftIsObs(widget: DashboardWidget, siteKind?: string): boolean {
+  return siteKind === 'app' || widget.kind === 'obs_metric'
+}
+
+const noGroup = '__none'
+
+/** Options of an obs_metric widget: metric, aggregation, group-by, step and chart type (the time range comes from the dashboard). */
+function ObsFields({ config, metrics, onChange }: {
+  config: NonNullable<DashboardWidget['config']>
+  metrics: Array<{ name: string; kind: keyof typeof aggsByKind; attribute_keys: string[] }>
+  onChange: (query: ObsMetricWidgetQuery, chart: 'line' | 'bar') => void
+}) {
+  const query: ObsMetricWidgetQuery = config.query ?? { name: '', agg: 'avg', interval: '1h' }
+  const chart = config.chart === 'bar' ? 'bar' : 'line'
+  const info = metrics.find((metric) => metric.name === query.name)
+  const aggs = info ? aggsByKind[info.kind] : []
+  const keys = info?.attribute_keys ?? []
+  const change = (patch: Partial<ObsMetricWidgetQuery>) => onChange({ ...query, ...patch }, chart)
+  return (
+    <>
+      <Pick id="widget-obs-name" label={obsMetrics.metric} value={query.name} onChange={(name) => {
+        const next = metrics.find((metric) => metric.name === name)
+        const allowed = next ? aggsByKind[next.kind] : []
+        const agg: Agg = allowed.includes(query.agg) ? query.agg : (allowed[0] ?? 'avg')
+        onChange({ name, agg, interval: query.interval }, chart)
+      }} options={metrics.map((metric) => ({ value: metric.name, label: metric.name }))} />
+      <Pick id="widget-obs-agg" label={obsMetrics.aggregation} value={aggs.includes(query.agg) ? query.agg : ''} onChange={(agg) => change({ agg: agg as Agg })}
+        options={aggs.map((agg) => ({ value: agg, label: obsMetrics.aggs[agg] }))} />
+      <Pick id="widget-obs-group" label={obsMetrics.groupBy} value={query.group_by?.[0] ?? noGroup}
+        onChange={(key) => change({ group_by: key === noGroup ? undefined : [key] })}
+        options={[{ value: noGroup, label: obsMetrics.none }, ...keys.map((key) => ({ value: key, label: key }))]} />
+      <Pick id="widget-obs-interval" label={obsMetrics.interval} value={query.interval} onChange={(interval) => change({ interval: interval as Interval })}
+        options={intervals.map((step) => ({ value: step, label: obsMetrics.intervals[step] }))} />
+      <Pick id="widget-obs-chart" label={obsMetrics.chartType} value={chart} onChange={(next) => onChange(query, next as 'line' | 'bar')}
+        options={[{ value: 'line', label: obsMetrics.line }, { value: 'bar', label: obsMetrics.bar }]} />
+    </>
   )
 }

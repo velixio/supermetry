@@ -93,6 +93,7 @@ var sourceRegistry = []Source{
 	{Table: "site_last_event", Category: CategoryAuxiliary},
 	{Table: "metric_points", Category: CategoryHot, Partitioned: true},
 	{Table: "metric_series", Category: CategoryAuxiliary},
+	{Table: "metric_hourly", Category: CategoryRetained, Partitioned: true},
 	{Table: "spans", Category: CategoryHot, Partitioned: true},
 	{Table: "span_hourly", Category: CategoryRetained},
 	{Table: "span_hour_state", Category: CategoryAuxiliary},
