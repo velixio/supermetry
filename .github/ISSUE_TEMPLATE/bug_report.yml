@@ -1,0 +1,55 @@
+name: Bug report
+description: Something does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do not paste secrets, API keys, DSNs or visitor data. For security problems, use private reporting (see SECURITY.md) instead of this form.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `supermetry version`, or the release tag or commit.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options:
+        - Release binary
+        - Docker
+        - systemd (installer script)
+        - Supermetry Cloud
+        - Built from source
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant server log lines or browser console output. Remove secrets first.
+      render: shell
