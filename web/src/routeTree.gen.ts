@@ -24,6 +24,7 @@ import { Route as AppGithubStarsRouteImport } from './routes/app.github-stars'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
+import { Route as AppOrgIndexRouteImport } from './routes/app.$org.index'
 import { Route as AppOrgGithubStarsRouteImport } from './routes/app.$org.github-stars'
 import { Route as AppOrgHealthRouteImport } from './routes/app.$org.health'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.$org.settings'
@@ -180,6 +181,11 @@ const ShareSlugRoute = ShareSlugRouteImport.update({
   id: '/share/$slug',
   path: '/share/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgIndexRoute = AppOrgIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgGithubStarsRoute = AppOrgGithubStarsRouteImport.update({
   id: '/github-stars',
@@ -641,6 +647,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org/': typeof AppOrgIndexRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -715,7 +722,6 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
-  '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/github-stars': typeof AppGithubStarsRoute
@@ -736,6 +742,7 @@ export interface FileRoutesByTo {
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org': typeof AppOrgIndexRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -835,6 +842,7 @@ export interface FileRoutesById {
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org/': typeof AppOrgIndexRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -935,6 +943,7 @@ export interface FileRouteTypes {
     | '/app/admin/sites'
     | '/app/admin/update'
     | '/app/admin/users'
+    | '/app/$org/'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
@@ -1009,7 +1018,6 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/setup'
     | '/signup'
-    | '/app/$org'
     | '/app/account'
     | '/app/admin'
     | '/app/github-stars'
@@ -1030,6 +1038,7 @@ export interface FileRouteTypes {
     | '/app/admin/sites'
     | '/app/admin/update'
     | '/app/admin/users'
+    | '/app/$org'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
@@ -1128,6 +1137,7 @@ export interface FileRouteTypes {
     | '/app/admin/sites'
     | '/app/admin/update'
     | '/app/admin/users'
+    | '/app/$org/'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
@@ -1315,6 +1325,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/share/$slug'
       preLoaderRoute: typeof ShareSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/$org/': {
+      id: '/app/$org/'
+      path: '/'
+      fullPath: '/app/$org/'
+      preLoaderRoute: typeof AppOrgIndexRouteImport
+      parentRoute: typeof AppOrgRoute
     }
     '/app/$org/github-stars': {
       id: '/app/$org/github-stars'
@@ -1975,6 +1992,7 @@ interface AppOrgRouteChildren {
   AppOrgGithubStarsRoute: typeof AppOrgGithubStarsRouteWithChildren
   AppOrgHealthRoute: typeof AppOrgHealthRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRouteWithChildren
+  AppOrgIndexRoute: typeof AppOrgIndexRoute
   AppOrgSiteCohortsRoute: typeof AppOrgSiteCohortsRoute
   AppOrgSiteCompatibilityRoute: typeof AppOrgSiteCompatibilityRoute
   AppOrgSiteEventsRoute: typeof AppOrgSiteEventsRoute
@@ -2018,6 +2036,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgGithubStarsRoute: AppOrgGithubStarsRouteWithChildren,
   AppOrgHealthRoute: AppOrgHealthRoute,
   AppOrgSettingsRoute: AppOrgSettingsRouteWithChildren,
+  AppOrgIndexRoute: AppOrgIndexRoute,
   AppOrgSiteCohortsRoute: AppOrgSiteCohortsRoute,
   AppOrgSiteCompatibilityRoute: AppOrgSiteCompatibilityRoute,
   AppOrgSiteEventsRoute: AppOrgSiteEventsRoute,
