@@ -722,6 +722,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
 		})
 	ruleEvaluator.SetMetricSource(alerts.NewMetricStore(pool, alerts.NewPerfStore(pool), registry))
+	ruleEvaluator.SetSilences(alertService)
 	jobs = append(jobs, ruleEvaluator.Job())
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
