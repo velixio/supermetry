@@ -82,6 +82,7 @@ import { Route as AppOrgSiteReleasesReleaseRouteImport } from './routes/app.$org
 import { Route as AppOrgSiteReleasesCompareRouteImport } from './routes/app.$org.$site.releases_.compare'
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
 import { Route as AppOrgSiteReplaysIdRouteImport } from './routes/app.$org.$site.replays.$id'
+import { Route as AppOrgSiteSettingsAlertSilencesRouteImport } from './routes/app.$org.$site.settings.alert-silences'
 import { Route as AppOrgSiteSettingsAlertsRouteImport } from './routes/app.$org.$site.settings.alerts'
 import { Route as AppOrgSiteSettingsAppRouteImport } from './routes/app.$org.$site.settings.app'
 import { Route as AppOrgSiteSettingsFunnelsRouteImport } from './routes/app.$org.$site.settings.funnels'
@@ -474,6 +475,12 @@ const AppOrgSiteReplaysIdRoute = AppOrgSiteReplaysIdRouteImport.update({
   path: '/$site/replays/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteSettingsAlertSilencesRoute =
+  AppOrgSiteSettingsAlertSilencesRouteImport.update({
+    id: '/alert-silences',
+    path: '/alert-silences',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 const AppOrgSiteSettingsAlertsRoute =
   AppOrgSiteSettingsAlertsRouteImport.update({
     id: '/alerts',
@@ -653,6 +660,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/releases/$release': typeof AppOrgSiteReleasesReleaseRoute
   '/app/$org/$site/releases/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alert-silences': typeof AppOrgSiteSettingsAlertSilencesRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
@@ -744,6 +752,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/releases/$release': typeof AppOrgSiteReleasesReleaseRoute
   '/app/$org/$site/releases/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alert-silences': typeof AppOrgSiteSettingsAlertSilencesRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
@@ -839,6 +848,7 @@ export interface FileRoutesById {
   '/app/$org/$site/releases_/$release': typeof AppOrgSiteReleasesReleaseRoute
   '/app/$org/$site/releases_/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
+  '/app/$org/$site/settings/alert-silences': typeof AppOrgSiteSettingsAlertSilencesRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
   '/app/$org/$site/settings/funnels': typeof AppOrgSiteSettingsFunnelsRoute
@@ -935,6 +945,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/releases/$release'
     | '/app/$org/$site/releases/compare'
     | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alert-silences'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
@@ -1026,6 +1037,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/releases/$release'
     | '/app/$org/$site/releases/compare'
     | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alert-silences'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
@@ -1120,6 +1132,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/releases_/$release'
     | '/app/$org/$site/releases_/compare'
     | '/app/$org/$site/replays/$id'
+    | '/app/$org/$site/settings/alert-silences'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
     | '/app/$org/$site/settings/funnels'
@@ -1673,6 +1686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteReplaysIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/settings/alert-silences': {
+      id: '/app/$org/$site/settings/alert-silences'
+      path: '/alert-silences'
+      fullPath: '/app/$org/$site/settings/alert-silences'
+      preLoaderRoute: typeof AppOrgSiteSettingsAlertSilencesRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/alerts': {
       id: '/app/$org/$site/settings/alerts'
       path: '/alerts'
@@ -1849,6 +1869,7 @@ const AppOrgSettingsRouteWithChildren = AppOrgSettingsRoute._addFileChildren(
 )
 
 interface AppOrgSiteSettingsRouteChildren {
+  AppOrgSiteSettingsAlertSilencesRoute: typeof AppOrgSiteSettingsAlertSilencesRoute
   AppOrgSiteSettingsAlertsRoute: typeof AppOrgSiteSettingsAlertsRoute
   AppOrgSiteSettingsAppRoute: typeof AppOrgSiteSettingsAppRoute
   AppOrgSiteSettingsFunnelsRoute: typeof AppOrgSiteSettingsFunnelsRoute
@@ -1867,6 +1888,7 @@ interface AppOrgSiteSettingsRouteChildren {
 }
 
 const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
+  AppOrgSiteSettingsAlertSilencesRoute: AppOrgSiteSettingsAlertSilencesRoute,
   AppOrgSiteSettingsAlertsRoute: AppOrgSiteSettingsAlertsRoute,
   AppOrgSiteSettingsAppRoute: AppOrgSiteSettingsAppRoute,
   AppOrgSiteSettingsFunnelsRoute: AppOrgSiteSettingsFunnelsRoute,
