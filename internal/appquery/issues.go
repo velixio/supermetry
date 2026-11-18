@@ -259,6 +259,8 @@ type IssueDetail struct {
 	Series                  []IssueDay             `json:"series"`
 	Breakdowns              map[string][]Breakdown `json:"breakdowns"`
 	LatestEvents            []EventSample          `json:"latest_events"`
+	IntroducedIn            *IntroducedIn          `json:"introduced_in"`
+	SuspectCommits          []SuspectCommit        `json:"suspect_commits"`
 }
 
 // breakdownDims maps a breakdown name to its fixed column.
@@ -318,8 +320,10 @@ where `+eventWhere+` and issue_id = $7 and `+dim+` <> '' group by 1 order by 2 d
 	if err := q.tagBreakdowns(ctx, args, d.Breakdowns); err != nil {
 		return d, err
 	}
-	d.LatestEvents, err = q.latest(ctx, args)
-	return d, err
+	if d.LatestEvents, err = q.latest(ctx, args); err != nil {
+		return d, err
+	}
+	return d, q.introducedIn(ctx, scope, &d)
 }
 
 func (q *Querier) issueSeries(ctx context.Context, w window, id int64) ([]IssueDay, error) {

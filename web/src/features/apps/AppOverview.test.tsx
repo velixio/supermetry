@@ -14,6 +14,7 @@ import { issueRow, renderWithQuery } from './testing'
 
 const overview = (over = {}) => ({
   events: 1200, crashes: 30, new_issues: 4, regressed_issues: 2, crash_free_users: 0.987, crash_free_sessions: 0.95,
+  sessions: 200, users: 80, abnormal_sessions: 4, errored_sessions: 16, handled_errors: 30, unhandled_errors: 12, health_source: 'sessions',
   series: [{ day: '2026-11-14', events: 600, crashes: 10, crash_free_users: 0.99 }], ...over,
 })
 
@@ -66,5 +67,21 @@ describe('AppOverview', () => {
     renderWithQuery(<AppOverview {...props} />)
     expect(await screen.findByText('No reports yet')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Set up this app' })).toBeInTheDocument()
+  })
+
+  it('shows session status and handled split, and the events note on v1 data', async () => {
+    mock(overview())
+    const view = renderWithQuery(<AppOverview {...props} />)
+    const status = await screen.findByLabelText('Session status breakdown')
+    expect(status).toHaveTextContent('Healthy170')
+    expect(status).toHaveTextContent('Errored16')
+    expect(status).toHaveTextContent('Abnormal4')
+    expect(status).toHaveTextContent('Crashed10')
+    expect(screen.getByRole('img', { name: 'Handled errors 30, unhandled errors 12' })).toBeInTheDocument()
+    expect(screen.queryByText(/from error events/)).toBeNull()
+    view.unmount()
+    mock(overview({ sessions: 0, health_source: 'events' }))
+    renderWithQuery(<AppOverview {...props} search={{ period: '30d' as const, release: '1.0.0' }} />)
+    expect(await screen.findByText(/from error events/)).toBeInTheDocument()
   })
 })

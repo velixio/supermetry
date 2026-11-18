@@ -80,7 +80,7 @@ describe('AppInstallationPage', () => {
     // The Sentry setup comes first: DSN with copy, snippets that set only dsn and release.
     expect(await screen.findByLabelText('DSN')).toHaveTextContent(dsnKey.dsn)
     expect(screen.getByRole('button', { name: 'Copy DSN' })).toBeInTheDocument()
-    expect(screen.getByText(/Sentry SDKs send no sessions without it\./)).toBeInTheDocument()
+    expect(screen.getByText(/Without it, crash-free rates fall back to error events\./)).toBeInTheDocument()
     expect(screen.getByLabelText('JavaScript (browser) setup')).toHaveTextContent(`dsn: "${dsnKey.dsn}"`)
     expect(screen.getByLabelText('JavaScript (browser) setup')).toHaveTextContent('release:')
     expect(screen.getByLabelText('App ID')).toHaveTextContent('6quqxuelthfz')

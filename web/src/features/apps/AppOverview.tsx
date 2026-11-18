@@ -12,6 +12,7 @@ import { AppFilters } from './AppFilters'
 import { useAppIssues, useAppOverview, useAppPlatforms } from './api'
 import { formatRate } from './format'
 import { IssueRowsTable } from './IssuesTable'
+import { ReleaseHealth } from './ReleaseHealth'
 import { hasAppFilters, type AppSearch } from './search'
 
 export const SESSIONS_HINT = 'Send a session event at app start to measure this'
@@ -51,6 +52,7 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
         <Tile label="New issues">{fmt.number(data.new_issues)}</Tile>
         <Tile label="Regressed issues">{fmt.number(data.regressed_issues)}</Tile>
       </div>
+      {data.sessions > 0 || search.release ? <ReleaseHealth data={data} /> : null}
       <Card>
         <CardHeader><CardTitle>Events and crashes</CardTitle><CardDescription>Daily counts, with the crash-free users rate.</CardDescription></CardHeader>
         <CardContent>
