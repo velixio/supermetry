@@ -62,6 +62,7 @@ type OverviewSite struct {
 	LastEventAt      *time.Time              `json:"last_event_at"`
 	InstallStatus    coresites.InstallStatus `json:"install_status"`
 	TrackingSnippet  string                  `json:"tracking_snippet"`
+	Highlights       []Highlight             `json:"highlights"`
 }
 
 type overviewCursor struct {
@@ -77,6 +78,12 @@ type overviewCacheEntry struct {
 type overviewFigures struct {
 	visitors, previous int64
 	points             []OverviewPoint
+
+	// Facts for the status line; see highlights.go.
+	topSource                      string
+	topSourceVisitors, sourceTotal int64
+	newIssues                      int64
+	crashFree, crashFreePrevious   *float64
 }
 
 type Overview struct {
@@ -143,6 +150,12 @@ func (s *Overview) List(ctx context.Context, userID int64, period OverviewPeriod
 		}
 		items[index].LiveVisitors = realtime.RichSnapshot(s.sessions, items[index].ID, now).ActiveVisitors
 		items[index].InstallStatus = coresites.InstallStatusAt(items[index].LastEventAt, now)
+		items[index].Highlights = buildHighlights(highlightInput{
+			Kind: items[index].Kind, Now: now, LastEventAt: items[index].LastEventAt,
+			Visitors: figure.visitors, Previous: figure.previous, NewIssues: figure.newIssues,
+			CrashFreeCurrent: figure.crashFree, CrashFreePrevious: figure.crashFreePrevious,
+			TopSource: figure.topSource, TopSourceVisitors: figure.topSourceVisitors, SourceTotal: figure.sourceTotal,
+		})
 	}
 	return items, next, nil
 }
@@ -240,6 +253,9 @@ func (s *Overview) figures(ctx context.Context, sites []OverviewSite, period Ove
 			err = s.loadDailyFigures(ctx, sites, values, now, period)
 		}
 		if err != nil {
+			return nil, err
+		}
+		if err := s.loadHighlightFigures(ctx, sites, values, now, period); err != nil {
 			return nil, err
 		}
 	}
