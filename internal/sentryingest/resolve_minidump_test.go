@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"supermetry/internal/appingest"
@@ -167,9 +169,19 @@ func TestMinidumpInvalidKeepsEventMissing(t *testing.T) {
 	}
 }
 
-type fakeRemote struct{ key string }
+type fakeRemote struct {
+	key   string
+	err   error
+	calls *int32
+}
 
 func (f fakeRemote) CacheFor(_ context.Context, _ int32, m appingest.DebugImage) (string, bool, error) {
+	if f.calls != nil {
+		atomic.AddInt32(f.calls, 1)
+	}
+	if f.err != nil {
+		return "", false, f.err
+	}
 	if m.DebugID == appBreakpadID {
 		return f.key, true, nil
 	}
@@ -204,5 +216,33 @@ func TestMinidumpBytesAreNeverInTheDeliveredBody(t *testing.T) {
 		if strings.Contains(string(raw), s) || strings.Contains(string(rawEv), s) {
 			t.Fatalf("%q leaked", s)
 		}
+	}
+}
+
+func TestMinidumpRemoteSymbolsOnlyAfterUploadsMiss(t *testing.T) {
+	var calls int32
+	s, col, _ := dumpSymbolicator(t, true, func(c *SymbolicatorConfig) { c.Remote = fakeRemote{key: "remote/none", calls: &calls} })
+	ev, body := dumpEvent(appDump())
+	s.Submit(ev, body, nil)
+	if gev, _ := col.wait(t); gev.Symbolication != "ok" || atomic.LoadInt32(&calls) != 0 {
+		t.Fatalf("symbolication %q, remote asked %d times although the upload covered the module", gev.Symbolication, calls)
+	}
+}
+
+func TestMinidumpRemoteErrorIsAMiss(t *testing.T) {
+	var calls int32
+	s, col, miss := dumpSymbolicator(t, false, func(c *SymbolicatorConfig) {
+		c.Remote = fakeRemote{err: errors.New("boom"), calls: &calls}
+	})
+	ev, body := dumpEvent(appDump())
+	s.Submit(ev, body, nil)
+	gev, gb := col.wait(t)
+	if gev.Symbolication != "missing" || strings.Join(frameNames(gb), ",") != "app+0x250,app+0x123" || atomic.LoadInt32(&calls) == 0 {
+		t.Fatalf("%q %v calls %d", gev.Symbolication, frameNames(gb), calls)
+	}
+	miss.mu.Lock()
+	defer miss.mu.Unlock()
+	if len(miss.seen) == 0 {
+		t.Fatal("the miss was not recorded")
 	}
 }

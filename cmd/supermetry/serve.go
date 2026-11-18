@@ -533,7 +533,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		})
 		defer electronSymbols.Close()
 	}
-	_ = electronSymbols // consumed by the minidump resolver (phase 2d task 4)
+	// A typed nil pointer in an interface is not nil, so only a built fetcher is passed on.
+	var remoteSymbols sentryingest.RemoteSymbols
+	if electronSymbols != nil {
+		remoteSymbols = electronSymbols
+	}
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
 	appProduct := appproduct.New(w, sessions, dictionary, dropRecorder, settings.clock.Now)
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
@@ -577,7 +581,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		symbolMisses.SetStats(sentryHandler.Stats())
 		symbolMisses.Start()
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
-			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, MinidumpInflightBytes: int64(cfg.MinidumpInflightMB) << 20, Stats: sentryHandler.Stats(),
+			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, MinidumpInflightBytes: int64(cfg.MinidumpInflightMB) << 20, Remote: remoteSymbols, Stats: sentryHandler.Stats(),
 			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
 			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver(), sentryingest.MinidumpResolver(), sentryingest.NativeResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
 			Misses: symbolMisses,
