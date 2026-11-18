@@ -239,6 +239,35 @@ func TestTelegramChannelCRUDAcceptsWriteOnlyTokenAndDisabledState(t *testing.T) 
 	}
 }
 
+func TestPagerDutyChannelInputRules(t *testing.T) {
+	key := "R0UT1NGKEYabcdefghijklmnopqrstuv"
+	for _, tt := range []struct {
+		name, method, path, body string
+		status                   int
+	}{
+		{"create with key", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{"routing_key":"` + key + `"}}`, http.StatusCreated},
+		{"create without key", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{}}`, http.StatusBadRequest},
+		{"create with short key", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{"routing_key":"abc"}}`, http.StatusBadRequest},
+		{"create with url", http.MethodPost, "/api/private/orgs/1/channels", `{"kind":"pagerduty","name":"On call","config":{"routing_key":"` + key + `","url":"https://x.test"}}`, http.StatusBadRequest},
+		{"edit keeps the key", http.MethodPatch, "/api/private/orgs/1/channels/7", `{"kind":"pagerduty","name":"On call","config":{}}`, http.StatusOK},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &fakeAlertsService{}
+			handler := platformhttp.New(platformhttp.Deps{
+				Authenticator: actorAuthenticator{"admin": {UserID: 2, OrgID: 1, Role: authz.RoleAdmin}},
+				Alerts:        service,
+			})
+			response := requestAs(t, handler, "admin", tt.method, tt.path, tt.body)
+			if response.Code != tt.status {
+				t.Fatalf("status=%d body=%s, want %d", response.Code, response.Body.String(), tt.status)
+			}
+			if strings.Contains(response.Body.String(), key) {
+				t.Fatalf("response echoes the routing key: %s", response.Body.String())
+			}
+		})
+	}
+}
+
 func TestTelegramChannelAuthorizationAndTenantIsolation(t *testing.T) {
 	service := &fakeAlertsService{}
 	handler := platformhttp.New(platformhttp.Deps{

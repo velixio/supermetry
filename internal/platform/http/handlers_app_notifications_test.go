@@ -78,6 +78,37 @@ func TestAppNotificationPrefsDefaultsAndOwnEdits(t *testing.T) {
 	}
 }
 
+func TestAppNotificationPrefsWeeklyDigestIsOptionalAndOwn(t *testing.T) {
+	f, viewer, _ := newNotifyPrefsFixture(t)
+	if _, err := f.pool.Exec(context.Background(), `update sites set kind='app'`); err != nil {
+		t.Fatal(err)
+	}
+	path := fmt.Sprintf("/api/private/me/app-notifications/%d", f.siteID)
+	digest := func() bool {
+		var on bool
+		if err := f.pool.QueryRow(context.Background(), `select weekly_digest from user_notification_prefs where user_id=$1 and site_id=$2`, viewer, f.siteID).Scan(&on); err != nil {
+			t.Fatal(err)
+		}
+		return on
+	}
+	out := f.json(t, "viewer-user", http.MethodPut, path, `{"assigned":true,"resolved":false,"regressed":true,"weekly_digest":true}`, http.StatusOK)
+	if out["weekly_digest"] != true || !digest() {
+		t.Fatalf("digest not switched on: %v", out)
+	}
+	// Saving the other switches without the field keeps the digest as it was.
+	out = f.json(t, "viewer-user", http.MethodPut, path, `{"assigned":false,"resolved":false,"regressed":true}`, http.StatusOK)
+	if out["weekly_digest"] != true || !digest() {
+		t.Fatalf("digest lost when the field was omitted: %v", out)
+	}
+	for _, row := range f.prefsFor(t, "viewer-user") {
+		if r := row.(map[string]any); r["site_id"] == float64(f.siteID) && r["weekly_digest"] != true {
+			t.Fatalf("list does not show the digest switch: %v", r)
+		}
+	}
+	// A project the caller cannot read stays a 404 for the digest too.
+	f.json(t, "carol", http.MethodPut, path, `{"assigned":true,"resolved":true,"regressed":true,"weekly_digest":true}`, http.StatusNotFound)
+}
+
 func TestAppNotificationPrefsGuards(t *testing.T) {
 	f, _, _ := newNotifyPrefsFixture(t)
 	if _, err := f.pool.Exec(context.Background(), `update sites set kind='app'`); err != nil {
