@@ -1,15 +1,18 @@
 package appingest
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/appattach"
 	"supermetry/internal/health"
 )
 
@@ -142,5 +145,54 @@ func TestSiteDeletionCascadesBodiesAndClientReports(t *testing.T) {
 	var b, r int
 	if err := pool.QueryRow(ctx, `select (select count(*) from app_event_bodies), (select count(*) from app_client_reports)`).Scan(&b, &r); err != nil || b != 0 || r != 0 {
 		t.Fatalf("left after site delete: bodies=%d reports=%d err=%v", b, r, err)
+	}
+}
+
+func bodyWithFile(site int32, id string, size int) Body {
+	b := testBody(site, id)
+	b.Attachments = []AttachmentMeta{{Name: "log.txt", ContentType: "text/plain", Size: size, Stored: true}}
+	b.Files = []appattach.File{{Idx: 0, Name: "log.txt", ContentType: "text/plain", Data: bytes.Repeat([]byte("a"), size)}}
+	return b
+}
+
+func TestBodyWriterStoresAttachmentsWithBodyAndSkipsDeletedSites(t *testing.T) {
+	pool, _, _ := writerFixture(t)
+	ctx := context.Background()
+	w := NewBodyWriter(pool, BodyWriterConfig{})
+	w.Enqueue(bodyWithFile(7, "att", 10))
+	w.Enqueue(bodyWithFile(99, "gone", 10))
+	if err := w.copyRows(ctx, []bodyRow{<-w.ch, <-w.ch}); err != nil {
+		t.Fatal(err)
+	}
+	var n, size int
+	var ct string
+	if err := pool.QueryRow(ctx, `select count(*), coalesce(max(size),0), coalesce(max(content_type),'') from app_event_attachments`).Scan(&n, &size, &ct); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 || size != 10 || ct != "text/plain" {
+		t.Fatalf("attachments n=%d size=%d ct=%q", n, size, ct)
+	}
+}
+
+func TestBodyWriterQueuedAttachmentBytesAreBounded(t *testing.T) {
+	w := NewBodyWriter(nil, BodyWriterConfig{AttachmentBytes: 100})
+	w.copyRows = func(context.Context, []bodyRow) error { return nil }
+	before := health.AppAttachmentDropped.Load()
+	if !w.Enqueue(bodyWithFile(7, "a", 60)) || !w.Enqueue(bodyWithFile(7, "b", 60)) {
+		t.Fatal("a body must be kept even when its attachments are not")
+	}
+	first, second := <-w.ch, <-w.ch
+	if len(first.files) != 1 || len(second.files) != 0 {
+		t.Fatalf("files kept = %d, %d", len(first.files), len(second.files))
+	}
+	if strings.Contains(string(first.json), `"stored":false`) || !strings.Contains(string(second.json), `"stored":false`) {
+		t.Fatalf("stored flags: %s / %s", first.json, second.json)
+	}
+	if d := health.AppAttachmentDropped.Load() - before; d != 1 {
+		t.Fatalf("dropped = %d", d)
+	}
+	w.flushRetry(context.Background(), []bodyRow{first, second})
+	if got := w.queuedBytes.Load(); got != 0 {
+		t.Fatalf("budget not released: %d", got)
 	}
 }

@@ -39,6 +39,7 @@ const activityRows = [
   { id: 2, at: '2026-11-14T08:00:00Z', kind: 'regressed', actor_user_id: null, actor_name: '', data: { release: '1.2.0' } },
   { id: 1, at: '2026-11-01T10:00:00Z', kind: 'first_seen', actor_user_id: null, actor_name: '', data: { release: '1.0.0' } },
 ]
+const feedbackRows = [{ id: 1, at: '2026-11-14T09:00:00Z', issue_id: 11, event_id: 'e1', name: null, has_contact: true, message: 'It froze when I saved', url: '/save' }]
 const comments = [{ id: 1, issue_id: 11, author_user_id: 4, author_name: 'Grace', body: 'Looks like the renderer', created_at: '2026-11-14T08:10:00Z', edited_at: null }]
 
 function mockApi(patch: () => Promise<unknown>) {
@@ -46,6 +47,7 @@ function mockApi(patch: () => Promise<unknown>) {
     if (method === 'PATCH' || method === 'POST' || method === 'DELETE') return patch()
     if (path.includes('/releases')) return Promise.resolve({ releases: [] })
     if (path.includes('/assignees')) return Promise.resolve({ members: [{ user_id: 3, name: 'Ada' }, { user_id: 4, name: 'Grace' }] })
+    if (path.includes('/feedback')) return Promise.resolve({ feedback: feedbackRows })
     if (path.includes('/comments')) return Promise.resolve({ comments })
     if (path.includes('/activity')) return Promise.resolve({ activity: activityRows })
     return Promise.resolve(detail())
@@ -56,6 +58,52 @@ const props = { org: 'acme', site: 'desk', siteId: 7, issueId: 11, timezone: 'UT
 describe('IssueDetail', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(cleanup)
+
+  it('shows the introducing release and suspect commits, and nothing when empty', async () => {
+    mockApi(() => Promise.resolve({}))
+    const base = detail()
+    privateRequest.mockImplementation((method: string, path: string) => {
+      if (method !== 'GET') return Promise.resolve({})
+      if (path.includes('/releases')) return Promise.resolve({ releases: [] })
+      if (path.includes('/assignees')) return Promise.resolve({ members: [] })
+      if (path.includes('/feedback')) return Promise.resolve({ feedback: [] })
+      if (path.includes('/comments')) return Promise.resolve({ comments: [] })
+      if (path.includes('/activity')) return Promise.resolve({ activity: [] })
+      return Promise.resolve({
+        ...base,
+        introduced_in: { release: '1.1.0', first_seen: '2026-11-15T09:00:00Z', deploy_at: '2026-11-15T10:00:00Z' },
+        suspect_commits: [{ sha: 'abc1234def', repository: 'acme/app', message: 'Fix pay\n\nlong body', author_name: 'Dev One', at: null, path: 'src/pay.ts', score: 20 }],
+      })
+    })
+    renderWithQuery(<IssueDetail {...props} canEdit />)
+    expect(await screen.findByTestId('introduced-in')).toHaveTextContent('Introduced in 1.1.0 · deployed')
+    const list = screen.getByRole('list', { name: 'Suspect commits' })
+    expect(list).toHaveTextContent('abc1234')
+    expect(list).not.toHaveTextContent('abc1234d')
+    expect(list).toHaveTextContent('Fix pay')
+    expect(list).not.toHaveTextContent('long body')
+    expect(list).toHaveTextContent('Dev One')
+    expect(list).toHaveTextContent('src/pay.ts')
+  })
+
+  it('shows no introduced-in line or suspect card when there is nothing to show', async () => {
+    mockApi(() => Promise.resolve({}))
+    renderWithQuery(<IssueDetail {...props} canEdit />)
+    await screen.findByRole('heading', { name: 'Segfault in renderer' })
+    expect(screen.queryByTestId('introduced-in')).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Suspect commits' })).not.toBeInTheDocument()
+  })
+
+  it('lists the user feedback of the issue', async () => {
+    mockApi(() => Promise.resolve({}))
+    renderWithQuery(<IssueDetail {...props} canEdit />)
+    expect(await screen.findByText('It froze when I saved')).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'User feedback' })
+    expect(list).toHaveTextContent('It froze when I saved')
+    expect(list).toHaveTextContent('on /save')
+    expect(list).toHaveTextContent('left a contact address')
+    expect(list).not.toHaveTextContent('@')
+  })
 
   it('renders the header, breakdowns and expandable frames with a copy button', async () => {
     mockApi(() => Promise.resolve({}))

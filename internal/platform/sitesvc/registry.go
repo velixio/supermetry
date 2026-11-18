@@ -3,10 +3,12 @@ package sitesvc
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"supermetry/internal/apprules"
 	"supermetry/internal/platform/store"
 	coresites "supermetry/internal/sites"
 )
@@ -134,6 +136,14 @@ func (r *Registry) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	ownership, err := r.store.AppOwnershipRulesBySite(ctx)
+	if err != nil {
+		return err
+	}
+	grouping, err := r.store.AppGroupingRulesBySite(ctx)
+	if err != nil {
+		return err
+	}
 	keysBySite := make(map[int32][]coresites.AppKey)
 	for _, key := range appKeys {
 		entry := coresites.AppKey{Hash: key.Hash}
@@ -176,6 +186,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 				FilterCrawlers: parsed.FilterCrawlers, FilterLocalhost: parsed.FilterLocalhost,
 				PerformanceEnabled: parsed.PerformanceEnabled, SpanRetentionDays: parsed.SpanRetentionDays,
 			}
+			site.App.Rules = compileSiteRules(site.ID, ownership[site.ID], grouping[site.ID])
 			for _, key := range dsnBySite[site.ID] {
 				next.byDSN[key.PublicKey] = site.ID
 			}
@@ -296,3 +307,23 @@ func cloneTrackerSettings(settings coresites.TrackerSettingsInput) coresites.Tra
 }
 
 var _ coresites.DSNRegistry = (*Registry)(nil)
+
+// compileSiteRules compiles a project's rules for the ingest path. Rules are
+// validated when saved, so a failure here means a hand-edited row: that rule
+// kind is skipped (and logged) rather than failing the whole registry refresh.
+func compileSiteRules(siteID int32, own []apprules.OwnershipRule, grp []apprules.GroupingRule) *apprules.Set {
+	if len(own) == 0 && len(grp) == 0 {
+		return nil
+	}
+	set := &apprules.Set{}
+	var err error
+	if set.Ownership, err = apprules.CompileOwnership(own); err != nil {
+		slog.Error("invalid stored ownership rules ignored", "site_id", siteID, "error", err)
+		set.Ownership = apprules.OwnershipMatcher{}
+	}
+	if set.Grouping, err = apprules.CompileGrouping(grp); err != nil {
+		slog.Error("invalid stored grouping rules ignored", "site_id", siteID, "error", err)
+		set.Grouping = apprules.GroupingMatcher{}
+	}
+	return set
+}

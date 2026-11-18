@@ -34,16 +34,20 @@ type fixture struct {
 	name   string
 	header []byte // first envelope line, with the DSN as a placeholder
 	rest   []byte // everything after the first newline
-	events int    // items of type "event"
+	events int    // items of type "event", "transaction" or "span" (all count as accepted events)
 	items  int
+	tx     bool // from the transactions directory: timestamps are refreshed per request
 }
 
 var eventID = regexp.MustCompile(`"event_id":"[0-9a-f]{32}"`)
+var tsNum = regexp.MustCompile(`"(start_timestamp|timestamp|end_timestamp)":[0-9.]+`)
+var tsStr = regexp.MustCompile(`"(start_timestamp|timestamp|sent_at)":"[^"]*"`)
+var lengthRe = regexp.MustCompile(`,"length":[0-9]+`)
 var dsnRe = regexp.MustCompile(`"dsn":"[^"]*"`)
 
 func loadFixtures(dir string) ([]fixture, error) {
 	var out []fixture
-	for _, sdk := range []string{"node", "browser", "python", "go"} {
+	for _, sdk := range []string{"node", "browser", "python", "go", "transactions"} {
 		files, _ := filepath.Glob(filepath.Join(dir, sdk, "*.envelope"))
 		for _, f := range files {
 			if strings.HasSuffix(f, "-br.envelope") {
@@ -68,6 +72,7 @@ func loadFixtures(dir string) ([]fixture, error) {
 			}
 			fx := fixture{name: sdk + "/" + strings.TrimSuffix(filepath.Base(f), ".envelope"), header: head, rest: rest}
 			fx.events, fx.items = countItems(rest)
+			fx.tx = sdk == "transactions"
 			out = append(out, fx)
 		}
 	}
@@ -89,7 +94,7 @@ func countItems(rest []byte) (events, items int) {
 			return
 		}
 		items++
-		if h.Type == "event" {
+		if h.Type == "event" || h.Type == "transaction" || h.Type == "span" {
 			events++
 		}
 		if h.Length != nil {
@@ -138,6 +143,9 @@ func main() {
 	minutes := flag.Float64("minutes", 5, "duration")
 	workers := flag.Int("workers", 24, "concurrent clients (the server caps concurrent body reads at 32 by default)")
 	gz := flag.Float64("gzip", 0.5, "share of requests sent gzip-compressed")
+	otlp := flag.Bool("otlp", false, "send OTLP/JSON trace requests to /api/{site}/otlp/v1/traces instead of envelopes and report accepted spans/s")
+	perReq := flag.Int("spans-per-request", 50, "spans in each OTLP request (-otlp only)")
+	txShare := flag.Float64("tx", 0.25, "share of requests that carry a transaction or span fixture")
 	flag.Parse()
 	if *keysFile == "" {
 		fmt.Fprintln(os.Stderr, "-keys is required")
@@ -154,6 +162,17 @@ func main() {
 		os.Exit(2)
 	}
 
+	var plain, txs []fixture
+	for _, f := range fixtures {
+		if f.tx {
+			txs = append(txs, f)
+		} else {
+			plain = append(plain, f)
+		}
+	}
+	if len(plain) == 0 {
+		plain, txs = txs, nil
+	}
 	var (
 		accEvents, accItems, reqs, ok200, r429, r503, other, netErr atomic.Int64
 		mu                                                          sync.Mutex
@@ -171,13 +190,46 @@ func main() {
 			r := mrand.New(mrand.NewPCG(uint64(w), 7))
 			var local []time.Duration
 			for time.Now().Before(deadline) {
-				fx := fixtures[r.IntN(len(fixtures))]
+				fx := plain[r.IntN(len(plain))]
+				if len(txs) > 0 && r.Float64() < *txShare {
+					fx = txs[r.IntN(len(txs))]
+				}
 				k := keys[r.IntN(len(keys))]
+				if *otlp {
+					fx = fixture{events: *perReq, items: *perReq}
+				}
 				head := dsnRe.ReplaceAll(fx.header, []byte(fmt.Sprintf(`"dsn":"http://%s@%s/%s"`, k.key, strings.TrimPrefix(*base, "http://"), k.site)))
 				body := append(append(append([]byte{}, head...), '\n'), fx.rest...)
+				if fx.tx {
+					now := time.Now().UTC()
+					// Rewriting timestamps changes payload sizes; payloads are one line, so drop the lengths.
+					body = lengthRe.ReplaceAll(body, nil)
+					body = tsNum.ReplaceAllFunc(body, func(m []byte) []byte {
+						off := 500 * time.Millisecond
+						if bytes.HasPrefix(m, []byte(`"start_timestamp"`)) {
+							off = time.Second
+						}
+						return []byte(fmt.Sprintf(`"%s":%.3f`, m[1:bytes.IndexByte(m[1:], '"')+1], float64(now.Add(-off).UnixMilli())/1000))
+					})
+					body = tsStr.ReplaceAllFunc(body, func(m []byte) []byte {
+						off := 500 * time.Millisecond
+						if bytes.HasPrefix(m, []byte(`"start_timestamp"`)) {
+							off = time.Second
+						}
+						if bytes.HasPrefix(m, []byte(`"sent_at"`)) {
+							off = 0
+						}
+						return []byte(fmt.Sprintf(`"%s":"%s"`, m[1:bytes.IndexByte(m[1:], '"')+1], now.Add(-off).Format(time.RFC3339Nano)))
+					})
+				}
 				id := newID()
 				body = eventID.ReplaceAll(body, []byte(`"event_id":"`+id+`"`))
-				req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/%s/envelope/", *base, k.site), nil)
+				target := fmt.Sprintf("%s/api/%s/envelope/", *base, k.site)
+				if *otlp {
+					body = otlpBody(r, *perReq)
+					target = fmt.Sprintf("%s/api/%s/otlp/v1/traces", *base, k.site)
+				}
+				req, _ := http.NewRequest(http.MethodPost, target, nil)
 				if r.Float64() < *gz {
 					var b bytes.Buffer
 					zw := gzip.NewWriter(&b)
@@ -188,7 +240,12 @@ func main() {
 				}
 				req.Body = io.NopCloser(bytes.NewReader(body))
 				req.ContentLength = int64(len(body))
-				req.Header.Set("X-Sentry-Auth", "Sentry sentry_version=7, sentry_client=bench/1, sentry_key="+k.key)
+				if *otlp {
+					req.Header.Set("Content-Type", "application/json")
+					req.Header.Set("Authorization", "Bearer "+k.key)
+				} else {
+					req.Header.Set("X-Sentry-Auth", "Sentry sentry_version=7, sentry_client=bench/1, sentry_key="+k.key)
+				}
 				req.Header.Set("X-Forwarded-For", fmt.Sprintf("%d.%d.%d.%d", 20+r.IntN(180), r.IntN(256), r.IntN(256), 1+r.IntN(254)))
 				t0 := time.Now()
 				resp, err := client.Do(req)
@@ -232,6 +289,37 @@ func main() {
 	fmt.Printf("duration=%.1fs workers=%d sites=%d fixtures=%d\n", secs, *workers, len(keys), len(fixtures))
 	fmt.Printf("requests=%d (%.0f/s) ok=%d 429=%d 503=%d other=%d net_errors=%d\n", reqs.Load(), float64(reqs.Load())/secs, ok200.Load(), r429.Load(), r503.Load(), other.Load(), netErr.Load())
 	statuses.Range(func(k, v any) bool { fmt.Printf("  status %v: %d\n", k, v.(*atomic.Int64).Load()); return true })
+	if *otlp {
+		fmt.Printf("accepted spans/s=%.0f\n", float64(accEvents.Load())/secs)
+	}
 	fmt.Printf("accepted events/s=%.0f  accepted items/s=%.0f\n", float64(accEvents.Load())/secs, float64(accItems.Load())/secs)
 	fmt.Printf("latency p50=%s p99=%s max=%s\n", pct(0.5), pct(0.99), pct(1))
+}
+
+// otlpBody builds an OTLP/JSON request of n spans: one server segment with
+// n-1 children (a database call and an HTTP call alternating), fresh ids.
+func otlpBody(r *mrand.Rand, n int) []byte {
+	trace := make([]byte, 16)
+	for i := range trace {
+		trace[i] = byte(r.IntN(255) + 1)
+	}
+	now := time.Now().Add(-2 * time.Second)
+	nano := func(d time.Duration) string { return fmt.Sprint(now.Add(d).UnixNano()) }
+	sid := func(i int) string { return fmt.Sprintf("%016x", uint64(r.Uint32())<<32|uint64(i)+1) }
+	root := sid(0)
+	var sb strings.Builder
+	sb.WriteString(`{"resourceSpans":[{"resource":{"attributes":[{"key":"service.version","value":{"stringValue":"1.0.0"}},{"key":"telemetry.sdk.language","value":{"stringValue":"go"}}]},"scopeSpans":[{"spans":[`)
+	fmt.Fprintf(&sb, `{"traceId":"%x","spanId":"%s","name":"GET /bench/%d","kind":2,"startTimeUnixNano":"%s","endTimeUnixNano":"%s","attributes":[{"key":"http.request.method","value":{"stringValue":"GET"}},{"key":"http.route","value":{"stringValue":"/bench/{id}"}},{"key":"http.response.status_code","value":{"intValue":"200"}}]}`,
+		trace, root, r.IntN(100000), nano(0), nano(200*time.Millisecond))
+	for i := 1; i < n; i++ {
+		if i%2 == 1 {
+			fmt.Fprintf(&sb, `,{"traceId":"%x","spanId":"%s","parentSpanId":"%s","name":"query","kind":3,"startTimeUnixNano":"%s","endTimeUnixNano":"%s","attributes":[{"key":"db.system","value":{"stringValue":"postgresql"}},{"key":"db.statement","value":{"stringValue":"select * from t where id = %d"}}]}`,
+				trace, sid(i), root, nano(time.Duration(i)*time.Millisecond), nano(time.Duration(i+5)*time.Millisecond), r.IntN(1000000))
+		} else {
+			fmt.Fprintf(&sb, `,{"traceId":"%x","spanId":"%s","parentSpanId":"%s","name":"GET","kind":3,"startTimeUnixNano":"%s","endTimeUnixNano":"%s","attributes":[{"key":"http.request.method","value":{"stringValue":"GET"}},{"key":"url.full","value":{"stringValue":"https://api.example.com/v1/items/%d"}}]}`,
+				trace, sid(i), root, nano(time.Duration(i)*time.Millisecond), nano(time.Duration(i+9)*time.Millisecond), r.IntN(1000000))
+		}
+	}
+	sb.WriteString(`]}]}]}`)
+	return []byte(sb.String())
 }

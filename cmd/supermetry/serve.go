@@ -28,13 +28,17 @@ import (
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
 	"supermetry/internal/appingest"
+	"supermetry/internal/appissues"
+	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
+	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
 	"supermetry/internal/datapurge"
 	"supermetry/internal/db"
+	"supermetry/internal/debugfile"
 	"supermetry/internal/demo"
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
@@ -50,6 +54,7 @@ import (
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
 	"supermetry/internal/opencounters"
+	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
@@ -82,6 +87,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/spanrollup"
 	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
 	"supermetry/internal/updatecheck"
@@ -197,6 +203,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		refreshReplayDiskGuard()
 	} else {
 		health.ReplayDiskLow.Store(0)
+	}
+	if created, err := sites.EnsureAppHashSecrets(ctx, pool); err != nil {
+		return fmt.Errorf("ensure app hash secrets: %w", err)
+	} else if created > 0 {
+		slog.Info("created app hash secrets", "sites", created)
 	}
 	databaseRegistry := sitesvc.NewRegistry(platformStore, 30*time.Second)
 	defer databaseRegistry.Close()
@@ -494,13 +505,16 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
-		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes})
+		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20,
+		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
+	appProduct := appproduct.New(w, sessions, dictionary, dropRecorder, settings.clock.Now)
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
 	appBodies := appingest.NewBodyWriter(pool, appingest.BodyWriterConfig{})
 	appReports := appingest.NewClientReports(pool, 0)
+	appFeedback := appissues.NewFeedbackWriter(pool, 0)
 	spanWriter := spans.NewWriter(pool, spans.WriterConfig{
 		Location: func(id int32) *time.Location {
 			if site, ok := registry.Site(id); ok {
@@ -508,19 +522,33 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			}
 			return nil
 		},
-	}, spans.HealthStats{}, nil)
+	}, spans.HealthStats{}, func(siteID int32, localHours []time.Time) {
+		// Spans landed in already-rolled hours: mark them dirty so the
+		// span-rollups job rebuilds them. Runs on the writer goroutine.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := spanrollup.MarkDirty(ctx, pool, siteID, localHours); err != nil {
+			slog.Warn("mark span hours dirty", "site", siteID, "error", err)
+		}
+	})
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
-	_, _ = spanWriter, spanBudget // handed to the Sentry and OTLP front doors by the next tasks
 	var sentryIngest api.SentryIngest
+	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
+	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
-			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
+			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
+			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
 		})
-		sentryHandler.WithSymbolicator(symbolicator)
+		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
+		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
+		sentryHandler.WithSessions(appSessions)
 		sentryIngest = sentryHandler
+		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now)
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -561,7 +589,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now), SentryIngest: sentryIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), AppIssues: appissues.New(pool, settings.clock.Now), Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
 		StripeAttribution: &stripe.AttributionHandler{
@@ -613,6 +641,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
 	appReportsDone := make(chan error, 1)
 	go func() { appReportsDone <- appReports.Run(appWriterCtx) }()
+	appFeedbackDone := make(chan error, 1)
+	go func() { appFeedbackDone <- appFeedback.Run(appWriterCtx) }()
 	dropStatsCtx, cancelDropStats := context.WithCancel(context.Background())
 	dropStatsDone := make(chan error, 1)
 	go func() { dropStatsDone <- dropRecorder.Run(dropStatsCtx) }()
@@ -652,6 +682,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
 	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
+	jobs = append(jobs, issueWebhookJob(appissues.New(pool, settings.clock.Now), issueWebhookSender{channels: alertService, dispatcher: alertDispatcher}, cfg.BaseURL))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob(), stripeService.RetentionJob())
 	starService.AlertChannels = alertService
 	trendingService.Notifier = trendingAlerts{alerts: starService}
@@ -659,6 +690,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	jobs = append(jobs,
+		appissues.NewWaker(pool, settings.clock.Now).Job(),
+		appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()
@@ -767,14 +801,18 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if symbolicator != nil {
 		symbolicator.Close()
 	}
-	// Stop the span writer first: it drains on cancel, before the app writer.
+	// Session updates are queued by the handler too; flush them first.
+	if appSessions != nil {
+		appSessions.Close()
+	}
+	// Stop the span writer: it drains on cancel, before the app writer.
 	cancelSpanWriter()
 	cause = errors.Join(cause, <-spanWriterDone)
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
 	}
-	cause = errors.Join(cause, <-appBodiesDone, <-appReportsDone)
+	cause = errors.Join(cause, <-appBodiesDone, <-appReportsDone, <-appFeedbackDone)
 	cancelDropStats()
 	if dropStatsDone != nil {
 		cause = errors.Join(cause, <-dropStatsDone)
@@ -1204,6 +1242,7 @@ func scheduledJobs(
 			return closeDueDays(ctx, pool, registry, closed, clk.Now(), closeInvalidators...)
 		}},
 		approllup.Job(pool, registry, clk.Now),
+		spanrollup.Job(pool, registry, clk.Now),
 		{Name: "salts", Every: 10 * time.Minute, Run: func(ctx context.Context) error {
 			if err := saltStore.Refresh(ctx); err != nil {
 				return err

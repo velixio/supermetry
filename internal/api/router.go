@@ -20,6 +20,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"supermetry/internal/appissues"
 	"supermetry/internal/appquery"
 	"supermetry/internal/clientip"
 	"supermetry/internal/config"
@@ -76,6 +77,7 @@ type Deps struct {
 	// SentryAPI serves the Sentry-compatible upload and release API under /api/0/. Nil leaves the routes off.
 	SentryAPI    http.Handler
 	SentryIngest SentryIngest // Sentry-compatible /api/{id}/envelope|store|security; nil disables it
+	OTLPIngest   SentryIngest // OTLP/HTTP traces at /api/{id}/otlp/v1/traces; nil disables it
 	// Links serves the public short-link redirect and tracking pixel. Optional.
 	Links  *links.Handler
 	Pixels http.Handler
@@ -93,9 +95,10 @@ type Deps struct {
 	ReplayCSS           http.Handler
 	PublicAuth          Authenticator
 	PrivateAuth         Authenticator
-	AppQuery            *appquery.Querier // App Health reads for the MCP tools; nil disables them
-	Sites               sites.Registry    // resolves site ownership for every site-scoped request
-	UI                  http.Handler      // the embedded dashboard; serves every GET that no API route claims
+	AppQuery            *appquery.Querier  // App Health reads for the MCP tools; nil disables them
+	AppIssues           *appissues.Service // issue timeline and impact for the MCP tools; nil disables them
+	Sites               sites.Registry     // resolves site ownership for every site-scoped request
+	UI                  http.Handler       // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter         ingest.RateLimiter
 	Sessions            session.Store
 	MinuteSource        realtime.MinuteSource
@@ -161,6 +164,9 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.AppQuery != nil {
 		mcpDeps.AppHealth = deps.AppQuery
+	}
+	if deps.AppIssues != nil {
+		mcpDeps.AppIssues = deps.AppIssues
 	}
 	mcp := NewMCPHandler(mcpDeps)
 	mux.Handle("POST "+publicPrefix+"/mcp", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, true, mcp))
@@ -299,13 +305,20 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
 	var root http.Handler = mux
-	if sentry := deps.SentryIngest; sentry != nil {
+	// Platform ingest paths (/api/{id}/...) cannot be registered on the mux next
+	// to the fixed /api/private/ subtree, so each front door is offered the
+	// request first.
+	for _, front := range []SentryIngest{deps.SentryIngest, deps.OTLPIngest} {
+		if front == nil {
+			continue
+		}
+		front, next := front, root
 		root = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if sentry.Matches(r) {
-				sentry.ServeHTTP(w, r)
+			if front.Matches(r) {
+				front.ServeHTTP(w, r)
 				return
 			}
-			mux.ServeHTTP(w, r)
+			next.ServeHTTP(w, r)
 		})
 	}
 	return requestID(recoverProblems(routehits.WrapFile(root, routehits.File(deps.Config.RouteHitsFile))))
@@ -418,6 +431,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/me/password",
 		"POST " + privatePrefix + "/me/demo-prompt/dismiss",
 		"GET " + privatePrefix + "/me/ip",
+		"GET " + privatePrefix + "/me/app-notifications",
+		"PUT " + privatePrefix + "/me/app-notifications/{site}",
 		"GET " + privatePrefix + "/me/sessions",
 		"DELETE " + privatePrefix + "/me/sessions",
 		"DELETE " + privatePrefix + "/me/sessions/{session}",
@@ -537,18 +552,31 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"GET " + privatePrefix + "/sites/{site}/app/issues",
 		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}",
 		"PATCH " + privatePrefix + "/sites/{site}/app/issues/{issue}",
+		"POST " + privatePrefix + "/sites/{site}/app/issues/bulk",
+		"GET " + privatePrefix + "/sites/{site}/app/views",
+		"POST " + privatePrefix + "/sites/{site}/app/views",
+		"PATCH " + privatePrefix + "/sites/{site}/app/views/{view}",
+		"DELETE " + privatePrefix + "/sites/{site}/app/views/{view}",
 		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}/comments",
 		"POST " + privatePrefix + "/sites/{site}/app/issues/{issue}/comments",
 		"PATCH " + privatePrefix + "/sites/{site}/app/issues/{issue}/comments/{comment}",
 		"DELETE " + privatePrefix + "/sites/{site}/app/issues/{issue}/comments/{comment}",
 		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}/activity",
+		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}/feedback",
+		"GET " + privatePrefix + "/sites/{site}/app/feedback",
+		"GET " + privatePrefix + "/sites/{site}/app/issue-webhooks",
+		"PUT " + privatePrefix + "/sites/{site}/app/issue-webhooks",
 		"POST " + privatePrefix + "/sites/{site}/app/issues/{issue}/merge",
 		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}/merged",
 		"POST " + privatePrefix + "/sites/{site}/app/issues/{issue}/unmerge",
 		"GET " + privatePrefix + "/sites/{site}/app/assignees",
+		"GET " + privatePrefix + "/sites/{site}/app/rules",
+		"PUT " + privatePrefix + "/sites/{site}/app/rules",
 		"GET " + privatePrefix + "/sites/{site}/app/events/{event_id}",
+		"GET " + privatePrefix + "/sites/{site}/app/events/{event_id}/attachments/{idx}",
 		"GET " + privatePrefix + "/sites/{site}/app/compatibility",
 		"GET " + privatePrefix + "/sites/{site}/app/releases",
+		"GET " + privatePrefix + "/sites/{site}/app/deploys",
 		"GET " + privatePrefix + "/sites/{site}/ingest-keys",
 		"POST " + privatePrefix + "/sites/{site}/ingest-keys",
 		"GET " + privatePrefix + "/sites/{site}/app/dsn-keys",

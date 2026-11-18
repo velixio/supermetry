@@ -25,6 +25,8 @@ func appIssueError(w http.ResponseWriter, err error) {
 		writeProblem(w, http.StatusNotFound, "Not found", "not found")
 	case errors.Is(err, appissues.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", err.Error())
+	case errors.Is(err, appissues.ErrViewExists):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, appissues.ErrInvalidAssignee):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 	case errors.Is(err, appissues.ErrInvalid):
@@ -341,4 +343,141 @@ func (h *handler) unmergeAppIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"issue_id": newID})
+}
+
+// listAppNotificationPrefs returns the caller's own workflow-notification
+// switches for every app project they can read.
+func (h *handler) listAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	sites, err := appissues.ListPrefs(r.Context(), h.deps.Store.Pool, principal.UserID)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sites": sites})
+}
+
+// putAppNotificationPrefs saves the caller's own switches for one project. A
+// project the caller cannot read (another organisation's) is a 404.
+func (h *handler) putAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("site"), 10, 32)
+	if err != nil || id < 1 {
+		writeProblem(w, http.StatusNotFound, "Not found", "not found")
+		return
+	}
+	var in struct {
+		Assigned  *bool `json:"assigned"`
+		Resolved  *bool `json:"resolved"`
+		Regressed *bool `json:"regressed"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if in.Assigned == nil || in.Resolved == nil || in.Regressed == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "assigned, resolved and regressed are required")
+		return
+	}
+	prefs := appissues.Prefs{Assigned: *in.Assigned, Resolved: *in.Resolved, Regressed: *in.Regressed}
+	if err := appissues.SetPrefs(r.Context(), h.deps.Store.Pool, principal.UserID, int32(id), prefs); err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, prefs)
+}
+
+func (h *handler) listAppIssueFeedback(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	h.writeAppFeedback(w, r, site.ID, id)
+}
+
+func (h *handler) listAppFeedback(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	h.writeAppFeedback(w, r, site.ID, 0)
+}
+
+// writeAppFeedback lists user reports; the stored contact hash never leaves
+// the database.
+func (h *handler) writeAppFeedback(w http.ResponseWriter, r *http.Request, siteID int32, issueID int64) {
+	limit := 0
+	var err error
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if limit, err = strconv.Atoi(v); err != nil || limit < 1 || limit > 200 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "limit must be between 1 and 200")
+			return
+		}
+	}
+	var before time.Time
+	if v := r.URL.Query().Get("before"); v != "" {
+		if before, err = time.Parse(time.RFC3339Nano, v); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "before must be an RFC 3339 time")
+			return
+		}
+	}
+	items, err := h.appIssues().Feedback(r.Context(), siteID, issueID, limit, before)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"feedback": items})
+}
+
+func (h *handler) getAppIssueWebhooks(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	cfg, err := h.appIssues().WebhookSettings(r.Context(), site.ID)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+// updateAppIssueWebhooks picks the notification channels and event kinds that
+// receive issue webhooks.
+func (h *handler) updateAppIssueWebhooks(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	var in appissues.WebhookSettings
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		if err := h.appIssues().SetWebhookSettingsTx(r.Context(), tx, site.OrgID, site.ID, in); err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "app.issue_webhooks_updated", "site", int64(site.ID), map[string]any{"channels": len(in.ChannelIDs), "kinds": in.Kinds})
+	})
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	cfg, err := h.appIssues().WebhookSettings(r.Context(), site.ID)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
 }

@@ -1,6 +1,10 @@
 package appingest
 
-import "testing"
+import (
+	"testing"
+
+	"supermetry/internal/apprules"
+)
 
 func frame(fn string, inApp bool) Frame {
 	return Frame{Module: "m", Function: fn, Filename: "f.go", Lineno: 10, InApp: inApp}
@@ -145,4 +149,69 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return s
+}
+
+func ruleSet(t *testing.T, rules ...apprules.GroupingRule) *apprules.Set {
+	t.Helper()
+	m, err := apprules.CompileGrouping(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &apprules.Set{Grouping: m}
+}
+
+func keyRules(t *testing.T, b Body, fp []string, set *apprules.Set) string {
+	t.Helper()
+	got, v := GroupingKeyRules(Event{Kind: "error", ErrorType: "Error"}, b, fp, set)
+	if v != GroupingVersion || len(got) != 64 {
+		t.Fatalf("version %d, fingerprint %q", v, got)
+	}
+	return got
+}
+
+func TestGroupingRuleMergesDifferentStacks(t *testing.T) {
+	set := ruleSet(t, apprules.GroupingRule{Matcher: "error_type", Value: "TimeoutError", Fingerprint: "timeouts"})
+	a := bodyWith("TimeoutError", "a", frame("fetchUsers", true))
+	b := bodyWith("TimeoutError", "b", frame("fetchOrders", true), frame("deeper", true))
+	if key(t, a, nil) == key(t, b, nil) {
+		t.Fatal("precondition: the default keys differ")
+	}
+	if keyRules(t, a, nil, set) != keyRules(t, b, nil, set) {
+		t.Fatal("a grouping rule must put both stacks into one group")
+	}
+	other := bodyWith("ValueError", "a", frame("fetchUsers", true))
+	if keyRules(t, other, nil, set) != keyRules(t, other, nil, nil) {
+		t.Fatal("an event no rule matches keeps its default key")
+	}
+	if keyRules(t, a, nil, set) == keyRules(t, a, nil, nil) {
+		t.Fatal("a matching rule must replace the default key")
+	}
+	if keyRules(t, a, []string{"sdk-says"}, set) != keyRules(t, b, []string{"other"}, set) {
+		t.Fatal("a rule must win over the SDK fingerprint")
+	}
+}
+
+func TestGroupingRuleDefaultTokenAppends(t *testing.T) {
+	set := ruleSet(t, apprules.GroupingRule{Matcher: "tag:tenant", Value: "acme", Fingerprint: "{{ default }}-acme"})
+	a := bodyWith("E", "", frame("h1", true))
+	b := bodyWith("E", "", frame("h2", true))
+	a.Tags, b.Tags = map[string]string{"tenant": "acme"}, map[string]string{"tenant": "acme"}
+	if keyRules(t, a, nil, set) == keyRules(t, b, nil, set) {
+		t.Fatal("{{ default }} must keep the default split by stack")
+	}
+	plain := bodyWith("E", "", frame("h1", true))
+	if keyRules(t, a, nil, set) == keyRules(t, plain, nil, nil) {
+		t.Fatal("the appended text must change the key")
+	}
+}
+
+func TestGroupingRulePositionOrder(t *testing.T) {
+	set := ruleSet(t,
+		apprules.GroupingRule{Matcher: "path", Value: "f.go", Fingerprint: "first"},
+		apprules.GroupingRule{Matcher: "error_type", Value: "*", Fingerprint: "second"})
+	b := bodyWith("E", "", frame("h", true))
+	want := keyRules(t, b, nil, ruleSet(t, apprules.GroupingRule{Matcher: "path", Value: "f.go", Fingerprint: "first"}))
+	if keyRules(t, b, nil, set) != want {
+		t.Fatal("the earlier rule must win")
+	}
 }

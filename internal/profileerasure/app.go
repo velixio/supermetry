@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/appproduct"
 	"supermetry/internal/platform/audit"
 	"supermetry/internal/scheduler"
 )
@@ -218,6 +219,18 @@ func (w *AppWorker) process(ctx context.Context, r AppRequest) error {
 	// re-checks the first and carries on with the second.
 	if err := w.drain(ctx, r.ID, `
 with target as (
+  select a.tableoid, a.ctid from app_event_attachments a
+  join app_events e on e.site_id = a.site_id and e.event_id = a.event_id and e.ts = a.ts
+  where e.site_id = $1 and e.user_hash = $2
+  limit $3
+), del as (
+  delete from app_event_attachments a using target t where a.tableoid = t.tableoid and a.ctid = t.ctid returning 1
+) update app_erasure_requests set updated_at = now()
+where id = $4 returning (select count(*) from del)`, r); err != nil {
+		return fmt.Errorf("delete app event attachments: %w", err)
+	}
+	if err := w.drain(ctx, r.ID, `
+with target as (
   select b.tableoid, b.ctid from app_event_bodies b
   join app_events e on e.site_id = b.site_id and e.event_id = b.event_id and e.ts = b.ts
   where e.site_id = $1 and e.user_hash = $2
@@ -236,6 +249,25 @@ with target as (
 ) update app_erasure_requests set events_anonymized = events_anonymized + (select count(*) from upd), updated_at = now()
 where id = $4 returning (select count(*) from upd)`, r); err != nil {
 		return fmt.Errorf("clear app event user hash: %w", err)
+	}
+	// Sentry SDKs set the session did to the user's id, email or username, so
+	// install_hash can carry the same keyed hash as user_hash. Clear it on the
+	// session state and on the session pings. The request counters track event
+	// rows only; these batches just touch updated_at to report their size.
+	for _, table := range []string{"app_sessions", "app_events"} {
+		extra := ""
+		if table == "app_events" {
+			extra = " and kind = 'session'"
+		}
+		if err := w.drain(ctx, r.ID, `
+with target as (
+  select tableoid, ctid from `+table+` where site_id = $1 and install_hash = $2`+extra+` limit $3
+), upd as (
+  update `+table+` e set install_hash = null from target t where e.tableoid = t.tableoid and e.ctid = t.ctid returning 1
+) update app_erasure_requests set updated_at = now()
+where id = $4 returning (select count(*) from upd)`, r); err != nil {
+			return fmt.Errorf("clear %s install hash: %w", table, err)
+		}
 	}
 	return w.finish(ctx, r.ID)
 }
@@ -291,6 +323,51 @@ func (w *AppWorker) auditTx(ctx context.Context, tx pgx.Tx, r AppRequest, action
 	return audit.Write(ctx, tx, principal, action, "site", int64(r.SiteID), map[string]any{
 		"bodies": r.BodiesDeleted, "events": r.EventsAnonymized,
 	})
+}
+
+// AppHashSecret returns the project's hash secret, or ok=false when it has
+// none (nothing was ever hashed, so there is nothing to erase).
+func AppHashSecret(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, siteID int32) (secret []byte, ok bool, err error) {
+	err = q.QueryRow(ctx, `select secret from app_hash_secrets where site_id = $1`, siteID).Scan(&secret)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("read app hash secret: %w", err)
+	}
+	return secret, true, nil
+}
+
+// EraseAppInstall removes what an app project keeps about one install beyond
+// raw events: its app_active_day rows (found by the keyed visitor id) and, when
+// the install has a profile (external id "i:" + keyed hash), a queued profile
+// erasure that the profile worker carries out. It returns the number of
+// active-day rows deleted. The caller owns the transaction. The raw install id
+// is only hashed here, never stored.
+func EraseAppInstall(ctx context.Context, tx pgx.Tx, profiles *Store, siteID int32, installID string, secret []byte, requestedBy string) (int64, error) {
+	if installID == "" || len(secret) == 0 {
+		return 0, errors.New("install id and hash secret are required")
+	}
+	tag, err := tx.Exec(ctx, `delete from app_active_day where site_id = $1 and visitor_id = $2`,
+		siteID, appproduct.VisitorID(secret, installID))
+	if err != nil {
+		return 0, fmt.Errorf("delete app active days: %w", err)
+	}
+	external := appproduct.ProfileExternalID(secret, installID)
+	var profileID int64
+	err = tx.QueryRow(ctx, `select id from profiles where site_id = $1 and external_id = $2`, siteID, external).Scan(&profileID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return tag.RowsAffected(), nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("find install profile: %w", err)
+	}
+	if _, err := profiles.CreateOrGetTx(ctx, tx, siteID, profileID, external, requestedBy); err != nil {
+		return 0, fmt.Errorf("queue install profile erasure: %w", err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 // prune drops finished requests after a month.

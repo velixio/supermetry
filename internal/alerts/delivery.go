@@ -40,6 +40,19 @@ func (d *Dispatcher) DeliverMessage(ctx context.Context, channel DeliveryChannel
 	}
 }
 
+// DeliverEvent sends a structured event: webhook channels get payload as the
+// JSON body (signed like alert webhooks); email, chat and Telegram channels get
+// the plain text.
+func (d *Dispatcher) DeliverEvent(ctx context.Context, channel DeliveryChannel, kind, subject, text string, payload any) error {
+	if channel.Kind == ChannelWebhook {
+		if d.webhooks == nil {
+			return errors.New("webhook delivery is unavailable")
+		}
+		return d.webhooks.SendJSON(ctx, channel.Kind, channel.URL, channel.Secret, payload, text)
+	}
+	return d.DeliverMessage(ctx, channel, kind, subject, text)
+}
+
 type Dispatcher struct {
 	mailer   mail.Sender
 	webhooks *WebhookClient

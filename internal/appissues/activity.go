@@ -32,6 +32,9 @@ func record(ctx context.Context, tx pgx.Tx, siteID int32, issueID int64, at time
 		siteID, issueID, at, actor, kind, body); err != nil {
 		return fmt.Errorf("record activity: %w", err)
 	}
+	if k := webhookKind(kind, data); k != "" {
+		return enqueueWebhook(ctx, tx, siteID, issueID, at, actor, k)
+	}
 	return nil
 }
 

@@ -13,6 +13,7 @@ import { fmt } from '@/lib/format'
 import { useAppIssue, useSetIssueStatus, useUpdateIssue, type AppIssueDetailData } from './api'
 import { IssueActivity } from './IssueActivity'
 import { IssueComments } from './IssueComments'
+import { IssueFeedback } from './IssueFeedback'
 import { IssueMerge } from './IssueMerge'
 import { IssueWorkflow } from './IssueWorkflow'
 import { formatDay } from './format'
@@ -146,12 +147,34 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {breakdowns.map(([title, rows]) => <BarList key={title} title={title} rows={rows} />)}
       </div>
+      {data.introduced_in ? (
+        <p className="text-sm" data-testid="introduced-in">
+          Introduced in <span className="font-medium">{data.introduced_in.release}</span>
+          {data.introduced_in.deploy_at ? <> · deployed {formatDay(data.introduced_in.deploy_at)}</> : null}
+        </p>
+      ) : null}
+      {(data.suspect_commits ?? []).length > 0 ? (
+        <Card>
+          <CardHeader><CardTitle>Suspect commits</CardTitle><CardDescription>Commits of the introducing release that changed a file on the stack.</CardDescription></CardHeader>
+          <CardContent>
+            <ul aria-label="Suspect commits" className="space-y-2 text-sm">
+              {(data.suspect_commits ?? []).map((c) => (
+                <li key={c.repository + c.sha}>
+                  <code>{c.sha.slice(0, 7)}</code> {c.message.split('\n')[0]}
+                  <span className="text-muted-foreground"> · {c.author_name || 'unknown author'} · {c.path}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader><CardTitle>Latest events</CardTitle><CardDescription>Scrubbed stack frames; no personal identifiers are stored.</CardDescription></CardHeader>
         <CardContent>
           {data.latest_events.length === 0 ? <p className="text-sm text-muted-foreground">No events in this period.</p> : <ul>{data.latest_events.map((event) => <EventRow key={event.ts + event.release} event={event} org={org} site={site} issueId={issueId} />)}</ul>}
         </CardContent>
       </Card>
+      <IssueFeedback siteId={siteId} issueId={issueId} />
       <IssueMerge siteId={siteId} issueId={issueId} canEdit={canEdit} />
       <IssueComments siteId={siteId} issueId={issueId} canEdit={canEdit} />
       <IssueActivity siteId={siteId} issueId={issueId} />

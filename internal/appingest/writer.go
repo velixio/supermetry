@@ -105,11 +105,15 @@ func (w *Writer) Run(ctx context.Context) error {
 	ticker := time.NewTicker(w.flushEvery)
 	defer ticker.Stop()
 	batch := make([]Queued, 0, w.batchSize)
+	// A flush is never cut short by shutdown: a batch already taken off the
+	// queue would otherwise be lost, so each one gets its own bounded context.
 	flush := func(c context.Context) {
 		if len(batch) == 0 {
 			return
 		}
-		_ = w.flushRetry(c, batch) // failures are counted and logged there
+		fc, cancel := context.WithTimeout(context.WithoutCancel(c), shutdownTimeout)
+		_ = w.flushRetry(fc, batch) // failures are counted and logged there
+		cancel()
 		batch = batch[:0]
 	}
 	for {
@@ -158,6 +162,7 @@ type issueGroup struct {
 	inserted                   bool // the upsert created the issue
 	level, culprit             string
 	groupingVersion            int16
+	owner                      int64 // ownership-rule candidate; applied only when the upsert creates the issue
 }
 
 func (w *Writer) flush(ctx context.Context, batch []Queued) error {
@@ -208,6 +213,9 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 			}
 			groups[key] = g
 			order = append(order, g)
+		}
+		if g.owner == 0 {
+			g.owner = e.OwnerUserID
 		}
 		if e.TS.Before(g.firstSeen) {
 			g.firstSeen, g.firstRelease = e.TS, e.Release
@@ -262,6 +270,11 @@ func (w *Writer) flush(ctx context.Context, batch []Queued) error {
 				if g.inserted {
 					if err := appissues.RecordSystem(ctx, tx, g.siteID, g.id, appissues.KindFirstSeen, map[string]any{"release": g.firstRelease}); err != nil {
 						return err
+					}
+					if g.owner > 0 {
+						if err := appissues.AssignOwner(ctx, tx, g.siteID, g.id, g.owner); err != nil {
+							return err
+						}
 					}
 				}
 			}

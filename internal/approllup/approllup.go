@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/db"
+	"supermetry/internal/dict"
 	"supermetry/internal/scheduler"
 	"supermetry/internal/sites"
 )
@@ -47,6 +49,30 @@ func CrashedSessionsExpr(prefix string) string {
 	return "(count(distinct " + prefix + "session_hash) filter (where (" + CrashPredicate(prefix) + " and p.session_hash is not null) or (" + crashedRow + "))" +
 		" + coalesce(sum(" + prefix + "occurrences) filter (where " + crashedRow + " and " + prefix + "session_hash is null), 0))"
 }
+
+// ActiveDaySelect is the SELECT that turns one site-local day of product
+// events into per-install rows: visitor_id, release, platform, country,
+// os_id, device, events (custom events), screens (screen views), sessions and
+// engagement_ms. Parameters: $1 site id, $3 and $4 the half-open UTC bounds
+// of the local day ($2 is the day itself and is not read here). release,
+// platform, country, os and device are the install's last non-empty values
+// that day. RecomputeDay stores it in app_active_day and the product queries
+// read it live for the open day, so both see identical numbers.
+var ActiveDaySelect = `
+select e.visitor_id,
+       coalesce((array_agg(e.props->>'$release' order by e.ts desc) filter (where coalesce(e.props->>'$release', '') <> ''))[1], '') as release,
+       coalesce((array_agg(h.value order by e.ts desc) filter (where e.hostname_id <> 0))[1], '') as platform,
+       coalesce((array_agg(e.country order by e.ts desc) filter (where e.country <> ''))[1], '') as country,
+       coalesce((array_agg(e.os_id order by e.ts desc) filter (where e.os_id <> 0))[1], 0) as os_id,
+       coalesce((array_agg(e.device order by e.ts desc) filter (where e.device <> 0))[1], 0)::smallint as device,
+       (count(*) filter (where e.kind = 1))::int as events,
+       (count(*) filter (where e.kind = 0))::int as screens,
+       count(distinct e.session_id)::int as sessions,
+       coalesce(sum(e.engagement_ms), 0)::bigint as engagement_ms
+from events e
+left join dict h on h.kind = ` + fmt.Sprint(int16(dict.Hostname)) + ` and h.id = e.hostname_id
+where e.site_id = $1 and e.ts >= $3 and e.ts < $4 and e.kind in (0, 1)
+group by e.visitor_id`
 
 // LockSite takes the per-site advisory lock that serialises rollup rewrites
 // for the rest of tx. Merging issues rewrites rollup rows outside the
@@ -91,6 +117,9 @@ func RecomputeDay(ctx context.Context, pool *pgxpool.Pool, siteID int32, day tim
 		hourTo = hourTo.Add(time.Hour)
 	}
 	date := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+	if err := db.EnsureAppActiveDayPartitions(ctx, pool, date, date.AddDate(0, 0, 1)); err != nil {
+		return err
+	}
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1, $2)`, int32(lockClass), siteID); err != nil {
 			return fmt.Errorf("lock app rollups: %w", err)
@@ -128,6 +157,43 @@ from app_events e
 left join pings p on p.session_hash = e.session_hash
 where e.site_id = $1 and e.ts >= $3 and e.ts < $4
 group by e.site_id, e.release, e.platform`, []any{siteID, date, start, end}},
+			{"clear app active day", `delete from app_active_day where site_id = $1 and day = $2`, []any{siteID, date}},
+			{"insert app active day", `
+insert into app_active_day (site_id, day, visitor_id, release, platform, country, os_id, device, events, screens, sessions, engagement_ms)
+select $1, $2::date, a.* from (` + ActiveDaySelect + `) a`, []any{siteID, date, start, end}},
+
+			{"clear session daily", `delete from app_session_daily where site_id = $1 and day = $2`, []any{siteID, date}},
+			{"insert session daily", `
+with s as (
+  select release, environment, platform,
+         count(*) as sessions,
+         count(*) filter (where status = 'errored') as errored,
+         count(*) filter (where status = 'crashed') as crashed,
+         count(*) filter (where status = 'abnormal') as abnormal,
+         count(distinct install_hash) as users,
+         count(distinct install_hash) filter (where status = 'crashed') as crashed_users,
+         count(distinct install_hash) filter (where status = 'errored') as errored_users
+  from app_sessions
+  where site_id = $1 and started >= $3 and started < $4
+  group by release, environment, platform
+), a as (
+  select release, environment, platform,
+         sum(occurrences) as sessions,
+         coalesce(sum(occurrences) filter (where exit_reason = 'errored'), 0) as errored,
+         coalesce(sum(occurrences) filter (where exit_reason = 'crashed'), 0) as crashed,
+         coalesce(sum(occurrences) filter (where exit_reason = 'abnormal'), 0) as abnormal
+  from app_events
+  where site_id = $1 and ts >= $3 and ts < $4 and kind = 'session' and session_hash is null
+  group by release, environment, platform
+)
+insert into app_session_daily (site_id, day, release, environment, platform, sessions, errored, crashed, abnormal, users, crashed_users, errored_users)
+select $1, $2::date, coalesce(s.release, a.release), coalesce(s.environment, a.environment), coalesce(s.platform, a.platform),
+       coalesce(s.sessions, 0) + coalesce(a.sessions, 0),
+       coalesce(s.errored, 0) + coalesce(a.errored, 0),
+       coalesce(s.crashed, 0) + coalesce(a.crashed, 0),
+       coalesce(s.abnormal, 0) + coalesce(a.abnormal, 0),
+       coalesce(s.users, 0), coalesce(s.crashed_users, 0), coalesce(s.errored_users, 0)
+from s full join a on a.release = s.release and a.environment = s.environment and a.platform = s.platform`, []any{siteID, date, start, end}},
 			{"clear issue hourly", `delete from app_issue_hourly where site_id = $1 and hour >= $2 and hour < $3`, []any{siteID, hourFrom, hourTo}},
 			{"insert issue hourly", `
 insert into app_issue_hourly (site_id, issue_id, hour, events)
@@ -135,6 +201,21 @@ select site_id, issue_id, to_timestamp(floor(extract(epoch from ts) / 3600) * 36
 from app_events
 where site_id = $1 and ts >= $2 and ts < $3 and issue_id is not null and kind <> 'session'
 group by site_id, issue_id, 3`, []any{siteID, hourFrom, hourTo}},
+			// Tags are keyed by issue, not by day: every issue that had events
+			// today gets its rows rebuilt from all its retained events.
+			{"clear issue tags", `
+delete from app_issue_tags where site_id = $1 and issue_id in (
+  select distinct issue_id from app_events where site_id = $1 and ts >= $2 and ts < $3 and issue_id is not null and kind <> 'session')`, []any{siteID, start, end}},
+			{"insert issue tags", `
+insert into app_issue_tags (site_id, issue_id, key, value, events, last_seen)
+select e.site_id, e.issue_id, k.key, left(k.value, 200), sum(e.occurrences), max(e.ts)
+from app_events e
+cross join lateral (values ('release', e.release), ('environment', e.environment), ('platform', e.platform),
+  ('level', e.level), ('os', e.os_version), ('device_class', e.device_class),
+  ('browser', case when e.platform = 'web' then e.runtime else '' end)) as k(key, value)
+where e.site_id = $1 and e.kind <> 'session' and k.value <> '' and e.issue_id in (
+  select distinct issue_id from app_events where site_id = $1 and ts >= $2 and ts < $3 and issue_id is not null and kind <> 'session')
+group by e.site_id, e.issue_id, k.key, left(k.value, 200)`, []any{siteID, start, end}},
 		}
 		for _, s := range statements {
 			if _, err := tx.Exec(ctx, s.sql, s.args...); err != nil {

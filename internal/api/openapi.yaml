@@ -852,6 +852,31 @@ paths:
         '204': { description: The prompt is dismissed. }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /api/private/me/app-notifications:
+    get:
+      operationId: listAppNotificationPrefs
+      tags: [Apps]
+      security: [{ cookieAuth: [] }]
+      summary: The signed-in user's issue notification switches for every app project they can read
+      description: Defaults apply until saved. Assigned and regressed are on by default, resolved is off.
+      responses:
+        '200': { description: Projects with switches, content: { application/json: { schema: { type: object, required: [sites], properties: { sites: { type: array, items: { $ref: '#/components/schemas/AppNotificationPrefsSite' } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/private/me/app-notifications/{site}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    put:
+      operationId: putAppNotificationPrefs
+      tags: [Apps]
+      security: [{ cookieAuth: [] }]
+      summary: Save the signed-in user's own issue notification switches for a project
+      description: Any member may change their own switches, viewers included. A project the user cannot read is a 404.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppNotificationPrefs' } } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/AppNotificationPrefs' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/me/orgs/deleted:
     get:
       operationId: listDeletedOrganizations
@@ -2972,15 +2997,98 @@ paths:
       tags: [Apps]
       summary: Issues with events in the range, filtered, sorted and paged
       parameters:
-        - { name: status, in: query, description: 'open, resolved, ignored or regressed.', schema: { type: string, maxLength: 16 } }
+        - { name: status, in: query, description: 'open, resolved, ignored, regressed or archived.', schema: { type: string, maxLength: 16 } }
         - { name: kind, in: query, schema: { type: string, maxLength: 32 } }
         - { name: q, in: query, description: Case-insensitive prefix of the title or error type., schema: { type: string, maxLength: 100 } }
+        - name: query
+          in: query
+          description: |
+            Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
+            `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
+            (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
+            email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+            `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
+            `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
+            A syntax error is a 400 whose `position` is the character offset of the problem.
+          schema: { type: string, maxLength: 200 }
         - { name: sort, in: query, description: 'last_seen (default), events or users.', schema: { type: string, maxLength: 16 } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
         - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
       responses:
         '200': { description: One page of issues, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueList' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/bulk:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    post:
+      operationId: bulkUpdateAppIssues
+      tags: [Apps]
+      summary: Change many issues at once
+      description: |
+        Give `ids` (1 to 1,000) or a `query`; with a query the change applies to the issues the search matches, using
+        the range, filters and the `status`, `kind` and `q` parameters of the issue list (at most 1,000 matches, else
+        400). Ids that are not issues of this project are left alone and returned in `skipped`. The whole change is
+        one transaction and adds one activity row per changed field and issue. Owner, admin or editor only.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueBulk' } } } }
+      responses:
+        '200': { description: What changed, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueBulkResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/views:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppSavedViews
+      tags: [Apps]
+      summary: Saved issue searches visible to you
+      description: Your private views and every shared view of the project.
+      responses:
+        '200': { description: Views, content: { application/json: { schema: { type: object, required: [views], properties: { views: { type: array, items: { $ref: '#/components/schemas/AppSavedView' } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createAppSavedView
+      tags: [Apps]
+      summary: Save an issue search
+      description: Owner, admin or editor only. A name is unique per owner; a duplicate is a 409.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedViewInput' } } } }
+      responses:
+        '201': { description: The view, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedView' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: You already have a view with this name., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/app/views/{view}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: view, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    patch:
+      operationId: updateAppSavedView
+      tags: [Apps]
+      summary: Rename, edit or share a view
+      description: The owner, or an owner or admin of the organisation for a shared view. Another member's private view is a 404.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedViewPatch' } } } }
+      responses:
+        '200': { description: The view, content: { application/json: { schema: { $ref: '#/components/schemas/AppSavedView' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: You already have a view with this name., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    delete:
+      operationId: deleteAppSavedView
+      tags: [Apps]
+      summary: Delete a view
+      description: Same rules as editing.
+      responses:
+        '204': { description: Deleted }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/events/{event_id}:
@@ -2997,6 +3105,58 @@ paths:
         unknown event is a 404. Fields can be missing: clients must tolerate that.
       responses:
         '200': { description: Event body, content: { application/json: { schema: { $ref: '#/components/schemas/AppEventBody' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/rules:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppRules
+      tags: [Apps]
+      summary: An app project's ownership and grouping rules, in evaluation order
+      responses:
+        '200': { description: Rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: replaceAppRules
+      tags: [Apps]
+      summary: Replace both rule lists of an app project
+      description: |
+        Ownership rules route a newly created issue to a member (the issue gets an `assigned` activity by the system;
+        an existing issue is never re-assigned). Grouping rules replace the computed grouping key of matching events
+        with the rule's fingerprint; the token `{{ default }}` keeps the default key and appends. The first matching
+        rule by position wins. Values are globs (`*` any run, `?` one character, `\` escapes) of at most 200
+        characters; at most 200 rules of each kind. A bad rule is a 400 naming its zero-based index. Owner, admin or
+        editor only. The change reaches ingestion with the next registry refresh.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+      responses:
+        '200': { description: The stored rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/private/sites/{site}/app/events/{event_id}/attachments/{idx}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: event_id, in: path, required: true, schema: { type: string, maxLength: 64 } }
+      - { name: idx, in: path, required: true, description: 'Position in the body''s attachments list.', schema: { type: integer, minimum: 0, maximum: 31 } }
+    get:
+      operationId: getAppEventAttachment
+      tags: [Apps]
+      summary: The scrubbed content of one stored event attachment
+      description: |
+        Only attachments whose metadata says stored=true have content. PNG, JPEG and WebP are served inline; text and
+        JSON are served as text downloads; anything else is an opaque download. Every response carries
+        X-Content-Type-Options: nosniff and a sandboxing Content-Security-Policy. Content ages out with the event body
+        (30 days) and then is a 404.
+      responses:
+        '200':
+          description: Attachment content
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            text/plain: { schema: { type: string, format: binary } }
+            application/json: { schema: { type: string, format: binary } }
+            application/octet-stream: { schema: { type: string, format: binary } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/issues/{issue}:
@@ -3147,6 +3307,64 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/feedback:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listAppIssueFeedback
+      tags: [Apps]
+      summary: User feedback linked to the issue, newest first
+      description: Reports sent with captureFeedback or the legacy user report whose event belongs to this issue. Text is scrubbed; reporter emails are not returned.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Feedback, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeedbackList' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/feedback:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppFeedback
+      tags: [Apps]
+      summary: All user feedback of the project, newest first
+      description: Includes reports whose event is unknown (not linked to an issue).
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Feedback, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeedbackList' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issue-webhooks:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppIssueWebhooks
+      tags: [Apps]
+      summary: Issue webhook settings
+      responses:
+        '200': { description: Settings, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueWebhooks' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateAppIssueWebhooks
+      tags: [Apps]
+      summary: Choose the notification channels and event kinds that receive issue webhooks
+      description: >-
+        Channels are existing notification channels of the organisation. Webhook channels receive a JSON body
+        `{type, issue:{id,title,culprit,level,status,url,first_seen,last_seen,events}, actor:{kind,name?}}` signed like alert
+        webhooks; other channels receive a text line. Delivery is from an outbox after the change commits, retried with backoff.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueWebhooks' } } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueWebhooks' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/assignees:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3191,6 +3409,23 @@ paths:
       description: Newest first by semantic version when every release parses, otherwise by first-seen time.
       responses:
         '200': { description: Releases, content: { application/json: { schema: { $ref: '#/components/schemas/AppReleases' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/deploys:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+    get:
+      operationId: getAppDeploys
+      tags: [Apps]
+      summary: Deploy markers of the project in the range, newest first
+      description: Deploys that name the project, or whose release does (an org-wide release applies to every project). At most 500, placed by their finish time, else start time, else the time they were recorded. The release parameter is an exact match.
+      responses:
+        '200': { description: Deploys, content: { application/json: { schema: { $ref: '#/components/schemas/AppDeploys' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -4409,12 +4644,40 @@ components:
         performance_enabled: { type: boolean, nullable: true, description: "Accept transactions and spans. Omitted or null means on." }
         span_retention_days: { type: integer, minimum: 0, maximum: 14, description: "Raw span retention in days. 0 means the default of 14." }
         filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
+    AppRules:
+      type: object
+      required: [ownership, grouping]
+      additionalProperties: false
+      properties:
+        ownership:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [matcher, value, owner_user_id]
+            additionalProperties: false
+            properties:
+              matcher: { type: string, description: 'path, module or tag:<key>' }
+              value: { type: string, minLength: 1, maxLength: 200, description: Glob. }
+              owner_user_id: { type: integer, format: int64, minimum: 1 }
+        grouping:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [matcher, value, fingerprint]
+            additionalProperties: false
+            properties:
+              matcher: { type: string, description: 'error_type, message, path, module or tag:<key>' }
+              value: { type: string, minLength: 1, maxLength: 200, description: Glob. }
+              fingerprint: { type: string, minLength: 1, maxLength: 64 }
     AppUserErase:
       type: object
       required: [user_id]
       additionalProperties: false
       properties:
         user_id: { type: string, minLength: 1, maxLength: 512, description: The user id the app's SDK reports. }
+        install_id: { type: string, maxLength: 512, description: 'Optional. The install id of the same person''s device: also deletes the install''s daily activity rows now and queues the erasure of its profile. Matched by keyed hash; never stored.' }
     AppUserErasure:
       type: object
       required: [id, status, bodies_deleted, events_anonymized, attempts, last_error, created_at, completed_at]
@@ -4422,6 +4685,7 @@ components:
         id: { type: integer, format: int64 }
         status: { type: string, enum: [pending, running, done, failed] }
         status_url: { type: string, description: Present on the 202 response. }
+        install_active_days_deleted: { type: integer, format: int64, description: Present on the 202 response when install_id was sent. }
         bodies_deleted: { type: integer, format: int64 }
         events_anonymized: { type: integer, format: int64 }
         attempts: { type: integer }
@@ -5638,7 +5902,7 @@ components:
       maximum: 1
     AppOverview:
       type: object
-      required: [events, crashes, new_issues, regressed_issues, crash_free_users, crash_free_sessions, series]
+      required: [events, crashes, new_issues, regressed_issues, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, handled_errors, unhandled_errors, health_source, series]
       properties:
         events: { type: integer, format: int64 }
         crashes: { type: integer, format: int64 }
@@ -5646,16 +5910,24 @@ components:
         regressed_issues: { type: integer, format: int64 }
         crash_free_users: { $ref: '#/components/schemas/AppRate' }
         crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+        sessions: { type: integer, format: int64 }
+        users: { type: integer, format: int64 }
+        abnormal_sessions: { type: integer, format: int64 }
+        errored_sessions: { type: integer, format: int64 }
+        handled_errors: { type: integer, format: int64 }
+        unhandled_errors: { type: integer, format: int64 }
+        health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
         series:
           type: array
           items:
             type: object
-            required: [day, events, crashes, crash_free_users]
+            required: [day, events, crashes, crash_free_users, crash_free_sessions]
             properties:
               day: { type: string, format: date }
               events: { type: integer, format: int64 }
               crashes: { type: integer, format: int64 }
               crash_free_users: { $ref: '#/components/schemas/AppRate' }
+              crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
     AppIssueRow:
       type: object
       required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, events, users, sparkline, assignee_user_id, assignee_name, priority]
@@ -5732,10 +6004,10 @@ components:
       properties:
         event_id: { type: string }
         ts: { type: string, format: date-time }
-        body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional.' }
+        body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.' }
     AppIssueDetail:
       type: object
-      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, assignee_user_id, assignee_name, priority, snooze_until, snooze_events, snooze_users, archived_until_escalating, github_url, series, breakdowns, latest_events]
+      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, assignee_user_id, assignee_name, priority, snooze_until, snooze_events, snooze_users, archived_until_escalating, github_url, series, breakdowns, latest_events, introduced_in, suspect_commits]
       properties:
         id: { type: integer, format: int64 }
         title: { type: string }
@@ -5772,6 +6044,50 @@ components:
           description: Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`.
           additionalProperties: { type: array, items: { $ref: '#/components/schemas/AppBreakdown' } }
         latest_events: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/AppEventSample' } }
+        introduced_in:
+          type: object
+          nullable: true
+          description: The release the issue first appeared in; null when the issue has no release.
+          required: [release, first_seen, deploy_at]
+          properties:
+            release: { type: string }
+            first_seen: { type: string, format: date-time }
+            deploy_at: { type: string, format: date-time, nullable: true, description: First deploy of that release to the site, when one is recorded. }
+        suspect_commits:
+          type: array
+          maxItems: 3
+          description: Commits of the introducing release that changed a file on the stack of the newest event, best match first. Author emails are never returned.
+          items:
+            type: object
+            required: [sha, repository, message, author_name, at, path, score]
+            properties:
+              sha: { type: string }
+              repository: { type: string }
+              message: { type: string }
+              author_name: { type: string }
+              at: { type: string, format: date-time, nullable: true }
+              path: { type: string }
+              score: { type: integer }
+    AppNotificationPrefs:
+      type: object
+      required: [assigned, resolved, regressed]
+      additionalProperties: false
+      properties:
+        assigned: { type: boolean, description: An issue was assigned to me. }
+        resolved: { type: boolean, description: An issue assigned to me was resolved by someone else. }
+        regressed: { type: boolean, description: An issue assigned to me regressed. }
+    AppNotificationPrefsSite:
+      type: object
+      required: [site_id, site_name, site_slug, org_slug, org_name, assigned, resolved, regressed]
+      properties:
+        site_id: { type: integer, format: int32 }
+        site_name: { type: string }
+        site_slug: { type: string }
+        org_slug: { type: string }
+        org_name: { type: string }
+        assigned: { type: boolean }
+        resolved: { type: boolean }
+        regressed: { type: boolean }
     AppIssueChange:
       type: object
       additionalProperties: false
@@ -5791,6 +6107,47 @@ components:
             users: { type: integer, format: int64, minimum: 1, nullable: true }
         archive: { type: boolean, description: 'true archives until the issue escalates, false unarchives to open. Not combinable with status or snooze.' }
         github_url: { type: string, maxLength: 300, description: 'A link to an existing GitHub issue, https://github.com/<owner>/<repo>/issues/<number>; "" unlinks.' }
+    AppIssueBulk:
+      type: object
+      additionalProperties: false
+      required: [change]
+      description: Exactly one of `ids` and `query`.
+      properties:
+        ids: { type: array, minItems: 1, maxItems: 1000, items: { type: integer, format: int64, minimum: 1 } }
+        query: { type: string, maxLength: 200, description: The issue search syntax (see the `query` parameter of the issue list). }
+        change: { $ref: '#/components/schemas/AppIssueChange' }
+    AppIssueBulkResult:
+      type: object
+      required: [updated, skipped]
+      properties:
+        updated: { type: array, items: { type: integer, format: int64 } }
+        skipped: { type: array, description: Ids that are not issues of this project., items: { type: integer, format: int64 } }
+    AppSavedView:
+      type: object
+      required: [id, name, query, shared, mine, owner_name, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        query: { type: string, maxLength: 200 }
+        shared: { type: boolean }
+        mine: { type: boolean }
+        owner_name: { type: string }
+        created_at: { type: string, format: date-time }
+    AppSavedViewInput:
+      type: object
+      required: [name, query]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        query: { type: string, maxLength: 200 }
+        shared: { type: boolean, default: false }
+    AppSavedViewPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        query: { type: string, maxLength: 200 }
+        shared: { type: boolean }
     AppIssueStatus:
       type: object
       required: [id, status, resolved_in_release, resolved_next, updated, skipped]
@@ -5818,6 +6175,29 @@ components:
       additionalProperties: false
       properties:
         body: { type: string, minLength: 1, maxLength: 10000 }
+    AppFeedback:
+      type: object
+      required: [id, at, issue_id, event_id, name, has_contact, message, url]
+      properties:
+        id: { type: integer, format: int64 }
+        at: { type: string, format: date-time }
+        issue_id: { type: integer, format: int64, nullable: true, description: Null when the event the report names is unknown. }
+        event_id: { type: string, nullable: true }
+        name: { type: string, nullable: true, description: Always null until the opt-in to keep names exists. }
+        has_contact: { type: boolean, description: Whether the reporter gave an email. The address itself is stored only as a keyed hash and never returned. }
+        message: { type: string }
+        url: { type: string, nullable: true, description: The page path, without host or query. }
+    AppFeedbackList:
+      type: object
+      required: [feedback]
+      properties:
+        feedback: { type: array, items: { $ref: '#/components/schemas/AppFeedback' } }
+    AppIssueWebhooks:
+      type: object
+      required: [channel_ids, kinds]
+      properties:
+        channel_ids: { type: array, maxItems: 10, items: { type: integer, format: int64 } }
+        kinds: { type: array, items: { type: string, enum: [created, resolved, regressed, assigned, escalated, github_linked] } }
     AppIssueActivity:
       type: object
       required: [id, at, kind, actor_user_id, actor_name, data]
@@ -5856,6 +6236,22 @@ components:
                     id: { type: integer, format: int64 }
                     title: { type: string }
                     events: { type: integer, format: int64 }
+    AppDeploys:
+      type: object
+      required: [deploys]
+      properties:
+        deploys:
+          type: array
+          items:
+            type: object
+            required: [id, release, environment, name, url, at]
+            properties:
+              id: { type: integer, format: int64 }
+              release: { type: string }
+              environment: { type: string }
+              name: { type: string }
+              url: { type: string }
+              at: { type: string, format: date-time }
     AppReleases:
       type: object
       required: [releases]
@@ -5864,7 +6260,7 @@ components:
           type: array
           items:
             type: object
-            required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, new_issues, regressed_issues]
+            required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, adoption, handled_errors, unhandled_errors, health_source, new_issues, regressed_issues]
             properties:
               release: { type: string }
               first_seen: { type: string, format: date-time }
@@ -5872,6 +6268,14 @@ components:
               installs: { type: integer, format: int64 }
               crash_free_users: { $ref: '#/components/schemas/AppRate' }
               crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+              sessions: { type: integer, format: int64 }
+              users: { type: integer, format: int64 }
+              abnormal_sessions: { type: integer, format: int64 }
+              errored_sessions: { type: integer, format: int64 }
+              adoption: { $ref: '#/components/schemas/AppRate' }
+              handled_errors: { type: integer, format: int64 }
+              unhandled_errors: { type: integer, format: int64 }
+              health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
               new_issues: { type: integer, format: int64 }
               regressed_issues: { type: integer, format: int64 }
     AppLink:
@@ -7153,14 +7557,14 @@ components:
       properties:
         identity_window:
           type: string
-          enum: [day, profile]
-          x-enum-varnames: [DailyIdentityWindow, ProfileIdentityWindow]
-          description: Anonymous identities last one local day; opted-in profiles link activity across days.
+          enum: [day, profile, install]
+          x-enum-varnames: [DailyIdentityWindow, ProfileIdentityWindow, InstallIdentityWindow]
+          description: Anonymous identities last one local day; opted-in profiles link activity across days; app projects link activity by install.
         retention_mode:
           type: string
-          enum: [within_day_session_return, classic_profile_return]
-          x-enum-varnames: [WithinDaySessionReturn, ClassicProfileReturn]
-          description: Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
+          enum: [within_day_session_return, classic_profile_return, install_return]
+          x-enum-varnames: [WithinDaySessionReturn, ClassicProfileReturn, InstallReturn]
+          description: Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets. Install mode (app projects) counts installs returning in later buckets.
         cohorts:
           type: array
           description: Week and month intervals group daily cohorts without cross-day identity linkage.
@@ -7784,6 +8188,10 @@ components:
           maximum: 599
         detail:
           type: string
+        position:
+          type: integer
+          minimum: 0
+          description: For a rejected search, the character offset of the problem.
         instance:
           type: string
           format: uri-reference

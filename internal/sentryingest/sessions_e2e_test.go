@@ -2,6 +2,7 @@ package sentryingest
 
 import (
 	"bytes"
+	"context"
 	"math"
 	"net/http"
 	"os"
@@ -9,6 +10,11 @@ import (
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/appquery"
+	"supermetry/internal/approllup"
+	"supermetry/internal/appsessions"
+	"supermetry/internal/db"
+	"supermetry/internal/testpg"
 )
 
 // The envelopes in testdata/sessions/protocol (nested one level deeper than the
@@ -219,15 +225,80 @@ func TestSessionExpectationsAreConsistent(t *testing.T) {
 	}
 }
 
-// TestSessionFixturesReleaseHealthAfter2a posts every fixture, rolls the day
-// up and compares the release numbers with afterSessions.
+// TestSessionFixturesReleaseHealthAfter2a posts every fixture through the
+// handler with the real session and event writers, rolls 2026-11-17 up and
+// compares the release numbers with afterSessions (every fixture runs a
+// different release; the site time zone is UTC).
 func TestSessionFixturesReleaseHealthAfter2a(t *testing.T) {
-	t.Skip("needs app_session_daily (Phase 2a Task 2)")
-	// Plan Task 6 step 2: for each fixture, post it through the handler on a
-	// fresh site, flush the app_sessions writer and the event writer, call
-	// approllup.RecomputeDay for 2026-11-17, then read appquery.Releases and
-	// compare Sessions, ErroredSessions, AbnormalSessions, Users and the
-	// crash-free rates (CrashFreeSessions, CrashFreeUsers) with afterSessions
-	// (all fixtures use the same day, the site time zone is UTC).
-	_ = afterSessions
+	pool, _ := testpg.New(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into orgs(name,slug) values('Org','org')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into sites(id,org_id,public_id,name,timezone,retention_class,kind) overriding system value
+values($1,1,'appsite00042','App','UTC',30,'app')`, fdSite); err != nil {
+		t.Fatal(err)
+	}
+	sessions := appsessions.NewWriter(pool, appsessions.WriterConfig{}, nil)
+	intake := appingest.NewIntake(appingest.Config{})
+	events := appingest.NewWriter(pool, intake, appingest.WriterConfig{})
+	for name := range afterSessions {
+		raw, err := os.ReadFile("testdata/sessions/protocol/" + name + ".envelope")
+		if err != nil {
+			t.Fatal(err)
+		}
+		e := newEnv(t)
+		e.reg.sites[fdSite].App.HashSecret = testSecret
+		e.h.intake = intake
+		e.h.WithSessions(sessions)
+		*e.now = sessionsNow
+		if rec := e.do(post(fdPath, fdQuery, string(raw), nil)); rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d: %s", name, rec.Code, rec.Body)
+		}
+	}
+	// Flush the session state first, then drain the event queue.
+	sessions.Close()
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- events.Run(runCtx) }()
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
+	if err := approllup.RecomputeDay(ctx, pool, fdSite, day); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := appquery.New(pool, func() time.Time { return sessionsNow }).Releases(ctx,
+		appquery.Scope{SiteID: fdSite, RetentionDays: 30}, appquery.Filter{From: day, To: day})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byRelease := map[string]appquery.ReleaseRow{}
+	for _, r := range rows {
+		byRelease[r.Release] = r
+	}
+	for name, w := range afterSessions {
+		r, ok := byRelease[todaySessions[name].release]
+		if !ok {
+			t.Errorf("%s: release %s missing", name, todaySessions[name].release)
+			continue
+		}
+		if r.Sessions != w.sessions || r.ErroredSessions != w.errored || r.AbnormalSessions != w.abnormal || r.Users != w.users {
+			t.Errorf("%s: sessions/errored/abnormal/users = %d/%d/%d/%d, want %d/%d/%d/%d", name,
+				r.Sessions, r.ErroredSessions, r.AbnormalSessions, r.Users, w.sessions, w.errored, w.abnormal, w.users)
+		}
+		if r.CrashFreeSessions == nil || math.Abs(*r.CrashFreeSessions-w.cfs) > 1e-9 {
+			t.Errorf("%s: crash-free sessions = %v, want %v", name, r.CrashFreeSessions, w.cfs)
+		}
+		if w.cfu != nil && (r.CrashFreeUsers == nil || math.Abs(*r.CrashFreeUsers-*w.cfu) > 1e-9) {
+			t.Errorf("%s: crash-free users = %v, want %v", name, r.CrashFreeUsers, *w.cfu)
+		}
+		if w.cfu == nil && r.CrashFreeUsers != nil {
+			t.Errorf("%s: crash-free users = %v, want null", name, *r.CrashFreeUsers)
+		}
+	}
 }

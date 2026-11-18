@@ -24,6 +24,8 @@ type EventContext struct {
 	// HasMinidump is true when the envelope carries an event.minidump
 	// attachment for this event (a native crash).
 	HasMinidump bool
+	// Stats counts parse-time events such as session_no_started; nil is fine.
+	Stats *Stats
 }
 
 // ClientReportCount is one discarded-events entry of a client report.

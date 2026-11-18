@@ -52,15 +52,16 @@ check() { # name cmd...
   case $rc in 0) record "$name" PASS "$out";; 3) record "$name" SKIP "$out";; *) record "$name" FAIL "$out";; esac
 }
 
-# run_case <sdk/case> <expect: issues|sessions|both|none> <breadcrumbs 0/1> <dir> <cmd...>
+# run_case <sdk/case> <expect: issues|sessions|both|feedback|none> <breadcrumbs 0/1> <dir> <cmd...>
 run_case() {
   local label="$1" expect="$2" crumbs="$3" dir="$4"; shift 4
   local out id key
   out="$(python3 -I "$here/check.py" site "$base" "$state" "${label//\//-}")" || { record "$label" FAIL "site setup: $out"; return; }
   read -r id key <<<"$out"
   sdk "http://$key@127.0.0.1:$port/$id" "$dir" "$@"
-  case "$expect" in issues|both) check "$label issue" python3 -I "$here/check.py" issues "$base" "$state" "$id" 25;; esac
+  case "$expect" in issues|both|feedback) check "$label issue" python3 -I "$here/check.py" issues "$base" "$state" "$id" 25;; esac
   case "$expect" in sessions|both) check "$label session" python3 -I "$here/check.py" sessions "$base" "$state" "$id" 25 "$db_url";; esac
+  [ "$expect" = feedback ] && check "$label feedback" python3 -I "$here/check.py" feedback "$base" "$state" "$id" 25 "$db_url"
   [ "$crumbs" = 1 ] && check "$label breadcrumbs" python3 -I "$here/check.py" breadcrumbs "$base" "$state" "$id" "$db_url"
   return 0
 }
@@ -75,6 +76,7 @@ for c in onerror unhandledrejection; do
   run_case "browser/$c" issues 0 "$fx/browser" /usr/bin/node app.mjs "$c"
 done
 run_case browser/breadcrumbs issues 1 "$fx/browser" /usr/bin/node app.mjs breadcrumbs
+run_case browser/feedback feedback 0 "$fx/browser" /usr/bin/node app.mjs feedback
 run_case browser/session sessions 0 "$fx/browser" /usr/bin/node app.mjs session
 run_case python/unhandled-exception issues 0 "$fx/python" /bin/bash run.sh unhandled-exception
 run_case python/logging-error       issues 0 "$fx/python" /bin/bash run.sh logging-error

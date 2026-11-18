@@ -55,6 +55,7 @@ type Writer struct {
 	// copyRows writes rows; tests replace it.
 	copyRows func(ctx context.Context, rows []Span) error
 
+	seen        *seenGroups         // span_groups already written
 	days        map[string]struct{} // existing partition suffixes (YYYYMMDD)
 	daysChecked time.Time
 }
@@ -191,6 +192,7 @@ func (w *Writer) flushRetry(ctx context.Context, batch []Span) {
 		}
 		err := w.copyRows(ctx, prepared)
 		if err == nil {
+			w.upsertGroups(ctx, prepared)
 			w.reportLate(prepared)
 		}
 		return err

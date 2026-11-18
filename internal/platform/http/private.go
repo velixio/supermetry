@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"supermetry/internal/appquery/search"
 	"sync"
 	"time"
 
@@ -340,21 +341,34 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/app-link", h.getAppLink)
 	mux.HandleFunc("PUT /api/private/sites/{site}/app-link", h.updateAppLink)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/overview", h.getAppOverview)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/rules", h.getAppRules)
+	mux.HandleFunc("PUT /api/private/sites/{site}/app/rules", h.replaceAppRules)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/issues", h.listAppIssues)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/issues/{issue}", h.getAppIssue)
 	mux.HandleFunc("PATCH /api/private/sites/{site}/app/issues/{issue}", h.updateAppIssue)
+	mux.HandleFunc("POST /api/private/sites/{site}/app/issues/bulk", h.bulkAppIssues)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/views", h.listAppViews)
+	mux.HandleFunc("POST /api/private/sites/{site}/app/views", h.createAppView)
+	mux.HandleFunc("PATCH /api/private/sites/{site}/app/views/{view}", h.updateAppView)
+	mux.HandleFunc("DELETE /api/private/sites/{site}/app/views/{view}", h.deleteAppView)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/issues/{issue}/comments", h.listAppIssueComments)
 	mux.HandleFunc("POST /api/private/sites/{site}/app/issues/{issue}/comments", h.createAppIssueComment)
 	mux.HandleFunc("PATCH /api/private/sites/{site}/app/issues/{issue}/comments/{comment}", h.editAppIssueComment)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/app/issues/{issue}/comments/{comment}", h.deleteAppIssueComment)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/issues/{issue}/activity", h.listAppIssueActivity)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/issues/{issue}/feedback", h.listAppIssueFeedback)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/feedback", h.listAppFeedback)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/issue-webhooks", h.getAppIssueWebhooks)
+	mux.HandleFunc("PUT /api/private/sites/{site}/app/issue-webhooks", h.updateAppIssueWebhooks)
 	mux.HandleFunc("POST /api/private/sites/{site}/app/issues/{issue}/merge", h.mergeAppIssues)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/issues/{issue}/merged", h.listMergedAppIssues)
 	mux.HandleFunc("POST /api/private/sites/{site}/app/issues/{issue}/unmerge", h.unmergeAppIssue)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/assignees", h.listAppAssignees)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/events/{event_id}", h.getAppEvent)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/events/{event_id}/attachments/{idx}", h.getAppEventAttachment)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/compatibility", h.getAppCompatibility)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/releases", h.getAppReleases)
+	mux.HandleFunc("GET /api/private/sites/{site}/app/deploys", h.getAppDeploys)
 	mux.HandleFunc("GET /api/private/sites/{site}/ingest-keys", h.listAppIngestKeys)
 	mux.HandleFunc("POST /api/private/sites/{site}/ingest-keys", h.rotateAppIngestKey)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/dsn-keys", h.listAppDSNKeys)
@@ -418,6 +432,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/me/email", h.startEmailChange)
 	mux.HandleFunc("POST /api/private/me/password", h.changePassword)
 	mux.HandleFunc("GET /api/private/me/ip", h.currentIP)
+	mux.HandleFunc("GET /api/private/me/app-notifications", h.listAppNotificationPrefs)
+	mux.HandleFunc("PUT /api/private/me/app-notifications/{site}", h.putAppNotificationPrefs)
 	mux.HandleFunc("GET /api/private/me/sessions", h.listSessions)
 	mux.HandleFunc("DELETE /api/private/me/sessions", h.revokeOtherSessions)
 	mux.HandleFunc("DELETE /api/private/me/sessions/{session}", h.revokeSession)
@@ -802,6 +818,19 @@ type problem struct {
 	Title  string `json:"title"`
 	Status int    `json:"status"`
 	Detail string `json:"detail"`
+	// Position is where a syntax error is, for problems about a search.
+	Position *int `json:"position,omitempty"`
+}
+
+// writeSearchProblem answers a search the parser rejected: 400 with the
+// character position of the error.
+func writeSearchProblem(w http.ResponseWriter, err *search.ParseError) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(http.StatusBadRequest)
+	pos := err.Pos
+	_ = json.NewEncoder(w).Encode(problem{
+		Type: "https://supermetry.com/problems/bad-request", Title: "Bad request", Status: http.StatusBadRequest, Detail: err.Msg, Position: &pos,
+	})
 }
 
 func writeProblem(w http.ResponseWriter, status int, title, detail string) {

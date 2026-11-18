@@ -134,6 +134,19 @@ func (in *Intake) Admit(site sites.Site, budgetKey string, now time.Time) Outcom
 	return Outcome{}
 }
 
+// TakeBudget takes one unit of the key's budget for an item that is not an
+// event (a session update). An exhausted budget is recorded as a drop.
+func (in *Intake) TakeBudget(site sites.Site, budgetKey string, now time.Time) Outcome {
+	if site.App == nil {
+		return Outcome{Reason: ReasonInvalid}
+	}
+	if !in.budgets.take(budgetKey, now) {
+		in.Drop(site, now, dropstats.AppRateLimited)
+		return Outcome{Reason: ReasonRateLimited}
+	}
+	return Outcome{}
+}
+
 // Accept applies the per-event checks to one parsed event for an app site.
 // budgetKey identifies the ingest key (or the app, for mapped events).
 func (in *Intake) Accept(site sites.Site, budgetKey string, now time.Time, ev Event) Outcome {
@@ -176,6 +189,26 @@ func (in *Intake) Accept(site sites.Site, budgetKey string, now time.Time, ev Ev
 		return out
 	}
 	return Outcome{Stripped: stripped}
+}
+
+// Gate applies the duplicate and key-budget checks to a product event, which
+// bypasses the app_events queue. On success it returns a release func that
+// forgets the event id again, for when the hit could not be queued.
+func (in *Intake) Gate(site sites.Site, budgetKey string, now time.Time, id string) (Outcome, func()) {
+	if site.App == nil {
+		return Outcome{Reason: ReasonInvalid}, nil
+	}
+	if in.dedup.seen(dedupKey{site.ID, id}, now) {
+		in.Drop(site, now, dropstats.AppDuplicate)
+		return Outcome{Reason: ReasonDuplicate}, nil
+	}
+	release := func() { in.dedup.release(dedupKey{site.ID, id}) }
+	if !in.budgets.take(budgetKey, now) {
+		release()
+		in.Drop(site, now, dropstats.AppRateLimited)
+		return Outcome{Reason: ReasonRateLimited}, nil
+	}
+	return Outcome{}, release
 }
 
 func (in *Intake) enqueue(q Queued) bool {
@@ -240,6 +273,17 @@ func (in *Intake) filterTags(siteID int32, app *sites.AppConfig, tags map[string
 func (in *Intake) close() { in.closed.Store(true) }
 
 // --- event id window ---
+
+// Seen reports whether key was already received for the site inside the dedup
+// window and records it if not. It shares the window of event ids, so callers
+// prefix their keys ("tx:") to keep kinds apart.
+func (in *Intake) Seen(siteID int32, key string, now time.Time) bool {
+	return in.dedup.seen(dedupKey{siteID, key}, now)
+}
+
+// Forget removes a key recorded by Seen, so a retry of a request that was not
+// stored (queue full, rate limited) is not mistaken for a duplicate.
+func (in *Intake) Forget(siteID int32, key string) { in.dedup.release(dedupKey{siteID, key}) }
 
 type dedupKey struct {
 	siteID int32

@@ -10,7 +10,9 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { AppRulesSection } from '@/features/settings/AppRulesSection'
 import { privateRequest } from '@/features/settings/privateApi'
+import { IssueWebhooks } from '@/features/settings/IssueWebhooks'
 import { AppKeyDialog } from '@/features/sites/AppKeyDialog'
 import { rotateAppIngestKey } from '@/features/sites/api'
 
@@ -146,6 +148,8 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
         <div><Button type="submit" disabled={save.isPending}>Save</Button></div>
       </form>
 
+      <IssueWebhooks orgId={orgId} siteId={siteId} canEdit={role === 'owner' || role === 'admin' || role === 'editor'} />
+
       <section className="flex flex-col gap-3 rounded-xl border bg-card p-4" aria-label="Ingest keys">
         <h3 className="text-sm font-medium">Ingest keys</h3>
         <ul className="divide-y text-sm">
@@ -220,6 +224,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
           </AlertDialog>
         </section>
       ) : null}
+      <AppRulesSection orgId={orgId} siteId={siteId} canEdit={role === 'owner' || role === 'admin' || role === 'editor'} />
       {issued ? <AppKeyDialog appId={publicId} ingestKey={issued} onClose={() => setIssued('')} /> : null}
     </div>
   )

@@ -92,6 +92,30 @@ func (c *WebhookClient) SendRendered(ctx context.Context, kind ChannelKind, rawU
 	if err != nil {
 		return err
 	}
+	return c.post(ctx, kind, rawURL, secret, body)
+}
+
+// SendJSON posts a caller-built JSON body to a webhook channel, signed like
+// an alert webhook. Slack and Discord channels get message as their text.
+func (c *WebhookClient) SendJSON(ctx context.Context, kind ChannelKind, rawURL, secret string, payload any, message string) error {
+	var body []byte
+	var err error
+	if kind == ChannelWebhook {
+		body, err = json.Marshal(payload)
+	} else {
+		body, err = webhookBodyRendered(kind, Notification{}, message)
+	}
+	if err != nil {
+		return err
+	}
+	return c.post(ctx, kind, rawURL, secret, body)
+}
+
+func (c *WebhookClient) post(ctx context.Context, kind ChannelKind, rawURL, secret string, body []byte) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil {
+		return errors.New("invalid webhook URL")
+	}
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	var lastErr error
 	for attempt := 0; attempt < webhookAttempts; attempt++ {

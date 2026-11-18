@@ -7,6 +7,7 @@
   check.py frame BASE STATE SITE WAIT_S EXPECT_FILE EXPECT_LINE [EXPECT_FUNC]  top in-app frame of the newest event is the original file and line (and function)
   check.py issues BASE STATE SITE [WAIT_S]       wait for issues; prints "<n> <titles...>"; exit 1 if none
   check.py sessions BASE STATE SITE WAIT_S DB_URL  wait for session rows (crash-free rate, else rows in app_events)
+  check.py feedback BASE STATE SITE WAIT_S DB_URL  wait for user feedback: stored, scrubbed, linked to an issue, no raw email
   check.py breadcrumbs BASE STATE SITE DB_URL    PASS/SKIP check that stored bodies carry breadcrumbs
 
 Exit codes: 0 pass, 1 fail, 3 skip (message on stdout).
@@ -160,6 +161,39 @@ def main(argv):
                     print("SKIP: symbolication not available (event bodies are not stored by this build, so frames cannot be inspected)")
                     return 3
                 print(f"FAIL: expected {want_file}:{want_line}; {last}")
+                return 1
+            time.sleep(1)
+    if cmd == "feedback":
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/feedback"), (200,), "list feedback")
+            items = r["feedback"]
+            if items:
+                f = items[0]
+                if "froze" not in f["message"] or "fixture-user@" in f["message"] or "[email]" not in f["message"]:
+                    print(f"FAIL: message not stored scrubbed: {f['message']!r}")
+                    return 1
+                if f["name"] is not None:
+                    print(f"FAIL: name stored: {f['name']!r}")
+                    return 1
+                if f["url"] != "/checkout":
+                    print(f"FAIL: url {f['url']!r}, expected the path only")
+                    return 1
+                if not f["issue_id"]:
+                    print("FAIL: feedback is not linked to the issue of its event")
+                    return 1
+                own = need(*c.call(f"/api/private/sites/{site}/app/issues/{f['issue_id']}/feedback"), (200,), "issue feedback")
+                if len(own["feedback"]) != 1:
+                    print(f"FAIL: issue feedback has {len(own['feedback'])} rows")
+                    return 1
+                q = f"select count(*) from app_feedback f where f::text ilike '%fixture-user%' or f::text ilike '%Fixture User%'"
+                p = subprocess.run(["psql", argv[6], "-Atc", q], capture_output=True, text=True)
+                if p.returncode != 0 or p.stdout.strip() != "0":
+                    print(f"FAIL: raw email or name present in app_feedback ({p.stdout.strip()} {p.stderr.strip()})")
+                    return 1
+                print(f"feedback stored, scrubbed and linked to issue {f['issue_id']}")
+                return 0
+            if time.time() > deadline:
+                print("no feedback stored")
                 return 1
             time.sleep(1)
     if cmd == "sessions":

@@ -11,10 +11,12 @@ import (
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
 	"supermetry/internal/salts"
 	"supermetry/internal/sites"
+	"supermetry/internal/spans"
 )
 
 // NormaliseFunc turns the JSON of one Sentry event item into the narrow
@@ -26,6 +28,12 @@ type NormaliseFunc func(raw []byte, ctx EventContext, site sites.Site, now time.
 // counts the loss). Phase 1a has no consumer yet: a nil queue discards bodies.
 type BodyQueue interface {
 	Enqueue(appingest.Body) bool
+}
+
+// SessionQueue takes session updates for the state table. Enqueue must not
+// block; it counts its own drops. A nil queue discards updates.
+type SessionQueue interface {
+	Enqueue(appsessions.Update) bool
 }
 
 // ClientReportSink takes the discarded-event counts of client reports; Add
@@ -45,6 +53,8 @@ type Handler struct {
 	intake    *appingest.Intake
 	bodies    BodyQueue
 	reports   ClientReportSink
+	sessions  SessionQueue
+	feedback  FeedbackSink
 	geo       GeoLookup
 	trusted   []netip.Prefix
 	now       func() time.Time
@@ -55,7 +65,21 @@ type Handler struct {
 	ips       *ipLimiter
 	inflight  chan struct{}
 	localhost bool // drop events raised on localhost (off by default)
+	spans     SpanSink
+	budget    *spans.Budget
+	names     *spans.NameCaps
 }
+
+// SpanSink takes parsed spans for storage; Enqueue is all or nothing and
+// reports false when the queue cannot take the whole batch. *spans.Writer is
+// the production one.
+type SpanSink interface {
+	Enqueue([]spans.Span) bool
+}
+
+// MaxTransactionNames is the per-site per-local-day cap on distinct
+// transaction names; further names are stored as "<other>".
+const MaxTransactionNames = 1000
 
 // NewHandler builds the front door. bodies, geo and now may be nil.
 func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueue, geo GeoLookup, trusted []netip.Prefix, now func() time.Time) *Handler {
@@ -67,8 +91,36 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 		ips: newIPLimiter(DefaultIPPerMinute), inflight: make(chan struct{}, DefaultMaxInflight)}
 }
 
+// WithSpans turns performance ingest on: transaction items and span v2
+// containers go to sink, limited by budget (nil budget = unlimited). Without
+// it, or for a project with performance off, they are counted and dropped and
+// the SDK is told they are not supported.
+func (h *Handler) WithSpans(sink SpanSink, budget *spans.Budget) *Handler {
+	h.spans, h.budget = sink, budget
+	if h.names == nil {
+		h.names = spans.NewNameCaps(MaxTransactionNames)
+	}
+	return h
+}
+
+// perfOn reports whether this handler stores spans for the site; the site's
+// performance_enabled setting defaults to on.
+func (h *Handler) perfOn(site sites.Site) bool {
+	if h.spans == nil {
+		return false
+	}
+	return site.App == nil || site.App.PerformanceEnabled == nil || *site.App.PerformanceEnabled
+}
+
 // WithClientReports sets where client-report counts go; nil discards them.
 func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r; return h }
+
+// WithSessions sets where session updates go; nil discards them.
+func (h *Handler) WithSessions(q SessionQueue) *Handler { h.sessions = q; return h }
+
+// WithFeedback sets where scrubbed user reports go; nil counts and discards
+// them.
+func (h *Handler) WithFeedback(f FeedbackSink) *Handler { h.feedback = f; return h }
 
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
 // function makes event items counted and dropped.
@@ -274,8 +326,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	events := 0
 	for _, it := range env.Items {
-		if it.Type == "event" {
-			events++
+		if it.Type == "event" || isFeedbackItem(it.Type) {
+			events++ // reports count toward spike protection like events
 		}
 	}
 	var cspEvents []appingest.Event
@@ -305,10 +357,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, http.StatusServiceUnavailable, "ingest queue full")
 	case out.accepted == 0 && out.rateLimited > 0:
 		hdr.Set("Retry-After", "60")
-		hdr.Set("X-Sentry-Rate-Limits", budgetLimits)
+		if out.rateLimited == out.spanLimited {
+			hdr.Set("X-Sentry-Rate-Limits", spanLimits)
+		} else {
+			hdr.Set("X-Sentry-Rate-Limits", budgetLimits)
+		}
 		h.fail(w, http.StatusTooManyRequests, "rate limited")
 	default:
-		hdr.Set("X-Sentry-Rate-Limits", rejectUnsupported)
+		limits := unsupportedLimits(h.perfOn(site))
+		if out.spanLimited > 0 {
+			limits += "," + spanLimits
+		}
+		hdr.Set("X-Sentry-Rate-Limits", limits)
 		if out.eventID != "" {
 			writeJSON(w, http.StatusOK, `{"id":`+strconv.Quote(out.eventID)+`}`)
 		} else {
@@ -319,6 +379,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type outcome struct {
 	accepted, rateLimited, queueFull int
+	spanLimited                      int // items over the span budget (also counted in rateLimited when nothing fit)
 	eventID                          string
 }
 
@@ -345,21 +406,32 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 	}
 	ctx := EventContext{
 		EventID: env.Header.EventID, SentAt: env.Header.SentAt, SDKName: env.Header.SDK.Name, SDKVersion: env.Header.SDK.Version,
-		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country,
+		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country, Stats: h.stats,
 	}
 	for _, it := range env.Items {
 		if it.Type == "attachment" && it.AttachmentType == "event.minidump" {
 			ctx.HasMinidump = true
 		}
 	}
-	var attachments []appingest.AttachmentMeta
-	for _, it := range env.Items {
-		if it.Type == "attachment" && len(it.Payload) <= MaxAttachment {
-			attachments = append(attachments, appingest.AttachmentMeta{Name: it.Filename, Type: it.AttachmentType, Size: len(it.Payload)})
-		}
-	}
+	prep := h.prepareAttachments(env.Items)
+	perf := h.perfOn(site)
 	for _, it := range env.Items {
 		switch it.Type {
+		case "transaction":
+			if !perf {
+				h.stats.Add("item:transaction", 1)
+				continue
+			}
+			if out.eventID == "" {
+				out.eventID = env.Header.EventID
+			}
+			h.ingestSpans(&out, site, it, ctx, now, env.Header.EventID, parseTransaction)
+		case "span":
+			if !perf || !strings.HasPrefix(it.ContentType, "application/vnd.sentry.items.span.v2") {
+				h.stats.Add("item:span", 1)
+				continue
+			}
+			h.ingestSpans(&out, site, it, ctx, now, "", parseSpanV2)
 		case "event":
 			if out.eventID == "" {
 				out.eventID = env.Header.EventID
@@ -399,7 +471,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 					count(res)
 					continue
 				}
-				body.Attachments = attachments
+				body.Attachments, body.Files = h.symbolicationAttachments(prep)
 				site, now := site, now
 				if h.symb.SubmitWith(ev, body, body.Row.SDKFingerprint, func(ev appingest.Event, body appingest.Body) {
 					if h.intake.Accept(site, budgetKey, now, ev).Reason == "" && h.bodies != nil && !h.bodies.Enqueue(body) {
@@ -410,20 +482,50 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				}
 			}
 			if count(h.intake.Accept(site, budgetKey, now, ev)) && h.bodies != nil {
-				body.Attachments = attachments
+				body.Attachments, body.Files = prep.Metas, prep.Files
 				if !h.bodies.Enqueue(body) {
 					h.stats.Add("body_queue_full", 1)
 				}
 			}
 		case "session", "sessions":
-			events, err := ParseSession(it.Payload, ctx, site, now)
+			events, updates, err := ParseSession(it.Payload, ctx, site, now)
 			if err != nil {
 				h.stats.Add("session_invalid", 1)
 				h.intake.Drop(site, now, dropstats.AppInvalid)
 				continue
 			}
+			var evRes appingest.Outcome
 			for _, ev := range events {
-				count(h.intake.Accept(site, budgetKey, now, ev))
+				evRes = h.intake.Accept(site, budgetKey, now, ev)
+				count(evRes)
+			}
+			for _, u := range updates {
+				if u.Init && len(events) == 1 {
+					// The init row's Accept already took the budget. A retried
+					// envelope is a duplicate there but the upsert is idempotent,
+					// so it still goes through; other refusals do not.
+					if evRes.Reason != "" && evRes.Reason != appingest.ReasonDuplicate {
+						continue
+					}
+				} else if res := h.intake.TakeBudget(site, budgetKey, now); res.Reason != "" {
+					count(res)
+					continue
+				}
+				if h.sessions != nil {
+					h.sessions.Enqueue(u) // a full queue counts itself
+				}
+			}
+		case "feedback", "user_report":
+			item, err := ParseFeedback(it.Type, it.Payload, site, now)
+			switch {
+			case err != nil:
+				h.stats.Add("feedback_invalid", 1)
+			case h.feedback == nil:
+				h.stats.Add("feedback_discarded", 1)
+			case h.feedback.Add(item):
+				h.stats.Add("feedback_stored", 1)
+			default:
+				h.stats.Add("feedback_dropped", 1)
 			}
 		case "client_report":
 			if counts, err := ParseClientReport(it.Payload); err == nil {
@@ -454,6 +556,8 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 	}
 	return out
 }
+
+func isFeedbackItem(t string) bool { return t == "feedback" || t == "user_report" }
 
 // applyRow copies the normaliser's extra columns onto the event.
 func applyRow(ev *appingest.Event, r appingest.RowExtras) {

@@ -83,7 +83,19 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 			return err
 		}
 	}
+	var hasActiveDay bool
+	if err := tx.QueryRow(ctx, `select to_regclass('app_active_day') is not null`).Scan(&hasActiveDay); err != nil {
+		return fmt.Errorf("check app_active_day: %w", err)
+	}
+	if hasActiveDay {
+		if err := ensureMonthlyDayPartitions(ctx, tx, "app_active_day", from, to); err != nil {
+			return err
+		}
+	}
 	if err := ensureAppEventBodyPartitions(ctx, tx, from, to); err != nil {
+		return err
+	}
+	if err := ensureAppSessionPartitions(ctx, tx, from, to); err != nil {
 		return err
 	}
 	if err := ensureDailyIfTable(ctx, tx, "spans", from, to); err != nil {
@@ -166,20 +178,63 @@ func EnsureAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, from, to 
 	if err := ensureAppEventBodyPartitions(ctx, tx, from, to); err != nil {
 		return err
 	}
+	if err := ensureAppSessionPartitions(ctx, tx, from, to); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 
-// ensureAppEventBodyPartitions creates app_event_bodies partitions when the
-// table exists (migration tests build older schemas).
-func ensureAppEventBodyPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
+// EnsureAppActiveDayPartitions creates the monthly app_active_day partitions
+// covering the days in [from, to). The app rollup calls it before writing a
+// day, which can lie in a month the regular lookahead never covered.
+func EnsureAppActiveDayPartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Time) error {
+	if !from.Before(to) {
+		return nil
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin app active day partition creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
+		return fmt.Errorf("lock partition creation: %w", err)
+	}
+	if err := ensureMonthlyDayPartitions(ctx, tx, "app_active_day", from, to); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// ensureAppSessionPartitions creates app_sessions partitions when the table
+// exists (migration tests build older schemas).
+func ensureAppSessionPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
 	var has bool
-	if err := tx.QueryRow(ctx, `select to_regclass('app_event_bodies') is not null`).Scan(&has); err != nil {
-		return fmt.Errorf("check app_event_bodies: %w", err)
+	if err := tx.QueryRow(ctx, `select to_regclass('app_sessions') is not null`).Scan(&has); err != nil {
+		return fmt.Errorf("check app_sessions: %w", err)
 	}
 	if !has {
 		return nil
 	}
-	return ensureMonthlyTimestampPartitions(ctx, tx, "app_event_bodies", from, to)
+	return ensureMonthlyTimestampPartitions(ctx, tx, "app_sessions", from, to)
+}
+
+// ensureAppEventBodyPartitions creates the partitions of app_event_bodies and
+// app_event_attachments when the tables exist (migration tests build older
+// schemas).
+func ensureAppEventBodyPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
+	for _, table := range []string{"app_event_bodies", "app_event_attachments"} {
+		var has bool
+		if err := tx.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&has); err != nil {
+			return fmt.Errorf("check %s: %w", table, err)
+		}
+		if !has {
+			continue
+		}
+		if err := ensureMonthlyTimestampPartitions(ctx, tx, table, from, to); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureMonthlyTimestampPartitions creates UTC-month partitions of a table

@@ -1,10 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -12,9 +13,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fmt } from '@/lib/format'
 
 import { AppFilters } from './AppFilters'
+import { IssueBulkBar } from './IssueBulkBar'
+import { IssueSearchBar } from './IssueSearchBar'
 import { useAppIssues, type AppIssueRow } from './api'
 import { formatDay } from './format'
-import { ISSUE_KINDS, ISSUE_SORTS, ISSUE_STATUSES, type AppIssuesSearch, type AppSearch, type IssueSort, type IssueStatusTab } from './search'
+import { appQuery, ISSUE_KINDS, ISSUE_SORTS, ISSUE_STATUSES, type AppIssuesSearch, type AppSearch, type IssueSort, type IssueStatusTab } from './search'
 import { Sparkline } from './Sparkline'
 
 const PAGE_SIZE = 50
@@ -27,20 +30,29 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge variant={variant}>{status}</Badge>
 }
 
+/** Row checkboxes of the issues page: which ids are checked and how to change that. */
+export type IssueSelection = { selected: ReadonlySet<number>; onToggle: (id: number) => void; onToggleAll: (all: boolean) => void }
+
 /** Issue rows shared by the overview's top issues and the issues page. */
-export function IssueRowsTable({ org, site, issues, search }: { org: string; site: string; issues: AppIssueRow[]; search: AppSearch }) {
+export function IssueRowsTable({ org, site, issues, search, selection }: { org: string; site: string; issues: AppIssueRow[]; search: AppSearch; selection?: IssueSelection }) {
   if (issues.length === 0) return <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No issues here.</p>
   return (
     <Table>
       <TableHeader>
         <TableRow>
+          {selection ? (
+            <TableHead className="w-8">
+              <Checkbox aria-label="Select all issues on this page" checked={issues.every((issue) => selection.selected.has(issue.id))} onCheckedChange={(checked) => selection.onToggleAll(checked === true)} />
+            </TableHead>
+          ) : null}
           <TableHead>Trend</TableHead><TableHead>Issue</TableHead><TableHead>First / last seen</TableHead>
           <TableHead>Releases</TableHead><TableHead className="text-right">Events</TableHead><TableHead className="text-right">Users</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {issues.map((issue) => (
-          <TableRow key={issue.id}>
+          <TableRow key={issue.id} data-state={selection?.selected.has(issue.id) ? 'selected' : undefined}>
+            {selection ? <TableCell><Checkbox aria-label={`Select ${issue.title}`} checked={selection.selected.has(issue.id)} onCheckedChange={() => selection.onToggle(issue.id)} /></TableCell> : null}
             <TableCell><Sparkline values={issue.sparkline} /></TableCell>
             <TableCell className="max-w-md whitespace-normal">
               <div className="flex flex-wrap items-center gap-2">
@@ -60,14 +72,27 @@ export function IssueRowsTable({ org, site, issues, search }: { org: string; sit
   )
 }
 
-export function IssuesTable({ org, site, siteId, timezone, search, onSearch }: {
-  org: string; site: string; siteId: number; timezone: string; search: AppIssuesSearch; onSearch: (next: AppIssuesSearch) => void
+export function IssuesTable({ org, site, siteId, timezone, search, onSearch, canEdit = false }: {
+  org: string; site: string; siteId: number; timezone: string; search: AppIssuesSearch; onSearch: (next: AppIssuesSearch) => void; canEdit?: boolean
 }) {
   const offset = search.offset ?? 0
-  const issues = useAppIssues(siteId, search, timezone, {
-    status: search.status === 'all' ? undefined : search.status, kind: search.kind, q: search.q, sort: search.sort, limit: PAGE_SIZE, offset: offset || undefined,
-  })
+  const filters = { status: search.status === 'all' ? undefined : search.status, kind: search.kind, q: search.q, query: search.query }
+  const issues = useAppIssues(siteId, search, timezone, { ...filters, sort: search.sort, limit: PAGE_SIZE, offset: offset || undefined })
   const [query, setQuery] = useState(search.q ?? '')
+  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set())
+  const [allMatching, setAllMatching] = useState(false)
+  const [bulkNote, setBulkNote] = useState('')
+  // A different list (filters, search or page) starts with nothing checked.
+  const listKey = appQuery(search, timezone, { ...filters, offset: offset || undefined }).toString()
+  useEffect(() => { setSelected(new Set()); setAllMatching(false) }, [listKey])
+  const rows = issues.data?.issues ?? []
+  const total = issues.data?.total ?? 0
+  const selection: IssueSelection | undefined = canEdit ? {
+    selected,
+    onToggle: (id) => { setBulkNote(''); setAllMatching(false); setSelected((current) => { const next = new Set(current); if (!next.delete(id)) next.add(id); return next }) },
+    onToggleAll: (all) => { setAllMatching(false); setSelected(all ? new Set(rows.map((row) => row.id)) : new Set()) },
+  } : undefined
+  const matchTarget = { query: search.query ?? '', params: appQuery(search, timezone, filters).toString() }
   // Any filter change returns to the first page.
   const change = (patch: Partial<AppIssuesSearch>) => onSearch({ ...search, offset: undefined, ...patch })
   const nextOffset = issues.data?.next_offset ?? null
@@ -92,9 +117,20 @@ export function IssuesTable({ org, site, siteId, timezone, search, onSearch }: {
           </form>
         </div>
       </div>
+      <IssueSearchBar key={search.query ?? ''} siteId={siteId} value={search.query ?? ''} error={issues.error} canEdit={canEdit} onSubmit={(next) => change({ query: next || undefined })} />
+      {selection && selected.size > 0 ? (
+        <>
+          <IssueBulkBar siteId={siteId} count={allMatching ? total : selected.size} matching={allMatching} target={allMatching ? matchTarget : { ids: [...selected] }} onDone={(summary) => { setBulkNote(summary); setSelected(new Set()); setAllMatching(false) }} />
+          {!allMatching && selected.size === rows.length && total > rows.length ? (
+            <p className="text-sm text-muted-foreground">
+              These {rows.length} issues are selected. <button type="button" className="underline" onClick={() => setAllMatching(true)}>Select all {fmt.number(total)} matching issues</button>
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      {bulkNote && selected.size === 0 ? <p role="status" className="text-sm text-muted-foreground">{bulkNote}</p> : null}
       {issues.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading issues…</p> : null}
-      {issues.isError ? <p role="alert" className="text-sm text-destructive">{issues.error.message}</p> : null}
-      {issues.data ? <IssueRowsTable org={org} site={site} issues={issues.data.issues} search={search} /> : null}
+      {issues.data ? <IssueRowsTable org={org} site={site} issues={issues.data.issues} search={search} selection={selection} /> : null}
       {issues.data ? (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{issues.data.total === 0 ? '0 issues' : `${offset + 1}–${offset + issues.data.issues.length} of ${fmt.number(issues.data.total)}`}</span>

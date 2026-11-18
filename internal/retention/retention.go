@@ -20,15 +20,31 @@ var eraseTables = []string{
 	"heatmap_cells",
 	"app_events",
 	"app_event_bodies",
+	"app_event_attachments",
 	"app_issue_daily",
 	"app_issue_hourly",
+	"app_issue_tags",
+	"span_hourly",
+	"span_hour_state",
+	"span_groups",
+	"app_saved_views",
 	"app_release_daily",
+	"app_active_day",
+	"app_sessions",
+	"app_session_daily",
+	"app_issue_webhook_outbox",
+	"app_issue_webhooks",
+	"app_feedback",
 	"app_issue_activity",
 	"app_issue_comments",
+	"app_ownership_rules",
+	"app_grouping_rules",
+	"user_notification_prefs",
 	"app_issues",
 	"app_hash_secrets",
 	"app_erasure_requests",
 	"app_artifact_files",
+	"app_debug_files",
 	"app_client_reports",
 	"spans",
 	"events",
@@ -111,16 +127,20 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 			expired = append(expired, partition)
 		}
 	}
-	appPartitions, err := expiredAppEventPartitions(ctx, pool, now)
-	if err != nil {
-		return nil, err
+	for _, table := range []string{"app_events", "app_sessions"} {
+		appPartitions, err := expiredAppEventPartitions(ctx, pool, table, now)
+		if err != nil {
+			return nil, err
+		}
+		expired = append(expired, appPartitions...)
 	}
-	expired = append(expired, appPartitions...)
-	bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now)
-	if err != nil {
-		return nil, err
+	for _, table := range []string{"app_event_bodies", "app_event_attachments"} {
+		bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now, table)
+		if err != nil {
+			return nil, err
+		}
+		expired = append(expired, bodyPartitions...)
 	}
-	expired = append(expired, bodyPartitions...)
 	spanPartitions, err := expiredSpanPartitions(ctx, pool, now)
 	if err != nil {
 		return nil, err
@@ -283,8 +303,13 @@ func deleteExpiredAppRollups(ctx context.Context, pool *pgxpool.Pool, now time.T
 		}{
 			{"app_issue_daily", "day", day},
 			{"app_release_daily", "day", day},
+			{"app_active_day", "day", day},
+			{"app_session_daily", "day", day},
 			{"app_client_reports", "day", day},
 			{"app_issue_hourly", "hour", hour},
+			{"app_issue_tags", "last_seen", hour},
+			{"span_hourly", "local_hour", hour},
+			{"span_hour_state", "local_hour", hour},
 		} {
 			if _, err := pool.Exec(ctx, "delete from "+q.table+" where site_id = $1 and "+q.column+" < $2", site.id, q.cutoff); err != nil {
 				return fmt.Errorf("delete expired %s rows: %w", q.table, err)
@@ -379,11 +404,12 @@ func deleteExpiredDropStats(ctx context.Context, pool *pgxpool.Pool, now time.Ti
 // appEventsDefaultRetentionDays applies when no app project exists.
 const appEventsDefaultRetentionDays = 365
 
-// expiredAppEventPartitions returns the monthly app_events partitions that lie
+// expiredAppEventPartitions returns the monthly partitions of an app raw table
+// (app_events or app_sessions) that lie
 // wholly before the longest retention of any live app project, plus one day of
 // closing slack. A project that keeps data forever keeps every partition:
 // months are shared by all projects, so the longest retention decides.
-func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, table string, now time.Time) ([]db.Partition, error) {
 	var apps int
 	var forever bool
 	var longest int
@@ -398,9 +424,9 @@ func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time
 	if apps == 0 {
 		longest = appEventsDefaultRetentionDays
 	}
-	partitions, err := db.ListMonthlyPartitions(ctx, pool, "app_events")
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, table)
 	if err != nil {
-		return nil, fmt.Errorf("list app event retention partitions: %w", err)
+		return nil, fmt.Errorf("list %s retention partitions: %w", table, err)
 	}
 	cutoff := now.AddDate(0, 0, -longest-1)
 	var expired []db.Partition
@@ -415,12 +441,13 @@ func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, now time
 // appEventBodyRetentionDays is the fixed life of scrubbed event bodies.
 const appEventBodyRetentionDays = 30
 
-// expiredAppEventBodyPartitions returns the monthly app_event_bodies
-// partitions that lie wholly before the body retention, plus one day of slack.
-func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
-	partitions, err := db.ListMonthlyPartitions(ctx, pool, "app_event_bodies")
+// expiredAppEventBodyPartitions returns the monthly partitions of table
+// (app_event_bodies or app_event_attachments) that lie wholly before the body
+// retention, plus one day of slack.
+func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, table string) ([]db.Partition, error) {
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, table)
 	if err != nil {
-		return nil, fmt.Errorf("list app event body partitions: %w", err)
+		return nil, fmt.Errorf("list %s partitions: %w", table, err)
 	}
 	cutoff := now.AddDate(0, 0, -appEventBodyRetentionDays-1)
 	var expired []db.Partition

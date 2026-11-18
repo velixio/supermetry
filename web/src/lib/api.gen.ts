@@ -721,6 +721,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/me/app-notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in user's issue notification switches for every app project they can read
+         * @description Defaults apply until saved. Assigned and regressed are on by default, resolved is off.
+         */
+        get: operations["listAppNotificationPrefs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/me/app-notifications/{site}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save the signed-in user's own issue notification switches for a project
+         * @description Any member may change their own switches, viewers included. A project the user cannot read is a 404.
+         */
+        put: operations["putAppNotificationPrefs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/me/orgs/deleted": {
         parameters: {
             query?: never;
@@ -2186,6 +2228,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/issues/bulk": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change many issues at once
+         * @description Give `ids` (1 to 1,000) or a `query`; with a query the change applies to the issues the search matches, using
+         *     the range, filters and the `status`, `kind` and `q` parameters of the issue list (at most 1,000 matches, else
+         *     400). Ids that are not issues of this project are left alone and returned in `skipped`. The whole change is
+         *     one transaction and adds one activity row per changed field and issue. Owner, admin or editor only.
+         */
+        post: operations["bulkUpdateAppIssues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Saved issue searches visible to you
+         * @description Your private views and every shared view of the project.
+         */
+        get: operations["listAppSavedViews"];
+        put?: never;
+        /**
+         * Save an issue search
+         * @description Owner, admin or editor only. A name is unique per owner; a duplicate is a 409.
+         */
+        post: operations["createAppSavedView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/views/{view}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                view: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a view
+         * @description Same rules as editing.
+         */
+        delete: operations["deleteAppSavedView"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename, edit or share a view
+         * @description The owner, or an owner or admin of the organisation for a shared view. Another member's private view is a 404.
+         */
+        patch: operations["updateAppSavedView"];
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/events/{event_id}": {
         parameters: {
             query?: never;
@@ -2203,6 +2331,62 @@ export interface paths {
          *     unknown event is a 404. Fields can be missing: clients must tolerate that.
          */
         get: operations["getAppEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** An app project's ownership and grouping rules, in evaluation order */
+        get: operations["getAppRules"];
+        /**
+         * Replace both rule lists of an app project
+         * @description Ownership rules route a newly created issue to a member (the issue gets an `assigned` activity by the system;
+         *     an existing issue is never re-assigned). Grouping rules replace the computed grouping key of matching events
+         *     with the rule's fingerprint; the token `{{ default }}` keeps the default key and appends. The first matching
+         *     rule by position wins. Values are globs (`*` any run, `?` one character, `\` escapes) of at most 200
+         *     characters; at most 200 rules of each kind. A bad rule is a 400 naming its zero-based index. Owner, admin or
+         *     editor only. The change reaches ingestion with the next registry refresh.
+         */
+        put: operations["replaceAppRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+                /** @description Position in the body's attachments list. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The scrubbed content of one stored event attachment
+         * @description Only attachments whose metadata says stored=true have content. PNG, JPEG and WebP are served inline; text and
+         *     JSON are served as text downloads; anything else is an opaque download. Every response carries
+         *     X-Content-Type-Options: nosniff and a sandboxing Content-Security-Policy. Content ages out with the event body
+         *     (30 days) and then is a 404.
+         */
+        get: operations["getAppEventAttachment"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2386,6 +2570,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/issues/{issue}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * User feedback linked to the issue, newest first
+         * @description Reports sent with captureFeedback or the legacy user report whose event belongs to this issue. Text is scrubbed; reporter emails are not returned.
+         */
+        get: operations["listAppIssueFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * All user feedback of the project, newest first
+         * @description Includes reports whose event is unknown (not linked to an issue).
+         */
+        get: operations["listAppFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issue-webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Issue webhook settings */
+        get: operations["getAppIssueWebhooks"];
+        /**
+         * Choose the notification channels and event kinds that receive issue webhooks
+         * @description Channels are existing notification channels of the organisation. Webhook channels receive a JSON body `{type, issue:{id,title,culprit,level,status,url,first_seen,last_seen,events}, actor:{kind,name?}}` signed like alert webhooks; other channels receive a text line. Delivery is from an outbox after the change commits, retried with backoff.
+         */
+        put: operations["updateAppIssueWebhooks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/assignees": {
         parameters: {
             query?: never;
@@ -2457,6 +2709,35 @@ export interface paths {
          * @description Newest first by semantic version when every release parses, otherwise by first-seen time.
          */
         get: operations["getAppReleases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/deploys": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Deploy markers of the project in the range, newest first
+         * @description Deploys that name the project, or whose release does (an org-wide release applies to every project). At most 500, placed by their finish time, else start time, else the time they were recorded. The release parameter is an exact match.
+         */
+        get: operations["getAppDeploys"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3341,9 +3622,28 @@ export interface components {
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
         };
+        AppRules: {
+            ownership: {
+                /** @description path, module or tag:<key> */
+                matcher: string;
+                /** @description Glob. */
+                value: string;
+                /** Format: int64 */
+                owner_user_id: number;
+            }[];
+            grouping: {
+                /** @description error_type, message, path, module or tag:<key> */
+                matcher: string;
+                /** @description Glob. */
+                value: string;
+                fingerprint: string;
+            }[];
+        };
         AppUserErase: {
             /** @description The user id the app's SDK reports. */
             user_id: string;
+            /** @description Optional. The install id of the same person's device: also deletes the install's daily activity rows now and queues the erasure of its profile. Matched by keyed hash; never stored. */
+            install_id?: string;
         };
         AppUserErasure: {
             /** Format: int64 */
@@ -3352,6 +3652,11 @@ export interface components {
             status: "pending" | "running" | "done" | "failed";
             /** @description Present on the 202 response. */
             status_url?: string;
+            /**
+             * Format: int64
+             * @description Present on the 202 response when install_id was sent.
+             */
+            install_active_days_deleted?: number;
             /** Format: int64 */
             bodies_deleted: number;
             /** Format: int64 */
@@ -4473,6 +4778,20 @@ export interface components {
             regressed_issues: number;
             crash_free_users: components["schemas"]["AppRate"];
             crash_free_sessions: components["schemas"]["AppRate"];
+            /** Format: int64 */
+            sessions: number;
+            /** Format: int64 */
+            users: number;
+            /** Format: int64 */
+            abnormal_sessions: number;
+            /** Format: int64 */
+            errored_sessions: number;
+            /** Format: int64 */
+            handled_errors: number;
+            /** Format: int64 */
+            unhandled_errors: number;
+            /** @description sessions (tracked session lifecycles) or events (v1 pings) */
+            health_source: string;
             series: {
                 /** Format: date */
                 day: string;
@@ -4481,6 +4800,7 @@ export interface components {
                 /** Format: int64 */
                 crashes: number;
                 crash_free_users: components["schemas"]["AppRate"];
+                crash_free_sessions: components["schemas"]["AppRate"];
             }[];
         };
         AppIssueRow: {
@@ -4564,7 +4884,7 @@ export interface components {
             event_id: string;
             /** Format: date-time */
             ts: string;
-            /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments, sdk; every field optional. */
+            /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional. */
             body: {
                 [key: string]: unknown;
             };
@@ -4619,6 +4939,47 @@ export interface components {
                 [key: string]: components["schemas"]["AppBreakdown"][];
             };
             latest_events: components["schemas"]["AppEventSample"][];
+            /** @description The release the issue first appeared in; null when the issue has no release. */
+            introduced_in: {
+                release: string;
+                /** Format: date-time */
+                first_seen: string;
+                /**
+                 * Format: date-time
+                 * @description First deploy of that release to the site
+                 */
+                deploy_at: string | null;
+            } | null;
+            /** @description Commits of the introducing release that changed a file on the stack of the newest event, best match first. Author emails are never returned. */
+            suspect_commits: {
+                sha: string;
+                repository: string;
+                message: string;
+                author_name: string;
+                /** Format: date-time */
+                at: string | null;
+                path: string;
+                score: number;
+            }[];
+        };
+        AppNotificationPrefs: {
+            /** @description An issue was assigned to me. */
+            assigned: boolean;
+            /** @description An issue assigned to me was resolved by someone else. */
+            resolved: boolean;
+            /** @description An issue assigned to me regressed. */
+            regressed: boolean;
+        };
+        AppNotificationPrefsSite: {
+            /** Format: int32 */
+            site_id: number;
+            site_name: string;
+            site_slug: string;
+            org_slug: string;
+            org_name: string;
+            assigned: boolean;
+            resolved: boolean;
+            regressed: boolean;
         };
         /** @description A partial update; at least one field is required. Omitted fields are left alone. */
         AppIssueChange: {
@@ -4650,6 +5011,40 @@ export interface components {
             /** @description A link to an existing GitHub issue, https://github.com/<owner>/<repo>/issues/<number>; "" unlinks. */
             github_url?: string;
         };
+        /** @description Exactly one of `ids` and `query`. */
+        AppIssueBulk: {
+            ids?: number[];
+            /** @description The issue search syntax (see the `query` parameter of the issue list). */
+            query?: string;
+            change: components["schemas"]["AppIssueChange"];
+        };
+        AppIssueBulkResult: {
+            updated: number[];
+            /** @description Ids that are not issues of this project. */
+            skipped: number[];
+        };
+        AppSavedView: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            query: string;
+            shared: boolean;
+            mine: boolean;
+            owner_name: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AppSavedViewInput: {
+            name: string;
+            query: string;
+            /** @default false */
+            shared: boolean;
+        };
+        AppSavedViewPatch: {
+            name?: string;
+            query?: string;
+            shared?: boolean;
+        };
         AppIssueStatus: {
             /** Format: int64 */
             id: number;
@@ -4676,6 +5071,32 @@ export interface components {
         };
         AppIssueCommentInput: {
             body: string;
+        };
+        AppFeedback: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            at: string;
+            /**
+             * Format: int64
+             * @description Null when the event the report names is unknown.
+             */
+            issue_id: number | null;
+            event_id: string | null;
+            /** @description Always null until the opt-in to keep names exists. */
+            name: string | null;
+            /** @description Whether the reporter gave an email. The address itself is stored only as a keyed hash and never returned. */
+            has_contact: boolean;
+            message: string;
+            /** @description The page path */
+            url: string | null;
+        };
+        AppFeedbackList: {
+            feedback: components["schemas"]["AppFeedback"][];
+        };
+        AppIssueWebhooks: {
+            channel_ids: number[];
+            kinds: ("created" | "resolved" | "regressed" | "assigned" | "escalated" | "github_linked")[];
         };
         AppIssueActivity: {
             /** Format: int64 */
@@ -4717,6 +5138,18 @@ export interface components {
                 }[];
             }[];
         };
+        AppDeploys: {
+            deploys: {
+                /** Format: int64 */
+                id: number;
+                release: string;
+                environment: string;
+                name: string;
+                url: string;
+                /** Format: date-time */
+                at: string;
+            }[];
+        };
         AppReleases: {
             releases: {
                 release: string;
@@ -4728,6 +5161,21 @@ export interface components {
                 installs: number;
                 crash_free_users: components["schemas"]["AppRate"];
                 crash_free_sessions: components["schemas"]["AppRate"];
+                /** Format: int64 */
+                sessions: number;
+                /** Format: int64 */
+                users: number;
+                /** Format: int64 */
+                abnormal_sessions: number;
+                /** Format: int64 */
+                errored_sessions: number;
+                adoption: components["schemas"]["AppRate"];
+                /** Format: int64 */
+                handled_errors: number;
+                /** Format: int64 */
+                unhandled_errors: number;
+                /** @description sessions (tracked session lifecycles) or events (v1 pings) */
+                health_source: string;
                 /** Format: int64 */
                 new_issues: number;
                 /** Format: int64 */
@@ -5663,15 +6111,15 @@ export interface components {
         };
         RetentionResponse: {
             /**
-             * @description Anonymous identities last one local day; opted-in profiles link activity across days.
+             * @description Anonymous identities last one local day; opted-in profiles link activity across days; app projects link activity by install.
              * @enum {string}
              */
-            identity_window: "day" | "profile";
+            identity_window: "day" | "profile" | "install";
             /**
-             * @description Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
+             * @description Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets. Install mode (app projects) counts installs returning in later buckets.
              * @enum {string}
              */
-            retention_mode: "within_day_session_return" | "classic_profile_return";
+            retention_mode: "within_day_session_return" | "classic_profile_return" | "install_return";
             /** @description Week and month intervals group daily cohorts without cross-day identity linkage. */
             cohorts: components["schemas"]["RetentionCohort"][];
         };
@@ -6134,6 +6582,8 @@ export interface components {
             title: string;
             status: number;
             detail?: string;
+            /** @description For a rejected search, the character offset of the problem. */
+            position?: number;
             /** Format: uri-reference */
             instance?: string;
             errors?: components["schemas"]["ValidationError"][];
@@ -7918,6 +8368,58 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listAppNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Projects with switches */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sites: components["schemas"]["AppNotificationPrefsSite"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    putAppNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppNotificationPrefs"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppNotificationPrefs"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     listDeletedOrganizations: {
@@ -10682,11 +11184,21 @@ export interface operations {
                 release?: components["parameters"]["AppRelease"];
                 environment?: components["parameters"]["AppEnvironment"];
                 platform?: components["parameters"]["AppPlatform"];
-                /** @description open, resolved, ignored or regressed. */
+                /** @description open, resolved, ignored, regressed or archived. */
                 status?: string;
                 kind?: string;
                 /** @description Case-insensitive prefix of the title or error type. */
                 q?: string;
+                /**
+                 * @description Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
+                 *     `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
+                 *     (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
+                 *     email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+                 *     `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
+                 *     `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
+                 *     A syntax error is a 400 whose `position` is the character offset of the problem.
+                 */
+                query?: string;
                 /** @description last_seen (default), events or users. */
                 sort?: string;
                 limit?: number;
@@ -10714,6 +11226,169 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    bulkUpdateAppIssues: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueBulk"];
+            };
+        };
+        responses: {
+            /** @description What changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueBulkResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppSavedViews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Views */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        views: components["schemas"]["AppSavedView"][];
+                    };
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createAppSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppSavedViewInput"];
+            };
+        };
+        responses: {
+            /** @description The view */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSavedView"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description You already have a view with this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteAppSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                view: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppSavedView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                view: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppSavedViewPatch"];
+            };
+        };
+        responses: {
+            /** @description The view */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSavedView"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description You already have a view with this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getAppEvent: {
         parameters: {
             query?: never;
@@ -10733,6 +11408,89 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppEventBody"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppRules"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    replaceAppRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppRules"];
+            };
+        };
+        responses: {
+            /** @description The stored rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppRules"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getAppEventAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                event_id: string;
+                /** @description Position in the body's attachments list. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attachment content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "text/plain": string;
+                    "application/json": string;
+                    "application/octet-stream": string;
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -11038,6 +11796,116 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listAppIssueFeedback: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feedback */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppFeedbackList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppFeedback: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feedback */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppFeedbackList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppIssueWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueWebhooks"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppIssueWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueWebhooks"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueWebhooks"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listAppAssignees: {
         parameters: {
             query?: never;
@@ -11127,6 +11995,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppReleases"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppDeploys: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deploys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDeploys"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -1,0 +1,163 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "flask-app"
+      }
+     },
+     {
+      "key": "service.version",
+      "value": {
+       "stringValue": "0.9.3"
+      }
+     },
+     {
+      "key": "deployment.environment",
+      "value": {
+       "stringValue": "prod"
+      }
+     },
+     {
+      "key": "telemetry.sdk.language",
+      "value": {
+       "stringValue": "python"
+      }
+     },
+     {
+      "key": "os.type",
+      "value": {
+       "stringValue": "linux"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "opentelemetry.instrumentation.flask"
+     },
+     "spans": [
+      {
+       "traceId": "5b8efff798038103d269b633813fc60c",
+       "spanId": "00000000000000a1",
+       "name": "GET /items/<int:item_id>",
+       "kind": "SPAN_KIND_SERVER",
+       "startTimeUnixNano": "1795003192000000000",
+       "endTimeUnixNano": "1795003192150000000",
+       "attributes": [
+        {
+         "key": "http.method",
+         "value": {
+          "stringValue": "GET"
+         }
+        },
+        {
+         "key": "http.route",
+         "value": {
+          "stringValue": "/items/<int:item_id>"
+         }
+        },
+        {
+         "key": "http.target",
+         "value": {
+          "stringValue": "/items/17?x=1"
+         }
+        },
+        {
+         "key": "http.status_code",
+         "value": {
+          "intValue": "200"
+         }
+        }
+       ],
+       "status": {
+        "code": 0
+       }
+      },
+      {
+       "traceId": "5b8efff798038103d269b633813fc60c",
+       "spanId": "00000000000000a2",
+       "name": "SELECT items",
+       "kind": "SPAN_KIND_CLIENT",
+       "startTimeUnixNano": "1795003192010000000",
+       "endTimeUnixNano": "1795003192040000000",
+       "attributes": [
+        {
+         "key": "db.system",
+         "value": {
+          "stringValue": "sqlite"
+         }
+        },
+        {
+         "key": "db.operation",
+         "value": {
+          "stringValue": "SELECT"
+         }
+        },
+        {
+         "key": "db.statement",
+         "value": {
+          "stringValue": "SELECT * FROM items WHERE id = 17 AND owner = 'bob'"
+         }
+        }
+       ],
+       "status": {
+        "code": 0
+       },
+       "parentSpanId": "00000000000000a1"
+      },
+      {
+       "traceId": "5b8efff798038103d269b633813fc60c",
+       "spanId": "00000000000000a3",
+       "name": "POST",
+       "kind": "SPAN_KIND_CLIENT",
+       "startTimeUnixNano": "1795003192050000000",
+       "endTimeUnixNano": "1795003192120000000",
+       "attributes": [
+        {
+         "key": "http.method",
+         "value": {
+          "stringValue": "POST"
+         }
+        },
+        {
+         "key": "http.url",
+         "value": {
+          "stringValue": "https://payments.example.com/charge/7f3a9c1e2b4d?key=abc"
+         }
+        },
+        {
+         "key": "http.status_code",
+         "value": {
+          "intValue": "201"
+         }
+        }
+       ],
+       "status": {
+        "code": 0
+       },
+       "parentSpanId": "00000000000000a1"
+      },
+      {
+       "traceId": "5b8efff798038103d269b633813fc60c",
+       "spanId": "00000000000000a4",
+       "name": "render_template",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1795003192130000000",
+       "endTimeUnixNano": "1795003192140000000",
+       "attributes": [],
+       "status": {
+        "code": 0
+       },
+       "parentSpanId": "00000000000000a1"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

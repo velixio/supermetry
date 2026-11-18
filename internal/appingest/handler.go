@@ -2,12 +2,14 @@ package appingest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/netip"
 	"time"
 
+	"supermetry/internal/appproduct"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
 	"supermetry/internal/platform/appkeys"
@@ -31,9 +33,22 @@ const (
 type Handler struct {
 	sites   sites.Registry
 	intake  *Intake
+	product ProductSink
 	trusted []netip.Prefix
 	now     func() time.Time
 	ips     *budgetMap
+}
+
+// ProductSink takes screen and custom-event reports. Without one, product
+// kinds are dropped as invalid.
+type ProductSink interface {
+	Accept(ctx context.Context, site sites.Site, hit appproduct.Hit) appproduct.Outcome
+}
+
+// WithProduct routes the screen and event kinds to the product adapter.
+func (h *Handler) WithProduct(sink ProductSink) *Handler {
+	h.product = sink
+	return h
 }
 
 // NewHandler builds the endpoint. now may be nil.
@@ -119,6 +134,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			out.Dropped = append(out.Dropped, dropped{Index: index, Reason: ReasonInvalid})
 			continue
 		}
+		if event.IsProduct() {
+			if reason := h.acceptProduct(r.Context(), site, budgetKey, now, event); reason != "" {
+				out.Dropped = append(out.Dropped, dropped{Index: index, Reason: reason})
+			} else {
+				out.Accepted++
+			}
+			continue
+		}
 		outcome := h.intake.Accept(site, budgetKey, now, event)
 		for _, tag := range outcome.Stripped {
 			out.Warnings = append(out.Warnings, warning{Index: index, Reason: ReasonTagNotAllowed, Tag: tag})
@@ -135,6 +158,33 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.reply(w, http.StatusAccepted, string(encoded)+"\n")
+}
+
+// acceptProduct sends one screen or event report to the adapter and returns
+// the wire drop reason, or "" when it was accepted.
+func (h *Handler) acceptProduct(ctx context.Context, site sites.Site, budgetKey string, now time.Time, ev Event) string {
+	if h.product == nil {
+		h.intake.Drop(site, now, dropstats.AppInvalid)
+		return ReasonInvalid
+	}
+	gate, release := h.intake.Gate(site, budgetKey, now, ev.ID)
+	if gate.Reason != "" {
+		return gate.Reason
+	}
+	outcome := h.product.Accept(ctx, site, appproduct.Hit{
+		SiteID: site.ID, TS: ev.TS, InstallID: ev.InstallID, Screen: ev.Screen, Name: ev.Name, Props: ev.Props,
+		Release: ev.Release, Platform: ev.Platform, OSVersion: ev.OSVersion, DeviceClass: ev.DeviceClass,
+	})
+	switch {
+	case outcome.QueueFull:
+		release()
+		h.intake.Drop(site, now, dropstats.AppRateLimited)
+		return ReasonRateLimited
+	case outcome.Dropped:
+		release()
+		return WireReason(outcome.Reason)
+	}
+	return ""
 }
 
 func (h *Handler) reply(w http.ResponseWriter, status int, body string) {
