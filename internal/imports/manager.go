@@ -21,6 +21,15 @@ type Job struct {
 	ImportID int64
 	Source   Source
 	Path     string
+	// Pull marks a pull import: the worker runs the PullRunner instead of
+	// parsing Path, and an interrupted run stays resumable.
+	Pull bool
+}
+
+// PullRunner executes or resumes a pull import. It returns the context error
+// untouched on shutdown so the import can resume at the next start.
+type PullRunner interface {
+	RunPull(ctx context.Context, importID int64) error
 }
 
 type LifecycleStore interface {
@@ -36,6 +45,7 @@ type Manager struct {
 	store   LifecycleStore
 	jobs    chan Job
 	process func(context.Context, Source, string, *time.Location) (Aggregate, ParseStats, error)
+	pull    PullRunner
 
 	mu      sync.Mutex
 	running bool
@@ -47,6 +57,13 @@ func NewManager(store LifecycleStore, queueSize int) *Manager {
 		queueSize = 1
 	}
 	return &Manager{store: store, jobs: make(chan Job, queueSize), process: ProcessFileInLocation}
+}
+
+// SetPullRunner enables pull imports; call it before Run.
+func (m *Manager) SetPullRunner(runner PullRunner) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.pull = runner
 }
 
 // Queue schedules a job without blocking. The caller retains ownership of the
@@ -85,8 +102,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			return context.Cause(ctx)
 		case job := <-m.jobs:
 			if ctx.Err() != nil {
-				_ = os.Remove(job.Path)
-				m.markFailed(ctx, job.ImportID, errInterrupted)
+				m.interrupt(ctx, job)
 				return context.Cause(ctx)
 			}
 			m.runJob(ctx, job)
@@ -106,8 +122,41 @@ func (m *Manager) markFailed(ctx context.Context, id int64, cause error) {
 	}
 }
 
+// interrupt drops a job that cannot run because of shutdown. File imports
+// fail (their upload is gone); pull imports stay pending and resume at the
+// next start from their stored cursor.
+func (m *Manager) interrupt(ctx context.Context, job Job) {
+	if job.Pull {
+		return
+	}
+	_ = os.Remove(job.Path)
+	m.markFailed(ctx, job.ImportID, errInterrupted)
+}
+
+func (m *Manager) runPull(ctx context.Context, job Job) {
+	m.mu.Lock()
+	runner := m.pull
+	m.mu.Unlock()
+	if runner == nil {
+		m.markFailed(ctx, job.ImportID, ErrPullNotEnabled)
+		return
+	}
+	err := runner.RunPull(ctx, job.ImportID)
+	if err == nil {
+		return
+	}
+	if ctx.Err() != nil {
+		// Shutdown: leave the import running; Recover resets it to pending.
+		slog.Info("pull import paused by shutdown", "import_id", job.ImportID)
+		return
+	}
+	m.markFailed(ctx, job.ImportID, err)
+}
+
 func (m *Manager) runJob(ctx context.Context, job Job) {
-	defer os.Remove(job.Path)
+	if job.Path != "" {
+		defer os.Remove(job.Path)
+	}
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			slog.Error("import panicked", "import_id", job.ImportID, "panic", recovered, "stack", string(debug.Stack()))
@@ -118,6 +167,10 @@ func (m *Manager) runJob(ctx context.Context, job Job) {
 		if !errors.Is(err, ErrNotFound) {
 			m.markFailed(ctx, job.ImportID, err)
 		}
+		return
+	}
+	if job.Pull {
+		m.runPull(ctx, job)
 		return
 	}
 	location, err := m.store.ImportLocation(ctx, job.ImportID)
@@ -147,8 +200,7 @@ func (m *Manager) stopAndRemoveQueuedFiles() {
 	for {
 		select {
 		case job := <-m.jobs:
-			_ = os.Remove(job.Path)
-			m.markFailed(context.Background(), job.ImportID, errInterrupted)
+			m.interrupt(context.Background(), job)
 		default:
 			return
 		}

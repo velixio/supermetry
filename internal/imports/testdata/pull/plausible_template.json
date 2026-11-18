@@ -1,0 +1,41 @@
+{
+  "": [
+    {"value": null, "metrics": [10, 12, 30, 50, 20.5]}
+  ],
+  "event:page": [
+    {"value": "/", "metrics": [8, 20]},
+    {"value": "/pricing", "metrics": [3, 5]}
+  ],
+  "visit:entry_page": [
+    {"value": "/", "metrics": [7, 9, 33.3333, 10]}
+  ],
+  "visit:exit_page": [
+    {"value": "/pricing", "metrics": [3, 4]}
+  ],
+  "visit:source": [
+    {"value": "Google", "metrics": [6, 7, 15, 40, 12]},
+    {"value": "Direct / None", "metrics": [4, 5, 15, 60, 30]}
+  ],
+  "visit:country": [
+    {"value": "US", "metrics": [5, 6, 20, 50, 20]},
+    {"value": "DE", "metrics": [5, 6, 10, 50, 21]}
+  ],
+  "visit:region_name": [
+    {"value": "California", "metrics": [3, 4, 9, 25, 10]}
+  ],
+  "visit:city_name": [
+    {"value": "Berlin", "metrics": [2, 3, 5, 0, 8]}
+  ],
+  "visit:device": [
+    {"value": "Mobile", "metrics": [6, 7, 12, 70, 15]}
+  ],
+  "visit:browser": [
+    {"value": "Chrome", "metrics": [9, 10, 25, 50, 20]}
+  ],
+  "visit:os": [
+    {"value": "Windows", "metrics": [7, 8, 20, 50, 22]}
+  ],
+  "event:goal": [
+    {"value": "Signup", "metrics": [3, 4]}
+  ]
+}

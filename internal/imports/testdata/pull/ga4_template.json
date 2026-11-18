@@ -1,0 +1,40 @@
+{
+  "": [
+    {"dims": [], "metrics": ["10", "12", "30", "0.5", "20.5"]}
+  ],
+  "pagePathPlusQueryString": [
+    {"dims": ["/"], "metrics": ["8", "9", "20", "0.4", "10"]},
+    {"dims": ["/pricing"], "metrics": ["3", "3", "5", "0.2", "30"]},
+    {"dims": ["(not set)"], "metrics": ["1", "1", "1", "0", "0"]}
+  ],
+  "landingPagePlusQueryString": [
+    {"dims": ["/"], "metrics": ["7", "9", "9", "0.3", "10"]}
+  ],
+  "sessionSourceMedium": [
+    {"dims": ["google / organic"], "metrics": ["6", "7", "15", "0.4", "12"]},
+    {"dims": ["(direct) / (none)"], "metrics": ["4", "5", "15", "0.6", "30"]}
+  ],
+  "country": [
+    {"dims": ["United States"], "metrics": ["5", "6", "20", "0.5", "20"]},
+    {"dims": ["Germany"], "metrics": ["5", "6", "10", "0.5", "21"]}
+  ],
+  "region": [
+    {"dims": ["California"], "metrics": ["3", "4", "9", "0.25", "10"]}
+  ],
+  "city": [
+    {"dims": ["Berlin"], "metrics": ["2", "3", "5", "0", "8"]}
+  ],
+  "deviceCategory": [
+    {"dims": ["mobile"], "metrics": ["6", "7", "12", "0.7", "15"]}
+  ],
+  "browser": [
+    {"dims": ["Chrome"], "metrics": ["9", "10", "25", "0.5", "20"]}
+  ],
+  "operatingSystem": [
+    {"dims": ["Windows"], "metrics": ["7", "8", "20", "0.5", "22"]}
+  ],
+  "eventName": [
+    {"dims": ["page_view"], "metrics": ["10", "30"]},
+    {"dims": ["sign_up"], "metrics": ["3", "5"]}
+  ]
+}

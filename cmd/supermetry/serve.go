@@ -385,7 +385,26 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := importStore.FailRunningAtStartup(ctx); err != nil {
 		return fmt.Errorf("recover interrupted imports: %w", err)
 	}
-	importManager := imports.NewManager(importStore, 1)
+	importBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/imports/v1")
+	if err != nil {
+		return fmt.Errorf("initialize import encryption: %w", err)
+	}
+	importPulls := imports.NewPullService(importStore, importBox, imports.PullOptions{
+		GA4: imports.GA4Config{ClientID: cfg.GA4OAuthClientID, ClientSecret: cfg.GA4OAuthClientSecret, BaseURL: cfg.BaseURL},
+	})
+	importManager := imports.NewManager(importStore, 32)
+	importManager.SetPullRunner(importPulls)
+	// Pull imports resume from their stored cursor; file imports cannot, so
+	// FailRunningAtStartup above left only pulls to requeue here.
+	resumable, err := importPulls.Recover(ctx)
+	if err != nil {
+		return fmt.Errorf("recover interrupted pull imports: %w", err)
+	}
+	for _, id := range resumable {
+		if err := importManager.Queue(imports.Job{ImportID: id, Pull: true}); err != nil {
+			_ = importStore.SetFailed(ctx, id, errors.New("import interrupted by server restart"))
+		}
+	}
 	exporter := siteexport.New(pool)
 	exporter.SetTrackingMode(cfg.Tracking.Mode)
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
@@ -498,6 +517,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Query:              engine,
 		Imports:            importStore,
 		ImportQueue:        importManager,
+		ImportPulls:        importPulls,
 		ProfileTombstones:  profileTombstones,
 		ProfileErasures:    profileErasures,
 		AppErasures:        appErasures,
