@@ -62,6 +62,7 @@ export const en = {
     dashboard: 'Dashboard',
     events: 'Events',
     sessions: 'Sessions',
+    usersAndSessions: 'Sessions & Users',
     journeys: 'Journeys',
     retention: 'Retention',
     profiles: 'Profiles',

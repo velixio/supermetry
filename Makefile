@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps envelope-bench bench bench-full bench-compare
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps envelope-bench bench-otlp-metrics bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -29,6 +29,10 @@ sdk-compat-sourcemaps:
 # Sentry envelope endpoint load test: ENVELOPE_BENCH_MINUTES=5 make envelope-bench
 envelope-bench:
 	bash tools/bench/envelope/run.sh
+
+# OTLP metrics intake load test (points/s written): ENVELOPE_BENCH_MINUTES=5 make bench-otlp-metrics
+bench-otlp-metrics:
+	ENVELOPE_BENCH_OTLP_METRICS=1 bash tools/bench/envelope/run.sh
 
 accuracy-live:
 	python3 tools/bench/accuracy/compare_live.py --live --creds "$(ACCURACY_CREDS)"

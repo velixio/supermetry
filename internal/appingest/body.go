@@ -19,6 +19,7 @@ type Body struct {
 	Release       string                    `json:"release,omitempty"`
 	Symbolication string                    `json:"symbolication,omitempty"` // "", "ok", "missing" or "partial"
 	DebugImages   []DebugImage              `json:"-"`                       // in memory only, for symbolication
+	MissingDebug  []MissingDebug            `json:"missing_debug,omitempty"` // images no uploaded file covered, for the event banner
 	Level         string                    `json:"level,omitempty"`
 	Platform      string                    `json:"platform,omitempty"`
 	Message       string                    `json:"message,omitempty"`
@@ -47,6 +48,15 @@ type RowExtras struct {
 	GroupingVersion int16
 	Rules           *apprules.Set // the project's rules, in memory only: symbolication regroups with them
 	SDKFingerprint  []string      // the SDK's custom fingerprint, kept to regroup after symbolication
+}
+
+// MissingDebug names a debug image an event needed and no upload provided:
+// ids and the scrubbed base name of the file, never a path.
+type MissingDebug struct {
+	Kind     string `json:"kind"`
+	DebugID  string `json:"debug_id"`
+	CodeFile string `json:"code_file,omitempty"`
+	Arch     string `json:"arch,omitempty"`
 }
 
 // DebugImage is one debug_meta image of a Sentry event; only the fields

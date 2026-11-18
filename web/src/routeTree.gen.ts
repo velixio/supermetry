@@ -52,6 +52,7 @@ import { Route as AppOrgSiteRetentionRouteImport } from './routes/app.$org.$site
 import { Route as AppOrgSiteRevenueRouteImport } from './routes/app.$org.$site.revenue'
 import { Route as AppOrgSiteSessionsRouteImport } from './routes/app.$org.$site.sessions'
 import { Route as AppOrgSiteSettingsRouteImport } from './routes/app.$org.$site.settings'
+import { Route as AppOrgSiteUsersRouteImport } from './routes/app.$org.$site.users'
 import { Route as AppOrgSiteVitalsRouteImport } from './routes/app.$org.$site.vitals'
 import { Route as AppOrgGithubStarsIndexRouteImport } from './routes/app.$org.github-stars.index'
 import { Route as AppOrgSettingsIndexRouteImport } from './routes/app.$org.settings.index'
@@ -88,6 +89,7 @@ import { Route as AppOrgSiteSettingsNotificationHistoryRouteImport } from './rou
 import { Route as AppOrgSiteSettingsReplayRouteImport } from './routes/app.$org.$site.settings.replay'
 import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org.$site.settings.reports'
 import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.$site.settings.shares'
+import { Route as AppOrgSiteSettingsSymbolsRouteImport } from './routes/app.$org.$site.settings.symbols'
 import { Route as AppOrgSiteSettingsTrackingRouteImport } from './routes/app.$org.$site.settings.tracking'
 import { Route as AppOrgGithubStarsOwnerNameRouteImport } from './routes/app.$org.github-stars.$owner.$name'
 import { Route as AppOrgSiteLinksPixelIdRouteImport } from './routes/app.$org.$site.links.pixel_.$id'
@@ -308,6 +310,11 @@ const AppOrgSiteSettingsRoute = AppOrgSiteSettingsRouteImport.update({
   path: '/$site/settings',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteUsersRoute = AppOrgSiteUsersRouteImport.update({
+  id: '/$site/users',
+  path: '/$site/users',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgSiteVitalsRoute = AppOrgSiteVitalsRouteImport.update({
   id: '/$site/vitals',
   path: '/$site/vitals',
@@ -501,6 +508,12 @@ const AppOrgSiteSettingsSharesRoute =
     path: '/shares',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteSettingsSymbolsRoute =
+  AppOrgSiteSettingsSymbolsRouteImport.update({
+    id: '/symbols',
+    path: '/symbols',
+    getParentRoute: () => AppOrgSiteSettingsRoute,
+  } as any)
 const AppOrgSiteSettingsTrackingRoute =
   AppOrgSiteSettingsTrackingRouteImport.update({
     id: '/tracking',
@@ -568,6 +581,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -600,6 +614,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
@@ -650,6 +665,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -682,6 +698,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels': typeof AppOrgSiteFunnelsIndexRoute
@@ -736,6 +753,7 @@ export interface FileRoutesById {
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
   '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
+  '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
@@ -768,6 +786,7 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/replay': typeof AppOrgSiteSettingsReplayRoute
   '/app/$org/$site/settings/reports': typeof AppOrgSiteSettingsReportsRoute
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
+  '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
@@ -823,6 +842,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -855,6 +875,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
@@ -905,6 +926,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -937,6 +959,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels'
@@ -990,6 +1013,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
     | '/app/$org/$site/settings'
+    | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
@@ -1022,6 +1046,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/replay'
     | '/app/$org/$site/settings/reports'
     | '/app/$org/$site/settings/shares'
+    | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
@@ -1349,6 +1374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/users': {
+      id: '/app/$org/$site/users'
+      path: '/$site/users'
+      fullPath: '/app/$org/$site/users'
+      preLoaderRoute: typeof AppOrgSiteUsersRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/vitals': {
       id: '/app/$org/$site/vitals'
       path: '/$site/vitals'
@@ -1601,6 +1633,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteSettingsSharesRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
     }
+    '/app/$org/$site/settings/symbols': {
+      id: '/app/$org/$site/settings/symbols'
+      path: '/symbols'
+      fullPath: '/app/$org/$site/settings/symbols'
+      preLoaderRoute: typeof AppOrgSiteSettingsSymbolsRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/tracking': {
       id: '/app/$org/$site/settings/tracking'
       path: '/tracking'
@@ -1684,6 +1723,7 @@ interface AppOrgSiteSettingsRouteChildren {
   AppOrgSiteSettingsReplayRoute: typeof AppOrgSiteSettingsReplayRoute
   AppOrgSiteSettingsReportsRoute: typeof AppOrgSiteSettingsReportsRoute
   AppOrgSiteSettingsSharesRoute: typeof AppOrgSiteSettingsSharesRoute
+  AppOrgSiteSettingsSymbolsRoute: typeof AppOrgSiteSettingsSymbolsRoute
   AppOrgSiteSettingsTrackingRoute: typeof AppOrgSiteSettingsTrackingRoute
 }
 
@@ -1701,6 +1741,7 @@ const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
   AppOrgSiteSettingsReplayRoute: AppOrgSiteSettingsReplayRoute,
   AppOrgSiteSettingsReportsRoute: AppOrgSiteSettingsReportsRoute,
   AppOrgSiteSettingsSharesRoute: AppOrgSiteSettingsSharesRoute,
+  AppOrgSiteSettingsSymbolsRoute: AppOrgSiteSettingsSymbolsRoute,
   AppOrgSiteSettingsTrackingRoute: AppOrgSiteSettingsTrackingRoute,
 }
 
@@ -1723,6 +1764,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteRevenueRoute: typeof AppOrgSiteRevenueRoute
   AppOrgSiteSessionsRoute: typeof AppOrgSiteSessionsRoute
   AppOrgSiteSettingsRoute: typeof AppOrgSiteSettingsRouteWithChildren
+  AppOrgSiteUsersRoute: typeof AppOrgSiteUsersRoute
   AppOrgSiteVitalsRoute: typeof AppOrgSiteVitalsRoute
   AppOrgSitesNewRoute: typeof AppOrgSitesNewRoute
   AppOrgSiteIndexRoute: typeof AppOrgSiteIndexRoute
@@ -1758,6 +1800,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteRevenueRoute: AppOrgSiteRevenueRoute,
   AppOrgSiteSessionsRoute: AppOrgSiteSessionsRoute,
   AppOrgSiteSettingsRoute: AppOrgSiteSettingsRouteWithChildren,
+  AppOrgSiteUsersRoute: AppOrgSiteUsersRoute,
   AppOrgSiteVitalsRoute: AppOrgSiteVitalsRoute,
   AppOrgSitesNewRoute: AppOrgSitesNewRoute,
   AppOrgSiteIndexRoute: AppOrgSiteIndexRoute,

@@ -109,6 +109,11 @@ func (a *Adapter) drop(site sites.Site, now time.Time, reason dropstats.Reason) 
 
 // Accept validates one hit and hands it to the writer and session store.
 func (a *Adapter) Accept(ctx context.Context, site sites.Site, h Hit) Outcome {
+	return a.accept(ctx, site, h, false)
+}
+
+// accept is Accept; system lets the reserved "$app_open" name through.
+func (a *Adapter) accept(ctx context.Context, site sites.Site, h Hit, system bool) Outcome {
 	now := a.now()
 	if site.App == nil || site.TZ == nil {
 		return a.drop(site, now, dropstats.AppInvalid)
@@ -116,7 +121,7 @@ func (a *Adapter) Accept(ctx context.Context, site sites.Site, h Hit) Outcome {
 	props, ok := buildProps(h)
 	path, validPath := screenPath(h.Screen)
 	if !ok || h.InstallID == "" || (h.Screen == "") == (h.Name == "") ||
-		(h.Name != "" && !ValidName(h.Name)) || (h.Screen != "" && !validPath) {
+		(h.Name != "" && !(system && h.Name == AppOpenEvent) && !ValidName(h.Name)) || (h.Screen != "" && !validPath) {
 		return a.drop(site, now, dropstats.AppInvalid)
 	}
 	secret := site.App.HashSecret

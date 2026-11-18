@@ -64,6 +64,7 @@ const messages: MessageTree = {
     dashboard: 'Dashboard',
     events: 'Ereignisse',
     sessions: 'Sitzungen',
+    usersAndSessions: 'Sitzungen & Nutzer',
     journeys: 'Nutzerpfade',
     retention: 'Bindung',
     profiles: 'Profile',

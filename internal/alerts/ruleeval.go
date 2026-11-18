@@ -28,6 +28,10 @@ type Candidate struct {
 	// AssigneeUserID is the issue's owner at evaluation time, 0 when unassigned.
 	AssigneeUserID int64
 	Notification   Notification
+	// Done runs once the key is committed (sent now, or found already sent by
+	// an earlier run). Incident transitions hang off it, so a crash between
+	// delivery and the state update repeats the update, never the delivery.
+	Done func(ctx context.Context) error
 }
 
 // RuleEvaluator runs the app_rule alerts. The old Evaluator keeps the web
@@ -43,6 +47,8 @@ type RuleEvaluator struct {
 
 	assigner IssueAssigner
 	mailer   OwnerMailer
+	// metrics serves the metric triggers; nil leaves them inert.
+	metrics RuleMetricSource
 }
 
 // NewRuleEvaluator builds the evaluator of the alert-rules job. It reuses the
@@ -124,10 +130,6 @@ func (e *RuleEvaluator) evaluate(ctx context.Context, alert Alert, now time.Time
 
 // The remaining trigger evaluators land with their tasks; until then a rule of
 // that type stores and validates but produces no candidates.
-func (e *RuleEvaluator) evalMetric(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
-	return nil, nil
-}
-
 func (e *RuleEvaluator) evalMonitor(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
 	return nil, nil
 }
@@ -155,6 +157,11 @@ func (e *RuleEvaluator) fireKeyed(ctx context.Context, alert Alert, candidates [
 			break
 		}
 		if _, done := seen[c.Key]; done {
+			if c.Done != nil {
+				if err := c.Done(ctx); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		seen[c.Key] = now
@@ -170,6 +177,11 @@ func (e *RuleEvaluator) fireKeyed(ctx context.Context, alert Alert, candidates [
 			return err
 		}
 		e.runOwnerActions(ctx, alert, c)
+		if c.Done != nil {
+			if err := c.Done(ctx); err != nil {
+				return err
+			}
+		}
 		sent++
 	}
 	return nil

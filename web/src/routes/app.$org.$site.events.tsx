@@ -81,6 +81,7 @@ function EventsRoute() {
         filters={filters}
         name={search.name}
         orgId={membership.org.id}
+        app={site.kind === 'app'}
         org={org}
         replayId={search.replay}
         propertyKey={search.property}

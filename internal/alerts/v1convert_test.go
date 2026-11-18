@@ -124,4 +124,22 @@ func TestV1AlertsConvertToRulesWithoutRepeating(t *testing.T) {
 	if f.deliverer.calls != 1 || f.deliverer.notifications[0].App.IssueID != 43 {
 		t.Fatalf("deliveries = %d (%+v), want one for issue 43", f.deliverer.calls, f.deliverer.notifications)
 	}
+
+	// The converted crash-free rule is in its 24 h cooldown (notified 3 h ago):
+	// release 2.1.0 is still below 98.5 and nothing is sent, until 24 h pass.
+	f.source.release = &AppRelease{Release: "2.1.0", Installs: 200}
+	metrics := &fakeMetrics{ratio: 0.9, sample: 200}
+	if err := f.evaluator().SetMetricSource(metrics).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if f.deliverer.calls != 1 {
+		t.Fatalf("deliveries = %d, want crash-free quiet in cooldown", f.deliverer.calls)
+	}
+	f.now = crashFired.Add(24*time.Hour + time.Minute)
+	if err := f.evaluator().SetMetricSource(metrics).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if f.deliverer.calls != 2 || f.deliverer.notifications[1].Rule.TriggerType != TriggerMetric {
+		t.Fatalf("deliveries = %d, want one crash-free renotify after the cooldown", f.deliverer.calls)
+	}
 }

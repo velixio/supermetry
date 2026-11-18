@@ -81,3 +81,20 @@ func TestEraseRemovesSpans(t *testing.T) {
 		t.Fatalf("after erase: site1=%d site2=%d %v", one, two, err)
 	}
 }
+
+func TestRunDropsExpiredMetricPartitions(t *testing.T) {
+	pool, now := spansFixture(t, `{}`)
+	if err := db.EnsureDailyPartitions(context.Background(), pool, "metric_points", now.AddDate(0, 0, -20), now.AddDate(0, 0, 1)); err != nil {
+		t.Fatal(err)
+	}
+	dropped, err := retention.Run(context.Background(), pool, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsPrefix(dropped, "metric_points_20261102") || !containsPrefix(dropped, "metric_points_20261029") {
+		t.Fatalf("expected old metric days dropped, got %v", dropped)
+	}
+	if containsPrefix(dropped, "metric_points_20261103") || containsPrefix(dropped, "metric_points_20261118") {
+		t.Fatalf("dropped an unexpired metric day: %v", dropped)
+	}
+}

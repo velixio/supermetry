@@ -144,6 +144,8 @@ func main() {
 	workers := flag.Int("workers", 24, "concurrent clients (the server caps concurrent body reads at 32 by default)")
 	gz := flag.Float64("gzip", 0.5, "share of requests sent gzip-compressed")
 	otlp := flag.Bool("otlp", false, "send OTLP/JSON trace requests to /api/{site}/otlp/v1/traces instead of envelopes and report accepted spans/s")
+	otlpMetrics := flag.Bool("otlp-metrics", false, "send OTLP/JSON metric requests to /api/{site}/otlp/v1/metrics and report accepted points/s")
+	pointsPerReq := flag.Int("points-per-request", 100, "data points in each OTLP metrics request (-otlp-metrics only)")
 	perReq := flag.Int("spans-per-request", 50, "spans in each OTLP request (-otlp only)")
 	txShare := flag.Float64("tx", 0.25, "share of requests that carry a transaction or span fixture")
 	flag.Parse()
@@ -198,6 +200,9 @@ func main() {
 				if *otlp {
 					fx = fixture{events: *perReq, items: *perReq}
 				}
+				if *otlpMetrics {
+					fx = fixture{events: *pointsPerReq, items: *pointsPerReq}
+				}
 				head := dsnRe.ReplaceAll(fx.header, []byte(fmt.Sprintf(`"dsn":"http://%s@%s/%s"`, k.key, strings.TrimPrefix(*base, "http://"), k.site)))
 				body := append(append(append([]byte{}, head...), '\n'), fx.rest...)
 				if fx.tx {
@@ -229,6 +234,10 @@ func main() {
 					body = otlpBody(r, *perReq)
 					target = fmt.Sprintf("%s/api/%s/otlp/v1/traces", *base, k.site)
 				}
+				if *otlpMetrics {
+					body = otlpMetricsBody(r, *pointsPerReq)
+					target = fmt.Sprintf("%s/api/%s/otlp/v1/metrics", *base, k.site)
+				}
 				req, _ := http.NewRequest(http.MethodPost, target, nil)
 				if r.Float64() < *gz {
 					var b bytes.Buffer
@@ -240,7 +249,7 @@ func main() {
 				}
 				req.Body = io.NopCloser(bytes.NewReader(body))
 				req.ContentLength = int64(len(body))
-				if *otlp {
+				if *otlp || *otlpMetrics {
 					req.Header.Set("Content-Type", "application/json")
 					req.Header.Set("Authorization", "Bearer "+k.key)
 				} else {
@@ -292,6 +301,9 @@ func main() {
 	if *otlp {
 		fmt.Printf("accepted spans/s=%.0f\n", float64(accEvents.Load())/secs)
 	}
+	if *otlpMetrics {
+		fmt.Printf("accepted points/s=%.0f\n", float64(accEvents.Load())/secs)
+	}
 	fmt.Printf("accepted events/s=%.0f  accepted items/s=%.0f\n", float64(accEvents.Load())/secs, float64(accItems.Load())/secs)
 	fmt.Printf("latency p50=%s p99=%s max=%s\n", pct(0.5), pct(0.99), pct(1))
 }
@@ -322,4 +334,37 @@ func otlpBody(r *mrand.Rand, n int) []byte {
 	}
 	sb.WriteString(`]}]}]}`)
 	return []byte(sb.String())
+}
+
+// otlpMetricsBody builds an OTLP/JSON metrics request of n data points: 70%
+// gauges, 20% cumulative counter readings and 10% cumulative histograms over a
+// bounded set of series (200 per kind), stamped now.
+func otlpMetricsBody(r *mrand.Rand, n int) []byte {
+	now := time.Now().Add(-time.Second).UnixNano()
+	start := time.Now().Add(-time.Hour).UnixNano()
+	var gauges, sums, hists []string
+	for i := 0; i < n; i++ {
+		attr := fmt.Sprintf(`[{"key":"series","value":{"stringValue":"s%d"}}]`, r.IntN(200))
+		switch v := r.IntN(10); {
+		case v < 7:
+			gauges = append(gauges, fmt.Sprintf(`{"attributes":%s,"timeUnixNano":"%d","asDouble":%d.5}`, attr, now, r.IntN(1000)))
+		case v < 9:
+			sums = append(sums, fmt.Sprintf(`{"attributes":%s,"startTimeUnixNano":"%d","timeUnixNano":"%d","asInt":"%d"}`, attr, start, now, time.Now().Unix()%100000+int64(r.IntN(50))))
+		default:
+			c := r.IntN(100) + 10
+			hists = append(hists, fmt.Sprintf(`{"attributes":%s,"startTimeUnixNano":"%d","timeUnixNano":"%d","count":"%d","sum":%d,"bucketCounts":["%d","%d","%d"],"explicitBounds":[10,100]}`,
+				attr, start, now, c, c*20, c/3, c/3, c-2*(c/3)))
+		}
+	}
+	var parts []string
+	if len(gauges) > 0 {
+		parts = append(parts, `{"name":"bench.gauge","gauge":{"dataPoints":[`+strings.Join(gauges, ",")+`]}}`)
+	}
+	if len(sums) > 0 {
+		parts = append(parts, `{"name":"bench.requests","sum":{"aggregationTemporality":2,"isMonotonic":true,"dataPoints":[`+strings.Join(sums, ",")+`]}}`)
+	}
+	if len(hists) > 0 {
+		parts = append(parts, `{"name":"bench.latency","histogram":{"aggregationTemporality":2,"dataPoints":[`+strings.Join(hists, ",")+`]}}`)
+	}
+	return []byte(`{"resourceMetrics":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"bench"}}]},"scopeMetrics":[{"metrics":[` + strings.Join(parts, ",") + `]}]}]}`)
 }

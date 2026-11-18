@@ -13,9 +13,6 @@ import (
 // "unassigned". Releases may name "latest", resolved to the newest release
 // before the filters reach SQL.
 
-// latestRelease is the placeholder a rule uses for the newest release.
-const latestRelease = "latest"
-
 // sqlArgs numbers positional parameters while a query is assembled.
 type sqlArgs struct{ values []any }
 

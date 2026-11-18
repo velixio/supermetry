@@ -418,6 +418,9 @@ func TestBackupRestoreIntegration(t *testing.T) {
 	if err := db.EnsureAppEventPartitions(context.Background(), pool, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)); err != nil {
 		t.Fatal(err)
 	}
+	if err := db.EnsureDailyPartitions(context.Background(), pool, "logs", time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC), time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
 	var appOrg int64
 	var appSite int32
 	if err := pool.QueryRow(context.Background(), `insert into orgs(name,slug) values ('Backup','`+schema+`') returning id`).Scan(&appOrg); err != nil {
@@ -430,6 +433,7 @@ func TestBackupRestoreIntegration(t *testing.T) {
 		`insert into app_events(site_id,ts,received_at,event_id,kind,release) values ($1,'2026-11-17T10:00:00Z','2026-11-17T10:00:00Z','bk1','error','1.0')`,
 		`insert into app_event_bodies(site_id,ts,event_id,body,size) values ($1,'2026-11-17T10:00:00Z','bk1','{"message":"scrubbed"}',22)`,
 		`insert into app_client_reports(site_id,day,reason,category,quantity) values ($1,'2026-11-17','queue_overflow','error',7)`,
+		`insert into logs(site_id,ts,rid,observed_at,severity,body,source) values ($1,'2026-11-17T10:00:00Z',1,'2026-11-17T10:00:00Z',9,'log survives','otlp')`,
 	} {
 		if _, err := pool.Exec(context.Background(), q, appSite); err != nil {
 			t.Fatal(err)
@@ -440,7 +444,7 @@ func TestBackupRestoreIntegration(t *testing.T) {
 	if err := backupCommand(context.Background(), []string{"--out", out}, io.Discard, os.Getenv); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(context.Background(), "drop schema "+identifier+" cascade; delete from app_event_bodies; delete from app_client_reports"); err != nil {
+	if _, err := pool.Exec(context.Background(), "drop schema "+identifier+" cascade; delete from app_event_bodies; delete from app_client_reports; delete from logs"); err != nil {
 		t.Fatal(err)
 	}
 	if err := restoreCommand(context.Background(), []string{out, "--yes"}, io.Discard, os.Getenv); err != nil {
@@ -453,6 +457,10 @@ func TestBackupRestoreIntegration(t *testing.T) {
 	}
 	if body != "scrubbed" || quantity != 7 {
 		t.Fatalf("restored app rows: body=%q quantity=%d", body, quantity)
+	}
+	var logBody string
+	if err := pool.QueryRow(context.Background(), `select body from logs where site_id=$1`, appSite).Scan(&logBody); err != nil || logBody != "log survives" {
+		t.Fatalf("restored log row: %q %v", logBody, err)
 	}
 	var value string
 	if err := pool.QueryRow(context.Background(), "select value from "+identifier+".marker").Scan(&value); err != nil {

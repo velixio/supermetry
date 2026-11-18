@@ -102,7 +102,7 @@ func TestNormaliseFixtures(t *testing.T) {
 		"android/anr":                 {"hang", "android", false},
 		"cocoa/crash":                 {"crash", "ios", false},
 		"cocoa/app-hang":              {"hang", "ios", true},
-		"cocoa/watchdog-termination":  {"hang", "ios", false},
+		"cocoa/watchdog-termination":  {"crash", "ios", false},
 		"electron/main-exception":     {"crash", "linux", false},
 		"electron/renderer-exception": {"error", "linux", false},
 		"electron/native-crash":       {"crash", "linux", false},
@@ -220,7 +220,7 @@ func TestNormaliseMobileMechanisms(t *testing.T) {
 		t.Fatalf("%+v", hang)
 	}
 	wd, _ := fixtureEvent(t, "cocoa/watchdog-termination")
-	if wd.Kind != "hang" || wd.ExitReason != "watchdog_termination" {
+	if wd.Kind != "crash" || wd.ExitReason != "watchdog_termination" {
 		t.Fatalf("%+v", wd)
 	}
 	jvm, body := fixtureEvent(t, "android/jvm-crash")
