@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDangerDialog } from '@/components/ConfirmDangerDialog'
+import { useReauth } from '@/lib/useReauth'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { activeLocale } from '@/lib/i18n/intl'
@@ -123,9 +125,10 @@ function MemberRow({ member, isSelf, actorRole, sites, orgId, onSaved, onRemoved
   onSaved: (name: string) => void; onRemoved: (name: string) => void
 }) {
   const queryClient = useQueryClient()
+  const { withReauth, reauthDialog } = useReauth()
   const original = accessOf(member)
   const [draft, setDraft] = useState<MemberAccess>(original)
-  const [confirming, setConfirming] = useState<'reduce' | 'remove' | null>(null)
+  const [confirming, setConfirming] = useState<'reduce' | null>(null)
   const changes = accessChanges(original, draft)
   const dirty = Object.keys(changes).length > 0
   const display = member.name || member.email
@@ -145,15 +148,16 @@ function MemberRow({ member, isSelf, actorRole, sites, orgId, onSaved, onRemoved
   const remove = useMutation({
     mutationFn: () => privateRequest<void>('DELETE', `/api/private/orgs/${orgId}/members/${member.user_id}`, { orgId }),
     onSuccess: () => {
-      setConfirming(null)
       onRemoved(display)
       refresh()
     },
   })
   const save = () => {
     if (reducesAccess(original, draft)) setConfirming('reduce')
-    else update.mutate(changes)
+    else void saveChanges()
   }
+  // Role changes are step-up protected: on "reauth_required" the password dialog opens and the call is retried once.
+  const saveChanges = () => withReauth(() => update.mutateAsync(changes)).catch(() => undefined)
   return (
     <li className="flex flex-col gap-4 border-b pb-6 last:border-0 last:pb-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -162,9 +166,17 @@ function MemberRow({ member, isSelf, actorRole, sites, orgId, onSaved, onRemoved
           <p className="break-all text-xs text-muted-foreground">{member.email}</p>
         </div>
         {!isSelf && !locked ? (
-          <Button type="button" size="sm" variant="outline" aria-label={uiFlows.members.removeAria(display)} disabled={remove.isPending} onClick={() => { remove.reset(); setConfirming('remove') }}>
-            {uiFlows.members.remove}
-          </Button>
+          <ConfirmDangerDialog
+            trigger={
+              <Button type="button" size="sm" variant="outline" aria-label={uiFlows.members.removeAria(display)} disabled={remove.isPending} onClick={() => remove.reset()}>
+                {uiFlows.members.remove}
+              </Button>
+            }
+            title={uiFlows.members.removeTitle(display)}
+            description={uiFlows.members.removeBody}
+            confirmLabel={uiFlows.members.removeConfirm}
+            onConfirm={() => withReauth(() => remove.mutateAsync())}
+          />
         ) : null}
       </div>
       <MemberAccessControls
@@ -188,19 +200,11 @@ function MemberRow({ member, isSelf, actorRole, sites, orgId, onSaved, onRemoved
         confirm={uiFlows.members.reduceConfirm}
         pending={update.isPending}
         error={update.error}
-        onConfirm={() => update.mutate(changes)}
+        onConfirm={() => void saveChanges()}
         onCancel={() => { update.reset(); setConfirming(null) }}
       />
-      <ConfirmDialog
-        open={confirming === 'remove'}
-        title={uiFlows.members.removeTitle(display)}
-        body={uiFlows.members.removeBody}
-        confirm={uiFlows.members.removeConfirm}
-        pending={remove.isPending}
-        error={remove.error}
-        onConfirm={() => remove.mutate()}
-        onCancel={() => setConfirming(null)}
-      />
+      {remove.error ? <ErrorLine error={remove.error} /> : null}
+      {reauthDialog}
     </li>
   )
 }

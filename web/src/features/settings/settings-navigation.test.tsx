@@ -4,13 +4,13 @@ import { cleanup, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
 
 import { renderWithRouter } from '@/test/renderWithRouter'
-import { OrganizationSettingsTabs } from './OrganizationSettings'
+import { SettingsNav } from './SettingsNav'
 import { AccountSettingsNavigation } from '@/routes/app.account'
 
 afterEach(cleanup)
 
 it('uses route-link navigation semantics for organization settings', async () => {
-  renderWithRouter(<OrganizationSettingsTabs org="acme" current="members" />)
+  renderWithRouter(<SettingsNav org="acme" current="members" />)
 
   const navigation = await screen.findByRole('navigation', { name: 'Organization settings' })
   expect(navigation).toBeVisible()

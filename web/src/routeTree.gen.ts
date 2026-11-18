@@ -59,7 +59,9 @@ import { Route as AppOrgSettingsIndexRouteImport } from './routes/app.$org.setti
 import { Route as AppOrgSettingsApiRouteImport } from './routes/app.$org.settings.api'
 import { Route as AppOrgSettingsApiKeysRouteImport } from './routes/app.$org.settings.api-keys'
 import { Route as AppOrgSettingsAuditRouteImport } from './routes/app.$org.settings.audit'
+import { Route as AppOrgSettingsExportsRouteImport } from './routes/app.$org.settings.exports'
 import { Route as AppOrgSettingsInvitesRouteImport } from './routes/app.$org.settings.invites'
+import { Route as AppOrgSettingsMcpRouteImport } from './routes/app.$org.settings.mcp'
 import { Route as AppOrgSettingsMembersRouteImport } from './routes/app.$org.settings.members'
 import { Route as AppOrgSettingsNotificationsRouteImport } from './routes/app.$org.settings.notifications'
 import { Route as AppOrgSettingsReplayStorageRouteImport } from './routes/app.$org.settings.replay-storage'
@@ -354,9 +356,19 @@ const AppOrgSettingsAuditRoute = AppOrgSettingsAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppOrgSettingsRoute,
 } as any)
+const AppOrgSettingsExportsRoute = AppOrgSettingsExportsRouteImport.update({
+  id: '/exports',
+  path: '/exports',
+  getParentRoute: () => AppOrgSettingsRoute,
+} as any)
 const AppOrgSettingsInvitesRoute = AppOrgSettingsInvitesRouteImport.update({
   id: '/invites',
   path: '/invites',
+  getParentRoute: () => AppOrgSettingsRoute,
+} as any)
+const AppOrgSettingsMcpRoute = AppOrgSettingsMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => AppOrgSettingsRoute,
 } as any)
 const AppOrgSettingsMembersRoute = AppOrgSettingsMembersRouteImport.update({
@@ -646,7 +658,9 @@ export interface FileRoutesByFullPath {
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
   '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/exports': typeof AppOrgSettingsExportsRoute
   '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/mcp': typeof AppOrgSettingsMcpRoute
   '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
@@ -739,7 +753,9 @@ export interface FileRoutesByTo {
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
   '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/exports': typeof AppOrgSettingsExportsRoute
   '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/mcp': typeof AppOrgSettingsMcpRoute
   '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
@@ -836,7 +852,9 @@ export interface FileRoutesById {
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
   '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/exports': typeof AppOrgSettingsExportsRoute
   '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/mcp': typeof AppOrgSettingsMcpRoute
   '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
@@ -934,7 +952,9 @@ export interface FileRouteTypes {
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
     | '/app/$org/settings/audit'
+    | '/app/$org/settings/exports'
     | '/app/$org/settings/invites'
+    | '/app/$org/settings/mcp'
     | '/app/$org/settings/members'
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
@@ -1027,7 +1047,9 @@ export interface FileRouteTypes {
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
     | '/app/$org/settings/audit'
+    | '/app/$org/settings/exports'
     | '/app/$org/settings/invites'
+    | '/app/$org/settings/mcp'
     | '/app/$org/settings/members'
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
@@ -1123,7 +1145,9 @@ export interface FileRouteTypes {
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
     | '/app/$org/settings/audit'
+    | '/app/$org/settings/exports'
     | '/app/$org/settings/invites'
+    | '/app/$org/settings/mcp'
     | '/app/$org/settings/members'
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
@@ -1537,11 +1561,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSettingsAuditRouteImport
       parentRoute: typeof AppOrgSettingsRoute
     }
+    '/app/$org/settings/exports': {
+      id: '/app/$org/settings/exports'
+      path: '/exports'
+      fullPath: '/app/$org/settings/exports'
+      preLoaderRoute: typeof AppOrgSettingsExportsRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
+    }
     '/app/$org/settings/invites': {
       id: '/app/$org/settings/invites'
       path: '/invites'
       fullPath: '/app/$org/settings/invites'
       preLoaderRoute: typeof AppOrgSettingsInvitesRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
+    }
+    '/app/$org/settings/mcp': {
+      id: '/app/$org/settings/mcp'
+      path: '/mcp'
+      fullPath: '/app/$org/settings/mcp'
+      preLoaderRoute: typeof AppOrgSettingsMcpRouteImport
       parentRoute: typeof AppOrgSettingsRoute
     }
     '/app/$org/settings/members': {
@@ -1865,7 +1903,9 @@ interface AppOrgSettingsRouteChildren {
   AppOrgSettingsApiRoute: typeof AppOrgSettingsApiRoute
   AppOrgSettingsApiKeysRoute: typeof AppOrgSettingsApiKeysRoute
   AppOrgSettingsAuditRoute: typeof AppOrgSettingsAuditRoute
+  AppOrgSettingsExportsRoute: typeof AppOrgSettingsExportsRoute
   AppOrgSettingsInvitesRoute: typeof AppOrgSettingsInvitesRoute
+  AppOrgSettingsMcpRoute: typeof AppOrgSettingsMcpRoute
   AppOrgSettingsMembersRoute: typeof AppOrgSettingsMembersRoute
   AppOrgSettingsNotificationsRoute: typeof AppOrgSettingsNotificationsRoute
   AppOrgSettingsReplayStorageRoute: typeof AppOrgSettingsReplayStorageRoute
@@ -1876,7 +1916,9 @@ const AppOrgSettingsRouteChildren: AppOrgSettingsRouteChildren = {
   AppOrgSettingsApiRoute: AppOrgSettingsApiRoute,
   AppOrgSettingsApiKeysRoute: AppOrgSettingsApiKeysRoute,
   AppOrgSettingsAuditRoute: AppOrgSettingsAuditRoute,
+  AppOrgSettingsExportsRoute: AppOrgSettingsExportsRoute,
   AppOrgSettingsInvitesRoute: AppOrgSettingsInvitesRoute,
+  AppOrgSettingsMcpRoute: AppOrgSettingsMcpRoute,
   AppOrgSettingsMembersRoute: AppOrgSettingsMembersRoute,
   AppOrgSettingsNotificationsRoute: AppOrgSettingsNotificationsRoute,
   AppOrgSettingsReplayStorageRoute: AppOrgSettingsReplayStorageRoute,
