@@ -8,8 +8,11 @@
 # Electron itself is downloaded by `bun install` the first time. The app gets a
 # clean environment (env -i); nothing is recorded or committed.
 #   1. native-crash: process.crash() in the main process, relaunch, the SDK sends
-#      the minidump. Poll the private API until a crash issue appears whose top
-#      frame has a function name (not electron+0x...).
+#      the minidump. The first crash of an Electron build arrives before its
+#      symbols are cached (the dump is never kept, so that event stays
+#      unsymbolicated); the script waits for the server to finish fetching them,
+#      crashes the app again, and polls the private API until a crash issue
+#      appears whose top frame has a function name (not electron+0x...).
 #   2. consent-denied: the same with beforeSend returning null. After the
 #      relaunch the site must stay empty for 30 s (Review Focus 4).
 set -uo pipefail
@@ -52,13 +55,21 @@ scenario() { # name wait-for
   out="$(python3 -I "$here/check.py" site "$base" "$state" "electron-$name")" || { record "electron/$name" FAIL "site setup: $out"; return 1; }
   read -r id key <<<"$out"
   SENTRY_FIXTURE_DSN="http://$key@127.0.0.1:$port/$id" bash "$app/native-crash.sh" "$name" >"$work/electron-$name.log" 2>&1
-  site="$id"
+  site="$id"; dsn_key="$key"
 }
 
 echo "== Electron runs"
 if scenario native-crash; then
-  # The server downloads and converts a ~0.75 GB symbol file on the first miss.
-  check "electron/native-crash top frame named" python3 -I "$here/check.py" nativecrash "$base" "$state" "$site" 600
+  # Warm-up crash done. The server downloads and converts a ~0.75 GB symbol file
+  # in the background on the first miss; wait for it, then crash again.
+  for _ in $(seq 1 120); do
+    [ "$(psql "$db_url" -qAtc "select count(*) from app_remote_symbols where state = 'ok'")" -ge 1 ] && break
+    sleep 5
+  done
+  n="$(psql "$db_url" -qAtc "select count(*) from app_remote_symbols where state = 'ok'")"
+  record "electron/native-crash symbols fetched" "$([ "${n:-0}" -ge 1 ] && echo PASS || echo FAIL)" "$(psql "$db_url" -qAtc "select source || ' ' || debug_file || ' ' || debug_id || ' ' || state || ' ' || size || ' bytes' from app_remote_symbols order by 1 limit 3" | tr '\n' ';')"
+  SENTRY_FIXTURE_DSN="http://$dsn_key@127.0.0.1:$port/$site" bash "$app/native-crash.sh" native-crash >>"$work/electron-native-crash.log" 2>&1
+  check "electron/native-crash top frame named" python3 -I "$here/check.py" nativecrash "$base" "$state" "$site" 60
 fi
 if scenario consent-denied; then
   check "electron/consent-denied sends nothing" python3 -I "$here/check.py" silent "$base" "$state" "$site" 30
