@@ -381,6 +381,29 @@ An unknown key is an error that names the key and where it is; it is never ignor
 
 The issue list filters by the tags each issue's events carried (release, environment, platform, level, OS version, browser and device class). Those per-issue tag counts are rebuilt by the same rollup as the daily counts, which runs every ten minutes, so a very new event can take up to about ten minutes to be found by a `release:` or `level:` term.
 
+## Releases and deploys
+
+The release commands of `sentry-cli` and the release steps of the Sentry bundler plugins work against Supermetry unchanged. They need an upload token with the `releases:write` scope (see [Upload source maps](source-maps.md)) in `SENTRY_AUTH_TOKEN`, the server in `SENTRY_URL`, and the project in `SENTRY_PROJECT`:
+
+```sh
+sentry-cli releases new 1.4.0
+sentry-cli releases set-commits 1.4.0 --auto
+sentry-cli releases finalize 1.4.0
+sentry-cli deploys new -r 1.4.0 -e production
+```
+
+`releases list`, `releases info`, `releases archive` and `releases delete` work too. Deleting a release removes its commits and deploys only; events keep their release name, so the release still appears in the dashboard.
+
+**Commits come from your local git checkout.** `set-commits --auto` and `--local` read the commits (and the files each one changed) from the repository you run them in and send them, which is all Supermetry needs. Running the command again replaces the release's commit list. Updates that only name a repository and commit (`--commit "repo@sha"` without a checkout) are stored as the release's head commit, but Supermetry does not fetch commits from GitHub or other hosts yet.
+
+In the dashboard:
+
+- **Releases** lists every release with adoption and crash-free rates. Click a release for its page: adoption and crash-free sessions per day, its deploys, the issues first seen in it and the issues that regressed in it, and its commit count. Tick two releases and choose **Compare selected** to see them side by side with the change in crash-free sessions and users (in percentage points) and the issues that appear only in the second.
+- **Deploy markers** appear as dashed lines on the overview chart and on a release's rollout chart, placed on the day of the deploy in the project's time zone. A deploy that names no project applies to the projects of its release.
+- An issue's page shows the release it was **introduced in** and, when that release has commits, up to three **suspect commits** that changed a file on the stack.
+
+An AI assistant can ask for the same data through the MCP tools `get_release_health`, `compare_releases` and `find_regression_release`; commit authors appear by name only.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.

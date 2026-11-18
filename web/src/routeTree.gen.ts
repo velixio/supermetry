@@ -77,6 +77,8 @@ import { Route as AppOrgSitePerformanceIndexRouteImport } from './routes/app.$or
 import { Route as AppOrgSitePerformanceTransactionRouteImport } from './routes/app.$org.$site.performance.$transaction'
 import { Route as AppOrgSiteProfilesIndexRouteImport } from './routes/app.$org.$site.profiles.index'
 import { Route as AppOrgSiteProfilesIdRouteImport } from './routes/app.$org.$site.profiles.$id'
+import { Route as AppOrgSiteReleasesReleaseRouteImport } from './routes/app.$org.$site.releases_.$release'
+import { Route as AppOrgSiteReleasesCompareRouteImport } from './routes/app.$org.$site.releases_.compare'
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
 import { Route as AppOrgSiteReplaysIdRouteImport } from './routes/app.$org.$site.replays.$id'
 import { Route as AppOrgSiteSettingsAlertsRouteImport } from './routes/app.$org.$site.settings.alerts'
@@ -443,6 +445,18 @@ const AppOrgSiteProfilesIdRoute = AppOrgSiteProfilesIdRouteImport.update({
   path: '/$site/profiles/$id',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteReleasesReleaseRoute =
+  AppOrgSiteReleasesReleaseRouteImport.update({
+    id: '/$site/releases_/$release',
+    path: '/$site/releases/$release',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
+const AppOrgSiteReleasesCompareRoute =
+  AppOrgSiteReleasesCompareRouteImport.update({
+    id: '/$site/releases_/compare',
+    path: '/$site/releases/compare',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
 const AppOrgSiteReplaysIndexRoute = AppOrgSiteReplaysIndexRouteImport.update({
   id: '/$site/replays/',
   path: '/$site/replays/',
@@ -622,6 +636,8 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/releases/$release': typeof AppOrgSiteReleasesReleaseRoute
+  '/app/$org/$site/releases/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
@@ -709,6 +725,8 @@ export interface FileRoutesByTo {
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/releases/$release': typeof AppOrgSiteReleasesReleaseRoute
+  '/app/$org/$site/releases/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
@@ -800,6 +818,8 @@ export interface FileRoutesById {
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
   '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
+  '/app/$org/$site/releases_/$release': typeof AppOrgSiteReleasesReleaseRoute
+  '/app/$org/$site/releases_/compare': typeof AppOrgSiteReleasesCompareRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
   '/app/$org/$site/settings/app': typeof AppOrgSiteSettingsAppRoute
@@ -892,6 +912,8 @@ export interface FileRouteTypes {
     | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/releases/$release'
+    | '/app/$org/$site/releases/compare'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
@@ -979,6 +1001,8 @@ export interface FileRouteTypes {
     | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/releases/$release'
+    | '/app/$org/$site/releases/compare'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
@@ -1069,6 +1093,8 @@ export interface FileRouteTypes {
     | '/app/$org/$site/links/pixel'
     | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
+    | '/app/$org/$site/releases_/$release'
+    | '/app/$org/$site/releases_/compare'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
     | '/app/$org/$site/settings/app'
@@ -1587,6 +1613,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteProfilesIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/releases_/$release': {
+      id: '/app/$org/$site/releases_/$release'
+      path: '/$site/releases/$release'
+      fullPath: '/app/$org/$site/releases/$release'
+      preLoaderRoute: typeof AppOrgSiteReleasesReleaseRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/releases_/compare': {
+      id: '/app/$org/$site/releases_/compare'
+      path: '/$site/releases/compare'
+      fullPath: '/app/$org/$site/releases/compare'
+      preLoaderRoute: typeof AppOrgSiteReleasesCompareRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/replays/': {
       id: '/app/$org/$site/replays/'
       path: '/$site/replays'
@@ -1834,6 +1874,8 @@ interface AppOrgRouteChildren {
   AppOrgSiteLinksPixelRoute: typeof AppOrgSiteLinksPixelRoute
   AppOrgSitePerformanceTransactionRoute: typeof AppOrgSitePerformanceTransactionRoute
   AppOrgSiteProfilesIdRoute: typeof AppOrgSiteProfilesIdRoute
+  AppOrgSiteReleasesReleaseRoute: typeof AppOrgSiteReleasesReleaseRoute
+  AppOrgSiteReleasesCompareRoute: typeof AppOrgSiteReleasesCompareRoute
   AppOrgSiteReplaysIdRoute: typeof AppOrgSiteReplaysIdRoute
   AppOrgSiteTracesTraceRoute: typeof AppOrgSiteTracesTraceRoute
   AppOrgSiteFunnelsIndexRoute: typeof AppOrgSiteFunnelsIndexRoute
@@ -1873,6 +1915,8 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteLinksPixelRoute: AppOrgSiteLinksPixelRoute,
   AppOrgSitePerformanceTransactionRoute: AppOrgSitePerformanceTransactionRoute,
   AppOrgSiteProfilesIdRoute: AppOrgSiteProfilesIdRoute,
+  AppOrgSiteReleasesReleaseRoute: AppOrgSiteReleasesReleaseRoute,
+  AppOrgSiteReleasesCompareRoute: AppOrgSiteReleasesCompareRoute,
   AppOrgSiteReplaysIdRoute: AppOrgSiteReplaysIdRoute,
   AppOrgSiteTracesTraceRoute: AppOrgSiteTracesTraceRoute,
   AppOrgSiteFunnelsIndexRoute: AppOrgSiteFunnelsIndexRoute,

@@ -47,6 +47,13 @@ Create an upload token under Settings, Installation, set `SENTRY_AUTH_TOKEN`
 (plugins: `authToken` and `url`) and upload as before. See
 [Upload source maps](source-maps.md).
 
+## Releases and deploys
+
+`sentry-cli releases new`, `set-commits --auto`, `finalize`, `list`, `archive`, `delete`
+and `deploys new` work unchanged with the same upload token. Commits are read from your
+local git checkout; Supermetry does not fetch them from GitHub. See
+[Releases and deploys](apps.md#releases-and-deploys).
+
 ## What is not supported yet
 
 - **Performance**: transactions, spans and traces.
