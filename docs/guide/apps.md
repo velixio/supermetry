@@ -284,12 +284,22 @@ Open an issue to triage it. Owners, admins and editors can change an issue; view
 - **Priority:** high, medium (the default) or low.
 - **Status:** resolve, resolve in the next release, ignore or reopen, as before. New events from a later release regress a resolved issue.
 - **Snooze:** ignores the issue until a time passes, or until it has had a number of more events or affected users. Reopening an issue ends the snooze.
-- **Archive until escalating:** removes the issue from the open list and keeps it out of the way. Unarchive it to return it to open.
+- **Archive until escalating:** removes the issue from the open list and keeps it out of the way. Unarchive it to return it to open, or let Supermetry do it: see below.
 - **GitHub link:** the API can link an existing GitHub issue (`https://github.com/<owner>/<repo>/issues/<number>`). Supermetry only stores the link and never calls GitHub.
 - **Comments:** up to 10,000 characters each. You can edit or delete your own comments; owners and admins can edit or delete anyone's. Comments are visible to everyone in the project, so keep secrets and personal data out of them.
 - **Activity:** a timeline of every change (status, assignee, priority, snooze, archive, comments) plus system rows for the first sighting and for regressions. It records the member who acted, or "System".
 
 Through the private API, `PATCH /api/private/sites/{site}/app/issues/{issue}` takes any of `status`, `resolved_in_release`, `assignee` (a user id, `0` to unassign), `priority`, `snooze` (`until`, `events`, `users`), `archive` and `github_url`. Comments live under `.../issues/{issue}/comments` and the timeline at `.../issues/{issue}/activity`. A change that alters nothing writes no activity row.
+
+### Snooze, archive and wake-ups
+
+A job checks once a minute. A snoozed issue returns to open (activity "status", by System) when its time passes, when it has had the chosen number of more events since the snooze began, or when it has affected the chosen number of more users. Users are counted from events that carry a user; events without a user never count towards "N more users", so an issue snoozed until 100 users does not wake on anonymous events. An issue that someone resolved or reopened in the meantime is left alone.
+
+An archived issue escalates back to open (activity "escalated", by System) when it had more than 10 events in the last hour and more than 5 times its hourly average over the 7 days before that hour. A steady issue that runs at 5 times its average but never passes 10 events an hour stays archived. The thresholds are fixed for now.
+
+### Email notifications
+
+Supermetry emails the person an issue is assigned to when someone else assigns it to them, when an issue assigned to them regresses, and (off by default) when someone else resolves it. You never get an email about your own change. Choose what you receive per project under Account, Notifications; assigned and regressed are on by default. Only members who can read the project are emailed. The emails are plain notices with one ordinary link to the issue: no tracking pixels and no tracked links. A notification that cannot be delivered is retried for up to 24 hours, then dropped. There is no weekly digest yet.
 
 ### Merging and unmerging issues
 

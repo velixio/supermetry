@@ -428,6 +428,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/me/email", h.startEmailChange)
 	mux.HandleFunc("POST /api/private/me/password", h.changePassword)
 	mux.HandleFunc("GET /api/private/me/ip", h.currentIP)
+	mux.HandleFunc("GET /api/private/me/app-notifications", h.listAppNotificationPrefs)
+	mux.HandleFunc("PUT /api/private/me/app-notifications/{site}", h.putAppNotificationPrefs)
 	mux.HandleFunc("GET /api/private/me/sessions", h.listSessions)
 	mux.HandleFunc("DELETE /api/private/me/sessions", h.revokeOtherSessions)
 	mux.HandleFunc("DELETE /api/private/me/sessions/{session}", h.revokeSession)

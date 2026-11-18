@@ -88,6 +88,7 @@ var sourceRegistry = []Source{
 	{Table: "stripe_refunds", Category: CategoryAuxiliary},
 	{Table: "stripe_webhook_events", Category: CategoryAuxiliary},
 	{Table: "tracking_pixels", Category: CategoryAuxiliary},
+	{Table: "user_notification_prefs", Category: CategoryAuxiliary},
 	{Table: "verified_page_day", Category: CategoryRetained, Partitioned: true},
 	{Table: "verified_page_sessions", Category: CategoryRetained, Partitioned: true},
 	{Table: "visitor_day", Category: CategoryRetained, Partitioned: true},

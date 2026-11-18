@@ -418,6 +418,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/me/password",
 		"POST " + privatePrefix + "/me/demo-prompt/dismiss",
 		"GET " + privatePrefix + "/me/ip",
+		"GET " + privatePrefix + "/me/app-notifications",
+		"PUT " + privatePrefix + "/me/app-notifications/{site}",
 		"GET " + privatePrefix + "/me/sessions",
 		"DELETE " + privatePrefix + "/me/sessions",
 		"DELETE " + privatePrefix + "/me/sessions/{session}",

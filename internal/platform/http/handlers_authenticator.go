@@ -127,7 +127,7 @@ func accountRequest(r *http.Request) bool {
 	switch r.Method + " " + r.URL.Path {
 	case "GET /api/private/me", "HEAD /api/private/me", "PATCH /api/private/me", "DELETE /api/private/me",
 		"GET /api/private/sites/overview", "HEAD /api/private/sites/overview",
-		"GET /api/private/me/orgs/deleted",
+		"GET /api/private/me/orgs/deleted", "GET /api/private/me/app-notifications",
 		"GET /api/private/me/ip", "HEAD /api/private/me/ip", "GET /api/private/me/sessions", "HEAD /api/private/me/sessions", "DELETE /api/private/me/sessions",
 		"POST /api/private/me/email", "POST /api/private/me/password", "POST /api/private/me/totp", "PATCH /api/private/me/totp", "DELETE /api/private/me/totp", "POST /api/private/me/totp/recovery-codes",
 		"GET /api/private/orgs", "HEAD /api/private/orgs", "POST /api/private/orgs", "POST /api/private/auth/logout",
@@ -136,6 +136,10 @@ func accountRequest(r *http.Request) bool {
 	}
 	if r.Method == http.MethodDelete {
 		value, ok := strings.CutPrefix(r.URL.Path, "/api/private/me/sessions/")
+		return ok && value != "" && !strings.Contains(value, "/")
+	}
+	if r.Method == http.MethodPut {
+		value, ok := strings.CutPrefix(r.URL.Path, "/api/private/me/app-notifications/")
 		return ok && value != "" && !strings.Contains(value, "/")
 	}
 	if r.Method == http.MethodPost {

@@ -32,6 +32,7 @@ var eraseTables = []string{
 	"app_issue_comments",
 	"app_ownership_rules",
 	"app_grouping_rules",
+	"user_notification_prefs",
 	"app_issues",
 	"app_hash_secrets",
 	"app_erasure_requests",

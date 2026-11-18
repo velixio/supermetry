@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
 	"supermetry/internal/appingest"
+	"supermetry/internal/appissues"
 	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
@@ -672,6 +673,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	jobs = append(jobs,
+		appissues.NewWaker(pool, settings.clock.Now).Job(),
+		appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()

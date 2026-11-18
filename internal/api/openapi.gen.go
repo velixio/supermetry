@@ -3085,6 +3085,30 @@ type AppMergedIssue struct {
 	Title    string    `json:"title"`
 }
 
+// AppNotificationPrefs defines model for AppNotificationPrefs.
+type AppNotificationPrefs struct {
+	// Assigned An issue was assigned to me.
+	Assigned bool `json:"assigned"`
+
+	// Regressed An issue assigned to me regressed.
+	Regressed bool `json:"regressed"`
+
+	// Resolved An issue assigned to me was resolved by someone else.
+	Resolved bool `json:"resolved"`
+}
+
+// AppNotificationPrefsSite defines model for AppNotificationPrefsSite.
+type AppNotificationPrefsSite struct {
+	Assigned  bool   `json:"assigned"`
+	OrgName   string `json:"org_name"`
+	OrgSlug   string `json:"org_slug"`
+	Regressed bool   `json:"regressed"`
+	Resolved  bool   `json:"resolved"`
+	SiteId    int32  `json:"site_id"`
+	SiteName  string `json:"site_name"`
+	SiteSlug  string `json:"site_slug"`
+}
+
 // AppOverview defines model for AppOverview.
 type AppOverview struct {
 	CrashFreeSessions AppRate `json:"crash_free_sessions"`
@@ -6048,6 +6072,9 @@ type DeleteCurrentUserJSONRequestBody DeleteCurrentUserJSONBody
 // UpdateCurrentUserJSONRequestBody defines body for UpdateCurrentUser for application/json ContentType.
 type UpdateCurrentUserJSONRequestBody = UpdateCurrentUserRequest
 
+// PutAppNotificationPrefsJSONRequestBody defines body for PutAppNotificationPrefs for application/json ContentType.
+type PutAppNotificationPrefsJSONRequestBody = AppNotificationPrefs
+
 // StartCurrentUserEmailChangeJSONRequestBody defines body for StartCurrentUserEmailChange for application/json ContentType.
 type StartCurrentUserEmailChangeJSONRequestBody StartCurrentUserEmailChangeJSONBody
 
@@ -6823,6 +6850,12 @@ type ServerInterface interface {
 	// UpdateCurrentUser Update account preferences or the display name
 	// (PATCH /api/private/me)
 	UpdateCurrentUser(w http.ResponseWriter, r *http.Request)
+	// ListAppNotificationPrefs The signed-in user's issue notification switches for every app project they can read
+	// (GET /api/private/me/app-notifications)
+	ListAppNotificationPrefs(w http.ResponseWriter, r *http.Request)
+	// PutAppNotificationPrefs Save the signed-in user's own issue notification switches for a project
+	// (PUT /api/private/me/app-notifications/{site})
+	PutAppNotificationPrefs(w http.ResponseWriter, r *http.Request, site int32)
 	// DismissDemoPrompt Permanently dismiss the demo-project onboarding prompt
 	// (POST /api/private/me/demo-prompt/dismiss)
 	DismissDemoPrompt(w http.ResponseWriter, r *http.Request)
@@ -8438,6 +8471,46 @@ func (siw *ServerInterfaceWrapper) UpdateCurrentUser(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateCurrentUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppNotificationPrefs operation middleware
+func (siw *ServerInterfaceWrapper) ListAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppNotificationPrefs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAppNotificationPrefs operation middleware
+func (siw *ServerInterfaceWrapper) PutAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAppNotificationPrefs(w, r, site)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15867,6 +15940,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me", wrapper.GetCurrentUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/me", wrapper.UpdateCurrentUser)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/demo-prompt/dismiss", wrapper.DismissDemoPrompt)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me/app-notifications", wrapper.ListAppNotificationPrefs)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/me/app-notifications/{site}", wrapper.PutAppNotificationPrefs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/me/orgs/deleted", wrapper.ListDeletedOrganizations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/me/orgs/{org}/restore", wrapper.RestoreOrganization)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/demo", wrapper.CreateDemoProject)
