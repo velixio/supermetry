@@ -344,6 +344,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/obs/metrics", h.listObsMetrics)
 	mux.HandleFunc("POST /api/private/sites/{site}/obs/metrics/query", h.queryObsMetrics)
 	mux.HandleFunc("GET /api/private/sites/{site}/obs/logs", h.searchObsLogs)
+	mux.HandleFunc("GET /api/private/sites/{site}/obs/ingest", h.obsIngestHealth)
 	mux.HandleFunc("GET /api/private/sites/{site}/obs/traces/{trace_id}/logs", h.traceObsLogs)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/rules", h.getAppRules)
 	mux.HandleFunc("PUT /api/private/sites/{site}/app/rules", h.replaceAppRules)

@@ -7,6 +7,7 @@ import type { components } from "@/lib/api.gen";
 import { privateRequest } from "@/features/settings/privateApi";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DroppedTrafficCard, reasonLabels } from "./DroppedTrafficCard";
+import { ObsIngestCard } from "./ObsIngestCard";
 
 type Health = components["schemas"]["DataHealthResponse"] & {
   failed_profile_erasures: number;
@@ -33,7 +34,7 @@ const collectionCounters: { key: HealthCounterKey; label: string }[] = [
   { key: "clock_skew_clamps", label: "Clock-skew clamps" },
 ];
 
-export function HealthPage({ orgId, version = "dev" }: { orgId?: number; version?: string } = {}) {
+export function HealthPage({ orgId, version = "dev", appSites = [] }: { orgId?: number; version?: string; appSites?: { id: number; name: string }[] } = {}) {
   const health = useQuery({
     queryKey: ["data-health", orgId],
     queryFn: () =>
@@ -145,6 +146,13 @@ export function HealthPage({ orgId, version = "dev" }: { orgId?: number; version
             <DroppedTrafficCard key={site.site_id} site={site} />
           ))}
         </div>
+        {appSites.length ? (
+          <div className="grid gap-4 lg:grid-cols-2" aria-label="Logs and metrics intake">
+            {appSites.map((site) => (
+              <ObsIngestCard key={site.id} siteId={site.id} name={site.name} />
+            ))}
+          </div>
+        ) : null}
         <div
           id="drop-reason-explanations"
           className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2"

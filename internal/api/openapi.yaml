@@ -3069,6 +3069,18 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/ingest:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getObsIngestHealth
+      tags: [Apps]
+      summary: Log records and metric points accepted and rejected per UTC day
+      description: The last 7 UTC days including today, oldest first; days without traffic are zero. Counts flush about once a minute.
+      responses:
+        '200': { description: The daily counts, content: { application/json: { schema: { $ref: '#/components/schemas/ObsIngestHealth' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/obs/traces/{trace_id}/logs:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -9028,6 +9040,25 @@ components:
         body: { type: string }
         truncated: { type: boolean }
         attributes: { type: object, additionalProperties: true }
+    ObsIngestHealth:
+      type: object
+      additionalProperties: false
+      required: [days]
+      properties:
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            type: object
+            additionalProperties: false
+            required: [day, logs_accepted, logs_rejected, metrics_accepted, metrics_rejected]
+            properties:
+              day: { type: string, format: date }
+              logs_accepted: { type: integer, format: int64, minimum: 0 }
+              logs_rejected: { type: integer, format: int64, minimum: 0 }
+              metrics_accepted: { type: integer, format: int64, minimum: 0 }
+              metrics_rejected: { type: integer, format: int64, minimum: 0 }
     ObsLogPage:
       type: object
       additionalProperties: false
