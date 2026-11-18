@@ -21,8 +21,9 @@ Sentry.init({
 });
 ```
 
-**Set `release`: Sentry SDKs send no sessions without it.** Without a release
-you get issues but no crash-free sessions or users.
+**Sentry SDKs send sessions only when `release` is set in `Sentry.init`. Without it, crash-free rates fall back to error events.**
+
+The Releases page shows adoption, crash-free sessions and users and session counts per release. Click a release to see its daily crash-free sessions, the session status split (healthy, errored, abnormal, crashed) and handled versus unhandled errors. Abnormal sessions (ANR, app hang) are not counted as crashes. Releases without tracked sessions are marked "from error events".
 
 The DSN public key is meant to ship inside client bundles, so it is shown in
 full. Under **DSN keys** you can create more keys (for example one per

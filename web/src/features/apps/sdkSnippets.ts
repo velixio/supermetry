@@ -1,5 +1,5 @@
 /** Per-SDK setup for unmodified Sentry SDKs: only the DSN and the release are set. */
-export const RELEASE_SENTENCE = 'Set `release`: Sentry SDKs send no sessions without it.'
+export const RELEASE_SENTENCE = 'Sentry SDKs send sessions only when `release` is set in `Sentry.init`. Without it, crash-free rates fall back to error events.'
 
 export type SdkSnippet = { value: string; label: string; note: string; code: string }
 
