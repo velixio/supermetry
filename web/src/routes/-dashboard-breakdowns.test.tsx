@@ -27,7 +27,11 @@ const me = {
 }
 
 describe('dashboard breakdown route', () => {
+  // Below the app-shell toolbar width, so the filters stay in the page's own sticky row.
+  const shellWidth = window.innerWidth
+  afterEach(() => { window.innerWidth = shellWidth })
   beforeEach(() => {
+    window.innerWidth = 1000
     vi.clearAllMocks()
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,

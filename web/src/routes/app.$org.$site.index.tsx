@@ -40,6 +40,7 @@ import { getSite } from '@/features/sites/api'
 import { siteNeedsDetails, type Site } from '@/lib/me'
 import { appFilterSearch, parseAppSearch } from '@/features/apps/search'
 import { PageContainer } from '@/components/PageContainer'
+import { HeaderToolbar } from '@/components/HeaderToolbar'
 import { PageHeader } from '@/components/PageHeader'
 import type { Dashboard } from '../features/dashboards/api'
 import { dashKey, parseDashKey } from '../features/dashboards/layout'
@@ -249,6 +250,46 @@ function WebDashboardStateRoute() {
   } : undefined
 
   // Dashboard switcher, manage, view options and export: one quiet cluster at the end of the filter row.
+  // Wide screens put the filters in the app header (HeaderToolbar); narrow ones keep a sticky row.
+  const filterControls = (className: string) => (
+      <ResponsiveFilters
+        className={className}
+        lead={<DatePicker
+          search={search}
+          dateRange={query.dateRange}
+          labels={en.dashboard}
+          onChange={updateSearch}
+          showCompare={false}
+        />}
+        trailing={dashboardActions}
+      >
+        {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
+          <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
+          {filters.map((filter, index) => <Button key={index} variant="outline" size="sm" onClick={() => updateSearch(removeFilter(search, index))} aria-label={`Remove ${filter.dimension} filter`}>{filter.dimension} {filter.operator} {filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')} ×</Button>)}
+          {dropped.length > 0 ? <p role="status">{en.dashboard.invalidFilter}</p> : null}
+        </div> : <FilterBar
+          siteId={site.id}
+          orgId={membership?.org.id}
+          canEdit={membership?.role !== 'viewer'}
+          dateRange={query.dateRange}
+          filters={filters}
+          dropped={dropped}
+          invalidNotice={en.dashboard.invalidFilter}
+          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+          removeLabel={(filter) =>
+            en.dashboard.filterLabel
+              .replace('{dimension}', filter.dimension)
+              .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))
+          }
+          onApply={(segmentFilters) =>
+            updateSearch(replaceFilters(search, segmentFilters))
+          }
+          onAdd={onFilter}
+          onRemove={(index) => updateSearch(removeFilter(search, index))}
+        />}
+      </ResponsiveFilters>
+  )
+
   const dashboardActions = (
     <>
       <Suspense fallback={null}>
@@ -295,44 +336,13 @@ function WebDashboardStateRoute() {
         {dashboardActions}
       </div> : null}
       {edit ? null : (
-        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-12 z-10 -my-1 bg-background py-1" role="group">
-          <ResponsiveFilters
-            className="justify-start"
-            lead={<DatePicker
-              search={search}
-              dateRange={query.dateRange}
-              labels={en.dashboard}
-              onChange={updateSearch}
-              showCompare={false}
-            />}
-            trailing={dashboardActions}
-          >
-            {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
-              <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
-              {filters.map((filter, index) => <Button key={index} variant="outline" size="sm" onClick={() => updateSearch(removeFilter(search, index))} aria-label={`Remove ${filter.dimension} filter`}>{filter.dimension} {filter.operator} {filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')} ×</Button>)}
-              {dropped.length > 0 ? <p role="status">{en.dashboard.invalidFilter}</p> : null}
-            </div> : <FilterBar
-              siteId={site.id}
-              orgId={membership?.org.id}
-              canEdit={membership?.role !== 'viewer'}
-              dateRange={query.dateRange}
-              filters={filters}
-              dropped={dropped}
-              invalidNotice={en.dashboard.invalidFilter}
-              filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-              removeLabel={(filter) =>
-                en.dashboard.filterLabel
-                  .replace('{dimension}', filter.dimension)
-                  .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))
-              }
-              onApply={(segmentFilters) =>
-                updateSearch(replaceFilters(search, segmentFilters))
-              }
-              onAdd={onFilter}
-              onRemove={(index) => updateSearch(removeFilter(search, index))}
-            />}
-          </ResponsiveFilters>
-        </div>
+        <HeaderToolbar fallback={
+          <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-12 z-10 -my-1 bg-background py-1" role="group">
+            {filterControls('justify-start')}
+          </div>
+        }>
+          {filterControls('flex-nowrap')}
+        </HeaderToolbar>
       )}
       {membership && me.data ? (
         <GettingStartedChecklist
