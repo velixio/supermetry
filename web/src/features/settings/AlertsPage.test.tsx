@@ -20,13 +20,13 @@ vi.mock('@tanstack/react-router', () => ({
 
 import { AlertsPage } from './AlertsPage'
 
-function renderPage(siteKind?: string, orgSlug?: string) {
+function renderPage(orgSlug?: string) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   render(
     <QueryClientProvider client={client}>
-      <AlertsPage orgId={3} orgSlug={orgSlug} siteId={7} siteKind={siteKind} />
+      <AlertsPage orgId={3} orgSlug={orgSlug} siteId={7} />
     </QueryClientProvider>,
   )
 }
@@ -101,60 +101,20 @@ describe('AlertsPage', () => {
     expect(screen.getByText('Conversions in the current local day.')).toBeVisible()
   })
 
-  it('offers only the four app kinds for an app project', async () => {
-    renderPage('app')
-    await screen.findByText('No alerts yet.')
-    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
-    const options = Array.from(screen.getByLabelText('Alert type').querySelectorAll('option')).map((option) => option.value)
-    expect(options).toEqual(['app_new_issue', 'app_issue_regressed', 'app_crash_free_below', 'app_issue_spike'])
-  })
 
   it('keeps the three web kinds for a web site', async () => {
-    renderPage('web')
+    renderPage()
     await screen.findByText('No alerts yet.')
     fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
     const options = Array.from(screen.getByLabelText('Alert type').querySelectorAll('option')).map((option) => option.value)
     expect(options).toEqual(['traffic_spike', 'traffic_drop', 'goal_reached'])
   })
 
-  it('creates a crash-free alert with threshold and metric', async () => {
-    renderPage('app')
-    await screen.findByText('No alerts yet.')
-    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
-    fireEvent.change(screen.getByLabelText('Alert type'), { target: { value: 'app_crash_free_below' } })
-    expect(screen.getByLabelText('Crash-free threshold (%)')).toHaveValue(99)
-    fireEvent.change(screen.getByLabelText('Crash-free threshold (%)'), { target: { value: '98.5' } })
-    fireEvent.change(screen.getByLabelText('Metric'), { target: { value: 'sessions' } })
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Operations' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save alert' }))
-    await waitFor(() => expect(post).toHaveBeenCalledWith(
-      '/api/private/sites/7/alerts',
-      expect.objectContaining({
-        body: { kind: 'app_crash_free_below', threshold: 98.5, config: { metric: 'sessions' }, channel_ids: [8], enabled: true },
-      }),
-    ))
-  })
 
-  it('creates a new-issue alert filtered by issue kind without a threshold field', async () => {
-    renderPage('app')
-    await screen.findByText('No alerts yet.')
-    fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
-    expect(screen.getByLabelText('Alert type')).toHaveValue('app_new_issue')
-    expect(screen.queryByLabelText('Threshold')).toBeNull()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'crash' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Operations' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save alert' }))
-    await waitFor(() => expect(post).toHaveBeenCalledWith(
-      '/api/private/sites/7/alerts',
-      expect.objectContaining({
-        body: { kind: 'app_new_issue', config: { kinds: ['crash'] }, channel_ids: [8], enabled: true },
-      }),
-    ))
-  })
 
-  it.each(['app', undefined])('links to creating a channel when the %s alert dialog has none', async (kind) => {
+  it('links to creating a channel when the alert dialog has none', async () => {
     get.mockImplementation(async (path: string) => ({ data: path.endsWith('/alerts') || path.endsWith('/channels') ? { data: [] } : [], response: { ok: true, status: 200 } }))
-    renderPage(kind, 'acme')
+    renderPage('acme')
     await screen.findByText('No alerts yet.')
     fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
     expect(await screen.findByRole('link', { name: 'Create a channel' })).toHaveAttribute('href', '/app/acme/settings/notifications')

@@ -200,3 +200,18 @@ func FuzzParseTransaction(f *testing.F) {
 		}
 	})
 }
+
+func TestDescribeParameterisesBrowserRequests(t *testing.T) {
+	for _, c := range []struct{ op, in, want string }{
+		{"browser.request", "GET /users/1234", "GET /users/*"},
+		{"resource.fetch", "GET /users/1234?x=1", "GET /users/*"},
+		{"resource.xhr", "POST https://api.example.com/v1/items/9f8e7d6c5b4a3210", "POST https://api.example.com/v1/items/*"},
+		{"browser.request", "Request", "Request"},
+		{"http.client", "GET /users/1234", "GET /users/*"}, // the existing output, unchanged
+		{"browser.dns", "DNS lookup", "DNS lookup"},
+	} {
+		if got := describe(c.op, c.in); got != c.want {
+			t.Errorf("describe(%q, %q) = %q, want %q", c.op, c.in, got, c.want)
+		}
+	}
+}

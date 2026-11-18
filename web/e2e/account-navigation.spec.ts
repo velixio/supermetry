@@ -3,8 +3,11 @@ import { expect, test, type Owner } from './fixtures'
 import type { APIRequestContext, Page } from '@playwright/test'
 
 const password = 'account-navigation-test-password'
+// The org outlives one test run, so addresses carry a per-process tag and a counter, so --repeat-each stays valid.
+const runTag = Date.now().toString(36)
+let memberSeq = 0
 async function member(request: APIRequestContext, owner: Owner, role: 'viewer' | 'editor' | 'admin', suffix: string, noSites = false) {
-  const email = `${suffix}@supermetry.test`
+  const email = `${suffix}-${runTag}-${memberSeq++}@supermetry.test`
   const invitation = await request.post(`/api/private/orgs/${owner.orgId}/invitations`, {
     headers: owner.apiHeaders,
     data: { email, role, ...(role !== 'admin' ? { site_ids: noSites ? [] : [owner.siteId] } : {}) },
@@ -16,12 +19,21 @@ async function member(request: APIRequestContext, owner: Owner, role: 'viewer' |
   expect(accepted.ok(), await accepted.text()).toBe(true)
   return { email, id: (await accepted.json()).user_id as number }
 }
-async function login(page: Page, email: string) {
+// A user with sites lands on /app, whose landing screen loads lazily and then replaces the URL with the
+// site dashboard. The shell shows the account sidebar until the site route commits, then swaps it for the
+// site sidebar, so the Account button is replaced after the URL has already changed. Pass the org slug for
+// such users: the helper then returns only once the site sidebar is up, so a menu opened right after
+// login is not torn down mid-click.
+async function login(page: Page, email: string, landsInOrg?: string) {
   await page.goto('/login')
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page).toHaveURL(url => url.pathname !== '/' && !url.pathname.startsWith('/login'))
+  if (landsInOrg) {
+    await expect(page).toHaveURL(url => url.pathname.startsWith(`/app/${landsInOrg}/`))
+    await expect(page.getByRole('navigation', { name: 'Analyze', exact: true })).toBeVisible()
+  }
   await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
 }
 async function logout(page: Page) {
@@ -73,7 +85,7 @@ test('sidebar settings links and account menu work on desktop and mobile with ke
 for (const role of ['viewer', 'editor', 'admin'] as const) {
   test(`${role} sees correctly scoped settings and account controls`, async ({ page, owner }) => {
     const user = await member(page.request, owner, role, `header-${role}`)
-    await login(page, user.email)
+    await login(page, user.email, owner.orgSlug)
     const settings = page.getByRole('navigation', { name: 'Settings', exact: true })
     await expect(settings.getByRole('link', { name: 'Organization settings', exact: true })).toBeVisible()
     await expect(settings.getByRole('link', { name: 'Site settings', exact: true })).toHaveCount(role === 'viewer' ? 0 : 1)
@@ -109,7 +121,7 @@ test('no-site and no-organization users can use account pages and log out', asyn
 test('logout clears the current session across tabs and back navigation; next login has fresh identity', async ({ page, owner }) => {
   const current = await member(page.request, owner, 'admin', 'current-account')
   const next = await member(page.request, owner, 'viewer', 'next-account', true)
-  await login(page, current.email)
+  await login(page, current.email, owner.orgSlug)
   await page.goto('/app/account/profile')
   await expect(page).toHaveURL('/app/account/profile')
   await page.evaluate(() => localStorage.setItem('theme', 'dark'))
@@ -137,7 +149,7 @@ test('logout clears the current session across tabs and back navigation; next lo
 for (const failure of ['network', 'server', 'csrf'] as const) {
   test(`logout ${failure} failure is honest and retry succeeds`, async ({ page, owner }) => {
     const user = await member(page.request, owner, 'admin', `logout-${failure}`)
-    await login(page, user.email)
+    await login(page, user.email, owner.orgSlug)
     let attempts = 0
     await page.route('**/api/private/auth/logout', async route => {
       attempts++
@@ -158,7 +170,7 @@ for (const failure of ['network', 'server', 'csrf'] as const) {
 
 test('logout handles an already expired session', async ({ page, owner }) => {
   const user = await member(page.request, owner, 'admin', 'expired-session')
-  await login(page, user.email)
+  await login(page, user.email, owner.orgSlug)
   await page.goto('/app/account/profile')
   await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('expired-session')
   await page.getByRole('button', { name: 'Account', exact: true }).click()

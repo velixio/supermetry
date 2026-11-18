@@ -195,3 +195,51 @@ func TestHandlerTransactionNameCap(t *testing.T) {
 		t.Errorf("names %v stats %v", names, e.h.Stats().Snapshot())
 	}
 }
+
+func TestHandlerSpanContainerRetryStoredOnce(t *testing.T) {
+	e, sink := newSpanEnv(t, 1000)
+	body := itemEnv("", v2ItemEnv(v2Container(
+		v2Item(txRoot, "", true, "GET /x", 0, 0.1, "{}"),
+		v2Item("1111111111111111", txRoot, false, "db", 0, 0.01, "{}"))))
+	for range 3 {
+		if w := e.do(post(fdPath, fdQuery, body, nil)); w.Code != 200 {
+			t.Fatal(w.Code)
+		}
+	}
+	if sink.count() != 2 || len(sink.batches) != 1 {
+		t.Errorf("spans %d in %d batches, want 2 in 1", sink.count(), len(sink.batches))
+	}
+	if e.h.Stats().Snapshot()["span_duplicate"] != 4 {
+		t.Errorf("stats %v", e.h.Stats().Snapshot())
+	}
+	// A container with the old span and a new one in the same trace stores only the new one.
+	more := itemEnv("", v2ItemEnv(v2Container(
+		v2Item("1111111111111111", txRoot, false, "db", 0, 0.01, "{}"),
+		v2Item("2222222222222222", txRoot, false, "db", 0, 0.01, "{}"))))
+	if w := e.do(post(fdPath, fdQuery, more, nil)); w.Code != 200 || sink.count() != 3 {
+		t.Fatalf("%d spans=%d, want 3", w.Code, sink.count())
+	}
+	// Different spans in one trace are all stored.
+	e2, sink2 := newSpanEnv(t, 1000)
+	var items []string
+	for i := range 5 {
+		items = append(items, v2Item(fmt.Sprintf("%016x", i+1), txRoot, false, "s", 0, 0.01, "{}"))
+	}
+	e2.do(post(fdPath, fdQuery, itemEnv("", v2ItemEnv(v2Container(items...))), nil))
+	if sink2.count() != 5 {
+		t.Errorf("distinct spans stored %d, want 5", sink2.count())
+	}
+}
+
+func TestHandlerSpanContainerRetryAfterQueueFull(t *testing.T) {
+	e, sink := newSpanEnv(t, 1000)
+	body := itemEnv("", v2ItemEnv(v2Container(v2Item(txRoot, "", true, "GET /x", 0, 0.1, "{}"))))
+	sink.full = true
+	if w := e.do(post(fdPath, fdQuery, body, nil)); w.Code != 503 {
+		t.Fatalf("status %d", w.Code)
+	}
+	sink.full = false
+	if w := e.do(post(fdPath, fdQuery, body, nil)); w.Code != 200 || sink.count() != 1 {
+		t.Fatalf("retry %d spans=%d", w.Code, sink.count())
+	}
+}

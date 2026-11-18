@@ -282,6 +282,10 @@ func (w *Writer) withPartition(ctx context.Context, batch []Span) ([]Span, error
 // prepare keeps the spans that can be written: their day has a partition and
 // their site still exists. Drops are counted once, before any retry.
 func (w *Writer) prepare(ctx context.Context, batch []Span) ([]Span, error) {
+	// A span sent twice inside one flush (a retry racing the recent-key set's
+	// eviction, or another front door) is written once.
+	batch, dup := DedupeBatch(batch)
+	w.count("span_duplicate", dup)
 	batch, err := w.withPartition(ctx, batch)
 	if err != nil {
 		return nil, err

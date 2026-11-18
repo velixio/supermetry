@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useAppAssignees } from '@/features/apps/api'
 import { type AlertRule, useAlerts, useDeleteAlert, useSaveAlert } from '@/features/settings/alertsApi'
 import { useChannels } from '@/features/settings/notificationApi'
+import { uiAlerts as t } from '@/messages/uiAlerts'
 
 import { useMonitors } from './MonitorsPage'
 import { RuleBuilder } from './RuleBuilder'
@@ -28,33 +29,33 @@ export function AppAlertsPage({ orgId, orgSlug, siteId, siteSlug }: { orgId: num
   return (
     <PageContainer width="narrow">
       <PageHeader
-        title="Alerts"
-        description="Rules notify your team about new issues, spikes, crash rates, slow transactions and missed cron jobs."
+        title={t.rules.title}
+        description={t.rules.description}
         actions={(
           <div className="flex gap-2">
-            <Button variant="outline" asChild><Link to="/app/$org/$site/settings/alert-silences" params={{ org: orgSlug, site: siteSlug }}>Silences</Link></Button>
-            <Button onClick={() => setEditing(null)}>Create rule</Button>
+            <Button variant="outline" asChild><Link to="/app/$org/$site/settings/alert-silences" params={{ org: orgSlug, site: siteSlug }}>{t.rules.silences}</Link></Button>
+            <Button onClick={() => setEditing(null)}>{t.rules.create}</Button>
           </div>
         )}
       />
       {failure ? <p role="alert" className="text-sm text-destructive">{failure.message}</p> : null}
       {alerts.data && rules.length === 0 ? (
-        <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">No alert rules yet. Rules notify you about new issues, spikes, crash rates, slow transactions and missed cron jobs.</p>
+        <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.rules.empty}</p>
       ) : null}
       <div className="flex flex-col gap-3">
         {rules.map((alert) => (
-          <section aria-label={`Rule ${alert.name ?? alert.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={alert.id}>
+          <section aria-label={t.rules.ruleAria(String(alert.name ?? alert.id))} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={alert.id}>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-medium">{alert.name}</h2>
-                {alert.enabled ? null : <Badge variant="secondary">Disabled</Badge>}
+                {alert.enabled ? null : <Badge variant="secondary">{t.common.disabled}</Badge>}
               </div>
               <p className="text-sm text-muted-foreground">{describeRule(alert.rule)}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" asChild><Link to="/app/$org/$site/settings/notification-history" params={{ org: orgSlug, site: siteSlug }} search={{ alertId: alert.id }}>History</Link></Button>
-              <Button variant="outline" onClick={() => setEditing(alert)}>Edit</Button>
-              <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(alert.id)}>Delete</Button>
+              <Button variant="outline" asChild><Link to="/app/$org/$site/settings/notification-history" params={{ org: orgSlug, site: siteSlug }} search={{ alertId: alert.id }}>{t.common.history}</Link></Button>
+              <Button variant="outline" onClick={() => setEditing(alert)}>{t.common.edit}</Button>
+              <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(alert.id)}>{t.common.delete}</Button>
             </div>
           </section>
         ))}

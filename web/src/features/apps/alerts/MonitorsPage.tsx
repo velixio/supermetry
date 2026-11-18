@@ -4,6 +4,7 @@ import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { privateRequest } from '@/features/settings/privateApi'
+import { uiAlerts as t } from '@/messages/uiAlerts'
 import type { components } from '@/lib/api.gen'
 
 export type AppMonitor = components['schemas']['AppMonitor']
@@ -24,19 +25,19 @@ export function useMonitorCheckins(siteId: number, monitorId: number | null) {
   })
 }
 
-const STATUS_LABEL: Record<AppMonitor['status'], string> = { ok: 'Healthy', missed: 'Missed', error: 'Failing', timeout: 'Timed out', disabled: 'Disabled' }
+const STATUS_LABEL: Record<AppMonitor['status'], string> = t.monitors.status
 
 /** "every 2 hours" or the cron expression with its time zone. */
 export function describeSchedule(m: Pick<AppMonitor, 'schedule_type' | 'schedule' | 'timezone'>): string {
   if (m.schedule_type === 'interval') {
     const [n, unit] = m.schedule.split(' ')
-    return `every ${n === '1' ? '' : `${n} `}${unit}${n === '1' ? '' : 's'}`
+    return t.monitors.every(n, unit)
   }
   return `${m.schedule} (${m.timezone})`
 }
 
 function when(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : 'never'
+  return value ? new Date(value).toLocaleString() : t.monitors.never
 }
 
 export function MonitorsPage({ siteId, canEdit }: { siteId: number; canEdit: boolean }) {
@@ -55,27 +56,27 @@ export function MonitorsPage({ siteId, canEdit }: { siteId: number; canEdit: boo
   return (
     <PageContainer width="narrow">
       <PageHeader
-        title="Cron monitors"
-        description="Jobs that report with Sentry check-ins. A monitor is created by its first check-in that carries a schedule."
+        title={t.monitors.title}
+        description={t.monitors.description}
       />
       {error ? <p role="alert" className="text-sm text-destructive">{error.message}</p> : null}
       {monitors.data?.monitors.length === 0 ? (
         <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-          No cron monitors yet. Wrap a job with your Sentry SDK's monitor helper and it appears here after its first check-in.
+          {t.monitors.empty}
         </p>
       ) : null}
       <div className="flex flex-col gap-3">
         {monitors.data?.monitors.map((m) => (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={m.id} aria-label={`Monitor ${m.slug}`}>
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={m.id} aria-label={t.monitors.monitorAria(m.slug)}>
             <div>
               <h2 className="font-medium">{m.slug} <span className="text-sm font-normal text-muted-foreground">{m.environment}</span></h2>
               <p className="text-sm text-muted-foreground">{STATUS_LABEL[m.status]} · {describeSchedule(m)}</p>
-              <p className="text-xs text-muted-foreground">Last check-in {when(m.last_checkin_at)} · next expected {m.status === 'disabled' ? 'not scheduled' : when(m.next_expected_at)}</p>
+              <p className="text-xs text-muted-foreground">{t.monitors.lastCheckin(when(m.last_checkin_at), m.status === 'disabled' ? t.monitors.notScheduled : when(m.next_expected_at))}</p>
             </div>
             {canEdit ? (
               <div className="flex gap-2">
-                <Button variant="outline" disabled={toggle.isPending} onClick={() => toggle.mutate(m)}>{m.status === 'disabled' ? 'Enable' : 'Disable'}</Button>
-                <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(m)}>Delete</Button>
+                <Button variant="outline" disabled={toggle.isPending} onClick={() => toggle.mutate(m)}>{m.status === 'disabled' ? t.monitors.enable : t.monitors.disable}</Button>
+                <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(m)}>{t.common.delete}</Button>
               </div>
             ) : null}
           </section>

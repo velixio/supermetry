@@ -80,6 +80,7 @@ type Handler struct {
 	spans     SpanSink
 	budget    *spans.Budget
 	names     *spans.NameCaps
+	recent    *spans.Recent // recently stored span v2 keys, for retried containers
 	logs      LogSink
 	logQuota  *obsquota.Tracker
 }
@@ -101,6 +102,14 @@ func (h *Handler) WithLogs(sink LogSink, quota *obsquota.Tracker) *Handler {
 	h.logs, h.logQuota = sink, quota
 	return h
 }
+
+// RecentSpanKeys bounds the set of span keys remembered to drop a retried span
+// v2 container, and RecentSpanTTL is how long a key counts as a duplicate
+// (a key lives between one and two TTLs). 400000 keys cost about 24 MB.
+const (
+	RecentSpanKeys = 400_000
+	RecentSpanTTL  = 10 * time.Minute
+)
 
 // SpanSink takes parsed spans for storage; Enqueue is all or nothing and
 // reports false when the queue cannot take the whole batch. *spans.Writer is
@@ -129,6 +138,9 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, bodies BodyQueu
 // the SDK is told they are not supported.
 func (h *Handler) WithSpans(sink SpanSink, budget *spans.Budget) *Handler {
 	h.spans, h.budget = sink, budget
+	if h.recent == nil {
+		h.recent = spans.NewRecent(RecentSpanKeys, RecentSpanTTL)
+	}
 	if h.names == nil {
 		h.names = spans.NewNameCaps(MaxTransactionNames)
 	}
@@ -503,13 +515,13 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			if out.eventID == "" {
 				out.eventID = env.Header.EventID
 			}
-			h.ingestSpans(&out, site, it, ctx, now, env.Header.EventID, parseTransaction)
+			h.ingestSpans(&out, site, it, ctx, now, env.Header.EventID, false, parseTransaction)
 		case "span":
 			if !perf || !strings.HasPrefix(it.ContentType, "application/vnd.sentry.items.span.v2") {
 				h.stats.Add("item:span", 1)
 				continue
 			}
-			h.ingestSpans(&out, site, it, ctx, now, "", parseSpanV2)
+			h.ingestSpans(&out, site, it, ctx, now, "", true, parseSpanV2)
 		case "log":
 			h.ingestLogs(&out, site, it, now)
 		case "event":
