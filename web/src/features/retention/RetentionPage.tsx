@@ -42,11 +42,12 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
           <>
             {toolbar}
             {profilesEnabled ? (
-              <Field className="w-44">
-                <FieldLabel htmlFor="retention-identity">Identify visitors by</FieldLabel>
+              <Field className="w-auto">
+                <FieldLabel htmlFor="retention-identity" className="sr-only">Identify visitors by</FieldLabel>
                 <select
-                  className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="retention-identity"
+                  title="Identify visitors by"
                   value={identity}
                   onChange={(event) => onIdentityChange(event.target.value as RetentionIdentity)}
                 >
@@ -55,11 +56,12 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
                 </select>
               </Field>
             ) : null}
-            <Field className="w-44">
-              <FieldLabel htmlFor="retention-interval">Group cohorts by</FieldLabel>
+            <Field className="w-auto">
+              <FieldLabel htmlFor="retention-interval" className="sr-only">Group cohorts by</FieldLabel>
               <select
-                className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="retention-interval"
+                title="Group cohorts by"
                 value={interval}
                 onChange={(event) => onIntervalChange(event.target.value as RetentionInterval)}
               >
