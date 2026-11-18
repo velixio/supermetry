@@ -22,6 +22,9 @@ type appHealthReader interface {
 	SearchEvents(ctx context.Context, scope appquery.Scope, in appquery.IssueQuery, limit int) ([]appquery.EventHit, error)
 	Compatibility(ctx context.Context, scope appquery.Scope, f appquery.Filter) ([]appquery.CompatRow, error)
 	Releases(ctx context.Context, scope appquery.Scope, f appquery.Filter) ([]appquery.ReleaseRow, error)
+	ReleaseDetail(ctx context.Context, scope appquery.Scope, f appquery.Filter, release string) (appquery.ReleaseDetail, error)
+	CompareReleases(ctx context.Context, scope appquery.Scope, f appquery.Filter, a, b string) (appquery.ReleaseComparison, error)
+	FindRegressionRelease(ctx context.Context, scope appquery.Scope, f appquery.Filter, minDrop float64) (*appquery.RegressionHit, error)
 }
 
 var _ appHealthReader = (*appquery.Querier)(nil)
@@ -40,6 +43,7 @@ var (
 	mcpAppToolNames = map[string]bool{
 		"get_app_overview": true, "list_app_issues": true, "get_app_issue": true,
 		"get_app_compatibility": true, "list_app_releases": true, "search_app_events": true,
+		"get_release_health": true, "compare_releases": true, "find_regression_release": true,
 	}
 	mcpWebToolNames = map[string]bool{
 		"get_summary": true, "get_timeseries": true, "get_breakdown": true, "get_realtime": true, "run_funnel": true,
@@ -92,6 +96,21 @@ type mcpAppReleasesInput struct {
 	mcpAppRange
 	Environment string `json:"environment,omitempty"`
 	Platform    string `json:"platform,omitempty"`
+}
+
+type mcpCompareInput struct {
+	mcpAppRange
+	A           string `json:"a"`
+	B           string `json:"b"`
+	Environment string `json:"environment,omitempty"`
+	Platform    string `json:"platform,omitempty"`
+}
+
+type mcpRegressionInput struct {
+	mcpAppRange
+	MinDrop     float64 `json:"min_drop,omitempty"`
+	Environment string  `json:"environment,omitempty"`
+	Platform    string  `json:"platform,omitempty"`
 }
 
 // mcpAppScope is the appquery scope of a site: its time zone and retention.
@@ -180,6 +199,8 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 		issues                         mcpAppIssuesInput
 		searchIn                       mcpAppSearchInput
 		issueID                        int64
+		compare                        mcpCompareInput
+		regression                     mcpRegressionInput
 	)
 	switch name {
 	case "get_app_overview", "get_app_issue":
@@ -221,6 +242,31 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 			return nil, invalidMCPParams{err.Error()}
 		}
 		rng, environment, platform = in.mcpAppRange, in.Environment, in.Platform
+	case "get_release_health":
+		var in mcpAppFilterInput
+		if err := decodeMCPParams(arguments, &in); err != nil {
+			return nil, invalidMCPParams{err.Error()}
+		}
+		if in.Release == "" {
+			return nil, invalidMCPParams{detail: "release is required"}
+		}
+		rng, release, environment, platform = in.mcpAppRange, in.Release, in.Environment, in.Platform
+	case "compare_releases":
+		if err := decodeMCPParams(arguments, &compare); err != nil {
+			return nil, invalidMCPParams{err.Error()}
+		}
+		if compare.A == "" || compare.B == "" || len(compare.A) > mcpAppMaxRelease || len(compare.B) > mcpAppMaxRelease {
+			return nil, invalidMCPParams{detail: "a and b are required release names"}
+		}
+		rng, environment, platform = compare.mcpAppRange, compare.Environment, compare.Platform
+	case "find_regression_release":
+		if err := decodeMCPParams(arguments, &regression); err != nil {
+			return nil, invalidMCPParams{err.Error()}
+		}
+		if regression.MinDrop < 0 || regression.MinDrop > 1 {
+			return nil, invalidMCPParams{detail: "min_drop must be between 0 and 1"}
+		}
+		rng, environment, platform = regression.mcpAppRange, regression.Environment, regression.Platform
 	default:
 		return nil, invalidMCPParams{detail: "unknown tool " + strconv.Quote(name)}
 	}
@@ -279,8 +325,20 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 		if rows, err = h.deps.AppHealth.Releases(ctx, scope, f); err == nil {
 			out = map[string]any{"releases": rows}
 		}
+	case "get_release_health":
+		out, err = h.deps.AppHealth.ReleaseDetail(ctx, scope, f, release)
+	case "compare_releases":
+		out, err = h.deps.AppHealth.CompareReleases(ctx, scope, f, compare.A, compare.B)
+	case "find_regression_release":
+		var hit *appquery.RegressionHit
+		if hit, err = h.deps.AppHealth.FindRegressionRelease(ctx, scope, f, regression.MinDrop); err == nil {
+			out = map[string]any{"regression": hit}
+		}
 	}
 	if err != nil {
+		if errors.Is(err, appquery.ErrNotFound) && (name == "get_release_health" || name == "compare_releases") {
+			return nil, invalidMCPParams{detail: "release not found"}
+		}
 		return nil, mcpAppError(err)
 	}
 	return out, nil
@@ -407,6 +465,18 @@ func mcpAppTools() []MCPTool {
 			return s
 		}()},
 		{Name: "get_app_compatibility", Description: "App projects only. Crash and error rates by OS version, architecture and device class.", InputSchema: schema(rangeProps(map[string]any{"platform": filters["platform"]}))},
+		{Name: "get_release_health", Description: "App projects only. One release: crash-free sessions and users, adoption, a per-day rollout series (adoption and crash-free), deploys, new and regressed issues and the commit count. Commit authors are never returned.", InputSchema: func() map[string]any {
+			s := schema(rangeProps(map[string]any{"release": filters["release"], "environment": filters["environment"], "platform": filters["platform"]}))
+			s["required"] = []string{"site", "release"}
+			return s
+		}()},
+		{Name: "compare_releases", Description: "App projects only. Two releases side by side over a period: crash-free deltas (b minus a), new issues and the issues seen only in b.", InputSchema: func() map[string]any {
+			s := schema(rangeProps(map[string]any{"a": str(mcpAppMaxRelease), "b": str(mcpAppMaxRelease), "environment": filters["environment"], "platform": filters["platform"]}))
+			s["required"] = []string{"site", "a", "b"}
+			return s
+		}()},
+		{Name: "find_regression_release", Description: "App projects only. The newest release whose crash-free sessions fell by at least min_drop (default 0.01, a fraction) below the release before it, ignoring releases with fewer than 100 sessions; null when none did.", InputSchema: schema(rangeProps(map[string]any{
+			"min_drop": map[string]any{"type": "number", "minimum": 0, "maximum": 1}, "environment": filters["environment"], "platform": filters["platform"]}))},
 		{Name: "list_app_releases", Description: "App projects only. Releases with their sessions, crash-free rates and new issues.", InputSchema: schema(rangeProps(map[string]any{"environment": filters["environment"], "platform": filters["platform"]}))},
 	}
 }
