@@ -25,6 +25,8 @@ import {
   PinIcon,
   PinOffIcon,
   PlusIcon,
+  CheckIcon,
+  FlaskConicalIcon,
   RouteIcon,
   Rows3Icon,
   SettingsIcon,
@@ -347,29 +349,57 @@ export function useCurrentRoute(): CurrentRoute {
   return { routeId, search }
 }
 
-/** The organisations part of the switcher: every membership, then "Add organization". */
-export function OrganizationMenuGroup({ me, onSelect }: { me: Me; onSelect: () => void }) {
+/** Small muted section heading inside the switcher menu. */
+const switcherLabelClass = 'px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground'
+
+/** The square that holds an icon or initial in a switcher row, so every row lines up on one 20px column. */
+function SwitcherGlyph({ children, dashed = false }: { children: ReactNode; dashed?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex size-5 shrink-0 items-center justify-center rounded-md border text-[0.6875rem] font-semibold text-muted-foreground ${dashed ? 'border-dashed' : 'bg-muted'}`}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** Trailing tick for the row the user is on; screen readers hear "(current)" instead. */
+function CurrentMark() {
+  return (
+    <>
+      <CheckIcon aria-hidden="true" className="ml-auto size-4 text-foreground" />
+      <span className="sr-only">{ui.sidebar.current}</span>
+    </>
+  )
+}
+
+/** Action rows ("Add site", "Add organization") are muted with a dashed glyph, so they read as commands, not destinations. */
+const switcherActionClass = 'text-muted-foreground'
+
+/** The organisations part of the switcher: every membership (the current one ticked), then "Add organization". */
+export function OrganizationMenuGroup({ me, onSelect, currentOrgId }: { me: Me; onSelect: () => void; currentOrgId?: number }) {
   const current = useCurrentRoute()
   return (
     <>
-      <DropdownMenuLabel>{en.navigation.organizations}</DropdownMenuLabel>
+      <DropdownMenuLabel className={switcherLabelClass}>{en.navigation.organizations}</DropdownMenuLabel>
       <DropdownMenuGroup>
-        {me.memberships.map((item) => (
-          <DropdownMenuItem key={item.org.id} asChild>
-            {(() => {
-              // Stay on the same organization-level page when the new organization has it.
-              const target = orgSwitchTarget(current, item)
-              return (
-                <Link to={target.pathname as never} search={target.search as never} onClick={onSelect}>
-                  {item.org.name}
-                </Link>
-              )
-            })()}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuItem asChild>
+        {me.memberships.map((item) => {
+          // Stay on the same organization-level page when the new organization has it.
+          const target = orgSwitchTarget(current, item)
+          return (
+            <DropdownMenuItem key={item.org.id} asChild>
+              <Link to={target.pathname as never} search={target.search as never} onClick={onSelect}>
+                <SwitcherGlyph>{item.org.name.trim().charAt(0).toUpperCase()}</SwitcherGlyph>
+                <span className="min-w-0 flex-1 truncate">{item.org.name}</span>
+                {item.org.id === currentOrgId ? <CurrentMark /> : null}
+              </Link>
+            </DropdownMenuItem>
+          )
+        })}
+        <DropdownMenuItem asChild className={switcherActionClass}>
           <Link to="/app/account/organizations/new" onClick={onSelect}>
-            <PlusIcon />
+            <SwitcherGlyph dashed><PlusIcon className="size-3.5" /></SwitcherGlyph>
             {en.navigation.addOrganization}
           </Link>
         </DropdownMenuItem>
@@ -552,40 +582,37 @@ export function SupermetrySidebar({
               <ChevronsUpDownIcon aria-hidden="true" className="ml-auto group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-56">
-            <DropdownMenuLabel>{en.navigation.projects}</DropdownMenuLabel>
-            <DropdownMenuGroup>
-              {membership.sites.map((item) => (
-                <DropdownMenuItem key={item.id} asChild>
-                  <Link
-                    to={siteSwitchTarget(current, membership, item).pathname as never}
-                    search={siteSwitchTarget(current, membership, item).search as never}
-                    onClick={closeMobile}
-                  >
-                    <SiteIcon iconUrl={item.icon_url} name={item.name} size={24} />
-                    <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                    {item.is_demo ? <Badge variant="secondary">{ui.sidebar.demo}</Badge> : null}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-              {canCreateSites(membership.role) ? (
-                <DropdownMenuItem asChild>
-                  <Link
-                    to="/app/$org/sites/new"
-                    params={{ org: membership.org.slug }}
-                    onClick={closeMobile}
-                  >
-                    <PlusIcon />
+          <DropdownMenuContent align="start" className="w-(--radix-dropdown-menu-trigger-width) min-w-64 max-w-80">
+            <DropdownMenuLabel className={switcherLabelClass}>{en.navigation.projects}</DropdownMenuLabel>
+            <DropdownMenuGroup className="max-h-72 overflow-y-auto">
+              {membership.sites.map((item) => {
+                const target = siteSwitchTarget(current, membership, item)
+                return (
+                  <DropdownMenuItem key={item.id} asChild>
+                    <Link to={target.pathname as never} search={target.search as never} onClick={closeMobile}>
+                      <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} className="rounded-md" />
+                      <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                      {item.is_demo ? <Badge variant="secondary">{ui.sidebar.demo}</Badge> : null}
+                      {item.kind && item.kind !== 'web' ? <span className="text-xs text-muted-foreground">{ui.sidebar.kinds[item.kind]}</span> : null}
+                      {!orgScope && item.id === site?.id ? <CurrentMark /> : null}
+                    </Link>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuGroup>
+            {canCreateSites(membership.role) ? (
+              <DropdownMenuGroup>
+                <DropdownMenuItem asChild className={switcherActionClass}>
+                  <Link to="/app/$org/sites/new" params={{ org: membership.org.slug }} onClick={closeMobile}>
+                    <SwitcherGlyph dashed><PlusIcon className="size-3.5" /></SwitcherGlyph>
                     {en.navigation.addSite}
                   </Link>
                 </DropdownMenuItem>
-              ) : null}
-              {canCreateSites(membership.role) && demoStateKnown && !hasDemo ? (
-                <AddDemoProjectItem membership={membership} />
-              ) : null}
-            </DropdownMenuGroup>
+                {demoStateKnown && !hasDemo ? <AddDemoProjectItem membership={membership} /> : null}
+              </DropdownMenuGroup>
+            ) : null}
             <DropdownMenuSeparator />
-            <OrganizationMenuGroup me={me} onSelect={closeMobile} />
+            <OrganizationMenuGroup currentOrgId={membership.org.id} me={me} onSelect={closeMobile} />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarHeader>
@@ -647,11 +674,12 @@ function AddDemoProjectItem({ membership }: { membership: Membership }) {
   const createDemo = useCreateDemo({ id: membership.org.id, slug: membership.org.slug })
   return (
     <DropdownMenuItem
+      className={switcherActionClass}
       disabled={createDemo.isPending}
       onSelect={() => createDemo.mutate()}
     >
-      <PlusIcon />
-      {createDemo.isPending ? 'Adding demo project…' : 'Add demo project'}
+      <SwitcherGlyph dashed><FlaskConicalIcon className="size-3.5" /></SwitcherGlyph>
+      {createDemo.isPending ? ui.sidebar.addingDemo : ui.sidebar.addDemo}
     </DropdownMenuItem>
   )
 }

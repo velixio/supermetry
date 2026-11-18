@@ -82,6 +82,6 @@ describe('AccountSidebar', () => {
 
   it('offers only Add organization to a user without memberships', async () => {
     const menu = await openSwitcher(await show('/app/account/profile', { ...me, memberships: [] }))
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['+ Add organization'])
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Add organization'])
   })
 })

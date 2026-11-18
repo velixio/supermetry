@@ -47,6 +47,7 @@ const messages: MessageTree = {
     deleteBody: (name: string) => `“${name}” মুছবেন? এটি ফিরিয়ে আনা যাবে না।`, deleting: 'মোছা হচ্ছে…', delete: 'সেগমেন্ট মুছুন',
   },
   sidebar: {
+    kinds: { web: 'ওয়েবসাইট', app: 'অ্যাপ', pixel: 'পিক্সেল' }, current: '(বর্তমান)', addDemo: 'ডেমো প্রকল্প যোগ করুন', addingDemo: 'ডেমো প্রকল্প যোগ করা হচ্ছে…',
     demo: 'ডেমো', chooseOrganization: 'প্রতিষ্ঠান বেছে নিন',
     organizationScope: 'প্রতিষ্ঠান',
     pinned: 'পিন করা',

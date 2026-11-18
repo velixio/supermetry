@@ -83,6 +83,7 @@ export const ui = {
     delete: 'Delete segment',
   },
   sidebar: {
+    kinds: { web: 'Website', app: 'App', pixel: 'Pixel' }, current: '(current)', addDemo: 'Add demo project', addingDemo: 'Adding demo project…',
     demo: 'Demo', chooseOrganization: 'Choose organization',
     organizationScope: 'Organization',
     pinned: 'Pinned',

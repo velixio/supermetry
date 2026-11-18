@@ -373,6 +373,17 @@ describe('AppShell live visitor badge', () => {
     expect(within(menu).getByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
   })
 
+  it('marks the current project and organization and keeps add actions free of a literal plus', async () => {
+    renderShell('/app/acme/docs/settings/general')
+    const sidebar = await screen.findByRole('complementary', { name: 'Application sidebar' })
+    fireEvent.pointerDown(within(sidebar).getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    const menu = await screen.findByRole('menu')
+    const names = within(menu).getAllByRole('menuitem').map((item) => item.textContent)
+    expect(names).toEqual(['OOther', 'DDocs(current)', 'Add site', 'AAcme(current)', 'Add organization'])
+    expect(within(menu).getByRole('menuitem', { name: /Docs.*\(current\)/ })).toHaveAttribute('href', '/app/acme/docs/settings/general')
+    expect(within(menu).queryByRole('menuitem', { name: /Other.*\(current\)/ })).toBeNull()
+  })
+
   it.each(['viewer', 'editor'] as const)('hides Add site from the switcher for a %s', async (role) => {
     renderShell('/app/acme/docs/settings/general', { ...membership, role })
     const sidebar = await screen.findByRole('complementary', { name: 'Application sidebar' })

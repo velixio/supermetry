@@ -84,6 +84,7 @@ const messages: MessageTree = {
     delete: 'Eliminar segmento',
   },
   sidebar: {
+    kinds: { web: 'Sitio web', app: 'App', pixel: 'Píxel' }, current: '(actual)', addDemo: 'Añadir proyecto de demostración', addingDemo: 'Añadiendo proyecto de demostración…',
     demo: 'Demo', chooseOrganization: 'Elegir organización',
     organizationScope: 'Organización',
     pinned: 'Fijados',

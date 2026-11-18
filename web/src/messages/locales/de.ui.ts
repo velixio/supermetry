@@ -84,6 +84,7 @@ const messages: MessageTree = {
     delete: 'Segment löschen',
   },
   sidebar: {
+    kinds: { web: 'Website', app: 'App', pixel: 'Pixel' }, current: '(aktuell)', addDemo: 'Demoprojekt hinzufügen', addingDemo: 'Demoprojekt wird hinzugefügt …',
     demo: 'Demo', chooseOrganization: 'Organisation wählen',
     organizationScope: 'Organisation',
     pinned: 'Angeheftet',
