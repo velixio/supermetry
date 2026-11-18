@@ -369,3 +369,7 @@ func str(v any) string {
 	s, _ := v.(string)
 	return s
 }
+
+// IsSensitiveKey reports whether an attribute key names a credential, cookie,
+// address or similar value that must never be stored.
+func IsSensitiveKey(k string) bool { return isSensitiveKey(k) }

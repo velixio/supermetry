@@ -54,6 +54,7 @@ import (
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
 	"supermetry/internal/obslogs"
+	"supermetry/internal/obsmetrics"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
@@ -539,6 +540,11 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// The log writer starts its own flush goroutine; the OTLP and Sentry log
 	// front doors enqueue into it. Close flushes it before the pool closes.
 	logWriter := obslogs.NewWriter(pool, obslogs.WriterConfig{Now: settings.clock.Now}, obslogs.HealthStats{})
+	metricRegistry, err := obsmetrics.LoadRegistry(ctx, pool, obsmetrics.DefaultSeriesCap)
+	if err != nil {
+		return fmt.Errorf("load metric series: %w", err)
+	}
+	metricWriter := obsmetrics.NewWriter(pool, metricRegistry, obsmetrics.WriterConfig{}, obsmetrics.HealthStats{})
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
@@ -555,7 +561,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
 		sentryHandler.WithSessions(appSessions)
 		sentryIngest = sentryHandler
-		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now)
+		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now).
+			WithMetrics(metricWriter, obsmetrics.NewQuota(obsmetrics.DefaultDailyQuota), obsmetrics.HealthStats{})
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -644,6 +651,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	spanWriterCtx, cancelSpanWriter := context.WithCancel(context.Background())
 	spanWriterDone := make(chan error, 1)
 	go func() { spanWriterDone <- spanWriter.Run(spanWriterCtx) }()
+	metricWriterCtx, cancelMetricWriter := context.WithCancel(context.Background())
+	metricWriterDone := make(chan error, 1)
+	go func() { metricWriterDone <- metricWriter.Run(metricWriterCtx) }()
 	appBodiesDone := make(chan error, 1)
 	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
 	appReportsDone := make(chan error, 1)
@@ -816,6 +826,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	cancelSpanWriter()
 	cause = errors.Join(cause, <-spanWriterDone)
 	logWriter.Close()
+	cancelMetricWriter()
+	cause = errors.Join(cause, <-metricWriterDone)
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
@@ -1643,13 +1655,17 @@ func civilDay(value time.Time) time.Time {
 	return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// ensureSpanPartitions pre-creates the daily spans partitions from daysBack
+// ensureSpanPartitions pre-creates the daily spans and metric_points partitions from daysBack
 // days ago to 3 days ahead. Startup goes 13 days back (late spans are accepted
 // that long); the hourly job only 1, so retention is not undone every hour.
 // The span writer never runs DDL: a span whose day has no partition is dropped
 // and counted.
 func ensureSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, daysBack int) error {
-	return db.EnsureDailyPartitions(ctx, pool, "spans", now.AddDate(0, 0, -daysBack), now.AddDate(0, 0, 3))
+	from, to := now.AddDate(0, 0, -daysBack), now.AddDate(0, 0, 3)
+	if err := db.EnsureDailyPartitions(ctx, pool, "spans", from, to); err != nil {
+		return err
+	}
+	return db.EnsureDailyPartitions(ctx, pool, "metric_points", from, to)
 }
 
 // ensureLogPartitions pre-creates the daily logs partitions from yesterday to
