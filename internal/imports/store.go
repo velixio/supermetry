@@ -196,14 +196,15 @@ func (s *Store) SetRunning(ctx context.Context, id int64) error {
 }
 
 func (s *Store) SetFailed(ctx context.Context, id int64, cause error) error {
+	// A failed pull never resumes, so its stored credentials are dropped
+	// first: once the status reads failed the secret is already gone.
+	if _, err := s.pool.Exec(ctx, `update import_pulls set credentials=null where import_id=$1`, id); err != nil {
+		return err
+	}
 	tag, err := s.pool.Exec(ctx, `
 		update imports set status='failed',error=$2,completed_at=now()
 		where id=$1`, id, cause.Error())
 	if err != nil {
-		return err
-	}
-	// A failed pull never resumes, so its stored credentials are dropped.
-	if _, err := s.pool.Exec(ctx, `update import_pulls set credentials=null where import_id=$1`, id); err != nil {
 		return err
 	}
 	if tag.RowsAffected() != 1 {
@@ -212,8 +213,6 @@ func (s *Store) SetFailed(ctx context.Context, id int64, cause error) error {
 	return nil
 }
 
-// ImportLocation resolves the current site timezone when the worker starts so
-// timestamp-based exports are bucketed with the same civil-day rule as live data.
 func (s *Store) ImportLocation(ctx context.Context, id int64) (*time.Location, error) {
 	var timezone string
 	err := s.pool.QueryRow(ctx, `
