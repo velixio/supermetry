@@ -767,6 +767,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	ruleEvaluator.WithActions(appissues.New(pool, settings.clock.Now), issueNotifier)
 	ruleEvaluator.SetMetricSource(alerts.NewMetricStore(pool, alerts.NewPerfStore(pool), registry))
 	ruleEvaluator.WithMonitors(appMonitorStore)
+	ruleEvaluator.SetSilences(alertService)
 	jobs = append(jobs, ruleEvaluator.Job(), appmonitors.Job(appMonitorStore))
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),

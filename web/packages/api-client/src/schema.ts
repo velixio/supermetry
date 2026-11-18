@@ -4063,6 +4063,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/alert-silences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** List silences and maintenance windows of a site */
+        get: operations["listAlertSilences"];
+        put?: never;
+        /** Create a silence or maintenance window (owner, admin, editor; at most 50 active or future per site) */
+        post: operations["createAlertSilence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/alert-silences/{silence}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                silence: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a silence or maintenance window */
+        delete: operations["deleteAlertSilence"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/notification-history": {
         parameters: {
             query?: never;
@@ -4611,9 +4651,63 @@ export interface components {
             rows: components["schemas"]["SearchConsoleTopRow"][];
         };
         /** @enum {string} */
-        NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram";
-        /** @enum {string} */
-        DeliveryStatus: "pending" | "succeeded" | "failed";
+        NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram" | "none";
+        /**
+         * @description suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
+         * @enum {string}
+         */
+        DeliveryStatus: "pending" | "succeeded" | "failed" | "suppressed";
+        AlertSilence: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            /**
+             * Format: int64
+             * @description Absent for a silence covering every rule of the site.
+             */
+            alert_id?: number;
+            /** @enum {string} */
+            kind: "silence" | "maintenance";
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at?: string;
+            /** @description Maintenance only; 0 is Sunday. */
+            weekdays?: number[];
+            /** @description Maintenance only; HH:MM wall clock in tz. */
+            start_time?: string;
+            duration_minutes?: number;
+            /** @description IANA time zone of the maintenance window. */
+            tz?: string;
+            reason: string;
+            /** Format: int64 */
+            created_by?: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AlertSilenceInput: {
+            /** Format: int64 */
+            alert_id?: number;
+            /** @enum {string} */
+            kind: "silence" | "maintenance";
+            /**
+             * Format: date-time
+             * @description Defaults to now.
+             */
+            starts_at?: string;
+            /**
+             * Format: date-time
+             * @description Required for a silence; optional end of a maintenance recurrence.
+             */
+            ends_at?: string;
+            weekdays?: number[];
+            start_time?: string;
+            duration_minutes?: number;
+            /** @description Defaults to the site time zone. */
+            tz?: string;
+            reason?: string;
+        };
         RevenueReportRow: {
             /** @description Group label; empty for direct or unknown. */
             key: string;
@@ -15260,6 +15354,87 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAlertSilences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Silences newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AlertSilence"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createAlertSilence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertSilenceInput"];
+            };
+        };
+        responses: {
+            /** @description Created silence. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertSilence"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAlertSilence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                silence: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listNotificationHistory: {

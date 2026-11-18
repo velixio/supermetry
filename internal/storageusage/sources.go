@@ -14,6 +14,7 @@ type Source struct {
 var sourceRegistry = []Source{
 	{Table: "alert_delivery_log", Category: CategoryAuxiliary},
 	{Table: "alert_incidents", Category: CategoryAuxiliary},
+	{Table: "alert_silences", Category: CategoryAuxiliary},
 	{Table: "alerts", Category: CategoryAuxiliary},
 	{Table: "annotations", Category: CategoryAuxiliary},
 	{Table: "cohorts", Category: CategoryAuxiliary},
