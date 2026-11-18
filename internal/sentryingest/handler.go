@@ -14,6 +14,8 @@ import (
 	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
+	"supermetry/internal/obslogs"
+	"supermetry/internal/obsquota"
 	"supermetry/internal/salts"
 	"supermetry/internal/sites"
 	"supermetry/internal/spans"
@@ -68,6 +70,26 @@ type Handler struct {
 	spans     SpanSink
 	budget    *spans.Budget
 	names     *spans.NameCaps
+	logs      LogSink
+	logQuota  *obsquota.Tracker
+}
+
+// LogSink takes parsed log records; *obslogs.Writer implements it. Enqueue
+// returns how many records it accepted (a prefix), the rest were refused
+// because its queue is full.
+type LogSink interface {
+	Enqueue([]obslogs.Record) int
+}
+
+// MaxLogItemBytes caps one log item's payload (up to 1,000 records).
+const MaxLogItemBytes = 4 << 20
+
+// WithLogs turns Sentry log items on: they go to sink, limited by the site's
+// daily quota in quota (nil = unlimited). Without it log items are counted and
+// dropped and the SDK is told they are not supported.
+func (h *Handler) WithLogs(sink LogSink, quota *obsquota.Tracker) *Handler {
+	h.logs, h.logQuota = sink, quota
+	return h
 }
 
 // SpanSink takes parsed spans for storage; Enqueue is all or nothing and
@@ -364,7 +386,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		h.fail(w, http.StatusTooManyRequests, "rate limited")
 	default:
-		limits := unsupportedLimits(h.perfOn(site))
+		limits := unsupportedLimits(h.perfOn(site), h.logs != nil)
+		if out.logLimited > 0 {
+			limits += "," + logLimits
+		}
 		if out.spanLimited > 0 {
 			limits += "," + spanLimits
 		}
@@ -380,6 +405,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type outcome struct {
 	accepted, rateLimited, queueFull int
 	spanLimited                      int // items over the span budget (also counted in rateLimited when nothing fit)
+	logLimited                       int // log items over the daily quota
 	eventID                          string
 }
 
@@ -432,6 +458,8 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				continue
 			}
 			h.ingestSpans(&out, site, it, ctx, now, "", parseSpanV2)
+		case "log":
+			h.ingestLogs(&out, site, it, now)
 		case "event":
 			if out.eventID == "" {
 				out.eventID = env.Header.EventID
