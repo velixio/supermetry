@@ -271,6 +271,60 @@ bytes and values of at most 2000 bytes.
    paths that contain home folders. Strip them from stack frames before
    sending.
 
+## Native and mobile symbols
+
+Android, iOS, macOS and Linux crashes show readable function names, files and
+lines once the matching debug files are uploaded. Upload them with the standard
+Sentry tools; only the server address and token change.
+
+1. In the project's **Settings, Installation**, create an **upload token** (see
+   [Upload source maps](source-maps.md)). It is the only secret you set.
+2. Upload with the tool you already use:
+   - **Android Gradle plugin**: in `build.gradle`, set `sentry { url = "https://<your host>/" }` and
+     provide the token as `SENTRY_AUTH_TOKEN` (or `authToken`). The plugin uploads the ProGuard/R8
+     mapping and, when enabled, the native libraries' symbols.
+   - **Xcode**: the build phase of the Sentry iOS guide runs `sentry-cli debug-files upload`; set
+     `SENTRY_URL`, `SENTRY_AUTH_TOKEN` and `SENTRY_PROJECT` in the phase's environment.
+   - **By hand**: `sentry-cli debug-files upload <dir>` for dSYM bundles, Mach-O and ELF files
+     (shared libraries and executables with DWARF or a symbol table), and
+     `sentry-cli upload-proguard --uuid <uuid> mapping.txt` for ProGuard/R8 mappings.
+3. Open **Settings, Symbols** to see every uploaded file and its state, and the
+   debug files that events asked for and nobody uploaded.
+
+Events are symbolicated as they arrive, so a file uploaded later does not rewrite
+events that are already stored. An event whose symbols are missing shows a banner
+naming the missing file (for example "Missing debug file for libfixture.so") with
+a link to **Symbols** and to this guide; the same list is on that settings page.
+System libraries (`/system`, `/usr/lib`, `/apex`, `libc.so`) are never listed:
+nobody uploads symbols for them.
+
+What is supported:
+
+| File | Used for |
+|---|---|
+| ProGuard / R8 `mapping.txt` | Class, method and line names of Java and Kotlin frames, and the exception class. Matched by the mapping UUID the app reports. |
+| Mach-O (thin or fat) with DWARF, dSYM bundles | iOS and macOS frames. A fat file serves every architecture; the event's own slice is used. |
+| ELF with DWARF or a symbol table | Android NDK and Linux frames. The GNU build ID is the match key. |
+
+Stored but not used for symbolication: bitcode symbol maps, PE/PDB, WASM and
+source bundles (`--include-sources`). Uploads of these succeed so the tool never
+fails a build. Split DWARF (`.dwo`, `.dwp`) gives function names only, without
+lines. Swift and C++ names are shown as the debug info spells them: there is no
+demangler yet.
+
+Limits: each file is capped by `SUPERMETRY_DIF_MAX_MB` (default 512, the whole
+file is parsed in memory while its cache is built, one file at a time), and
+uploaded files count toward the organization's storage cap. The converted caches
+live on disk under the data directory, bounded by `SUPERMETRY_SYMCACHE_DISK_MB`.
+
+Out-of-memory kills and watchdog terminations are listed as their own issue kinds
+(`oom`, `watchdog`), and the project overview breaks events and crash-free rates
+down by platform.
+
+`make sdk-compat-debugfiles` replays the command lines of the Gradle plugin and of
+the Xcode build phase with `sentry-cli` against a real server and checks that each
+file is listed with a usable cache.
+
 ## Checking delivery
 
 The **Data health** page lists every dropped event by reason: bot user agent, host
