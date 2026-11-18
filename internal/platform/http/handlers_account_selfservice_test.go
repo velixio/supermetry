@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -125,6 +126,26 @@ func TestAccountSelfServiceHTTP(t *testing.T) {
 		fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"sites_view":"table"}}`, true)
 		persisted, _ := fixture.store.UserByID(context.Background(), fixture.userID)
 		if persisted.Preferences.Locale != "de" || persisted.Preferences.SitesView != "table" {
+			t.Fatalf("preferences = %+v", persisted.Preferences)
+		}
+	})
+
+	t.Run("summary collapsed preference is stored and merged", func(t *testing.T) {
+		fixture := newAccountHTTPFixture(t, &mail.Fake{})
+		for _, collapsed := range []bool{true, false} {
+			body := `{"preferences":{"summary_collapsed":` + strconv.FormatBool(collapsed) + `}}`
+			if got := fixture.request(t, http.MethodPatch, "/api/private/me", body, true); got.Code != http.StatusOK {
+				t.Fatalf("body=%s status=%d response=%s", body, got.Code, got.Body.String())
+			}
+			persisted, err := fixture.store.UserByID(context.Background(), fixture.userID)
+			if err != nil || persisted.Preferences.SummaryCollapsed != collapsed {
+				t.Fatalf("collapsed %v persisted as %+v err=%v", collapsed, persisted.Preferences, err)
+			}
+		}
+		fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"summary_collapsed":true}}`, true)
+		fixture.request(t, http.MethodPatch, "/api/private/me", `{"preferences":{"sites_view":"table"}}`, true)
+		persisted, _ := fixture.store.UserByID(context.Background(), fixture.userID)
+		if !persisted.Preferences.SummaryCollapsed || persisted.Preferences.SitesView != "table" {
 			t.Fatalf("preferences = %+v", persisted.Preferences)
 		}
 	})

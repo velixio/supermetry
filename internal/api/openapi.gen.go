@@ -6600,8 +6600,9 @@ type UpdateCurrentUserRequest struct {
 		LastSiteId  *int32                                          `json:"last_site_id,omitempty"`
 
 		// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
-		Locale    *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
-		SitesView *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
+		Locale           *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
+		SitesView        *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
+		SummaryCollapsed *bool                                         `json:"summary_collapsed,omitempty"`
 	} `json:"preferences,omitempty"`
 }
 
@@ -6651,6 +6652,9 @@ type UserPreferences struct {
 	// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
 	Locale    *UserPreferencesLocale   `json:"locale,omitempty"`
 	SitesView UserPreferencesSitesView `json:"sites_view"`
+
+	// SummaryCollapsed True hides the plain-language summary above the dashboard metrics; absent or false shows it.
+	SummaryCollapsed *bool `json:"summary_collapsed,omitempty"`
 }
 
 // UserPreferencesLandingPage defines model for UserPreferences.LandingPage.

@@ -19,10 +19,11 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Name        *string `json:"name"`
 		Preferences *struct {
-			LandingPage *string         `json:"landing_page"`
-			SitesView   *string         `json:"sites_view"`
-			LastSiteID  json.RawMessage `json:"last_site_id"`
-			Locale      *string         `json:"locale"`
+			LandingPage      *string         `json:"landing_page"`
+			SitesView        *string         `json:"sites_view"`
+			LastSiteID       json.RawMessage `json:"last_site_id"`
+			Locale           *string         `json:"locale"`
+			SummaryCollapsed *bool           `json:"summary_collapsed"`
 		} `json:"preferences"`
 	}
 	if !decodeJSON(w, r, &request) {
@@ -62,6 +63,9 @@ func (h *handler) updateMe(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			merged.SitesView = *request.Preferences.SitesView
+		}
+		if request.Preferences.SummaryCollapsed != nil {
+			merged.SummaryCollapsed = *request.Preferences.SummaryCollapsed
 		}
 		if request.Preferences.Locale != nil {
 			if !store.SupportedLocales[*request.Preferences.Locale] {

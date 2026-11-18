@@ -5888,6 +5888,8 @@ export interface components {
             sites_view: "cards" | "table";
             /** Format: int32 */
             last_site_id?: number | null;
+            /** @description True hides the plain-language summary above the dashboard metrics; absent or false shows it. */
+            summary_collapsed?: boolean;
             /**
              * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
              * @enum {string}
@@ -5903,6 +5905,7 @@ export interface components {
                 sites_view?: "cards" | "table";
                 /** Format: int32 */
                 last_site_id?: number | null;
+                summary_collapsed?: boolean;
                 /**
                  * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
                  * @enum {string}
