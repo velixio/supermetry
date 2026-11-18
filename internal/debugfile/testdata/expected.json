@@ -1,0 +1,449 @@
+{
+ "objects": [
+  {
+   "file": "fix-linux-arm64",
+   "base": 65536,
+   "cases": [
+    {
+     "addr": 556904,
+     "frames": [
+      {
+       "function": "main.alpha",
+       "file": "./fixture.go",
+       "line": 10
+      }
+     ]
+    },
+    {
+     "addr": 556928,
+     "frames": [
+      {
+       "function": "main.alpha",
+       "file": "./fixture.go",
+       "line": 13
+      }
+     ]
+    },
+    {
+     "addr": 556952,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 17
+      }
+     ]
+    },
+    {
+     "addr": 556976,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 19
+      }
+     ]
+    },
+    {
+     "addr": 557048,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 25
+      }
+     ]
+    },
+    {
+     "addr": 557072,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 27
+      }
+     ]
+    },
+    {
+     "addr": 557176,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 34
+      }
+     ]
+    },
+    {
+     "addr": 557200,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 35
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "file": "fix-linux-amd64",
+   "base": 4194304,
+   "cases": [
+    {
+     "addr": 4709224,
+     "frames": [
+      {
+       "function": "main.alpha",
+       "file": "./fixture.go",
+       "line": 11
+      }
+     ]
+    },
+    {
+     "addr": 4709256,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 17
+      }
+     ]
+    },
+    {
+     "addr": 4709280,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 19
+      }
+     ]
+    },
+    {
+     "addr": 4709352,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 25
+      }
+     ]
+    },
+    {
+     "addr": 4709376,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 27
+      }
+     ]
+    },
+    {
+     "addr": 4709480,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 34
+      }
+     ]
+    },
+    {
+     "addr": 4709504,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 34
+      }
+     ]
+    },
+    {
+     "addr": 4709544,
+     "frames": [
+      {
+       "function": "main.main",
+       "file": "./fixture.go",
+       "line": 38
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "file": "fix-darwin-arm64",
+   "base": 4294967296,
+   "cases": [
+    {
+     "addr": 4295443816,
+     "frames": [
+      {
+       "function": "main.alpha",
+       "file": "./fixture.go",
+       "line": 10
+      }
+     ]
+    },
+    {
+     "addr": 4295443840,
+     "frames": [
+      {
+       "function": "main.alpha",
+       "file": "./fixture.go",
+       "line": 13
+      }
+     ]
+    },
+    {
+     "addr": 4295443864,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 17
+      }
+     ]
+    },
+    {
+     "addr": 4295443888,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 19
+      }
+     ]
+    },
+    {
+     "addr": 4295443960,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 25
+      }
+     ]
+    },
+    {
+     "addr": 4295443984,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 27
+      }
+     ]
+    },
+    {
+     "addr": 4295444088,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 34
+      }
+     ]
+    },
+    {
+     "addr": 4295444112,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 35
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "file": "fix-darwin-amd64",
+   "base": 16777216,
+   "cases": [
+    {
+     "addr": 17275272,
+     "frames": [
+      {
+       "function": "main.alpha",
+       "file": "./fixture.go",
+       "line": 11
+      }
+     ]
+    },
+    {
+     "addr": 17275304,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 17
+      }
+     ]
+    },
+    {
+     "addr": 17275328,
+     "frames": [
+      {
+       "function": "main.beta",
+       "file": "./fixture.go",
+       "line": 19
+      }
+     ]
+    },
+    {
+     "addr": 17275400,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 25
+      }
+     ]
+    },
+    {
+     "addr": 17275424,
+     "frames": [
+      {
+       "function": "main.gamma",
+       "file": "./fixture.go",
+       "line": 27
+      }
+     ]
+    },
+    {
+     "addr": 17275528,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 34
+      }
+     ]
+    },
+    {
+     "addr": 17275552,
+     "frames": [
+      {
+       "function": "main.delta",
+       "file": "./fixture.go",
+       "line": 34
+      }
+     ]
+    },
+    {
+     "addr": 17275592,
+     "frames": [
+      {
+       "function": "main.main",
+       "file": "./fixture.go",
+       "line": 38
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "file": "libfix.so",
+   "base": 0,
+   "cases": [
+    {
+     "addr": 4369,
+     "frames": [
+      {
+       "function": "fix_plain",
+       "file": "././fixture.c",
+       "line": 16
+      }
+     ]
+    },
+    {
+     "addr": 4375,
+     "frames": [
+      {
+       "function": "fix_plain",
+       "file": "././fixture.c",
+       "line": 17
+      }
+     ]
+    },
+    {
+     "addr": 4345,
+     "frames": [
+      {
+       "function": "fix_outer",
+       "file": "././fixture.c",
+       "line": 9
+      }
+     ]
+    },
+    {
+     "addr": 4348,
+     "frames": [
+      {
+       "function": "helper",
+       "file": "././fixture.c",
+       "line": 3
+      },
+      {
+       "function": "fix_outer",
+       "file": "././fixture.c",
+       "line": 10
+      }
+     ]
+    },
+    {
+     "addr": 4357,
+     "frames": [
+      {
+       "function": "helper",
+       "file": "././fixture.c",
+       "line": 4
+      },
+      {
+       "function": "fix_outer",
+       "file": "././fixture.c",
+       "line": 10
+      }
+     ]
+    },
+    {
+     "addr": 4362,
+     "frames": [
+      {
+       "function": "helper",
+       "file": "././fixture.c",
+       "line": 5
+      },
+      {
+       "function": "fix_outer",
+       "file": "././fixture.c",
+       "line": 10
+      }
+     ]
+    },
+    {
+     "addr": 4365,
+     "frames": [
+      {
+       "function": "fix_outer",
+       "file": "././fixture.c",
+       "line": 11
+      }
+     ]
+    },
+    {
+     "addr": 4368,
+     "frames": [
+      {
+       "function": "fix_outer",
+       "file": "././fixture.c",
+       "line": 13
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

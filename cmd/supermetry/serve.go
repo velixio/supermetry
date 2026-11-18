@@ -27,12 +27,14 @@ import (
 
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
+	"supermetry/internal/appdebug"
 	"supermetry/internal/appingest"
 	"supermetry/internal/appissues"
 	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
 	"supermetry/internal/appsessions"
+	"supermetry/internal/breakpad"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
@@ -53,6 +55,7 @@ import (
 	"supermetry/internal/integrations/stripe"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
+	"supermetry/internal/obslogs"
 	"supermetry/internal/obsmetrics"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/otlpingest"
@@ -91,6 +94,7 @@ import (
 	"supermetry/internal/spanrollup"
 	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
+	"supermetry/internal/symcache"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
 )
@@ -236,6 +240,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	now := settings.clock.Now()
 	if err := ensureSpanPartitions(ctx, pool, now, 13); err != nil {
 		return fmt.Errorf("ensure startup span partitions: %w", err)
+	}
+	if err := ensureLogPartitions(ctx, pool, now); err != nil {
+		return fmt.Errorf("ensure startup log partitions: %w", err)
 	}
 	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead)); err != nil {
 		return fmt.Errorf("ensure startup partitions: %w", err)
@@ -505,9 +512,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	ipRate, siteRate, globalRate := clampIngestRates(slog.Default(), cfg.IngestRateIP, cfg.IngestRateSite, cfg.IngestRateGlobal)
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
+	nativeCache := sentryapi.CacheBuilder{Version: symcache.Version, Build: symcache.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
 		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20,
-		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}}})
+		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}, "breakpad": {Version: 1, Build: breakpad.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}, "elf": nativeCache, "macho": nativeCache}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
@@ -533,6 +541,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		}
 	})
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
+	// The log writer starts its own flush goroutine; the OTLP and Sentry log
+	// front doors enqueue into it. Close flushes it before the pool closes.
+	logWriter := obslogs.NewWriter(pool, obslogs.WriterConfig{Now: settings.clock.Now}, obslogs.HealthStats{})
 	metricRegistry, err := obsmetrics.LoadRegistry(ctx, pool, obsmetrics.DefaultSeriesCap)
 	if err != nil {
 		return fmt.Errorf("load metric series: %w", err)
@@ -542,18 +553,23 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
+	var symbolMisses *appdebug.MissRecorder
 	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+		symbolMisses = appdebug.NewMissRecorder(pool, 10*time.Second, appdebug.DefaultMaxKeys)
+		symbolMisses.SetStats(sentryHandler.Stats())
+		symbolMisses.Start()
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
 			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
-			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
+			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver(), sentryingest.NativeResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
+			Misses: symbolMisses,
 		})
 		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
-		sentryHandler.WithSessions(appSessions)
+		sentryHandler.WithSessions(appSessions).WithProductSessions(appProduct)
 		sentryIngest = sentryHandler
 		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now).
 			WithMetrics(metricWriter, obsmetrics.NewQuota(obsmetrics.DefaultDailyQuota), obsmetrics.HealthStats{})
@@ -701,6 +717,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	ruleEvaluator := alerts.NewRuleEvaluator(alertService, alertService, appAlertStore, appAlertStore, alertDispatcher, registry, settings.clock.Now,
+		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
+			health.AlertDeliveryFailures.Add(1)
+			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
+		})
+	ruleEvaluator.SetMetricSource(alerts.NewMetricStore(pool, alerts.NewPerfStore(pool), registry))
+	jobs = append(jobs, ruleEvaluator.Job())
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
 		appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
@@ -812,6 +835,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if symbolicator != nil {
 		symbolicator.Close()
 	}
+	// Workers may report misses until the queue drains; write what is left.
+	if symbolMisses != nil {
+		symbolMisses.Close()
+	}
 	// Session updates are queued by the handler too; flush them first.
 	if appSessions != nil {
 		appSessions.Close()
@@ -819,6 +846,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// Stop the span writer: it drains on cancel, before the app writer.
 	cancelSpanWriter()
 	cause = errors.Join(cause, <-spanWriterDone)
+	logWriter.Close()
 	cancelMetricWriter()
 	cause = errors.Join(cause, <-metricWriterDone)
 	cancelAppWriter()
@@ -1268,6 +1296,9 @@ func scheduledJobs(
 			if err := ensureSpanPartitions(ctx, pool, now, 1); err != nil {
 				return err
 			}
+			if err := ensureLogPartitions(ctx, pool, now); err != nil {
+				return err
+			}
 			return db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead))
 		}},
 		{Name: "retention", Every: time.Hour, Run: func(ctx context.Context) error {
@@ -1656,4 +1687,11 @@ func ensureSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time
 		return err
 	}
 	return db.EnsureDailyPartitions(ctx, pool, "metric_points", from, to)
+}
+
+// ensureLogPartitions pre-creates the daily logs partitions from yesterday to
+// 3 days ahead. The log writer never runs DDL: a record whose day has no
+// partition is dropped and counted.
+func ensureLogPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	return db.EnsureDailyPartitions(ctx, pool, "logs", now.AddDate(0, 0, -1), now.AddDate(0, 0, 3))
 }

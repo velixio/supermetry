@@ -146,17 +146,29 @@ func isPE(r io.ReaderAt, size int64) bool {
 }
 
 func detectBreakpad(head []byte, name string) ([]Object, error) {
-	line, _, _ := bytes.Cut(head, []byte("\n"))
-	f := strings.Fields(string(line))
+	line, rest, _ := bytes.Cut(head, []byte("\n"))
 	// MODULE <os> <arch> <id> [name]
-	if len(f) < 4 {
+	f := strings.SplitN(strings.TrimRight(string(line), "\r"), " ", 5)
+	if len(f) < 4 || f[0] != "MODULE" {
 		return nil, fmt.Errorf("%w: invalid breakpad module header", ErrUnsupported)
 	}
-	id := NormalizeDebugID(f[3])
+	id := BreakpadDebugID(f[3])
 	if id == "" {
 		return nil, fmt.Errorf("%w: invalid breakpad debug id", ErrUnsupported)
 	}
-	return []Object{{Kind: "breakpad", DebugID: id, Arch: clipArch(f[2]), Name: name, Features: []string{"symtab"}}}, nil
+	if len(f) == 5 && strings.TrimSpace(f[4]) != "" {
+		name = clipName(f[4])
+	}
+	var codeID string
+	for i := 0; i < 4 && len(rest) > 0; i++ { // INFO CODE_ID follows the MODULE line
+		var l []byte
+		l, rest, _ = bytes.Cut(rest, []byte("\n"))
+		if c := strings.Fields(string(l)); len(c) >= 3 && c[0] == "INFO" && c[1] == "CODE_ID" {
+			codeID = clipArch(c[2])
+			break
+		}
+	}
+	return []Object{{Kind: "breakpad", DebugID: id, CodeID: codeID, Arch: clipArch(f[2]), Name: name, Features: []string{"symtab"}}}, nil
 }
 
 func looksLikeProguard(head []byte) bool {

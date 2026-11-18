@@ -101,6 +101,9 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 	if err := ensureDailyIfTable(ctx, tx, "spans", from, to); err != nil {
 		return err
 	}
+	if err := ensureDailyIfTable(ctx, tx, "logs", from, to); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit partition creation: %w", err)
 	}
