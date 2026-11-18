@@ -217,3 +217,19 @@ func TestWriterDeletedSiteSkipped(t *testing.T) {
 		t.Fatalf("rows = %d", n)
 	}
 }
+
+func TestWriterDropsRepeatedSpansInABatch(t *testing.T) {
+	pool := fixture(t, "UTC")
+	st := &countStats{}
+	w := newTestWriter(pool, WriterConfig{Flush: time.Hour}, st, nil)
+	a, b := mkSpan(1, testNow), mkSpan(2, testNow)
+	w.Enqueue([]Span{a, b})
+	w.Enqueue([]Span{a, b, a})
+	w.flushAll(context.Background())
+	if n := count(t, pool); n != 2 {
+		t.Fatalf("rows = %d, want 2", n)
+	}
+	if st.get("span_duplicate") != 3 {
+		t.Errorf("span_duplicate = %d, want 3", st.get("span_duplicate"))
+	}
+}
