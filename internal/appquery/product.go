@@ -193,16 +193,16 @@ order by 1`, append(args, w.fromDay)...)
 // of by (release, platform, country, os or device). The share divides by the
 // distinct installs active that day.
 func (q *Querier) Adoption(ctx context.Context, scope Scope, f Filter, by string) ([]AdoptionRow, error) {
-	return q.adoption(ctx, scope, f, by, false)
+	return q.productAdoption(ctx, scope, f, by, false)
 }
 
 // AdoptionTotals is Adoption over the whole range: installs are distinct
 // across the range and the share divides by the distinct installs of the range.
 func (q *Querier) AdoptionTotals(ctx context.Context, scope Scope, f Filter, by string) ([]AdoptionRow, error) {
-	return q.adoption(ctx, scope, f, by, true)
+	return q.productAdoption(ctx, scope, f, by, true)
 }
 
-func (q *Querier) adoption(ctx context.Context, scope Scope, f Filter, by string, total bool) ([]AdoptionRow, error) {
+func (q *Querier) productAdoption(ctx context.Context, scope Scope, f Filter, by string, total bool) ([]AdoptionRow, error) {
 	expr, ok := adoptionColumns[by]
 	if !ok {
 		return nil, invalid("by must be one of release, platform, country, os, device")
