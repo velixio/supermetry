@@ -52,7 +52,10 @@ Copyright 2006, Google Inc. All rights reserved.
 
 The platform ids, ARM64 context flags and CodeView signatures in
 internal/minidump are taken from the minidump_format.h header of Breakpad,
-which is distributed under the BSD 3-Clause License:
+which is distributed under the BSD 3-Clause License. The record grammar of
+the symbol-file reader in internal/breakpad follows Breakpad's public
+documentation (docs/symbol_files.md, same license); no Breakpad code is used.
+The license text:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:

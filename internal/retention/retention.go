@@ -45,6 +45,7 @@ var eraseTables = []string{
 	"app_erasure_requests",
 	"app_artifact_files",
 	"app_debug_files",
+	"app_missing_debug_files",
 	"app_client_reports",
 	"spans",
 	"logs",
@@ -83,6 +84,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 	}
 	if err := deleteExpiredAppRollups(ctx, pool, now); err != nil {
 		return nil, err
+	}
+	// Missing-symbols rows are transient hints, not site data: a fixed 30 days
+	// of silence ends them whatever the retention class.
+	if _, err := pool.Exec(ctx, "delete from app_missing_debug_files where last_seen < $1", now.AddDate(0, 0, -30)); err != nil {
+		return nil, fmt.Errorf("delete stale missing debug files: %w", err)
 	}
 	var expired []db.Partition
 	for _, table := range []string{"events", "sessions"} {

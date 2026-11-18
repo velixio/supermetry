@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { useFunnelResult } = vi.hoisted(() => ({ useFunnelResult: vi.fn() }))
 
@@ -18,6 +18,8 @@ describe('FunnelsPage', () => {
   beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn()
   })
+
+  afterEach(cleanup)
 
   beforeEach(() => {
     useFunnelResult.mockReset().mockReturnValue({ data: undefined })
@@ -57,5 +59,13 @@ describe('FunnelsPage', () => {
       'visitors',
       '24h',
     )
+  })
+
+  it('offers Count by installs on app projects', () => {
+    render(<FunnelsPage app siteId={7} dateRange={{ from: '2026-10-01', to: '2026-10-07' }} />)
+    fireEvent.click(screen.getByRole('combobox', { name: 'Count by' }))
+    expect(screen.queryByRole('option', { name: 'Visitors' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('option', { name: 'Installs' }))
+    expect(useFunnelResult).toHaveBeenLastCalledWith(7, { from: '2026-10-01', to: '2026-10-07' }, [], 'visitors', 'session')
   })
 })

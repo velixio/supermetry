@@ -1,6 +1,7 @@
 package sentryingest
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/appproduct"
 	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
@@ -30,6 +32,12 @@ type NormaliseFunc func(raw []byte, ctx EventContext, site sites.Site, now time.
 // counts the loss). Phase 1a has no consumer yet: a nil queue discards bodies.
 type BodyQueue interface {
 	Enqueue(appingest.Body) bool
+}
+
+// ProductSink takes the start of a Sentry SDK session as a product session.
+// *appproduct.Adapter is the production one.
+type ProductSink interface {
+	AcceptSession(ctx context.Context, site sites.Site, s appproduct.SessionStart) appproduct.Outcome
 }
 
 // SessionQueue takes session updates for the state table. Enqueue must not
@@ -56,6 +64,7 @@ type Handler struct {
 	bodies    BodyQueue
 	reports   ClientReportSink
 	sessions  SessionQueue
+	product   ProductSink
 	feedback  FeedbackSink
 	geo       GeoLookup
 	trusted   []netip.Prefix
@@ -139,6 +148,30 @@ func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r
 
 // WithSessions sets where session updates go; nil discards them.
 func (h *Handler) WithSessions(q SessionQueue) *Handler { h.sessions = q; return h }
+
+// WithProductSessions turns on app product sessions: each session init that
+// carries a device id also counts as an app open for product analytics. nil
+// turns it off.
+func (h *Handler) WithProductSessions(p ProductSink) *Handler { h.product = p; return h }
+
+// productSession hands a session start to the product sink. A start with no
+// device id (browser SDKs) has no install to count and is only tallied. A
+// retried envelope is a duplicate on the init row and must not count twice,
+// so only an accepted init row passes.
+func (h *Handler) productSession(site sites.Site, start *appproduct.SessionStart, res appingest.Outcome, hasRow bool) {
+	if h.product == nil || start == nil || !hasRow {
+		return
+	}
+	if start.InstallID == "" {
+		h.stats.Add("session_no_install", 1)
+		return
+	}
+	if res.Reason != "" {
+		return
+	}
+	// The product adapter counts its own drops and full queues.
+	h.product.AcceptSession(context.Background(), site, *start)
+}
 
 // WithFeedback sets where scrubbed user reports go; nil counts and discards
 // them.
@@ -516,7 +549,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				}
 			}
 		case "session", "sessions":
-			events, updates, err := ParseSession(it.Payload, ctx, site, now)
+			events, updates, start, err := parseSession(it.Payload, ctx, site, now)
 			if err != nil {
 				h.stats.Add("session_invalid", 1)
 				h.intake.Drop(site, now, dropstats.AppInvalid)
@@ -527,6 +560,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				evRes = h.intake.Accept(site, budgetKey, now, ev)
 				count(evRes)
 			}
+			h.productSession(site, start, evRes, len(events) == 1)
 			for _, u := range updates {
 				if u.Init && len(events) == 1 {
 					// The init row's Accept already took the budget. A retried

@@ -27,12 +27,14 @@ import (
 
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
+	"supermetry/internal/appdebug"
 	"supermetry/internal/appingest"
 	"supermetry/internal/appissues"
 	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
 	"supermetry/internal/appsessions"
+	"supermetry/internal/breakpad"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
@@ -93,6 +95,7 @@ import (
 	"supermetry/internal/spanrollup"
 	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
+	"supermetry/internal/symcache"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
 )
@@ -510,9 +513,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	ipRate, siteRate, globalRate := clampIngestRates(slog.Default(), cfg.IngestRateIP, cfg.IngestRateSite, cfg.IngestRateGlobal)
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
+	nativeCache := sentryapi.CacheBuilder{Version: symcache.Version, Build: symcache.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
 		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20,
-		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}}})
+		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}, "breakpad": {Version: 1, Build: breakpad.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}, "elf": nativeCache, "macho": nativeCache}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
@@ -555,18 +559,23 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
+	var symbolMisses *appdebug.MissRecorder
 	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+		symbolMisses = appdebug.NewMissRecorder(pool, 10*time.Second, appdebug.DefaultMaxKeys)
+		symbolMisses.SetStats(sentryHandler.Stats())
+		symbolMisses.Start()
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
 			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
-			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
+			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver(), sentryingest.NativeResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
+			Misses: symbolMisses,
 		})
 		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget).WithLogs(logWriter, obsQuota)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
-		sentryHandler.WithSessions(appSessions)
+		sentryHandler.WithSessions(appSessions).WithProductSessions(appProduct)
 		sentryIngest = sentryHandler
 		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now).
 			WithMetrics(metricWriter, obsQuota, obsmetrics.HealthStats{}).
@@ -716,6 +725,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	ruleEvaluator := alerts.NewRuleEvaluator(alertService, alertService, appAlertStore, appAlertStore, alertDispatcher, registry, settings.clock.Now,
+		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
+			health.AlertDeliveryFailures.Add(1)
+			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
+		})
+	ruleEvaluator.SetMetricSource(alerts.NewMetricStore(pool, alerts.NewPerfStore(pool), registry))
+	jobs = append(jobs, ruleEvaluator.Job())
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
 		appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
@@ -826,6 +842,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// Drain the symbolication queue into the intake before the writer stops.
 	if symbolicator != nil {
 		symbolicator.Close()
+	}
+	// Workers may report misses until the queue drains; write what is left.
+	if symbolMisses != nil {
+		symbolMisses.Close()
 	}
 	// Session updates are queued by the handler too; flush them first.
 	if appSessions != nil {

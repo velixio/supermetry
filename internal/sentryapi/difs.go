@@ -465,9 +465,23 @@ func (h *Handler) buildCaches(ctx context.Context, orgID, uploadID int64, checks
 		if _, err := h.deps.Pool.Exec(ctx, `update app_debug_files set cache_state='ok', cache_version=$5, cache_key=$6, cache_size=$7, features=$8, detail=null
 			where upload_id=$1 and debug_id=$2 and kind=$3 and arch=$4`, uploadID, o.DebugID, o.Kind, o.Arch, b.Version, key, csize, features); err != nil {
 			slog.Error("sentryapi: record cache", "upload", uploadID, "err", err)
+			continue
 		}
+		h.clearMissing(ctx, orgID, uploadID, o)
 	}
 	return
+}
+
+// clearMissing removes the missing-symbols rows a freshly usable object
+// covers: same kind and debug id, in the projects the upload targets.
+func (h *Handler) clearMissing(ctx context.Context, orgID, uploadID int64, o debugfile.Object) {
+	if _, err := h.deps.Pool.Exec(ctx, `
+		delete from app_missing_debug_files m using sites s
+		where s.id = m.site_id and s.org_id = $1 and m.kind = $2 and m.debug_id = $3
+		  and exists (select 1 from app_debug_files f where f.upload_id = $4 and f.kind = m.kind and f.debug_id = m.debug_id
+		              and (f.site_id is null or f.site_id = m.site_id))`, orgID, o.Kind, o.DebugID, uploadID); err != nil {
+		slog.Error("sentryapi: clear missing debug files", "upload", uploadID, "err", err)
+	}
 }
 
 // dropOldCaches deletes the cache blobs an object had before a rebuild, once

@@ -88,6 +88,7 @@ func newLinkFixture(t *testing.T) linkFixture {
 		"owner":         {UserID: userID, OrgID: orgID, Role: authz.RoleOwner},
 		"editor":        {UserID: userID, OrgID: orgID, Role: authz.RoleEditor},
 		"viewer":        {UserID: userID, OrgID: orgID, Role: authz.RoleViewer},
+		"admin":         {UserID: userID, OrgID: orgID, Role: authz.RoleAdmin},
 		"other-editor":  {UserID: userID, OrgID: orgID, Role: authz.RoleEditor, SiteIDs: []int32{otherSite}},
 		"foreign-owner": {UserID: userID, OrgID: foreignOrgID, Role: authz.RoleOwner},
 		"key":           {KeyID: 11, OrgID: orgID, Role: authz.RoleKey, Scopes: []string{"stats:read", "sites:write"}},

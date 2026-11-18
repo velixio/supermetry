@@ -46,7 +46,7 @@ func (k AlertKind) IsApp() bool {
 // the given kind (an empty or unknown site kind counts as a web site).
 func (k AlertKind) AllowedOnSiteKind(siteKind string) bool {
 	if siteKind == sites.KindApp {
-		return k.IsApp()
+		return k.IsApp() || k == AlertRule
 	}
 	switch k {
 	case AlertTrafficSpike, AlertTrafficDrop, AlertGoalReached:

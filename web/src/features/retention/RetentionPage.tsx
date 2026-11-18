@@ -18,11 +18,12 @@ type RetentionPageProps = {
   interval: RetentionInterval
   identity: RetentionIdentity
   profilesEnabled: boolean
+  app?: boolean
   onIntervalChange: (interval: RetentionInterval) => void
   onIdentityChange: (identity: RetentionIdentity) => void
 }
 
-function RetentionContent({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange }: RetentionPageProps) {
+function RetentionContent({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange, app = false }: RetentionPageProps) {
   const report = useRetentionReport(siteId, dateRange, filters, interval, identity)
 
   return (
@@ -32,7 +33,7 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
         description={
           identity === 'profile'
             ? 'See how many identified users return in later cohort periods.'
-            : 'See how many daily identities return for another session on the same day.'
+            : app ? 'See how many installs return in later cohort periods.' : 'See how many daily identities return for another session on the same day.'
         }
         actions={
           <>
