@@ -77,7 +77,7 @@ const debugFilesGuideURL = 'https://github.com/velixio/supermetry/blob/main/docs
 const shortId = (id: string) => `${id.slice(0, 8)}…`
 
 /** Native and JVM events: names the debug files or ProGuard mappings that were not uploaded. */
-function MissingSymbolsBanner({ missing, status }: { missing: { kind?: string; debug_id?: string; code_file?: string }[]; status: string }) {
+function MissingSymbolsBanner({ missing, status, settings }: { missing: { kind?: string; debug_id?: string; code_file?: string }[]; status: string; settings?: { org: string; site: string } }) {
   return (
     <div role="status" aria-label="Missing symbols" className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm">
       <p className="font-medium">{status === 'partial' ? 'Some frames could not be resolved: symbols are missing' : 'Stack frames are not symbolicated: symbols are missing'}</p>
@@ -90,7 +90,7 @@ function MissingSymbolsBanner({ missing, status }: { missing: { kind?: string; d
           </li>
         ))}
       </ul>
-      <p className="mt-1 text-muted-foreground">Events that arrive after the upload resolve; stored events are not rewritten. <a className="font-medium text-foreground underline" href={debugFilesGuideURL}>Upload guide</a></p>
+      <p className="mt-1 text-muted-foreground">Events that arrive after the upload resolve; stored events are not rewritten. {settings ? <><Link className="font-medium text-foreground underline" to="/app/$org/$site/settings/symbols" params={settings}>Symbols settings</Link>{' · '}</> : null}<a className="font-medium text-foreground underline" href={debugFilesGuideURL}>Upload guide</a></p>
     </div>
   )
 }
@@ -105,13 +105,13 @@ function KeyValues({ entries }: { entries: [string, unknown][] }) {
   )
 }
 
-export function EventBodyView({ body, source }: { body: unknown; source?: AttachmentSource }) {
+export function EventBodyView({ body, source, settings }: { body: unknown; source?: AttachmentSource; settings?: { org: string; site: string } }) {
   const view = readBody(body)
   const nothing = !view.message && view.exceptions.length === 0 && view.breadcrumbs.length === 0 && view.contexts.length === 0 && view.tags.length === 0
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {(view.symbolication === 'missing' || view.symbolication === 'partial') && view.missingDebug.length > 0
-        ? <MissingSymbolsBanner missing={view.missingDebug} status={view.symbolication} />
+        ? <MissingSymbolsBanner missing={view.missingDebug} status={view.symbolication} settings={settings} />
         : <SourceMapsBanner status={view.symbolication} release={view.release} />}
       {view.message ? <Card><CardHeader><CardTitle className="text-base">Message</CardTitle></CardHeader><CardContent><p className="break-words text-sm">{view.message}</p></CardContent></Card> : null}
       {view.exceptions.map((exception, i) => <ExceptionBlock key={i} exception={exception} index={i} total={view.exceptions.length} />)}
@@ -167,7 +167,7 @@ export function EventDetail({ org, site, siteId, issueId, eventId }: { org: stri
     <PageContainer>
       <PageHeader title="Event" description={<span>{event.data.ts.slice(0, 19).replace('T', ' ')} · <span className="font-mono">{event.data.event_id}</span></span>} />
       {back}
-      <EventBodyView body={event.data.body} source={{ siteId, eventId: event.data.event_id }} />
+      <EventBodyView body={event.data.body} source={{ siteId, eventId: event.data.event_id }} settings={{ org, site }} />
     </PageContainer>
   )
 }
