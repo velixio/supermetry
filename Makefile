@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps sdk-compat-releases envelope-bench bench-otlp-metrics bench bench-full bench-compare bench-otlp-logs sdk-compat-debugfiles
+.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps sdk-compat-releases envelope-bench bench-otlp-metrics bench bench-full bench-compare bench-otlp-logs sdk-compat-debugfiles bench-log-search
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -47,6 +47,13 @@ bench-otlp-metrics:
 # OTLP logs intake load test (records/s written): ENVELOPE_BENCH_MINUTES=5 make bench-otlp-logs
 bench-otlp-logs:
 	ENVELOPE_BENCH_OTLP_LOGS=1 bash tools/bench/envelope/run.sh
+
+# Log search p95 on a 7-day, 12M-row dataset in a scratch database (drops and recreates it; needs
+# SUPERMETRY_DATABASE_URL pointing at a server where it may create databases). Run through the bench lock:
+# make bench-log-search LOG_BENCH_SCALE=0.1 for a quick check.
+bench-log-search:
+	go run ./tools/bench/logs load -scale $(or $(LOG_BENCH_SCALE),1)
+	go run ./tools/bench/logs search
 
 accuracy-live:
 	python3 tools/bench/accuracy/compare_live.py --live --creds "$(ACCURACY_CREDS)"

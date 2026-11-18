@@ -29,6 +29,7 @@ import (
 	"supermetry/internal/ingest"
 	"supermetry/internal/integrations/stripe"
 	"supermetry/internal/minutes"
+	"supermetry/internal/obslogs"
 	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authn"
 	"supermetry/internal/platform/authz"
@@ -159,7 +160,7 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 	})
 	router := api.NewRouter(api.Deps{
 		Config: config.Config{EventPath: "/api/public/v1/events", TrackerPath: "/js/script.js", Tracking: config.TrackingMode{Mode: privacy.Identified}},
-		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry), AppQuery: appquery.New(pool, func() time.Time { return now }), AppIssues: appissues.New(pool, func() time.Time { return now }),
+		Query:  engine, SessionExplore: engine, Heatmaps: heatmap.New(pool, registry), AppQuery: appquery.New(pool, func() time.Time { return now }), AppIssues: appissues.New(pool, func() time.Time { return now }), AppLogs: &obslogs.Reader{Pool: pool, Now: func() time.Time { return now }},
 		PublicAuth: analyticsAuthenticator, PrivateAuth: analyticsAuthenticator, Sites: registry,
 		Platform: platform, Sessions: live, MinuteSource: minutes.NewStore(pool), Dictionary: dictionary,
 		Now: func() time.Time { return now }, RateLimitNow: func() time.Time { return now },

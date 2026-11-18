@@ -5089,6 +5089,35 @@ type NotificationTemplateList struct {
 	Variables []string               `json:"variables"`
 }
 
+// ObsLog defines model for ObsLog.
+type ObsLog struct {
+	Attributes  map[string]interface{} `json:"attributes"`
+	Body        string                 `json:"body"`
+	Environment string                 `json:"environment"`
+	Release     string                 `json:"release"`
+	Service     string                 `json:"service"`
+
+	// Severity OTLP severity number; 0 when unset.
+	Severity int `json:"severity"`
+
+	// SeverityText trace, debug, info, warn, error or fatal; empty when unset.
+	SeverityText string `json:"severity_text"`
+
+	// SpanId 16 hex characters; absent without a span.
+	SpanId *string `json:"span_id,omitempty"`
+
+	// TraceId 32 hex characters; absent without a trace.
+	TraceId   *string   `json:"trace_id,omitempty"`
+	Truncated bool      `json:"truncated"`
+	Ts        time.Time `json:"ts"`
+}
+
+// ObsLogPage defines model for ObsLogPage.
+type ObsLogPage struct {
+	Data       []ObsLog `json:"data"`
+	NextCursor *string  `json:"next_cursor"`
+}
+
 // ObsMetricInfo defines model for ObsMetricInfo.
 type ObsMetricInfo struct {
 	AttributeKeys []string          `json:"attribute_keys"`
@@ -6751,6 +6780,32 @@ type ListNotificationHistoryParams struct {
 	Limit   *int                     `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// SearchObsLogsParams defines parameters for SearchObsLogs.
+type SearchObsLogsParams struct {
+	// Q Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+	// case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+	// or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+	// 32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// From Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.
+	To    *time.Time `form:"to,omitempty" json:"to,omitempty"`
+	Limit *int       `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor The `next_cursor` of the previous page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListObsTraceLogsParams defines parameters for ListObsTraceLogs.
+type ListObsTraceLogsParams struct {
+	// Around RFC 3339 centre of the window, usually the time of the error or span.
+	Around *time.Time `form:"around,omitempty" json:"around,omitempty"`
+	Limit  *int       `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // PixelStatsParams defines parameters for PixelStats.
 type PixelStatsParams struct {
 	From  *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
@@ -6943,6 +6998,25 @@ type ListEventsParams struct {
 	Filter *Filters `form:"filter,omitempty" json:"filter,omitempty"`
 	Cursor *Cursor  `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *int     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// SearchObsLogsPublicParams defines parameters for SearchObsLogsPublic.
+type SearchObsLogsPublicParams struct {
+	// Q Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+	// case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+	// or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+	// 32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// From Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.
+	To    *time.Time `form:"to,omitempty" json:"to,omitempty"`
+	Limit *int       `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor The `next_cursor` of the previous page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // ListProfilesParams defines parameters for ListProfiles.
@@ -8345,12 +8419,18 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+	// SearchObsLogs Search an app project's logs, newest first
+	// (GET /api/private/sites/{site}/obs/logs)
+	SearchObsLogs(w http.ResponseWriter, r *http.Request, site int32, params SearchObsLogsParams)
 	// ListObsMetrics List the metric names of an app project
 	// (GET /api/private/sites/{site}/obs/metrics)
 	ListObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
 	// QueryObsMetrics Query one metric as time series
 	// (POST /api/private/sites/{site}/obs/metrics/query)
 	QueryObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
+	// ListObsTraceLogs The logs of one trace, oldest first
+	// (GET /api/private/sites/{site}/obs/traces/{trace_id}/logs)
+	ListObsTraceLogs(w http.ResponseWriter, r *http.Request, site int32, traceId string, params ListObsTraceLogsParams)
 
 	// (GET /api/private/sites/{site}/pixels)
 	ListPixels(w http.ResponseWriter, r *http.Request, site int32)
@@ -8531,6 +8611,9 @@ type ServerInterface interface {
 	// CreateGoal Create a goal
 	// (POST /api/public/v1/sites/{site_id}/goals)
 	CreateGoal(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// SearchObsLogsPublic Search an app project's logs, newest first
+	// (GET /api/public/v1/sites/{site_id}/obs/logs)
+	SearchObsLogsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID, params SearchObsLogsPublicParams)
 	// ListObsMetricsPublic List the metric names of an app project
 	// (GET /api/public/v1/sites/{site_id}/obs/metrics)
 	ListObsMetricsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID)
@@ -15689,6 +15772,100 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
+// SearchObsLogs operation middleware
+func (siw *ServerInterfaceWrapper) SearchObsLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchObsLogsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchObsLogs(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListObsMetrics operation middleware
 func (siw *ServerInterfaceWrapper) ListObsMetrics(w http.ResponseWriter, r *http.Request) {
 
@@ -15732,6 +15909,70 @@ func (siw *ServerInterfaceWrapper) QueryObsMetrics(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.QueryObsMetrics(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListObsTraceLogs operation middleware
+func (siw *ServerInterfaceWrapper) ListObsTraceLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "trace_id" -------------
+	var traceId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "trace_id", r.PathValue("trace_id"), &traceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trace_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListObsTraceLogsParams
+
+	// ------------- Optional query parameter "around" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "around", r.URL.Query(), &params.Around, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "around"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "around", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsTraceLogs(w, r, site, traceId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18125,6 +18366,100 @@ func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// SearchObsLogsPublic operation middleware
+func (siw *ServerInterfaceWrapper) SearchObsLogsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchObsLogsPublicParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchObsLogsPublic(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListObsMetricsPublic operation middleware
 func (siw *ServerInterfaceWrapper) ListObsMetricsPublic(w http.ResponseWriter, r *http.Request) {
 
@@ -19511,6 +19846,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.UpdateSite)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.ListGoals)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.CreateGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/logs", wrapper.SearchObsLogsPublic)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/profiles", wrapper.ListProfiles)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sessions/{session_id}", wrapper.GetSession)
@@ -19551,6 +19887,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erase", wrapper.EraseAppUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/logs", wrapper.SearchObsLogs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/traces/{trace_id}/logs", wrapper.ListObsTraceLogs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/bulk", wrapper.BulkUpdateAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/views", wrapper.ListAppSavedViews)

@@ -48,6 +48,7 @@ func (h *handler) registerPublic(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/public/v1/stats/summary", h.publicStats)
 	mux.HandleFunc("GET /api/public/v1/sites/{site}/obs/metrics", h.listObsMetrics)
 	mux.HandleFunc("POST /api/public/v1/sites/{site}/obs/metrics/query", h.queryObsMetrics)
+	mux.HandleFunc("GET /api/public/v1/sites/{site}/obs/logs", h.searchObsLogs)
 	mux.HandleFunc("GET /api/public/v1/sites/{site}/app/product/active-users", h.getAppActiveUsers)
 	mux.HandleFunc("GET /api/public/v1/sites/{site}/app/product/adoption", h.getAppAdoption)
 	mux.HandleFunc("GET /api/public/v1/sites/{site}/app/product/engagement", h.getAppEngagement)

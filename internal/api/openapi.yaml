@@ -2166,6 +2166,33 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/obs/logs:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: searchObsLogsPublic
+      summary: Search an app project's logs, newest first
+      description: Requires stats:read. Same search syntax, window and paging as the private route. User identity is never returned.
+      parameters:
+      - name: q
+        in: query
+        description: |
+          Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+          case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+          or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+          32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+        schema: { type: string, maxLength: 300 }
+      - { name: from, in: query, description: "Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.", schema: { type: string, format: date-time } }
+      - { name: to, in: query, description: "End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.", schema: { type: string, format: date-time } }
+      - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+      - { name: cursor, in: query, description: "The `next_cursor` of the previous page.", schema: { type: string, maxLength: 128 } }
+      responses:
+        '200': { description: A page of logs, content: { application/json: { schema: { $ref: '#/components/schemas/ObsLogPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/public/v1/sites/{site_id}/profiles:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -3011,6 +3038,51 @@ paths:
         approximate when one install crosses releases on the same day. A rate is null when its denominator is zero.
       responses:
         '200': { description: Overview, content: { application/json: { schema: { $ref: '#/components/schemas/AppOverview' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/logs:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: searchObsLogs
+      tags: [Apps]
+      summary: Search an app project's logs, newest first
+      description: |
+        Walks the site's daily partitions newest first and stops at the page size. Rows older than the site's log
+        retention are never returned. A grammar error answers 400 with the byte position. User identity is never returned.
+      parameters:
+      - name: q
+        in: query
+        description: |
+          Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+          case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+          or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+          32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+        schema: { type: string, maxLength: 300 }
+      - { name: from, in: query, description: "Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.", schema: { type: string, format: date-time } }
+      - { name: to, in: query, description: "End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.", schema: { type: string, format: date-time } }
+      - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+      - { name: cursor, in: query, description: "The `next_cursor` of the previous page.", schema: { type: string, maxLength: 128 } }
+      responses:
+        '200': { description: A page of logs, content: { application/json: { schema: { $ref: '#/components/schemas/ObsLogPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/traces/{trace_id}/logs:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: trace_id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{32}$' } }
+    get:
+      operationId: listObsTraceLogs
+      tags: [Apps]
+      summary: The logs of one trace, oldest first
+      description: Looks 24 hours either side of `around` (default now), within the site's log retention.
+      parameters:
+        - { name: around, in: query, description: "RFC 3339 centre of the window, usually the time of the error or span.", schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+      responses:
+        '200': { description: The trace's logs, content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/ObsLog' } } } } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -8896,6 +8968,29 @@ components:
         next_cursor: { type: [string, 'null'] }
         total: { type: integer, minimum: 0, maximum: 10000 }
         total_capped: { type: boolean }
+    ObsLog:
+      type: object
+      additionalProperties: false
+      required: [ts, severity, severity_text, service, environment, release, body, truncated, attributes]
+      properties:
+        ts: { type: string, format: date-time }
+        severity: { type: integer, minimum: 0, maximum: 24, description: OTLP severity number; 0 when unset. }
+        severity_text: { type: string, description: "trace, debug, info, warn, error or fatal; empty when unset." }
+        service: { type: string }
+        environment: { type: string }
+        release: { type: string }
+        trace_id: { type: string, description: 32 hex characters; absent without a trace. }
+        span_id: { type: string, description: 16 hex characters; absent without a span. }
+        body: { type: string }
+        truncated: { type: boolean }
+        attributes: { type: object, additionalProperties: true }
+    ObsLogPage:
+      type: object
+      additionalProperties: false
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/ObsLog' } }
+        next_cursor: { type: [string, 'null'] }
     PropertyKeyCount:
       type: object
       additionalProperties: false

@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/dropstats"
 	"supermetry/internal/ingest"
 	"supermetry/internal/links"
+	"supermetry/internal/obslogs"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
@@ -97,6 +98,7 @@ type Deps struct {
 	PrivateAuth         Authenticator
 	AppQuery            *appquery.Querier  // App Health reads for the MCP tools; nil disables them
 	AppIssues           *appissues.Service // issue timeline and impact for the MCP tools; nil disables them
+	AppLogs             *obslogs.Reader    // log search for the MCP tools; nil disables them
 	Sites               sites.Registry     // resolves site ownership for every site-scoped request
 	UI                  http.Handler       // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter         ingest.RateLimiter
@@ -168,6 +170,9 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.AppIssues != nil {
 		mcpDeps.AppIssues = deps.AppIssues
+	}
+	if deps.AppLogs != nil {
+		mcpDeps.AppLogs = deps.AppLogs
 	}
 	mcp := NewMCPHandler(mcpDeps)
 	mux.Handle("POST "+publicPrefix+"/mcp", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, true, mcp))
@@ -382,6 +387,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + publicPrefix + "/sites/{site}/segments",
 		"PATCH " + publicPrefix + "/segments/{segment}",
 		"DELETE " + publicPrefix + "/segments/{segment}",
+		"GET " + publicPrefix + "/sites/{site}/obs/logs",
 		"GET " + publicPrefix + "/sites/{site}/profiles",
 		"GET " + publicPrefix + "/profiles/{profile}",
 		"GET " + publicPrefix + "/erasures/{erasure}",
@@ -562,6 +568,8 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"GET " + privatePrefix + "/sites/{site}/app/overview",
 		"GET " + privatePrefix + "/sites/{site}/obs/metrics",
 		"POST " + privatePrefix + "/sites/{site}/obs/metrics/query",
+		"GET " + privatePrefix + "/sites/{site}/obs/logs",
+		"GET " + privatePrefix + "/sites/{site}/obs/traces/{trace_id}/logs",
 		"GET " + privatePrefix + "/sites/{site}/app/issues",
 		"GET " + privatePrefix + "/sites/{site}/app/issues/{issue}",
 		"PATCH " + privatePrefix + "/sites/{site}/app/issues/{issue}",
