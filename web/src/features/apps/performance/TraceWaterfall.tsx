@@ -3,6 +3,9 @@ import { Link } from '@tanstack/react-router'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TraceLogs } from '@/features/obs/logs/TraceLogs'
+import { obsLogs as logsText } from '@/messages/obsLogs'
 
 import { formatMs } from '../format'
 import { useTrace, type TraceData } from './api'
@@ -78,7 +81,7 @@ export function TraceWaterfall({ org, site, trace }: { org: string; site: string
 }
 
 /** The trace page: loads one trace and shows its waterfall. */
-export function TraceView({ org, site, siteId, traceId }: { org: string; site: string; siteId: number; traceId: string }) {
+export function TraceView({ org, site, siteId, traceId, timezone = 'UTC' }: { org: string; site: string; siteId: number; traceId: string; timezone?: string }) {
   const trace = useTrace(siteId, traceId)
   const back = <Link className="text-sm font-medium underline" to="/app/$org/$site/performance" params={{ org, site }}>Back to performance</Link>
   return (
@@ -87,7 +90,18 @@ export function TraceView({ org, site, siteId, traceId }: { org: string; site: s
       {back}
       {trace.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading trace…</p> : null}
       {trace.isError ? <p role="alert" className="text-sm text-destructive">Trace not found. Raw spans are kept for 14 days at most: {trace.error.message}</p> : null}
-      {trace.data ? <TraceWaterfall org={org} site={site} trace={trace.data} /> : null}
+      {trace.data ? (
+        <Tabs defaultValue="spans">
+          <TabsList>
+            <TabsTrigger value="spans">{logsText.traceSpans}</TabsTrigger>
+            <TabsTrigger value="logs">{logsText.traceLogs}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="spans"><TraceWaterfall org={org} site={site} trace={trace.data} /></TabsContent>
+          <TabsContent value="logs">
+            <TraceLogs org={org} site={site} siteId={siteId} traceId={trace.data.trace_id} timezone={timezone} around={trace.data.spans[0]?.start} />
+          </TabsContent>
+        </Tabs>
+      ) : null}
     </PageContainer>
   )
 }
