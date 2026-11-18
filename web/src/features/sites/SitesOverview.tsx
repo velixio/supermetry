@@ -133,7 +133,7 @@ function SiteCard({ site, multipleOrganizations, onDelete }: { site: OverviewSit
 
 function SitesTable({ sites, multipleOrganizations, onDelete }: { sites: OverviewSite[]; multipleOrganizations: boolean; onDelete(site: OverviewSite): void }) {
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-lg border bg-card">
       <Table aria-label="Projects overview"><TableHeader><TableRow>
         <TableHead>Project</TableHead>{multipleOrganizations ? <TableHead>Organization</TableHead> : null}<TableHead>Created</TableHead><TableHead>Visitors</TableHead><TableHead>Change</TableHead><TableHead>Traffic</TableHead><TableHead>Live</TableHead><TableHead>Last event</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead>
       </TableRow></TableHeader><TableBody>{sites.map((site) => (
@@ -205,7 +205,7 @@ export function SitesOverview({ canAdd, orgs, org = '', period, query, sort, vie
         <Select value={sort} onValueChange={(value) => onSortChange(value as SitesOverviewSort)}><SelectTrigger aria-label="Sort projects"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="visitors">Most visitors</SelectItem><SelectItem value="change">Biggest change</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="created">Newest</SelectItem><SelectItem value="last_event">Latest event</SelectItem></SelectGroup></SelectContent></Select>
         <ToggleGroup aria-label="Project view" type="single" value={view} onValueChange={(value) => { if (value) viewPreference.mutate(value as SitesOverviewView) }}><ToggleGroupItem value="cards" aria-label="Card view"><LayoutGridIcon /></ToggleGroupItem><ToggleGroupItem value="table" aria-label="Table view"><ListIcon /></ToggleGroupItem></ToggleGroup>
       </div>
-      {!enabled || overview.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Loading projects">{Array.from({ length: 6 }, (_, index) => <Skeleton className="h-80 rounded-xl" key={index} />)}</div>
+      {!enabled || overview.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Loading projects">{Array.from({ length: 6 }, (_, index) => <Skeleton className="h-80 rounded-lg" key={index} />)}</div>
         : overview.isError ? <ErrorState level="page" detail={overview.error.message} onRetry={() => void overview.refetch()} />
           : (overview.data?.data.length ?? 0) === 0 ? <Empty><EmptyHeader><EmptyTitle>No projects yet</EmptyTitle><EmptyDescription>Add a project to start collecting analytics.</EmptyDescription></EmptyHeader>{canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}>Add your first project</Link></Button> : null}</Empty>
             : filtered.length === 0 ? <Empty><EmptyHeader><EmptyTitle>No projects match these filters.</EmptyTitle><EmptyDescription>Change the search or organization filter to see your projects.</EmptyDescription></EmptyHeader><Button variant="outline" onClick={() => { onSearchChange(''); onOrgChange('') }}>Clear filters</Button></Empty>

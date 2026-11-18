@@ -51,7 +51,7 @@ function NewSiteRoute() {
     return (
       <PageContainer width="narrow">
         <PageHeader title={created.name} />
-        <section className="rounded-xl border bg-card p-4 md:p-5">
+        <section className="rounded-lg border bg-card p-4 md:p-5">
           <SiteInstallStep orgId={membership.org.id} siteId={created.id} publicId={created.public_id ?? String(created.id)} dashboardHref={`/app/${org}/${created.slug ?? created.public_id}`} />
         </section>
       </PageContainer>
@@ -61,7 +61,7 @@ function NewSiteRoute() {
   return (
     <PageContainer width="narrow">
       <PageHeader title={en.pixels.measureTitle} description="Choose web analytics or count views where JavaScript cannot run." />
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5">
+      <section className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-5">
         <KindChoice value={kind} onChange={setKind} />
         {kind === 'app'
           ? <AppCreateFlow

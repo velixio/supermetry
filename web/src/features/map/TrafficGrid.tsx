@@ -211,7 +211,6 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
                         className={cn(
                           'relative h-6 min-w-0 rounded-[3px] outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring',
                           stepClasses[rampStep(cell.value, maximum)],
-                          busiest ? 'ring-2 ring-ring' : null,
                         )}
                         data-busiest={busiest || undefined}
                         role="gridcell"

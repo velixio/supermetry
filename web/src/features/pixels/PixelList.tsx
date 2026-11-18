@@ -28,7 +28,7 @@ export function PixelList({ siteId, pixels, homepage }: { siteId: number; pixels
   const update = useUpdatePixel(siteId)
   const remove = useDeletePixel(siteId)
   return (
-    <section aria-labelledby="pixel-list-title" className="rounded-xl border bg-card">
+    <section aria-labelledby="pixel-list-title" className="rounded-lg border bg-card">
       <div className="border-b p-4"><h2 className="font-medium" id="pixel-list-title">Pixels</h2></div>
       {pixels.length === 0 ? <p className="p-6 text-sm text-muted-foreground">Create a pixel to start counting views.</p> : (
         <Table>

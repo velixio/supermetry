@@ -81,7 +81,7 @@ function Page({ title, description, children }: { title: string; description: st
 }
 
 function Surface({ children, label }: { children: ReactNode; label?: string }) {
-  return <section aria-label={label} className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5 text-card-foreground">{children}</section>
+  return <section aria-label={label} className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-5 text-card-foreground">{children}</section>
 }
 
 function ErrorLine({ error }: { error: unknown }) {
@@ -221,7 +221,7 @@ export function LeaveOrganization({ orgId, orgName, onLeft = () => window.locati
   })
   const lastOwner = leave.error && typeof leave.error === 'object' && 'status' in leave.error && (leave.error as { status?: number }).status === 409
   return (
-    <section aria-labelledby="leave-org-title" className="flex flex-col gap-3 rounded-xl border border-destructive/30 p-5">
+    <section aria-labelledby="leave-org-title" className="flex flex-col gap-3 rounded-lg border p-5">
       <h2 id="leave-org-title" className="text-base font-semibold">{uiFlows.members.leaveTitle}</h2>
       <p className="text-sm text-muted-foreground">{uiFlows.members.leaveDescription}</p>
       <Button type="button" variant="outline" className="self-start" onClick={() => { leave.reset(); setOpen(true) }}>{uiFlows.members.leave}</Button>

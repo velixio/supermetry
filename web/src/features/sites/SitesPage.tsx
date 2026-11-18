@@ -79,7 +79,7 @@ export function SitesPage({
         description="Manage the projects you can access in this organization."
         actions={role === 'owner' || role === 'admin' ? <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add project</Link></Button> : undefined}
       />
-      <ul className="flex flex-col overflow-hidden rounded-xl border bg-card">
+      <ul className="flex flex-col overflow-hidden rounded-lg border bg-card">
         {sites.map((site) => {
           const slug = siteSlug(site)
           return (

@@ -53,7 +53,7 @@ function SecretField({ label, value }: { label: string; value: string }) {
 /** The one-time panel with the webhook URL and secret and the GitHub setup steps. */
 export function RevealPanel({ reveal, onDismiss }: { reveal: Reveal; onDismiss: () => void }) {
   return (
-    <section aria-labelledby="stars-reveal" className="flex min-w-0 flex-col gap-3 rounded-lg border border-primary/40 bg-muted/40 p-4">
+    <section aria-labelledby="stars-reveal" className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/40 p-4">
       <h2 id="stars-reveal" className="text-base font-semibold">{t.revealTitle(reveal.repo)}</h2>
       <p role="alert" className="text-sm">{t.revealWarn}</p>
       <SecretField label={t.webhookUrl} value={reveal.webhook_url} />

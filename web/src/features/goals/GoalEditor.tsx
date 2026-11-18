@@ -46,7 +46,7 @@ export function GoalEditor({ goal, pending, onSave, onCancel, projectCurrency, c
   }
 
   return (
-    <form className="flex flex-col gap-4 rounded-xl border bg-card p-4" onSubmit={submit}>
+    <form className="flex flex-col gap-4 rounded-lg border bg-card p-4" onSubmit={submit}>
       <h2 className="font-medium">{goal ? 'Edit goal' : 'Create a goal'}</h2>
       <FieldGroup>
         <Field data-invalid={error !== '' && !input.name.trim()}>

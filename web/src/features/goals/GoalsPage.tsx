@@ -43,7 +43,7 @@ export function GoalsPage({ siteId, orgId, dateRange, timezone = 'UTC', revenueC
     <PageContainer>
       <PageHeader title="Goals" description="Track the pages and events that matter." />
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
-        <section className="overflow-hidden rounded-xl border bg-card">
+        <section className="overflow-hidden rounded-lg border bg-card">
           <table className="w-full text-sm">
             <thead className="border-b text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Goal</th><th className="px-4 py-3 text-right font-medium">Conversions</th><th className="px-4 py-3 text-right font-medium">Rate</th><th className="px-4 py-3 text-right font-medium">Revenue</th><th className="px-4 py-3 text-right font-medium">Average revenue</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>

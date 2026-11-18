@@ -6,11 +6,11 @@ export type StatusChipVariant = 'success' | 'warning' | 'warning-outline' | 'neu
 
 // Text colours come from tokens that are contrast-tested in lib/contrast.test.ts.
 const variants: Record<StatusChipVariant, string> = {
-  success: 'border-success/40 bg-success/10 text-success',
-  warning: 'border-warning/40 bg-warning/10 text-warning',
-  'warning-outline': 'border-warning bg-transparent text-warning',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  'warning-outline': 'bg-transparent text-warning',
   neutral: 'border-border bg-muted text-muted-foreground',
-  danger: 'border-destructive/40 bg-destructive/10 text-destructive',
+  danger: 'bg-destructive/10 text-destructive',
 }
 
 type StatusChipProps = Omit<ComponentProps<'span'>, 'children'> & {
@@ -27,7 +27,7 @@ export function StatusChip({ variant = 'neutral', icon, className, children, ...
       data-slot="status-chip"
       data-variant={variant}
       className={cn(
-        'inline-flex h-6 w-fit items-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0',
+        'inline-flex h-6 w-fit items-center gap-1 rounded-sm border px-2 text-xs font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0',
         variants[variant],
         className,
       )}

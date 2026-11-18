@@ -112,7 +112,7 @@ export function EventsPage({
           ))}
         </div>
         {propertyKey ? (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-lg border bg-card p-4">
             <h3 className="mb-3 text-sm font-medium">Top values for {propertyKey}</h3>
             <div className="flex flex-col gap-2">
               {(values.data ?? []).map((item) => (
@@ -135,7 +135,7 @@ export function EventsPage({
       ) : events.data.data.length === 0 ? (
         <Empty><EmptyHeader><EmptyTitle>No events found</EmptyTitle><EmptyDescription>Try another date range, event name, or filter.</EmptyDescription></EmptyHeader></Empty>
       ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <Table aria-label="Events">
             <TableHeader><TableRow>
               <TableHead>Time</TableHead><TableHead>Kind</TableHead><TableHead>Name</TableHead><TableHead>{app ? 'Screen' : 'Page'}</TableHead>

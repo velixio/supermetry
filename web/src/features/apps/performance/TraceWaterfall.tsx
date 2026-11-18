@@ -32,7 +32,7 @@ export function TraceWaterfall({ org, site, trace }: { org: string; site: string
   for (const error of trace.errors) if (error.span_id) errorsBySpan.set(error.span_id, (errorsBySpan.get(error.span_id) ?? 0) + 1)
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      {trace.truncated ? <p role="status" className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm">This trace has more spans than can be shown. The first 10,000 are listed.</p> : null}
+      {trace.truncated ? <p role="status" className="rounded-lg border bg-amber-500/10 px-4 py-3 text-sm">This trace has more spans than can be shown. The first 10,000 are listed.</p> : null}
       <ol className="flex min-w-0 flex-col divide-y rounded-lg border" aria-label="Spans">
         {trace.spans.map((span) => {
           const failed = spanFailed(span) || errorsBySpan.has(span.span_id)

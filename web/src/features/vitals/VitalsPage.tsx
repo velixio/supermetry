@@ -110,7 +110,7 @@ function MetricCard({ metric, value, name, short }: { metric: VitalMetricName; v
 }
 
 function LoadingState() {
-  return <div className="flex flex-col gap-4" aria-label="Loading Web Vitals"><div className="grid gap-4 md:grid-cols-3">{metrics.map(({ key }) => <Skeleton className="h-40 rounded-xl" key={key} />)}</div><Skeleton className="h-80 rounded-xl" /></div>
+  return <div className="flex flex-col gap-4" aria-label="Loading Web Vitals"><div className="grid gap-4 md:grid-cols-3">{metrics.map(({ key }) => <Skeleton className="h-40 rounded-lg" key={key} />)}</div><Skeleton className="h-80 rounded-lg" /></div>
 }
 
 function BreakdownValue({ dimension, value }: { dimension: VitalsDimension; value: string }) {

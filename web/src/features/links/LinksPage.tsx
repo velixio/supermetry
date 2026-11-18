@@ -82,7 +82,7 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
       {links.data && links.data.length > 0 ? (
         <ul className="flex flex-col gap-3">
           {links.data.map((link) => (
-            <li className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4" key={link.id}>
+            <li className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4" key={link.id}>
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                 <div className="min-w-0 flex-1">
                   <h2 className="flex flex-wrap items-center gap-2 text-base font-medium">

@@ -92,7 +92,7 @@ function ScrollOverlay({ bands }: { bands: ScrollBand[] }) {
             className="absolute inset-x-0 border-t border-background/60 bg-chart-1/10"
             style={{ top: `${Math.max(0, item.band - 10)}%`, height: '10%' }}
           >
-            <span className="absolute right-2 top-1 rounded-md bg-background/90 px-2 py-1 text-xs font-medium shadow-sm">
+            <span className="absolute right-2 top-1 rounded-md bg-background/90 px-2 py-1 text-xs font-medium">
               {item.band}% depth · {percentage}% reached
             </span>
           </div>
@@ -136,7 +136,7 @@ function Preview({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-muted/30 p-3">
+    <div className="overflow-x-auto rounded-lg border bg-muted/30 p-3">
       <div className="mx-auto" style={{ width: `${width}px`, maxWidth: '100%' }}>
         {frameState === 'blocked' || source === '' ? (
           <div className="mb-3 rounded-lg border bg-card p-4 text-sm">

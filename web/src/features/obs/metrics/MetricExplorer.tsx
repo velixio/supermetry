@@ -89,7 +89,7 @@ export function MetricExplorer({ siteId, timezone, initial }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <form className="flex flex-col gap-4 rounded-xl border bg-card p-4" onSubmit={(event) => event.preventDefault()}>
+      <form className="flex flex-col gap-4 rounded-lg border bg-card p-4" onSubmit={(event) => event.preventDefault()}>
         <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Pick id="obs-metric" label={t.metric} placeholder={t.metricPlaceholder} value={state.name} onChange={chooseMetric}
             options={metrics.data.map((metric) => ({ value: metric.name, label: metric.name }))} />
@@ -145,7 +145,7 @@ export function MetricExplorer({ siteId, timezone, initial }: Props) {
         </div>
       </form>
 
-      <section aria-label={state.name || t.title} className="rounded-xl border bg-card p-4">
+      <section aria-label={state.name || t.title} className="rounded-lg border bg-card p-4">
         {!info ? <p className="text-sm text-muted-foreground">{t.pickMetric}</p>
           : result.isError ? <ErrorState onRetry={() => void result.refetch()} />
           : !result.data ? <Skeleton aria-busy="true" aria-label={t.loading} className="h-64 w-full" role="status" />

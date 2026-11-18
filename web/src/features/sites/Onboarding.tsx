@@ -48,7 +48,7 @@ export function Onboarding({ me, createSite, navigate }: {
     const slug = created.slug ?? created.public_id
     return (
       <div className="flex justify-center py-6 md:py-10">
-        <div className="w-full max-w-2xl rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
+        <div className="w-full max-w-2xl rounded-lg border bg-card p-6 text-card-foreground">
           <SiteInstallStep orgId={membership.org.id} siteId={created.id} publicId={created.public_id ?? String(created.id)} dashboardHref={`/app/${membership.org.slug}/${slug}`} />
         </div>
       </div>
@@ -60,7 +60,7 @@ export function Onboarding({ me, createSite, navigate }: {
   // Inside the shell's main: no viewport-height math, the card sits centred below the 44px header.
   return (
     <div className="flex justify-center py-6 md:py-10">
-      <section className="flex w-full max-w-md flex-col gap-5 rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
+      <section className="flex w-full max-w-md flex-col gap-5 rounded-lg border bg-card p-6 text-card-foreground">
         {me.demo_prompt_dismissed === false ? <DemoChoice org={{ id: membership.org.id, slug: membership.org.slug }} onDismissed={() => navigate(`/app/${membership.org.slug}/sites`)} /> : null}
         <PageHeader title={en.pixels.measureTitle} description="Choose web analytics or count views where JavaScript cannot run." />
         <KindChoice value={kind} onChange={setKind} />

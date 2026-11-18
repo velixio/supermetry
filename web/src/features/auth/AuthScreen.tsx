@@ -10,7 +10,7 @@ export function AuthScreen({ title, description, children }: { title: string; de
     <main className="dark relative isolate grid min-h-dvh place-items-center overflow-hidden bg-background px-5 py-12 text-foreground">
       <section className="flex w-full max-w-sm flex-col items-center gap-6">
         <BrandLogo className="h-8 w-auto" />
-        <Card className="w-full shadow-sm">
+        <Card className="w-full">
           <CardHeader className="px-6">
             <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
             <CardDescription>{description}</CardDescription>

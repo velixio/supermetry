@@ -75,7 +75,7 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
   const firstEventMissing = items.find((item) => item.id === 'firstEvent')?.done === false
 
   return (
-    <section aria-labelledby="getting-started-title" className="flex flex-col gap-3 rounded-xl border bg-card p-4 text-card-foreground shadow-sm">
+    <section aria-labelledby="getting-started-title" className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h2 id="getting-started-title" className="text-base font-semibold">{text.title}</h2>

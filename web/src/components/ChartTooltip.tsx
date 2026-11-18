@@ -76,7 +76,7 @@ export function ChartTooltip({ anchor, avoid, children, className }: {
   return createPortal(
     <div
       ref={tooltipRef}
-      className={cn('pointer-events-none fixed z-50 rounded-md bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md ring-1 ring-border', className)}
+      className={cn('pointer-events-none fixed z-50 rounded-md bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md border border-border', className)}
       role="tooltip"
       style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? 'visible' : 'hidden' }}
     >

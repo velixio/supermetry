@@ -166,7 +166,7 @@ function Page({
 
 function Surface({ children }: { children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5 text-card-foreground">
+    <section className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-5 text-card-foreground">
       {children}
     </section>
   );
@@ -796,7 +796,7 @@ export function SharesPage({
           ))}
         </ul>
       </Surface>
-      <aside className="h-fit rounded-xl border bg-muted/30 p-5 lg:sticky lg:top-17">
+      <aside className="h-fit rounded-lg border bg-muted/30 p-5 lg:sticky lg:top-17">
         <h2 className="text-lg font-semibold">{en.shares.preview}</h2>
         <p className="mt-1 text-sm text-muted-foreground">Read-only · {dateMode === "rolling" ? `Last ${rollingDays} days` : `${fixedFrom || "From"} to ${fixedTo || "To"}`}</p>
         <div className="mt-4 flex flex-wrap gap-2"><Badge variant="secondary">{theme} theme</Badge>{country ? <Badge variant="secondary">Country: {country.toUpperCase()}</Badge> : null}{segmentId !== null ? <Badge variant="secondary">Saved segment</Badge> : null}{embedding ? <Badge variant="secondary">Embeddable</Badge> : null}</div>

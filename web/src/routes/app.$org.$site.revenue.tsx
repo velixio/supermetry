@@ -30,7 +30,7 @@ function RevenueRoute() {
     const conflict = site.revenue_currency_state === 'conflict'
     return <PageContainer>
       <PageHeader title="Revenue report unavailable" />
-      <section className="flex max-w-2xl flex-col items-start gap-4 rounded-xl border bg-card p-5" role="status">
+      <section className="flex max-w-2xl flex-col items-start gap-4 rounded-lg border bg-card p-5" role="status">
         <p className="text-sm text-muted-foreground">{conflict
           ? 'This project has mixed historical currencies. Revenue totals stay unavailable until the conflict is resolved without converting or merging amounts.'
           : 'Choose the project’s permanent revenue currency before viewing totals and breakdowns.'}</p>

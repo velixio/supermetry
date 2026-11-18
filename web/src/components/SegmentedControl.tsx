@@ -83,7 +83,7 @@ export function SegmentedControl<T extends string>({
               'inline-flex min-w-6 items-center justify-center rounded-md font-medium whitespace-nowrap transition-colors outline-none border border-transparent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50',
               size === 'sm' ? 'h-[calc(100%-1px)] px-2 text-xs' : 'h-[calc(100%-1px)] px-2.5 text-sm',
               selected
-                ? 'border-input bg-background text-foreground shadow-sm dark:bg-input/30'
+                ? 'border-input bg-background text-foregrounddark:bg-input/30'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >

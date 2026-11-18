@@ -66,7 +66,7 @@ export function SearchConsoleReport({ siteId, orgId }: { siteId: number; orgId: 
   }
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5 text-card-foreground">
+    <section aria-labelledby={`${ids}-heading`} className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
       <header className="flex flex-col gap-1">
         <h2 className="font-semibold" id={`${ids}-heading`}>{t.reportHeading}</h2>
         <p className="text-sm text-muted-foreground">{t.reportIntro}</p>

@@ -57,7 +57,7 @@ export function PixelPage({ org, siteSlug, siteId, canManage }: Props) {
       {pixels.data && pixels.data.length > 0 ? (
         <ul className="flex flex-col gap-3">
           {pixels.data.map((pixel) => (
-            <li className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4" key={pixel.id}>
+            <li className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4" key={pixel.id}>
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
                 <div className="min-w-0 flex-1">
                   <h2 className="text-base font-medium">{pixel.name}</h2>

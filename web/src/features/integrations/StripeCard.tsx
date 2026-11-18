@@ -36,9 +36,9 @@ const stateLabel: Record<StripeState, string> = {
 
 const stateClass: Record<StripeState, string> = {
   off: 'border-border text-muted-foreground',
-  pending: 'border-amber-600 text-amber-700 dark:border-amber-400 dark:text-amber-300',
-  active: 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300',
-  error: 'border-destructive text-destructive',
+  pending: 'text-amber-700 dark:text-amber-300',
+  active: 'text-emerald-700 dark:text-emerald-300',
+  error: 'text-destructive',
 }
 
 const SECRET_PATTERN = /^whsec_[A-Za-z0-9+/=_-]{16,240}$/
@@ -198,11 +198,11 @@ export function StripeCard({ siteId, orgId, canManage }: { siteId: number; orgId
   const state = stripeState(status)
 
   return (
-    <section aria-labelledby="provider-stripe" className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5 text-card-foreground">
+    <section aria-labelledby="provider-stripe" className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold" id="provider-stripe">{s.title}</h3>
         {status ? (
-          <span className={`inline-flex min-h-7 items-center rounded-full border px-3 text-sm font-medium ${stateClass[state]}`}>
+          <span className={`inline-flex min-h-7 items-center rounded-sm border px-3 text-sm font-medium ${stateClass[state]}`}>
             <span className="sr-only">{t.statusLabel}: </span>
             {stateLabel[state]}
           </span>

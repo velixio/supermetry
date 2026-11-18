@@ -21,7 +21,7 @@ type EmptyStateProps = {
 export function EmptyState({ trackingHref, title, description, icon: Icon, action, docsHref }: EmptyStateProps) {
   if (title) {
     return (
-      <section aria-labelledby="empty-state-title" className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-card px-4 py-10 text-center">
+      <section aria-labelledby="empty-state-title" className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-card px-4 py-10 text-center">
         {Icon ? <Icon aria-hidden="true" className="size-8 text-muted-foreground" /> : null}
         <h2 id="empty-state-title" className="text-base font-semibold">{title}</h2>
         {description ? <p className="max-w-md text-sm text-muted-foreground">{description}</p> : null}

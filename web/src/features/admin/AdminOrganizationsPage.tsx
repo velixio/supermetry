@@ -19,7 +19,7 @@ function DeleteOrganization({ organization, onDeleted }: { organization: AdminOr
   const remove = useDeleteAdminOrganization()
   const matches = typed.trim() === organization.name
   return (
-    <section aria-labelledby="admin-org-danger" className="flex flex-col gap-2 rounded-lg border border-destructive/40 p-3">
+    <section aria-labelledby="admin-org-danger" className="flex flex-col gap-2 rounded-lg border p-3">
       <h3 id="admin-org-danger" className="text-sm font-semibold text-destructive">{uiFlows.admin.dangerZone}</h3>
       <p className="text-sm text-muted-foreground">{uiFlows.admin.deleteOrgBody(organization.sites.length, organization.members.length)}</p>
       <Button type="button" variant="destructive" className="max-sm:min-h-11 self-start" onClick={() => { remove.reset(); setTyped(''); setOpen(true) }}>{uiFlows.admin.deleteOrg}</Button>

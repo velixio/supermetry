@@ -79,7 +79,7 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
               <PixelStatsSection siteId={siteId} tag={pixel.data.tag} timezone={timezone} />
             </TabsContent>
             <TabsContent className="flex flex-col gap-6" value="install">
-              <section aria-labelledby="pixel-snippet" className="flex flex-col gap-4 rounded-xl border bg-card p-4">
+              <section aria-labelledby="pixel-snippet" className="flex flex-col gap-4 rounded-lg border bg-card p-4">
                 <h2 className="text-base font-medium" id="pixel-snippet">{t.pixelInstallTitle}</h2>
                 <div>
                   <Label htmlFor="pixel-html">{t.pixelSnippet}</Label>
@@ -100,7 +100,7 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
                 <p className="text-xs text-muted-foreground">{t.pixelNote}</p>
               </section>
 
-              <section aria-labelledby="pixel-badge" className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+              <section aria-labelledby="pixel-badge" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
                 <h2 className="text-base font-medium" id="pixel-badge">{t.pixelBadgeTitle}</h2>
                 <p className="text-sm text-muted-foreground">{t.pixelBadgeNote}</p>
                 <div className="flex flex-col gap-3 sm:flex-row">

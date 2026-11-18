@@ -44,7 +44,7 @@ export function DeferredContent({
       role="region"
       style={!ready && height ? { minHeight: height } : undefined}
     >
-      {ready ? children : <Skeleton aria-hidden="true" className="size-full min-h-[inherit] rounded-xl" />}
+      {ready ? children : <Skeleton aria-hidden="true" className="size-full min-h-[inherit] rounded-lg" />}
     </section>
   )
 }

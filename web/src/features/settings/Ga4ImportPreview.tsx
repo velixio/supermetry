@@ -50,7 +50,7 @@ export function Ga4ImportPreview({
   return (
     <section
       aria-labelledby="import-preview-heading"
-      className="flex flex-col gap-4 rounded-lg border border-primary/40 bg-card p-4"
+      className="flex flex-col gap-4 rounded-lg border bg-card p-4"
     >
       <h3 id="import-preview-heading" className="font-medium">
         {t.previewHeading}

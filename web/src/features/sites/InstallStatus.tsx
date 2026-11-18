@@ -94,7 +94,7 @@ export function InstallStatusCard({ status, lastSeenAt, now = new Date(), dashbo
   const title = resolved === 'receiving' ? uiFlows.install.receivingTitle : resolved === 'quiet' ? uiFlows.install.quietTitle : uiFlows.install.waitingTitle
   const body = resolved === 'receiving' ? uiFlows.install.receivingBody : resolved === 'quiet' ? uiFlows.install.quietBody : uiFlows.install.waitingBody
   return (
-    <section aria-labelledby="install-status-title" className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4">
+    <section aria-labelledby="install-status-title" className="flex flex-col gap-4 rounded-lg border bg-muted/30 p-4">
       <ol aria-label={uiFlows.install.steps} className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
         {steps.map((step, index) => (
           <li key={step.label} className="flex items-center gap-2" aria-current={step.state === 'current' ? 'step' : undefined}>

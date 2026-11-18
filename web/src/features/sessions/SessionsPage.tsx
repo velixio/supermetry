@@ -213,7 +213,7 @@ export function SessionsPage({
               />
             ))}
           </ol>
-          <div className="hidden min-w-0 max-w-full overflow-hidden rounded-xl border bg-card md:block">
+          <div className="hidden min-w-0 max-w-full overflow-hidden rounded-lg border bg-card md:block">
             <Table aria-label="Sessions" className="min-w-[680px] lg:min-w-[980px] xl:min-w-[1450px]">
               <TableHeader>
                 <TableRow>

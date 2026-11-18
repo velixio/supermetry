@@ -192,7 +192,7 @@ function ProfileDetailPageContent({
         {profile.data.timeline.length === 0 ? (
           <Empty><EmptyHeader><EmptyTitle>No retained events</EmptyTitle><EmptyDescription>This profile has no events in the hot tier.</EmptyDescription></EmptyHeader></Empty>
         ) : (
-          <div className="rounded-xl border bg-card">
+          <div className="rounded-lg border bg-card">
             <Table aria-label="Profile event timeline">
               <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Event</TableHead><TableHead>Path</TableHead>{canReplay ? <TableHead>Replay</TableHead> : null}</TableRow></TableHeader>
               <TableBody>

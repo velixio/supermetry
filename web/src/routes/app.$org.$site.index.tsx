@@ -416,7 +416,7 @@ function WebDashboardStateRoute() {
           main={
             <>
               {/* Figures and chart are one block: the figures are the chart's tabs. */}
-              <div className="overflow-hidden rounded-lg border bg-card text-card-foreground shadow-xs" data-testid="kpi-chart">
+              <div className="overflow-hidden rounded-lg border bg-card text-card-foreground" data-testid="kpi-chart">
               <StatsStrip
                 query={query}
                 compare={search.compare}

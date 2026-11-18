@@ -57,7 +57,7 @@ export function NotificationTemplates({ orgId, canManage }: { orgId: number; can
         </select>
       </label>
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4">
+        <div className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
           {kind === 'email' ? <label className="flex flex-col gap-1 text-sm font-medium">{t.templates.subject}<Input maxLength={200} value={subject} disabled={!canManage} onChange={(event) => setSubject(event.target.value)} /></label> : null}
           <label className="flex flex-col gap-1 text-sm font-medium">{t.templates.message}<Textarea className="min-h-48 font-mono text-sm" maxLength={4096} value={body} disabled={!canManage} onChange={(event) => setBody(event.target.value)} /></label>
           <p className="text-xs text-muted-foreground">{t.templates.characters(body.length)}</p>
@@ -66,7 +66,7 @@ export function NotificationTemplates({ orgId, canManage }: { orgId: number; can
             <Button className="max-sm:min-h-11" variant="outline" disabled={!canManage || reset.isPending} onClick={() => reset.mutate(kind)}>{t.templates.reset}</Button>
           </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-4 rounded-xl border bg-muted/30 p-4">
+        <div className="flex min-w-0 flex-col gap-4 rounded-lg border bg-muted/30 p-4">
           <div>
             <h3 className="font-medium">{en.notify.preview}</h3>
             <p className="text-xs text-muted-foreground">{t.templates.previewNote}</p>

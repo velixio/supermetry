@@ -49,7 +49,7 @@ export function DashboardNoDataBanner({ siteId, orgId, href, enabled = true }: {
   }, [installStatus, queryClient, siteId])
 
   if (arrived) {
-    return <p role="status" className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 text-sm font-medium">{uiFlows.install.firstEvent}</p>
+    return <p role="status" className="rounded-lg border bg-emerald-500/5 px-4 py-3 text-sm font-medium">{uiFlows.install.firstEvent}</p>
   }
   if (installStatus !== 'waiting') return null
   return <NoDataBanner href={href} />

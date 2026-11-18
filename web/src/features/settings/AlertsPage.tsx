@@ -40,10 +40,10 @@ export function AlertsPage({ orgId, orgSlug, siteId }: { orgId: number; orgSlug?
           {alerts.error?.message ?? channels.error?.message ?? remove.error?.message}
         </p>
       ) : null}
-      {alerts.data?.data.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.alerts.empty}</p> : null}
+      {alerts.data?.data.length === 0 ? <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">{t.alerts.empty}</p> : null}
       <div className="flex flex-col gap-3">
         {alerts.data?.data.map((alert) => (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={alert.id}>
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4" key={alert.id}>
             <div>
               <h2 className="font-medium">{labels[alert.kind as WebAlertKind] ?? alert.kind}</h2>
               <p className="text-sm text-muted-foreground">{t.alerts.threshold(alert.threshold ?? '')} · {alert.enabled ? t.common.enabled : t.common.disabled}</p>

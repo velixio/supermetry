@@ -41,9 +41,9 @@ const stateLabel: Record<ConnectionState, string> = {
 
 const stateClass: Record<ConnectionState, string> = {
   none: 'border-border text-muted-foreground',
-  active: 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300',
-  reauth: 'border-amber-600 text-amber-700 dark:border-amber-400 dark:text-amber-300',
-  error: 'border-destructive text-destructive',
+  active: 'text-emerald-700 dark:text-emerald-300',
+  reauth: 'text-amber-700 dark:text-amber-300',
+  error: 'text-destructive',
 }
 
 const BACKFILL_OPTIONS = [28, 90, 180, 485] as const
@@ -128,10 +128,10 @@ function ProviderCard({
   const headingId = `provider-${entry.provider}`
 
   return (
-    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5 text-card-foreground">
+    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold" id={headingId}>{entry.name}</h3>
-        <span className={`inline-flex min-h-7 items-center rounded-full border px-3 text-sm font-medium ${stateClass[state]}`}>
+        <span className={`inline-flex min-h-7 items-center rounded-sm border px-3 text-sm font-medium ${stateClass[state]}`}>
           <span className="sr-only">{t.statusLabel}: </span>
           {stateLabel[state]}
         </span>
@@ -216,7 +216,7 @@ export function IntegrationsPage({
 
       {result ? (
         <div
-          className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm ${result === 'connected' ? 'border-emerald-600' : 'border-destructive'}`}
+          className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm ${result === 'connected' ? '' : 'border-destructive'}`}
           role={result === 'connected' ? 'status' : 'alert'}
         >
           <p>{resultMessage(result)}</p>

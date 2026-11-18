@@ -99,7 +99,7 @@ function ReplayOverlayContent({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-[90vh] sm:w-[95vw] sm:max-w-[95vw] sm:rounded-xl">
+      <DialogContent className="flex h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-[90vh] sm:w-[95vw] sm:max-w-[95vw] sm:rounded-lg">
         <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
           <DialogTitle>Session replay</DialogTitle>
           <DialogDescription>{formatDate(startedAt)}</DialogDescription>

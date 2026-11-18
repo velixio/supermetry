@@ -64,7 +64,7 @@ export function LogSearch({ org, site, siteId, timezone, initialQuery = '', onQu
         <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{q.trim() ? t.emptyFiltered : t.emptyNone}</p>
       ) : null}
       {rows.length > 0 ? (
-        <ul className="rounded-xl border bg-card" aria-label={t.title}>
+        <ul className="rounded-lg border bg-card" aria-label={t.title}>
           {rows.map((log, index) => <LogRow key={`${log.ts}-${index}`} log={log} org={org} site={site} timezone={timezone} />)}
         </ul>
       ) : null}

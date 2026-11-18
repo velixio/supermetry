@@ -244,7 +244,7 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
       <PageHeader title="Realtime" description="A live view of the last 30 minutes. Updates every 5 seconds." />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
-        <Card className="overflow-hidden border-primary/30 bg-primary/[0.03]" data-testid="live-visitors-card">
+        <Card className="overflow-hidden bg-primary/[0.03]" data-testid="live-visitors-card">
           <CardHeader className="sr-only">
             <CardTitle>Live visitors</CardTitle>
             <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>

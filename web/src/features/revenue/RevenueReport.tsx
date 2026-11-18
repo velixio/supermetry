@@ -150,7 +150,7 @@ export function RevenueReport(props: RevenueReportProps) {
   if (trend.isPending && !trend.data) {
     return <PageContainer>
       <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
-      <section className="rounded-xl border bg-card p-5" role="status">Loading revenue report…</section>
+      <section className="rounded-lg border bg-card p-5" role="status">Loading revenue report…</section>
     </PageContainer>
   }
 

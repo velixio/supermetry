@@ -18,7 +18,7 @@ function SitesRoute() {
   if (!membership) return null
 
   return (
-    <Suspense fallback={<div className="h-72 animate-pulse rounded-xl bg-muted" aria-label="Loading projects" role="status" />}><SitesOverview
+    <Suspense fallback={<div className="h-72 animate-pulse rounded-lg bg-muted" aria-label="Loading projects" role="status" />}><SitesOverview
       canAdd={canCreateSites(membership.role)}
       orgs={[{ ...membership.org, canCreate: canCreateSites(membership.role) }]}
       org={org}

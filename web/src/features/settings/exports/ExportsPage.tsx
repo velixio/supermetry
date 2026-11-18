@@ -87,7 +87,7 @@ export function ExportsPage({ orgId, role, sites }: { orgId: number; role: strin
         {notice ? <p role="status" className="text-sm text-muted-foreground">{notice}</p> : null}
         {schedules.isSuccess && list.length === 0 ? <p className="text-sm text-muted-foreground">{t.empty}</p> : null}
         {list.length > 0 ? (
-          <div className="rounded-xl border bg-card text-card-foreground">
+          <div className="rounded-lg border bg-card text-card-foreground">
             <Table aria-label={t.tableLabel}>
               <TableHeader>
                 <TableRow>
