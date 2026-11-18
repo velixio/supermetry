@@ -16,7 +16,9 @@ type spanParser func(raw []byte, ctx EventContext, site sites.Site, now time.Tim
 // spans to the writer. dedupID, when set, is the envelope event id of a
 // transaction: a retry of the same transaction is stored once. Spans are not
 // events: they never touch the spike guard or the per-key event budget.
-func (h *Handler) ingestSpans(out *outcome, site sites.Site, it Item, ctx EventContext, now time.Time, dedupID string, parse spanParser) {
+// perSpan marks a container without an event id (span v2): its spans are
+// deduplicated one by one against the in-memory recent-key set.
+func (h *Handler) ingestSpans(out *outcome, site sites.Site, it Item, ctx EventContext, now time.Time, dedupID string, perSpan bool, parse spanParser) {
 	if len(it.Payload) > MaxEventBytes {
 		h.stats.Add("too_large", 1)
 		h.intake.Drop(site, now, dropstats.AppInvalid)
@@ -50,6 +52,29 @@ func (h *Handler) ingestSpans(out *outcome, site sites.Site, it Item, ctx EventC
 		}
 		return
 	}
+	var claimed []spans.SpanKey
+	if perSpan && h.recent != nil {
+		kept := batch[:0]
+		for i := range batch {
+			k := spans.KeyOf(&batch[i])
+			if h.recent.Claim(k, now) {
+				kept = append(kept, batch[i])
+				claimed = append(claimed, k)
+			}
+		}
+		if dup := len(batch) - len(kept); dup > 0 {
+			h.stats.Add("span_duplicate", uint64(dup))
+		}
+		if batch = kept; len(batch) == 0 {
+			h.intake.Drop(site, now, dropstats.AppDuplicate)
+			return
+		}
+	}
+	release := func(from int) {
+		for _, k := range claimed[min(from, len(claimed)):] {
+			h.recent.Release(k)
+		}
+	}
 	if h.names != nil {
 		day := salts.LocalDay(now, site.TZ)
 		for i := range batch {
@@ -69,6 +94,7 @@ func (h *Handler) ingestSpans(out *outcome, site sites.Site, it Item, ctx EventC
 		h.stats.Add("span_rate_limited", uint64(dropped))
 		spans.HealthStats{}.Add("span_rate_limited", dropped)
 		out.spanLimited++
+		release(n)
 		if n == 0 {
 			forget()
 			out.rateLimited++
@@ -77,6 +103,7 @@ func (h *Handler) ingestSpans(out *outcome, site sites.Site, it Item, ctx EventC
 		batch = batch[:n]
 	}
 	if !h.spans.Enqueue(batch) {
+		release(0)
 		forget()
 		out.queueFull++
 		return
