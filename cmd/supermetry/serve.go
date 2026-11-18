@@ -695,10 +695,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			health.AlertDeliveryFailures.Add(1)
 			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
 		})
+	issueNotifier := appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now)
+	ruleEvaluator.WithActions(appissues.New(pool, settings.clock.Now), issueNotifier)
 	jobs = append(jobs, ruleEvaluator.Job())
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
-		appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
+		issueNotifier.Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()

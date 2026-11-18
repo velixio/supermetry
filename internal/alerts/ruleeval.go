@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"supermetry/internal/scheduler"
@@ -23,10 +22,12 @@ const (
 // dedup key committed atomically with the delivery state; GroupKey names the
 // firing group (an issue, a release) and IssueID the issue, when there is one.
 type Candidate struct {
-	Key          string
-	GroupKey     string
-	IssueID      int64
-	Notification Notification
+	Key      string
+	GroupKey string
+	IssueID  int64
+	// AssigneeUserID is the issue's owner at evaluation time, 0 when unassigned.
+	AssigneeUserID int64
+	Notification   Notification
 }
 
 // RuleEvaluator runs the app_rule alerts. The old Evaluator keeps the web
@@ -39,6 +40,9 @@ type RuleEvaluator struct {
 	dedup AppDedup
 	sites sites.Registry
 	now   func() time.Time
+
+	assigner IssueAssigner
+	mailer   OwnerMailer
 }
 
 // NewRuleEvaluator builds the evaluator of the alert-rules job. It reuses the
@@ -118,74 +122,8 @@ func (e *RuleEvaluator) evaluate(ctx context.Context, alert Alert, now time.Time
 	return e.fireKeyed(ctx, alert, candidates, now)
 }
 
-// onlyKindsFilter reports whether the filters use nothing beyond the issue
-// kinds, the only filter this evaluator applies so far. A rule with other
-// filters is skipped rather than fired without them.
-func onlyKindsFilter(f Filters) bool {
-	return len(f.Environments) == 0 && len(f.Releases) == 0 && len(f.Platforms) == 0 &&
-		len(f.Levels) == 0 && len(f.Tags) == 0 && f.Owner == nil
-}
-
-// evalIssue produces the new and regressed candidates with the v1 keys, so a
-// converted v1 alert never repeats a notification it already sent. Escalated
-// candidates land with the activity source of a later task.
-func (e *RuleEvaluator) evalIssue(ctx context.Context, alert Alert, site sites.Site, now time.Time) ([]Candidate, error) {
-	rule := alert.Rule
-	if !onlyKindsFilter(rule.Filters) {
-		return nil, nil
-	}
-	info, err := e.app.Site(ctx, site.ID)
-	if err != nil {
-		return nil, err
-	}
-	since := now.Add(-appLookback)
-	if alert.CreatedAt.After(since) {
-		since = alert.CreatedAt
-	}
-	var out []Candidate
-	for _, on := range rule.Trigger.Issue.On {
-		switch on {
-		case "new":
-			issues, err := e.app.NewIssues(ctx, site.ID, since, rule.Filters.Kinds, appCandidateLimit)
-			if err != nil {
-				return nil, err
-			}
-			for _, issue := range issues {
-				out = append(out, e.issueCandidate("issue:"+strconv.FormatInt(issue.ID, 10), info, issue, issue.FirstSeen, now))
-			}
-		case "regressed":
-			issues, err := e.app.RegressedIssues(ctx, site.ID, since, appCandidateLimit)
-			if err != nil {
-				return nil, err
-			}
-			for _, issue := range issues {
-				key := "regress:" + strconv.FormatInt(issue.ID, 10) + ":" + strconv.FormatInt(issue.RegressedAt.Unix(), 10)
-				out = append(out, e.issueCandidate(key, info, issue, issue.RegressedAt, now))
-			}
-		}
-	}
-	return out, nil
-}
-
-func (e *RuleEvaluator) issueCandidate(key string, info AppSite, issue AppIssue, from, now time.Time) Candidate {
-	return Candidate{
-		Key: key, GroupKey: "issue:" + strconv.FormatInt(issue.ID, 10), IssueID: issue.ID,
-		Notification: Notification{
-			Value: float64(issue.Events), Threshold: 1, From: from, To: now,
-			App: &AppNotification{
-				AppName: info.Name, IssueID: issue.ID, IssueTitle: issue.Title, IssueKind: issue.Kind, Release: issue.Release, Events: issue.Events,
-				IssueURL: fmt.Sprintf("/app/%s/%s/issues/%d", info.OrgSlug, info.SiteSlug, issue.ID),
-			},
-		},
-	}
-}
-
 // The remaining trigger evaluators land with their tasks; until then a rule of
 // that type stores and validates but produces no candidates.
-func (e *RuleEvaluator) evalEvent(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
-	return nil, nil
-}
-
 func (e *RuleEvaluator) evalMetric(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
 	return nil, nil
 }
@@ -220,14 +158,18 @@ func (e *RuleEvaluator) fireKeyed(ctx context.Context, alert Alert, candidates [
 			continue
 		}
 		seen[c.Key] = now
+		e.runAssignActions(ctx, alert, &c)
 		n := c.Notification
 		n.AlertID, n.SiteID, n.Kind, n.FiredAt = alert.ID, alert.SiteID, AlertRule, now
 		if n.Rule == nil {
 			n.Rule = &RuleNotification{ID: alert.ID, Name: alert.Name, TriggerType: alert.Rule.Trigger.Type, Status: ruleStatusFiring}
 		}
-		if err := e.base.fireWithKey(ctx, alert, n, nil, c.Key); err != nil {
+		routed := alert
+		routed.ChannelIDs = ruleChannels(alert, c)
+		if err := e.base.fireWithKey(ctx, routed, n, nil, c.Key); err != nil {
 			return err
 		}
+		e.runOwnerActions(ctx, alert, c)
 		sent++
 	}
 	return nil
