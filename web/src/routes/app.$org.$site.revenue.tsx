@@ -41,8 +41,8 @@ function RevenueRoute() {
 
   const { filters, dropped } = parseFilters(search.f)
   const timezone = site.timezone || 'UTC'
-  return <div className="flex min-w-0 flex-col gap-4">
-    <div className="flex flex-wrap items-start justify-between gap-3">
+  const toolbar = (
+    <>
       <FilterBar
         dropped={dropped}
         filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
@@ -55,8 +55,12 @@ function RevenueRoute() {
         onApply={(next) => void navigate({ search: { ...search, ...replaceFilters(search, next) } })}
       />
       <DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: next })} />
-    </div>
+    </>
+  )
+
+  return <div className="flex min-w-0 flex-col gap-3">
     <RevenueReport
+      toolbar={toolbar}
       siteId={site.id}
       orgId={membership?.org.id}
       currency={site.revenue_currency}

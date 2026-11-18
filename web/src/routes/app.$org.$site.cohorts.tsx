@@ -27,13 +27,9 @@ function CohortsRoute() {
   const policy = isAnonymousTracking(site) ? 'anonymous' : site.profiles_enabled ? undefined : 'profiles_disabled'
   const timezone = site.timezone || 'UTC'
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      {policy ? null : (
-        <div className="flex flex-wrap items-start justify-end gap-3">
-          <DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: next })} />
-        </div>
-      )}
+    <div className="flex min-w-0 flex-col gap-3">
       <CohortsPage
+        toolbar={policy ? undefined : <DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: next })} />}
         canEdit={membership?.role !== 'viewer'}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         orgSlug={org}

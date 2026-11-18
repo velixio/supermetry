@@ -39,9 +39,8 @@ function HeatmapsRoute() {
     void navigate({ search: { ...search, period, from: undefined, to: undefined } })
   }
 
-  return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap justify-end gap-2">
+  const toolbar = (
+    <>
         <select
           aria-label={en.dashboard.period}
           className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -70,8 +69,13 @@ function HeatmapsRoute() {
             />
           </>
         ) : null}
-      </div>
+    </>
+  )
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
       <HeatmapsPage
+        toolbar={toolbar}
         siteId={site.id}
         orgId={membership.org.id}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}

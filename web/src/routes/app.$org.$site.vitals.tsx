@@ -34,25 +34,29 @@ function VitalsRoute() {
 
   if (!site) return <p className="sr-only">{en.loadingDashboard}</p>
 
+  const toolbar = (
+    <>
+      <FilterBar
+        siteId={site.id}
+        canEdit={membership?.role !== 'viewer'}
+        filters={filters}
+        dropped={dropped}
+        invalidNotice={en.dashboard.invalidFilter}
+        filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+        removeLabel={(filter) => en.dashboard.filterLabel
+          .replace('{dimension}', filter.dimension)
+          .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))}
+        onApply={(nextFilters) => updateSearch(replaceFilters(search, nextFilters))}
+        onRemove={(index) => updateSearch(removeFilter(search, index))}
+      />
+      <DatePicker search={search} labels={en.dashboard} onChange={updateSearch} />
+    </>
+  )
+
   return (
-    <div className="flex min-w-0 flex-col gap-4" data-filter-count={filters.length}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <FilterBar
-          siteId={site.id}
-          canEdit={membership?.role !== 'viewer'}
-          filters={filters}
-          dropped={dropped}
-          invalidNotice={en.dashboard.invalidFilter}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          removeLabel={(filter) => en.dashboard.filterLabel
-            .replace('{dimension}', filter.dimension)
-            .replace('{value}', filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', '))}
-          onApply={(nextFilters) => updateSearch(replaceFilters(search, nextFilters))}
-          onRemove={(index) => updateSearch(removeFilter(search, index))}
-        />
-        <DatePicker search={search} labels={en.dashboard} onChange={updateSearch} />
-      </div>
+    <div className="flex min-w-0 flex-col gap-3" data-filter-count={filters.length}>
       <VitalsPage
+        toolbar={toolbar}
         siteId={site.id}
         dateRange={resolveRange(
           search.period,

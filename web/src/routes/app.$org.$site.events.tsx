@@ -52,30 +52,34 @@ function EventsRoute() {
   const { filters, dropped } = parseFilters(search.f)
   const dateRange = resolveRange(search.period, site.timezone || 'UTC', new Date(), search.from, search.to)
 
+  const toolbar = (
+    <>
+      <FilterBar
+        canEdit={membership.role !== 'viewer'}
+        dateRange={dateRange}
+        dropped={dropped}
+        filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+        filters={filters}
+        invalidNotice={en.dashboard.invalidFilter}
+        orgId={membership.org.id}
+        removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+        siteId={site.id}
+        onAdd={(filter) => void navigate({ search: firstPage({ ...search, f: addFilter(search, filter).f }) })}
+        onApply={(next) => void navigate({ search: firstPage({ ...search, f: replaceFilters(search, next).f }) })}
+        onRemove={(index) => void navigate({ search: firstPage({ ...search, f: removeFilter(search, index).f }) })}
+      />
+      <DatePicker
+        labels={en.dashboard}
+        search={search}
+        onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
+      />
+    </>
+  )
+
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <FilterBar
-          canEdit={membership.role !== 'viewer'}
-          dateRange={dateRange}
-          dropped={dropped}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          filters={filters}
-          invalidNotice={en.dashboard.invalidFilter}
-          orgId={membership.org.id}
-          removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          siteId={site.id}
-          onAdd={(filter) => void navigate({ search: firstPage({ ...search, f: addFilter(search, filter).f }) })}
-          onApply={(next) => void navigate({ search: firstPage({ ...search, f: replaceFilters(search, next).f }) })}
-          onRemove={(index) => void navigate({ search: firstPage({ ...search, f: removeFilter(search, index).f }) })}
-        />
-        <DatePicker
-          labels={en.dashboard}
-          search={search}
-          onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
-        />
-      </div>
+    <div className="flex min-w-0 flex-col gap-3">
       <EventsPage
+        toolbar={toolbar}
         cursor={currentCursor(search)}
         dateRange={dateRange}
         filters={filters}
