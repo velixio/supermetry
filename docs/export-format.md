@@ -63,5 +63,52 @@ from earlier exports, and `manifest.json` is the only addition.
 ## Compression and Parquet
 
 Archives are ZIP (deflate). Scheduled exports use the same ZIP so one reader
-handles both. Parquet is not offered: see the project notes for the measured
-cost.
+handles both. Parquet is not offered. The pure-Go library
+`parquet-go/parquet-go` (Apache-2.0) adds only about 0.6 MB to the binary
+(53.74 MB to 54.34 MB measured), but it brings five new modules and bumps
+`google.golang.org/protobuf`, and no consumer has asked for it yet. CSV in a ZIP
+loads into DuckDB, pandas and warehouses directly. Revisit it if a customer
+needs columnar loads.
+
+## Scheduled exports to S3-compatible storage
+
+An owner or admin can schedule a site (or every site of the organization) to be
+written daily, weekly or monthly (03:00 UTC) to any S3-compatible bucket: AWS S3,
+Cloudflare R2, Backblaze B2, MinIO. Each run uploads one ZIP in the format above
+to `<prefix>/site-<id>/supermetry-site-<id>-<from>-<to>.zip`.
+
+- **Incremental** (default): the first run exports all history up to the last
+  closed day in the site's time zone; later runs export only the days since the
+  previous successful run, so each object covers a distinct range. Turn it off to
+  write the full history each time.
+- **Large exports** stream: the ZIP goes straight to a multipart upload (16 MiB
+  parts), so neither the server nor the database buffers the whole file.
+- **Credentials**: the secret is encrypted at rest with the instance secret key
+  and is never returned by the API.
+- **Safety**: the endpoint must be https and must not resolve to a private,
+  loopback or link-local address. Self-hosters running a local MinIO set
+  `SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS=true`, which also allows http.
+- **History and failures**: every attempt is recorded (status, days, bytes, object
+  key, error). A failed schedule retries after six hours; owners and admins get
+  one email when it starts failing, when mail is configured.
+
+Grant the key only `s3:PutObject` (and `s3:AbortMultipartUpload`) on the prefix.
+The Test action writes and deletes a small `.supermetry-export-check` object.
+
+## Organization settings bundle
+
+`GET /api/private/orgs/{org}/settings-export` downloads one JSON document
+(`kind: "supermetry.org-settings"`, `schema_version: 1`) with: sites (name,
+type, time zone, retention, allowed hosts, safe settings), goals, funnels,
+segments, alerts, share-link settings and members (email, role). It never
+contains secrets: no channel configuration or webhook URLs, no share-link
+tokens or password hashes, no API keys, SMTP settings or credentials. Alerts
+name their channels by kind and name; alert rules (which hold webhook targets)
+are listed under `skipped`.
+
+`POST /api/private/orgs/{org}/settings-import` recreates a bundle in another
+organization. Use `?dry_run=true` first: the report lists what would be created.
+Existing sites are left unchanged; share links are never recreated; alerts whose
+channel does not exist in the target arrive disabled until you create a channel
+of the same kind and name. Members are only listed unless `?invite_members=true`
+is given, which sends invitations (never to owners).
