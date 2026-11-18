@@ -195,7 +195,10 @@ export function StatsStrip({
     const content = (
       <>
         <span className="w-full truncate text-xs font-normal text-muted-foreground">{metricLabel(metric)}</span>
+        {/* Whitespace text nodes keep the parts apart for assistive-tech text matching; the flex layout does not render them. */}
+        {' '}
         <span className="text-xl font-semibold leading-none tracking-tight tabular-nums">{valueText}</span>
+        {' '}
         {comparison.isLoading ? <span className="h-4" aria-hidden="true" /> : <Delta metric={metric} value={delta} reference={referenceText} />}
       </>
     )
