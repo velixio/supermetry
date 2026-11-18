@@ -98,7 +98,7 @@ const messages: MessageTree = {
     aboutDescription: 'Versión y créditos de esta instalación.',
     version: 'Versión',
   },
-  appShell: { loadingLive: 'Cargando visitantes en vivo' },
+  appShell: { loadingLive: 'Cargando visitantes en vivo', pageControls: 'Controles de la página' },
   crumbs: {
     label: 'Ruta de navegación',
     detail: 'Detalle',

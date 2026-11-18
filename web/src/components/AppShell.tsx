@@ -1,6 +1,6 @@
 import { AuthorizationCacheBoundary, authorizationScope } from '@/lib/authorization-cache'
 import { AuthorizationProvider } from '@/lib/authorization'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query'
 import { AccountSidebar } from './AccountSidebar'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
 import { AppHeader } from './AppHeader'
+import { HeaderToolbarContext } from './HeaderToolbar'
+import { buildCrumbs } from './routeCrumbs'
 import { AboutDialog } from '@/components/AboutDialog'
 import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { ShellPrefsContext } from '@/components/ShellPrefsContext'
@@ -55,6 +57,7 @@ export function AppShell({
   const { theme, toggle } = useTheme()
   const { managed, known: managedKnown } = useManagedState()
   const [helpOpen, setHelpOpen] = useState(false)
+  const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [paletteLoaded, setPaletteLoaded] = useState(false)
@@ -91,6 +94,9 @@ export function AppShell({
     }) }
   const commands = lastCommands.current.scope === paletteScope ? lastCommands.current.list : []
   const scopedSite = membership?.sites.find((item) => matchesSite(item, requestedSite))
+  // Page controls render in the header; a page title that only repeats the last breadcrumb leaves the page.
+  const pageLabel = buildCrumbs(pathname, membership).at(-1)?.label
+  const toolbarSlot = useMemo(() => ({ node: toolbarNode, pageLabel }), [toolbarNode, pageLabel])
   const siteDetails = useQuery({
     queryKey: ['site', scopedSite?.id],
     queryFn: () => getSite(scopedSite!.id, membership!.org.id),
@@ -159,8 +165,10 @@ export function AppShell({
             onOpenAbout={() => setAboutOpen(true)}
             onOpenPalette={openPalette}
             paletteTriggerRef={paletteTrigger}
+            toolbarRef={setToolbarNode}
             notice={membership && scopedSite?.is_demo ? <DemoBanner org={membership.org} site={scopedSite} /> : undefined}
           />
+          <HeaderToolbarContext.Provider value={toolbarSlot}>
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-3 py-2 md:px-4 md:py-3" id={MAIN_CONTENT_ID} tabIndex={-1}>
             {membership && !scopedSite?.is_demo ? <RemoveDemoBanner currentSite={scopedSite} membership={membership} /> : null}
             <AuthorizationCacheBoundary scope={authorizationScope(me.user.id, membership)}>
@@ -180,6 +188,7 @@ export function AppShell({
               </div>
             </AuthorizationCacheBoundary>
           </main>
+          </HeaderToolbarContext.Provider>
           <ImpersonationBanner me={me} />
         </SidebarInset>
       </SidebarProvider>

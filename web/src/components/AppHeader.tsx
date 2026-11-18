@@ -82,6 +82,7 @@ export function AppHeader({
   onOpenPalette,
   paletteTriggerRef,
   notice,
+  toolbarRef,
 }: {
   instanceAdmin?: boolean
   membership?: Membership
@@ -94,14 +95,25 @@ export function AppHeader({
   paletteTriggerRef?: Ref<HTMLButtonElement>
   /** A compact page-scoped status chip (the demo project), so it costs no page height. */
   notice?: ReactNode
+  /** Receives the slot element that page controls are portalled into (see HeaderToolbar). */
+  toolbarRef?: Ref<HTMLDivElement>
 }) {
   return (
-    <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
-      <div className="flex min-w-0 items-center gap-2">
+    <header aria-label={en.a11y2.applicationHeader} className="group/header sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
+      <div className="flex min-w-0 shrink items-center gap-2">
         <SidebarTrigger aria-label={en.navigation.collapse} />
         <Breadcrumbs membership={membership} />
       </div>
-      <div className="flex items-center gap-1">
+      {/* The current page's filters and actions (HeaderToolbar portals them here on wide screens), so the
+          page itself starts with content. It scrolls sideways rather than wrapping when a page has many controls. */}
+      <div
+        ref={toolbarRef}
+        className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [&>:first-child]:ml-auto [scrollbar-width:none] empty:hidden [&_.flex-wrap]:flex-nowrap [&>*]:shrink-0"
+        data-slot="header-toolbar"
+        role="group"
+        aria-label={ui.appShell.pageControls}
+      />
+      <div className="flex shrink-0 items-center gap-1">
         {/* One search field for the command palette. The shortcut hint sits beside the button's text,
             not inside it, so the button's name is exactly its visible text. */}
         <span className="relative inline-flex">
@@ -109,16 +121,16 @@ export function AppHeader({
             ref={paletteTriggerRef}
             type="button"
             variant="outline"
-            className="justify-start gap-2 border-border bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:border-transparent max-md:bg-transparent max-md:dark:bg-transparent max-md:dark:hover:bg-accent max-md:px-0 max-md:hover:bg-accent md:w-64 md:pr-16 lg:w-72"
+            className="justify-start gap-2 border-border bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:border-transparent max-md:bg-transparent max-md:dark:bg-transparent max-md:dark:hover:bg-accent max-md:px-0 max-md:hover:bg-accent md:w-64 md:pr-16 lg:w-72 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:w-9 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:justify-center lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:px-0"
             aria-haspopup="dialog"
             aria-keyshortcuts="Control+K Meta+K"
             aria-label={ui.palette.searchField}
             onClick={onOpenPalette}
           >
             <SearchIcon aria-hidden="true" />
-            <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{ui.palette.searchField}</span>
+            <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">{ui.palette.searchField}</span>
           </Button>
-          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline">
+          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
         </span>

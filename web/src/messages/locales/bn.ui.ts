@@ -58,7 +58,7 @@ const messages: MessageTree = {
     menu: 'সহায়তা', shortcuts: 'কিবোর্ড শর্টকাট', about: 'Supermetry সম্পর্কে',
     aboutDescription: 'এই ইনস্টলেশনের সংস্করণ ও কৃতজ্ঞতা।', version: 'সংস্করণ',
   },
-  appShell: { loadingLive: 'সরাসরি দর্শনার্থী লোড হচ্ছে' },
+  appShell: { loadingLive: 'সরাসরি দর্শনার্থী লোড হচ্ছে', pageControls: 'পৃষ্ঠার নিয়ন্ত্রণ' },
   crumbs: {
     label: 'ব্রেডক্রাম্ব', detail: 'বিস্তারিত', account: 'অ্যাকাউন্ট', admin: 'অ্যাডমিন',
     appOverview: 'ওভারভিউ',

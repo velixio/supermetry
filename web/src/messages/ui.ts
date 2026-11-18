@@ -97,7 +97,7 @@ export const ui = {
     aboutDescription: 'Version and credits for this installation.',
     version: 'Version',
   },
-  appShell: { loadingLive: 'Loading live visitors' },
+  appShell: { loadingLive: 'Loading live visitors', pageControls: 'Page controls' },
   crumbs: {
     label: 'Breadcrumb',
     detail: 'Detail',

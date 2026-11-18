@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { HeaderToolbar, useHeaderToolbar } from './HeaderToolbar'
+
 /**
  * The single h1 of a page, with an optional description and actions, in one compact row:
  * the description sits on the title's baseline and the actions to the right; on narrow
@@ -27,7 +29,55 @@ export function PageHeader({
   /** The title is already on screen (breadcrumbs): keep the h1 for assistive tech only, so the page spends no height on it. */
   titleHidden?: boolean
 }) {
+  const toolbar = useHeaderToolbar()
+  // A title that only repeats (or extends, like "User journeys") the last breadcrumb, or is already on screen,
+  // stays for assistive tech only, so the page starts with its content.
+  const repeatsCrumb = titleHidden || (typeof title === 'string' && toolbar.pageLabel !== undefined && title.toLowerCase().includes(toolbar.pageLabel.toLowerCase()))
+  if (!toolbar.active && toolbar.node && repeatsCrumb) {
+    // Narrow screens inside the shell: the header bar has no room, so the actions keep one swipeable row.
+    return (
+      <>
+        <h1 id={titleId} className="sr-only">{title}</h1>
+        {description ? <p className="sr-only">{description}</p> : null}
+        {actions ? (
+          <div className={cn('-mx-3 flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto px-3 py-0.5 [scrollbar-width:none] empty:hidden *:shrink-0 [&_.flex-wrap]:flex-nowrap', className)} data-slot="page-header-actions">
+            {actions}
+          </div>
+        ) : null}
+      </>
+    )
+  }
+  if (toolbar.active) {
+    // App-shell layout: the actions join the header bar.
+    const portalled = actions ? <HeaderToolbar>{actions}</HeaderToolbar> : null
+    if (repeatsCrumb) {
+      return (
+        <>
+          <h1 id={titleId} className="sr-only">{title}</h1>
+          {description ? <p className="sr-only">{description}</p> : null}
+          {portalled}
+        </>
+      )
+    }
+    return (
+      <>
+        <InlinePageHeader className={className} description={description} title={title} titleId={titleId} />
+        {portalled}
+      </>
+    )
+  }
   if (titleHidden && !actions && !description) return <h1 id={titleId} className="sr-only">{title}</h1>
+  return <InlinePageHeader actions={actions} className={className} description={description} inlineActions={inlineActions} title={title} titleId={titleId} />
+}
+
+function InlinePageHeader({ title, description, actions, className, titleId, inlineActions = false }: {
+  title: ReactNode
+  description?: ReactNode
+  actions?: ReactNode
+  className?: string
+  titleId?: string
+  inlineActions?: boolean
+}) {
   return (
     <header className={cn('flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-3', className)}>
       {/* One line: the title and, while it fits, its description; the full description stays available as a tooltip. */}
