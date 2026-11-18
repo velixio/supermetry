@@ -16,6 +16,39 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for APIKeyLastUsedClient.
+const (
+	APIKeyLastUsedClientBrowser     APIKeyLastUsedClient = "browser"
+	APIKeyLastUsedClientCurl        APIKeyLastUsedClient = "curl"
+	APIKeyLastUsedClientLessThannil APIKeyLastUsedClient = "<nil>"
+	APIKeyLastUsedClientMcp         APIKeyLastUsedClient = "mcp"
+	APIKeyLastUsedClientOther       APIKeyLastUsedClient = "other"
+	APIKeyLastUsedClientSdkJs       APIKeyLastUsedClient = "sdk-js"
+	APIKeyLastUsedClientSdkPython   APIKeyLastUsedClient = "sdk-python"
+)
+
+// Valid indicates whether the value is a known member of the APIKeyLastUsedClient enum.
+func (e APIKeyLastUsedClient) Valid() bool {
+	switch e {
+	case APIKeyLastUsedClientBrowser:
+		return true
+	case APIKeyLastUsedClientCurl:
+		return true
+	case APIKeyLastUsedClientLessThannil:
+		return true
+	case APIKeyLastUsedClientMcp:
+		return true
+	case APIKeyLastUsedClientOther:
+		return true
+	case APIKeyLastUsedClientSdkJs:
+		return true
+	case APIKeyLastUsedClientSdkPython:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminDeleteUserLastOwnerError.
 const (
 	LastOwner AdminDeleteUserLastOwnerError = "last_owner"
@@ -1888,6 +1921,30 @@ func (e RetentionResponseRetentionMode) Valid() bool {
 	}
 }
 
+// Defines values for RollAPIKeyRequestGraceHours.
+const (
+	RollAPIKeyRequestGraceHoursN0   RollAPIKeyRequestGraceHours = 0
+	RollAPIKeyRequestGraceHoursN1   RollAPIKeyRequestGraceHours = 1
+	RollAPIKeyRequestGraceHoursN168 RollAPIKeyRequestGraceHours = 168
+	RollAPIKeyRequestGraceHoursN24  RollAPIKeyRequestGraceHours = 24
+)
+
+// Valid indicates whether the value is a known member of the RollAPIKeyRequestGraceHours enum.
+func (e RollAPIKeyRequestGraceHours) Valid() bool {
+	switch e {
+	case RollAPIKeyRequestGraceHoursN0:
+		return true
+	case RollAPIKeyRequestGraceHoursN1:
+		return true
+	case RollAPIKeyRequestGraceHoursN168:
+		return true
+	case RollAPIKeyRequestGraceHoursN24:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchConsoleTopDimension.
 const (
 	SearchConsoleTopDimensionPage  SearchConsoleTopDimension = "page"
@@ -2559,17 +2616,32 @@ func (e TrackingPixelParamsStyle) Valid() bool {
 
 // APIKey defines model for APIKey.
 type APIKey struct {
-	CreatedAt  time.Time  `json:"created_at"`
-	ExpiresAt  *time.Time `json:"expires_at"`
-	Id         int64      `json:"id"`
-	LastUsedAt *time.Time `json:"last_used_at"`
-	Name       string     `json:"name"`
-	Revoked    bool       `json:"revoked"`
-	Scopes     []string   `json:"scopes"`
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at"`
+
+	// ExpiringSoon True for a live key that expires within 14 days.
+	ExpiringSoon bool       `json:"expiring_soon"`
+	Id           int64      `json:"id"`
+	LastUsedAt   *time.Time `json:"last_used_at"`
+
+	// LastUsedClient Coarse client family of the last request. The raw User-Agent is never stored.
+	LastUsedClient *APIKeyLastUsedClient `json:"last_used_client"`
+
+	// LastUsedCountry Two-letter country of the last request, from the local GeoIP database. The IP address is never stored.
+	LastUsedCountry *string `json:"last_used_country"`
+	Name            string  `json:"name"`
+
+	// NeverExpires True when expires_at is null.
+	NeverExpires bool     `json:"never_expires"`
+	Revoked      bool     `json:"revoked"`
+	Scopes       []string `json:"scopes"`
 
 	// SiteIds Null grants every site in the organization; an empty array grants none.
 	SiteIds *[]int32 `json:"site_ids"`
 }
+
+// APIKeyLastUsedClient Coarse client family of the last request. The raw User-Agent is never stored.
+type APIKeyLastUsedClient string
 
 // APIKeyList defines model for APIKeyList.
 type APIKeyList struct {
@@ -4157,10 +4229,17 @@ type ComparisonResult struct {
 
 // CreateAPIKeyRequest defines model for CreateAPIKeyRequest.
 type CreateAPIKeyRequest struct {
+	// ExpiresAt Explicit expiry. Choose at most one of expires_at
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-	Name      string     `json:"name"`
-	Scopes    []string   `json:"scopes"`
-	SiteIds   *[]int32   `json:"site_ids,omitempty"`
+
+	// ExpiresInDays Expire this many days from now.
+	ExpiresInDays *int   `json:"expires_in_days,omitempty"`
+	Name          string `json:"name"`
+
+	// NeverExpires Create a key without an expiry. When none of the three expiry fields is sent, the key expires after 90 days.
+	NeverExpires *bool    `json:"never_expires,omitempty"`
+	Scopes       []string `json:"scopes"`
+	SiteIds      *[]int32 `json:"site_ids,omitempty"`
 }
 
 // CreateDemoRequest defines model for CreateDemoRequest.
@@ -4200,7 +4279,8 @@ type CreateSiteRequestRetentionDays int
 
 // CreatedAPIKey defines model for CreatedAPIKey.
 type CreatedAPIKey struct {
-	Id int64 `json:"id"`
+	ExpiresAt *time.Time `json:"expires_at"`
+	Id        int64      `json:"id"`
 
 	// Key The secret value. It is shown once and cannot be retrieved later.
 	Key string `json:"key"`
@@ -5822,6 +5902,26 @@ type RevenueReportRow struct {
 	UniqueCustomers *int64   `json:"unique_customers,omitempty"`
 }
 
+// RollAPIKeyRequest defines model for RollAPIKeyRequest.
+type RollAPIKeyRequest struct {
+	// GraceHours How long the old key keeps working after the roll. 0 ends it immediately.
+	GraceHours *RollAPIKeyRequestGraceHours `json:"grace_hours,omitempty"`
+}
+
+// RollAPIKeyRequestGraceHours How long the old key keeps working after the roll. 0 ends it immediately.
+type RollAPIKeyRequestGraceHours int
+
+// RolledAPIKey defines model for RolledAPIKey.
+type RolledAPIKey struct {
+	ExpiresAt *time.Time `json:"expires_at"`
+	Id        int64      `json:"id"`
+
+	// Key The successor's secret. It is shown once and cannot be retrieved later.
+	Key             string    `json:"key"`
+	OldKeyExpiresAt time.Time `json:"old_key_expires_at"`
+	OldKeyId        int64     `json:"old_key_id"`
+}
+
 // SavedFunnel defines model for SavedFunnel.
 type SavedFunnel struct {
 	Id     int64        `json:"id"`
@@ -7424,6 +7524,9 @@ type UpdateAnnotationJSONRequestBody = AnnotationPatch
 // CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
 type CreateApiKeyJSONRequestBody = CreateAPIKeyRequest
 
+// RollApiKeyJSONRequestBody defines body for RollApiKey for application/json ContentType.
+type RollApiKeyJSONRequestBody = RollAPIKeyRequest
+
 // SubmitAppEventsJSONRequestBody defines body for SubmitAppEvents for application/json ContentType.
 type SubmitAppEventsJSONRequestBody = AppEventsRequest
 
@@ -8568,6 +8671,9 @@ type ServerInterface interface {
 	// RevokeApiKey Revoke an API key
 	// (DELETE /api/public/v1/api-keys/{key_id})
 	RevokeApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
+	// RollApiKey Roll an API key
+	// (POST /api/public/v1/api-keys/{key_id}/roll)
+	RollApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
 	// PreflightAppEvents Negotiate cross-origin app report submission
 	// (OPTIONS /api/public/v1/app-events)
 	PreflightAppEvents(w http.ResponseWriter, r *http.Request)
@@ -16941,6 +17047,32 @@ func (siw *ServerInterfaceWrapper) RevokeApiKey(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// RollApiKey operation middleware
+func (siw *ServerInterfaceWrapper) RollApiKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key_id" -------------
+	var keyId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key_id", r.PathValue("key_id"), &keyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RollApiKey(w, r, keyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PreflightAppEvents operation middleware
 func (siw *ServerInterfaceWrapper) PreflightAppEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -20135,6 +20267,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.ListApiKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.CreateApiKey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}/roll", wrapper.RollApiKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}", wrapper.RevokeApiKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/report", wrapper.GetRevenueReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/customers", wrapper.ListRevenueCustomers)

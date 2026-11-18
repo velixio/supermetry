@@ -3827,9 +3827,31 @@ export interface paths {
         put?: never;
         /**
          * Create a narrower API key
-         * @description Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated.
+         * @description Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated. Without an expiry field the key expires after 90 days (clamped to the caller key's own expiry); send never_expires only to create a key that does not expire.
          */
         post: operations["createApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/api-keys/{key_id}/roll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll an API key
+         * @description Requires keys:manage. Creates a successor with the same name, scopes, site access and expiry policy, and lets the old key keep working for grace_hours (default 24). The caller needs authority over the key being rolled: a key cannot roll a key with broader scopes or sites, nor a keys:manage key. The successor never outlives the caller key.
+         */
+        post: operations["rollApiKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5778,7 +5800,18 @@ export interface components {
             expires_at: string | null;
             /** Format: date-time */
             last_used_at: string | null;
+            /** @description Two-letter country of the last request, from the local GeoIP database. The IP address is never stored. */
+            last_used_country: string | null;
+            /**
+             * @description Coarse client family of the last request. The raw User-Agent is never stored.
+             * @enum {string|null}
+             */
+            last_used_client: "mcp" | "curl" | "sdk-js" | "sdk-python" | "browser" | "other" | null;
             revoked: boolean;
+            /** @description True when expires_at is null. */
+            never_expires: boolean;
+            /** @description True for a live key that expires within 14 days. */
+            expiring_soon: boolean;
         };
         APIKeyList: {
             data: components["schemas"]["APIKey"][];
@@ -5787,14 +5820,43 @@ export interface components {
             name: string;
             scopes: string[];
             site_ids?: number[];
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Explicit expiry. Choose at most one of expires_at
+             */
             expires_at?: string;
+            /** @description Expire this many days from now. */
+            expires_in_days?: number;
+            /** @description Create a key without an expiry. When none of the three expiry fields is sent, the key expires after 90 days. */
+            never_expires?: boolean;
         };
         CreatedAPIKey: {
             /** Format: int64 */
             id: number;
             /** @description The secret value. It is shown once and cannot be retrieved later. */
             key: string;
+            /** Format: date-time */
+            expires_at: string | null;
+        };
+        RollAPIKeyRequest: {
+            /**
+             * @description How long the old key keeps working after the roll. 0 ends it immediately.
+             * @default 24
+             * @enum {integer}
+             */
+            grace_hours: 0 | 1 | 24 | 168;
+        };
+        RolledAPIKey: {
+            /** Format: int64 */
+            id: number;
+            /** @description The successor's secret. It is shown once and cannot be retrieved later. */
+            key: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** Format: int64 */
+            old_key_id: number;
+            /** Format: date-time */
+            old_key_expires_at: string;
         };
         MCPMessage: components["schemas"]["MCPRequest"] | components["schemas"]["MCPResponse"];
         MCPRequest: {
@@ -15100,6 +15162,41 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    rollApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RollAPIKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successor created; its secret is returned only in this response. */
+            201: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolledAPIKey"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
         };
