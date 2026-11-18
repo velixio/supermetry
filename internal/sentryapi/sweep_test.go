@@ -167,3 +167,59 @@ func TestSweepAfterOrgErasure(t *testing.T) {
 		t.Fatalf("%d index rows left", n)
 	}
 }
+
+func TestSweepRemoteSymbolsEvictsLeastRecentlyUsed(t *testing.T) {
+	e := newEnv(t, nil)
+	ctx := context.Background()
+	pool := e.h.deps.Pool
+	now := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
+	put := func(id string, size int64, usedAgo time.Duration) {
+		t.Helper()
+		key := "remote-symbols/electron/" + id
+		if _, err := e.blobs.PutIfAbsent(ctx, key, strings.NewReader(strings.Repeat("x", int(size)))); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := pool.Exec(ctx, `insert into app_remote_symbols(source,debug_file,debug_id,state,cache_key,size,fetched_at,last_used_at) values ('electron','electron',$1,'ok',$2,$3,$4,$4)`,
+			id, key, size, now.Add(-usedAgo)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	put("old", 400, 72*time.Hour)
+	put("mid", 400, 24*time.Hour)
+	put("new", 400, time.Hour)
+	// A negative row past its time to live goes regardless of the byte cap.
+	if _, err := pool.Exec(ctx, `insert into app_remote_symbols(source,debug_file,debug_id,state,fetched_at,last_used_at) values ('electron','electron','gone','missing',$1,$1),('electron','electron','fresh','missing',$2,$2)`,
+		now.Add(-8*24*time.Hour), now.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := SweepRemoteSymbols(ctx, pool, e.blobs, now, 1000)
+	if err != nil || n != 1 {
+		t.Fatalf("evicted %d, %v; want 1 (1200 bytes over a 1000 cap drops the oldest)", n, err)
+	}
+	if e.hasBlob(t, "remote-symbols/electron/old") || !e.hasBlob(t, "remote-symbols/electron/mid") || !e.hasBlob(t, "remote-symbols/electron/new") {
+		t.Fatal("wrong blobs evicted")
+	}
+	var ids []string
+	rows, err := pool.Query(ctx, `select debug_id from app_remote_symbols order by debug_id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if strings.Join(ids, ",") != "fresh,mid,new" {
+		t.Fatalf("rows left = %v", ids)
+	}
+	if n, err := SweepRemoteSymbols(ctx, pool, e.blobs, now, 1000); err != nil || n != 0 {
+		t.Fatalf("second sweep evicted %d, %v", n, err)
+	}
+	if n, err := SweepRemoteSymbols(ctx, pool, e.blobs, now, 500); err != nil || n != 1 {
+		t.Fatalf("tighter cap evicted %d, %v; want 1 more (mid)", n, err)
+	}
+}

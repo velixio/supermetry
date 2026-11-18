@@ -3620,7 +3620,9 @@ type AppSavedViewPatch struct {
 
 // AppSettings defines model for AppSettings.
 type AppSettings struct {
-	Environments *[]string `json:"environments,omitempty"`
+	// ElectronSymbols Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on.
+	ElectronSymbols *bool     `json:"electron_symbols,omitempty"`
+	Environments    *[]string `json:"environments,omitempty"`
 
 	// FilterCrawlers Drop events sent by crawlers. Omitted or null means on.
 	FilterCrawlers *bool `json:"filter_crawlers,omitempty"`

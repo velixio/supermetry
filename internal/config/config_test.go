@@ -855,3 +855,17 @@ func TestLoadSymbolicateSettings(t *testing.T) {
 		t.Fatal("zero workers accepted")
 	}
 }
+
+func TestLoadRemoteSymbols(t *testing.T) {
+	c, err := Load(env(baseEnv()))
+	if err != nil || !c.ElectronSymbols || c.RemoteSymbolsMB != 4096 {
+		t.Fatalf("defaults: %v %d %v", c.ElectronSymbols, c.RemoteSymbolsMB, err)
+	}
+	m := baseEnv()
+	m["SUPERMETRY_ELECTRON_SYMBOLS"] = "false"
+	m["SUPERMETRY_REMOTE_SYMBOLS_MB"] = "512"
+	c, err = Load(env(m))
+	if err != nil || c.ElectronSymbols || c.RemoteSymbolsMB != 512 {
+		t.Fatalf("explicit: %v %d %v", c.ElectronSymbols, c.RemoteSymbolsMB, err)
+	}
+}

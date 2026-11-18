@@ -114,6 +114,8 @@ type Config struct {
 	SentryIPPerMin        int   // Sentry-compatible intake: requests per minute per client IP
 	SentryMaxInflight     int   // Sentry-compatible intake: bodies read and parsed at once
 	SpansPerMin           int   // spans accepted per project per minute (token bucket)
+	ElectronSymbols       bool  // fetch Electron's public symbols for native crashes (SUPERMETRY_ELECTRON_SYMBOLS, default on)
+	RemoteSymbolsMB       int   // byte cap of the global remote symbol cache in MiB (SUPERMETRY_REMOTE_SYMBOLS_MB, default 4096)
 	SentryFilterLocalhost bool  // drop Sentry events whose request URL is localhost; off by default so local trials show events
 	AppSpikePerMin        int   // Sentry-compatible intake: events per minute per app site
 	SymbolicateWorkers    int   // source map symbolication workers
@@ -239,6 +241,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 		AppSpikePerMin:       600,
 		SentryIPPerMin:       600,
 		SentryMaxInflight:    32,
+		ElectronSymbols:      true,
+		RemoteSymbolsMB:      4096,
 		SpansPerMin:          60000,
 		SentryAPIIPPerMin:    600,
 		SentryAPITokenPerMin: 300,
@@ -489,6 +493,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_IP_PER_MIN"), "SUPERMETRY_SENTRY_IP_PER_MIN", &c.SentryIPPerMin, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_SENTRY_FILTER_LOCALHOST"), "SUPERMETRY_SENTRY_FILTER_LOCALHOST", &c.SentryFilterLocalhost, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_MAX_INFLIGHT"), "SUPERMETRY_SENTRY_MAX_INFLIGHT", &c.SentryMaxInflight, &errs)
+	parseOptionalBool(getenv("SUPERMETRY_ELECTRON_SYMBOLS"), "SUPERMETRY_ELECTRON_SYMBOLS", &c.ElectronSymbols, &errs)
+	parsePositiveInt(getenv("SUPERMETRY_REMOTE_SYMBOLS_MB"), "SUPERMETRY_REMOTE_SYMBOLS_MB", &c.RemoteSymbolsMB, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SPANS_PER_MIN"), "SUPERMETRY_SPANS_PER_MIN", &c.SpansPerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_API_IP_PER_MIN"), "SUPERMETRY_SENTRY_API_IP_PER_MIN", &c.SentryAPIIPPerMin, &errs)
 	parsePositiveInt(getenv("SUPERMETRY_SENTRY_API_TOKEN_PER_MIN"), "SUPERMETRY_SENTRY_API_TOKEN_PER_MIN", &c.SentryAPITokenPerMin, &errs)
