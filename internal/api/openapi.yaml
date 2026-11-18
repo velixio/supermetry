@@ -6802,6 +6802,7 @@ components:
         exit_code: { type: integer, format: int32, nullable: true }
         frames: { type: string }
         tags: { type: object, additionalProperties: true }
+        sdk_name: { type: string, description: 'Sender of the event; otlp-logs when the issue was created from an error log record. Absent when empty.' }
     AppEventBody:
       type: object
       required: [event_id, ts, body]

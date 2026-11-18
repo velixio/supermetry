@@ -1030,6 +1030,8 @@ export const en = {
   uiFix: {
     realtimeEmpty: 'No visitors in the last 30 minutes. New activity will appear here as it arrives.',
   },
+  // Issue detail: the issue was created from an OTLP error log record.
+  issueSourceLogs: 'From logs',
   // Journeys page.
   journeyUi: {
     title: 'User journeys',

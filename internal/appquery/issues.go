@@ -228,6 +228,9 @@ type EventSample struct {
 	ExitCode    *int32         `json:"exit_code"`
 	Frames      string         `json:"frames"`
 	Tags        map[string]any `json:"tags"`
+	// SDKName is the sender, such as "otlp-logs" for an issue made from an
+	// error log record; empty for most events.
+	SDKName string `json:"sdk_name,omitempty"`
 }
 
 // IssueDetail is an issue with its series, breakdowns and latest events.
@@ -399,7 +402,7 @@ func countTags(m map[string][]Breakdown) int {
 
 func (q *Querier) latest(ctx context.Context, args []any) ([]EventSample, error) {
 	rows, err := q.pool.Query(ctx, `
-select event_id, ts, release, platform, os_version, arch, device_class, runtime, exit_reason, signal, exit_code, frames, tags
+select event_id, ts, release, platform, os_version, arch, device_class, runtime, exit_reason, signal, exit_code, frames, tags, sdk_name
 from app_events where `+eventWhere+` and issue_id = $7 order by ts desc, event_id limit `+fmt.Sprint(latestEvents), args...)
 	if err != nil {
 		return nil, fmt.Errorf("read latest events: %w", err)
@@ -408,7 +411,7 @@ from app_events where `+eventWhere+` and issue_id = $7 order by ts desc, event_i
 	out := []EventSample{}
 	for rows.Next() {
 		var e EventSample
-		if err := rows.Scan(&e.EventID, &e.TS, &e.Release, &e.Platform, &e.OSVersion, &e.Arch, &e.DeviceClass, &e.Runtime, &e.ExitReason, &e.Signal, &e.ExitCode, &e.Frames, &e.Tags); err != nil {
+		if err := rows.Scan(&e.EventID, &e.TS, &e.Release, &e.Platform, &e.OSVersion, &e.Arch, &e.DeviceClass, &e.Runtime, &e.ExitReason, &e.Signal, &e.ExitCode, &e.Frames, &e.Tags, &e.SDKName); err != nil {
 			return nil, err
 		}
 		if e.Tags == nil {

@@ -42,8 +42,12 @@ func exceptionEvents(sp *tracepb.Span, res resourceInfo, s spans.Span, limit int
 		if msg != "" {
 			title = clip(typ+": "+msg, 200)
 		}
+		id := exceptionEventID(s.TraceID[:], s.SpanID[:], typ, msg)
+		if id == "" {
+			id = eventID(s, i)
+		}
 		e := appingest.Event{
-			ID:          eventID(s, i),
+			ID:          id,
 			TS:          s.Start,
 			Kind:        "error",
 			Level:       "error",

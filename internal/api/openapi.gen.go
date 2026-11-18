@@ -3287,17 +3287,20 @@ type AppEventSample struct {
 	DeviceClass string `json:"device_class"`
 
 	// EventId Present for the dashboard; absent in MCP tool output.
-	EventId    *string                `json:"event_id,omitempty"`
-	ExitCode   int32                  `json:"exit_code"`
-	ExitReason string                 `json:"exit_reason"`
-	Frames     string                 `json:"frames"`
-	OsVersion  string                 `json:"os_version"`
-	Platform   string                 `json:"platform"`
-	Release    string                 `json:"release"`
-	Runtime    string                 `json:"runtime"`
-	Signal     string                 `json:"signal"`
-	Tags       map[string]interface{} `json:"tags"`
-	Ts         time.Time              `json:"ts"`
+	EventId    *string `json:"event_id,omitempty"`
+	ExitCode   int32   `json:"exit_code"`
+	ExitReason string  `json:"exit_reason"`
+	Frames     string  `json:"frames"`
+	OsVersion  string  `json:"os_version"`
+	Platform   string  `json:"platform"`
+	Release    string  `json:"release"`
+	Runtime    string  `json:"runtime"`
+
+	// SdkName Sender of the event; otlp-logs when the issue was created from an error log record. Absent when empty.
+	SdkName *string                `json:"sdk_name,omitempty"`
+	Signal  string                 `json:"signal"`
+	Tags    map[string]interface{} `json:"tags"`
+	Ts      time.Time              `json:"ts"`
 }
 
 // AppEventsRequest defines model for AppEventsRequest.
