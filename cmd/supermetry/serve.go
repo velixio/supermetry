@@ -535,7 +535,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		})
 		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
-		sentryHandler.WithSessions(appSessions)
+		sentryHandler.WithSessions(appSessions).WithProductSessions(appProduct)
 		sentryIngest = sentryHandler
 		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now)
 	}
