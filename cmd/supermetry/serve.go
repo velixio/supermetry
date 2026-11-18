@@ -1088,7 +1088,14 @@ func appSecurityHeaders(cfg config.Config, next http.Handler, sharePolicies ...s
 				policy.resourcePolicy = "cross-origin"
 			}
 		}
-		setOptionalHeader(w.Header(), "Content-Security-Policy", policy.contentSecurityPolicy)
+		csp := applyCSPExtra(policy.contentSecurityPolicy, cfg.CSPExtra)
+		switch cfg.CSPMode {
+		case "off":
+		case "report-only":
+			setOptionalHeader(w.Header(), "Content-Security-Policy-Report-Only", csp)
+		default:
+			setOptionalHeader(w.Header(), "Content-Security-Policy", csp)
+		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", policy.referrerPolicy)
 		w.Header().Set("Permissions-Policy", policy.permissionsPolicy)
