@@ -388,3 +388,9 @@ Also noted: share links never expire; the secret key cannot be rotated; backups 
 - Some auth facts (11-entry common-password list, unused `SUPERMETRY_QUERY_TIMEOUT`, missing policy on password change, ±1 TOTP window) came from the helper pass and were re-checked in code. Its other claims (setup token printed at every start with no TTL, invite link returned to the inviter even when emailed, sibling reset tokens not cleared) were not re-checked and are left out.
 - That `store.ConsumeInvitation` marks an invite as used: inferred from its name and call site, SQL not read.
 - Behaviour of the SPA beyond the share page and the CSP: no browser testing was done.
+
+### Browser security headers (`SUPERMETRY_CSP`, `SUPERMETRY_CSP_EXTRA`)
+
+Core sets the headers itself (`appSecurityHeaders` in `cmd/supermetry/serve.go`): a strict `Content-Security-Policy` (no `unsafe-eval`, one script hash for the pre-paint theme script in `web/index.html`), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, `X-Frame-Options` and `frame-ancestors 'none'`, plus `Strict-Transport-Security` for HTTPS requests (direct TLS, or `X-Forwarded-Proto: https` from a trusted proxy). Public share pages are frameable only when the share enables embedding. Tracker and ingest routes carry no CSP and stay cross-origin.
+
+`SUPERMETRY_CSP` is `enforce` (default), `report-only` (sends `Content-Security-Policy-Report-Only`, violations show in the browser console) or `off` (no CSP header; the other headers stay). `SUPERMETRY_CSP_EXTRA` appends sources, for example `img-src https://cdn.example.com; connect-src https://api.example.com`. It cannot change `script-src`, `default-src`, `object-src`, `base-uri` or `frame-ancestors`.

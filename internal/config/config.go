@@ -133,6 +133,8 @@ type Config struct {
 	AdminAPIKey           string
 	MetricsToken          string
 	TrustedProxies        []netip.Prefix
+	CSPMode               string // enforce (default), report-only or off
+	CSPExtra              string // extra CSP sources, "directive src src; directive src"
 	SecretKey             []byte
 	Signup                string
 	SMTP                  SMTP
@@ -516,6 +518,15 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_GLOBAL"), "SUPERMETRY_INGEST_RATE_GLOBAL", &c.IngestRateGlobal, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_READ_TIMEOUT"), "SUPERMETRY_HTTP_READ_TIMEOUT", &c.HTTPReadTimeout, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_WRITE_TIMEOUT"), "SUPERMETRY_HTTP_WRITE_TIMEOUT", &c.HTTPWriteTimeout, &errs)
+	switch mode := strings.ToLower(strings.TrimSpace(getenv("SUPERMETRY_CSP"))); mode {
+	case "", "enforce":
+		c.CSPMode = "enforce"
+	case "report-only", "off":
+		c.CSPMode = mode
+	default:
+		errs = append(errs, fmt.Errorf("SUPERMETRY_CSP must be enforce, report-only or off"))
+	}
+	c.CSPExtra = strings.TrimSpace(getenv("SUPERMETRY_CSP_EXTRA"))
 	switch raw := strings.TrimSpace(getenv("SUPERMETRY_TRUSTED_PROXIES")); {
 	case raw == "":
 		// A proxy on the same host, LAN or Docker network connects from a
