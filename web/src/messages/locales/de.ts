@@ -338,6 +338,8 @@ const messages: MessageTree = {
 
   dashboardSummary: {
     title: 'Kurz gesagt',
+    hide: 'Zusammenfassung ausblenden',
+    show: 'Zusammenfassung anzeigen',
     people: '{count, plural, one {# Person} other {# Personen}}',
     visitorsCount: '{count, plural, one {# Besucher} other {# Besucher}}',
     matchingFilters: ', die zu Ihren Filtern passen',

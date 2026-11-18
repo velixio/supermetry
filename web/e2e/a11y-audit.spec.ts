@@ -39,7 +39,7 @@ const fixtureRange = '?period=custom&from=2026-09-28&to=2026-09-30'
 const emptyCounts = (): ImpactCounts => ({ critical: 0, serious: 0, moderate: 0, minor: 0 })
 
 async function waitForDashboard(page: Page) {
-  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeAttached()
+  await expect(page.getByRole('heading', { level: 1 })).toBeAttached()
   await expect(page.getByRole('region', { name: 'Where' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Weekly rhythm' })).toBeVisible()
   await expect(page.locator('[aria-label^="Loading "]')).toHaveCount(0)

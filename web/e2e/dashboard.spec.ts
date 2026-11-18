@@ -90,11 +90,13 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-29&to=2026-09-29`
   await owner.login(page, dashboard)
   await page.goto(dashboard)
-  const filterRow = page.getByRole('group', { name: 'Filters' })
-  await filterRow.getByRole('button', { name: 'View options' }).click()
+  const headerActions = page.locator('[data-slot="page-header-actions"]')
+  await headerActions.getByRole('button', { name: 'View options' }).click()
   await expect(page.getByRole('menuitemcheckbox', { name: 'Include imported data' })).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(filterRow.getByRole('combobox', { name: 'Compare' })).toBeVisible()
+  // Compare lives on the chart it changes and appears when the pointer is over the chart.
+  await page.getByTestId('kpi-chart').hover()
+  await expect(page.getByTestId('chart-controls').getByRole('combobox', { name: 'Compare' })).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Compare' }).click()
   await page.getByRole('option', { name: 'Previous period' }).click()

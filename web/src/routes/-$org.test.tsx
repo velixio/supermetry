@@ -124,9 +124,10 @@ describe('organization shell authentication', () => {
     vi.stubGlobal('fetch', meResponse())
     const router = renderRoute('/app/acme')
 
-    // The org page shows the organization in the sidebar switcher; the breadcrumb names only the page.
+    // The bare organization URL has no page of its own and lands on its projects overview,
+    // still inside the organization shell.
     expect(await screen.findByText('Organization: Acme', { exact: true })).toBeVisible()
-    expect(router.state.location.pathname).toBe('/app/acme')
+    expect(router.state.location.pathname).toBe('/app/acme/sites')
     expect(
       screen.queryByText('We could not find that organisation'),
     ).toBeNull()

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useId, useState, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react'
+import { ChevronRightIcon, ChevronUpIcon } from 'lucide-react'
 
 import { statsStripQueries } from '@/components/StatsStrip'
 import { Button } from '@/components/ui/button'
@@ -179,17 +179,38 @@ export function DashboardSummary(props: DashboardSummaryProps) {
     },
   })
   const { collapsed } = props
-  const Chevron = collapsed ? ChevronRightIcon : ChevronDownIcon
   const content = { ...props, onFailed: setFailed }
+  if (collapsed) {
+    return (
+      <section aria-label={en.dashboardSummary.title} data-testid="dashboard-summary">
+        <Button aria-controls={regionId} aria-expanded={false} className="-ml-2 h-7 px-2 text-xs text-muted-foreground" size="sm" type="button" variant="ghost" onClick={() => preference.mutate(false)}>
+          <ChevronRightIcon data-icon="inline-start" />
+          {en.dashboardSummary.show}
+        </Button>
+        <div id={regionId} />
+      </section>
+    )
+  }
+  // The summary reads as the page's lead paragraph; its hide control appears beside it on hover or focus
+  // (always on touch screens), so the sentence carries no chrome of its own.
   return (
-    <section aria-label={en.dashboardSummary.title} className="flex flex-col items-start gap-1" data-testid="dashboard-summary" hidden={failed && !collapsed}>
-      <Button aria-controls={regionId} aria-expanded={!collapsed} className="-ml-2 h-7 px-2 text-xs font-medium text-muted-foreground" size="sm" type="button" variant="ghost" onClick={() => preference.mutate(!collapsed)}>
-        {en.dashboardSummary.title}
-        <Chevron data-icon="inline-end" />
-      </Button>
-      <div className="w-full" id={regionId}>
-        {collapsed ? null : props.anonymous ? <TotalsLead {...content} /> : <FullLead {...content} />}
+    <section aria-label={en.dashboardSummary.title} className="group/summary flex items-start gap-1" data-testid="dashboard-summary" hidden={failed}>
+      <div className="min-w-0 flex-1" id={regionId}>
+        {props.anonymous ? <TotalsLead {...content} /> : <FullLead {...content} />}
       </div>
+      <Button
+        aria-controls={regionId}
+        aria-expanded
+        aria-label={en.dashboardSummary.hide}
+        className="size-7 shrink-0 text-muted-foreground transition-opacity motion-reduce:transition-none [@media(hover:hover)]:opacity-0 group-hover/summary:opacity-100 focus-visible:opacity-100"
+        size="icon"
+        title={en.dashboardSummary.hide}
+        type="button"
+        variant="ghost"
+        onClick={() => preference.mutate(true)}
+      >
+        <ChevronUpIcon aria-hidden="true" />
+      </Button>
     </section>
   )
 }

@@ -151,8 +151,9 @@ export function FilterBar({
         <DropdownMenuTrigger asChild>
           <Button
             aria-label={activeSegment ? `Segments: ${activeSegment.name}` : 'Segments'}
+            className={activeSegment ? undefined : 'text-muted-foreground hover:text-foreground'}
             type="button"
-            variant="outline"
+            variant={activeSegment ? 'secondary' : 'ghost'}
           >
             {activeSegment?.name ?? 'Segments'}
             <ChevronDownIcon data-icon="inline-end" />

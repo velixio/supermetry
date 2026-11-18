@@ -266,21 +266,22 @@ describe('sidebar groups, pinning and scope', () => {
   const groupButton = (name: string) => screen.getByRole('button', { name })
   const stored = () => JSON.parse(localStorage.getItem('sm.sidebar.v1.1') ?? '{}')
 
-  it('opens only the group with the active route and collapses the rest', async () => {
+  it('opens every group by default so the whole product is visible', async () => {
     renderSidebar('/app/acme/docs-public/realtime', { seed: false })
     await screen.findByRole('link', { name: 'Realtime' })
-    expect(groupButton('Analyze')).toHaveAttribute('aria-expanded', 'true')
-    for (const name of ['Behavior', 'Conversion', 'Manage']) {
-      expect(groupButton(name)).toHaveAttribute('aria-expanded', 'false')
+    for (const name of ['Analyze', 'Behavior', 'Conversion', 'Manage']) {
+      expect(groupButton(name)).toHaveAttribute('aria-expanded', 'true')
       expect(groupButton(name)).toHaveAttribute('aria-controls')
     }
-    expect(screen.queryByRole('link', { name: 'Journeys' })).toBeNull()
-    expect(screen.getByRole('link', { name: 'Journeys', hidden: true })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Journeys' })).toBeVisible()
   })
 
-  it('opens a collapsed group by click, Enter or Space, and remembers it per user', async () => {
+  it('collapses and reopens a group by click, Enter or Space, and remembers it per user', async () => {
     renderSidebar('/app/acme/docs-public/realtime', { seed: false })
     await screen.findByRole('link', { name: 'Realtime' })
+    fireEvent.click(groupButton('Behavior'))
+    expect(groupButton('Behavior')).toHaveAttribute('aria-expanded', 'false')
+    expect(stored().open.behaviour).toBe(false)
     fireEvent.click(groupButton('Behavior'))
     expect(await screen.findByRole('link', { name: 'Journeys' })).toBeInTheDocument()
     expect(stored().open.behaviour).toBe(true)
@@ -289,10 +290,10 @@ describe('sidebar groups, pinning and scope', () => {
     expect(conversion.tagName).toBe('BUTTON')
     expect(conversion).toHaveAttribute('type', 'button')
     fireEvent.click(conversion)
-    expect(conversion).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(conversion)
     expect(conversion).toHaveAttribute('aria-expanded', 'false')
-    expect(stored().open.conversion).toBe(false)
+    fireEvent.click(conversion)
+    expect(conversion).toHaveAttribute('aria-expanded', 'true')
+    expect(stored().open.conversion).toBe(true)
     cleanup()
     // A fresh mount restores the remembered state from storage.
     localStorage.setItem('sm.sidebar.v1.1', JSON.stringify({ open: { behaviour: true, analyze: false }, pinned: [] }))
@@ -310,7 +311,7 @@ describe('sidebar groups, pinning and scope', () => {
       renderSidebar('/app/acme/docs-public/realtime', { seed: false })
       await screen.findByRole('link', { name: 'Realtime' })
       fireEvent.click(groupButton('Behavior'))
-      expect(groupButton('Behavior')).toHaveAttribute('aria-expanded', 'true')
+      expect(groupButton('Behavior')).toHaveAttribute('aria-expanded', 'false')
     } finally {
       Storage.prototype.getItem = getItem
       Storage.prototype.setItem = setItem

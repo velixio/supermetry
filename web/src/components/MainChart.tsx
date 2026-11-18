@@ -61,6 +61,13 @@ type MainChartProps = {
   onDeleteAnnotation?: (annotation: Annotation) => void
   /** Inside a parent card: no border or background of its own. */
   embedded?: boolean
+  /** Extra chart controls (the dashboard's comparison choice), shown before the interval. */
+  controls?: ReactNode
+  /**
+   * Keep the controls visible. Otherwise, on devices that hover, they appear while the pointer or focus is
+   * on the chart or one of their menus is open; touch screens always show them.
+   */
+  controlsPinned?: boolean
 }
 
 type ChartPoint = {
@@ -334,6 +341,8 @@ export function MainChart({
   onEditAnnotation,
   onDeleteAnnotation,
   embedded = false,
+  controls,
+  controlsPinned = false,
 }: MainChartProps) {
   const summaryId = useId()
   const reducedMotion = usePrefersReducedMotion()
@@ -417,7 +426,7 @@ export function MainChart({
       aria-label={label}
       data-interval={resolvedInterval}
       data-last-bucket={lastBucket}
-      className={embedded ? 'p-4 text-card-foreground' : 'rounded-xl border bg-card p-4 text-card-foreground shadow-xs'}
+      className={embedded ? 'group/chart p-4 text-card-foreground' : 'rounded-xl border bg-card p-4 text-card-foreground shadow-xs'}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <ul aria-label="Chart notes" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -435,7 +444,14 @@ export function MainChart({
             </li>
           ) : null}
         </ul>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div
+          className={embedded
+            ? 'flex flex-wrap items-center justify-end gap-2 transition-opacity duration-150 motion-reduce:transition-none [@media(hover:hover)]:opacity-0 group-hover/chart:opacity-100 group-focus-within/chart:opacity-100 has-[[data-state=open]]:opacity-100 data-[pinned=true]:opacity-100'
+            : 'flex flex-wrap items-center justify-end gap-2'}
+          data-pinned={embedded ? controlsPinned : undefined}
+          data-testid="chart-controls"
+        >
+        {controls}
         {headerActions}
         <Select value={resolvedInterval} onValueChange={(value) => chooseInterval(value as ChartInterval)}>
           <SelectTrigger aria-label="Chart interval" size="sm">

@@ -20,7 +20,7 @@ export function ViewOptionsMenu({ includeImported, onIncludeImportedChange }: Vi
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button aria-label={dashboardView.viewOptions} className="max-sm:min-h-11" size="icon" type="button" variant="outline">
+        <Button aria-label={dashboardView.viewOptions} className="text-muted-foreground hover:text-foreground max-sm:size-11" size="icon" title={dashboardView.viewOptions} type="button" variant="ghost">
           <SlidersHorizontalIcon aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>

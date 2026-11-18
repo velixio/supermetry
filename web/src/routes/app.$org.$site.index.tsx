@@ -6,7 +6,8 @@ import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 
 import { DashboardChart } from '../components/DashboardChart'
 import { rememberInterval, rememberedInterval } from '@/lib/chart'
 import { DeferredContent } from '../components/DeferredContent'
-import { DatePicker } from '../components/DatePicker'
+import { CompareSelect, DatePicker } from '../components/DatePicker'
+import { SiteIcon } from '@/components/SiteIcon'
 import { DashboardExportMenu } from '../components/DashboardExportMenu'
 import { FilterBar } from '../components/FilterBar'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
@@ -255,7 +256,8 @@ function WebDashboardStateRoute() {
         style={filterRowHeight === undefined ? undefined : ({ '--dashboard-filter-h': `${filterRowHeight}px` } as CSSProperties)}
       >
       <PageHeader
-        title={en.navigation.dashboard}
+        title={<span className="flex min-w-0 items-center gap-2.5"><SiteIcon iconUrl={site.icon_url} name={site.name} size={22} className="rounded-md" /><span className="truncate">{site.name}</span></span>}
+        description={site.allowed_hosts?.[0] && site.allowed_hosts[0] !== site.name ? <span className="max-sm:hidden">{site.allowed_hosts[0]}</span> : undefined}
         inlineActions
         actions={
           <>
@@ -282,6 +284,10 @@ function WebDashboardStateRoute() {
                 />
               </Suspense>
             ) : null}
+            {edit ? null : <ViewOptionsMenu
+              includeImported={search.include_imported}
+              onIncludeImportedChange={(include_imported) => updateSearch({ ...search, include_imported })}
+            />}
             {edit ? null : <DashboardExportMenu query={query} anonymous={anonymous} />}
           </>
         }
@@ -295,6 +301,7 @@ function WebDashboardStateRoute() {
               dateRange={query.dateRange}
               labels={en.dashboard}
               onChange={updateSearch}
+              showCompare={false}
             />}
           >
             {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -321,10 +328,6 @@ function WebDashboardStateRoute() {
               onAdd={onFilter}
               onRemove={(index) => updateSearch(removeFilter(search, index))}
             />}
-            <ViewOptionsMenu
-              includeImported={search.include_imported}
-              onIncludeImportedChange={(include_imported) => updateSearch({ ...search, include_imported })}
-            />
           </ResponsiveFilters>
         </div>
       )}
@@ -419,6 +422,14 @@ function WebDashboardStateRoute() {
               />
               <DashboardChart
                 embedded
+                controls={<CompareSelect
+                  className="min-w-0"
+                  labels={en.dashboard}
+                  size="sm"
+                  value={search.compare}
+                  onChange={(compare) => updateSearch({ ...search, compare })}
+                />}
+                controlsPinned={search.compare !== 'off'}
                 anonymous={anonymous}
                 canEdit={membership?.role !== 'viewer'}
                 compare={search.compare}

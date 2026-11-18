@@ -40,8 +40,11 @@ test('polished dashboard controls, hierarchy, redirect, and responsive layouts',
   await page.getByRole('button', { name: 'Filters' }).click()
   const sheet = page.getByRole('dialog', { name: 'Filters' })
   await expect(sheet.getByRole('button', { name: /date range/i })).toBeVisible()
-  await expect(sheet.getByRole('combobox', { name: 'Compare' })).toBeVisible()
-  await expect(sheet.getByRole('button', { name: 'View options' })).toBeVisible()
+  // On the dashboard, Compare sits on the chart and View options in the page header.
+  await expect(sheet.getByRole('combobox', { name: 'Compare' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('chart-controls').getByRole('combobox', { name: 'Compare' })).toBeVisible()
+  await expect(page.locator('[data-slot="page-header-actions"]').getByRole('button', { name: 'View options' })).toBeVisible()
   await noHorizontalOverflow(page)
   await page.screenshot({ path: `${screenshotDir}/dashboard-390.png`, fullPage: true })
 

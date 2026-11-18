@@ -499,7 +499,8 @@ export function SupermetrySidebar({
   const pinnedEntries = prefs.pinned.flatMap((key) => allEntries.filter((entry) => entry.key === key))
   const pinnedKeys = new Set(pinnedEntries.map((entry) => entry.key))
   const activeSection = sections.find((section) => section.entries.some((entry) => entry.active && !pinnedKeys.has(entry.key)))?.key
-  const groupOpen = (key: string) => rail || (prefs.open[key] ?? (key === 'pinned' || key === activeSection))
+  // Every group starts open so the whole product is visible; a group someone collapses stays collapsed.
+  const groupOpen = (key: string) => rail || (prefs.open[key] ?? true)
 
   // Landing on a page inside a collapsed group (palette, link, back button) opens that group.
   useEffect(() => {

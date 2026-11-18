@@ -158,6 +158,8 @@ const messages: MessageTree = {
   },
   dashboardSummary: {
     title: 'সংক্ষেপে',
+    hide: 'সারাংশ লুকান',
+    show: 'সারাংশ দেখান',
     people: '{count, plural, one {#জন} other {#জন}}',
     visitorsCount: '{count, plural, one {#জন দর্শনার্থী} other {#জন দর্শনার্থী}}',
     matchingFilters: ' (আপনার ফিল্টার অনুযায়ী)',

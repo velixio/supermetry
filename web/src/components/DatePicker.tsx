@@ -25,6 +25,8 @@ type DatePickerProps = {
   dateRange?: { from: string; to: string }
   labels: DatePickerLabels
   onChange: (search: DashboardSearch) => void
+  /** False when the page shows the comparison control on the chart instead (the dashboard). */
+  showCompare?: boolean
 }
 
 function dateValue(value?: string): Date | undefined {
@@ -70,7 +72,7 @@ function monthDays(month: Date): Date[] {
   })
 }
 
-export function DatePicker({ search, dateRange, labels, onChange }: DatePickerProps) {
+export function DatePicker({ search, dateRange, labels, onChange, showCompare = true }: DatePickerProps) {
   const initial = dateValue(search.from) ?? new Date()
   const [month, setMonth] = useState(() => new Date(Date.UTC(initial.getUTCFullYear(), initial.getUTCMonth(), 1)))
   const [draftFrom, setDraftFrom] = useState<string>()
@@ -141,12 +143,25 @@ export function DatePicker({ search, dateRange, labels, onChange }: DatePickerPr
           </div>
         </PopoverContent>
       </Popover>
-      <Select value={search.compare} onValueChange={(value) => onChange({ ...search, compare: value as Compare })}>
-        <SelectTrigger aria-label={labels.compare} className="max-sm:min-h-11 min-w-44" data-testid="compare-control">
-          <SelectValue>{`${labels.compare}: ${labels.comparisons[search.compare]}`}</SelectValue>
-        </SelectTrigger>
-        <SelectContent><SelectGroup>{compareValues.map((compare) => <SelectItem key={compare} value={compare}>{labels.comparisons[compare]}</SelectItem>)}</SelectGroup></SelectContent>
-      </Select>
+      {showCompare ? <CompareSelect labels={labels} value={search.compare} onChange={(compare) => onChange({ ...search, compare })} /> : null}
     </div>
+  )
+}
+
+/** The comparison overlay choice. The dashboard shows it on the chart it changes; other pages keep it beside the dates. */
+export function CompareSelect({ labels, value, onChange, size, className }: {
+  labels: Pick<DatePickerProps['labels'], 'compare' | 'comparisons'>
+  value: Compare
+  onChange: (compare: Compare) => void
+  size?: 'sm' | 'default'
+  className?: string
+}) {
+  return (
+    <Select value={value} onValueChange={(next) => onChange(next as Compare)}>
+      <SelectTrigger aria-label={labels.compare} className={className ?? 'max-sm:min-h-11 min-w-44'} data-testid="compare-control" size={size}>
+        <SelectValue>{`${labels.compare}: ${labels.comparisons[value]}`}</SelectValue>
+      </SelectTrigger>
+      <SelectContent><SelectGroup>{compareValues.map((compare) => <SelectItem key={compare} value={compare}>{labels.comparisons[compare]}</SelectItem>)}</SelectGroup></SelectContent>
+    </Select>
   )
 }

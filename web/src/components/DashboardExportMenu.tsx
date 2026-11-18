@@ -1,7 +1,7 @@
 import { isAnonymousDimensionAllowed } from '@/lib/tracking-policy'
 import { useCapability } from '@/lib/authorization'
 import { useState } from 'react'
-import { ChevronDownIcon, DownloadIcon } from 'lucide-react'
+import { DownloadIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -68,10 +68,9 @@ export function DashboardExportMenu({ query, anonymous = false }: { query: Stats
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="max-sm:size-11 max-sm:px-0" type="button" variant="outline" disabled={exporting}>
-          <DownloadIcon data-icon="inline-start" />
-          <span className="max-sm:sr-only">{exporting ? 'Exporting…' : 'Export CSV'}</span>
-          <ChevronDownIcon className="max-sm:hidden" data-icon="inline-end" />
+        <Button className="text-muted-foreground hover:text-foreground max-sm:size-11" size="icon" title="Export CSV" type="button" variant="ghost" disabled={exporting}>
+          <DownloadIcon aria-hidden="true" />
+          <span className="sr-only">{exporting ? 'Exporting…' : 'Export CSV'}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

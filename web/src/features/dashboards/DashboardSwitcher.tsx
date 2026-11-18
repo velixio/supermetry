@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { ChevronDownIcon, PlusIcon } from 'lucide-react'
+import { ChevronDownIcon, LayoutDashboardIcon, PlusIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -52,9 +52,10 @@ export function DashboardSwitcher({ siteId, value, onChange, onDefault, canWrite
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button aria-label={`${dashboardView.switcher.trigger}: ${currentName}`} className="max-sm:min-h-11 max-sm:shrink min-w-0 max-w-full justify-between gap-2 sm:min-h-9 sm:max-w-64" type="button" variant="outline">
-          <span className="truncate">{currentName}</span>
-          <ChevronDownIcon aria-hidden="true" className="shrink-0" />
+        <Button aria-label={`${dashboardView.switcher.trigger}: ${currentName}`} className="max-sm:min-h-11 max-sm:shrink min-w-0 max-w-full justify-between gap-1.5 px-2.5 text-muted-foreground hover:text-foreground data-[state=open]:text-foreground sm:min-h-9 sm:max-w-64" type="button" variant="ghost">
+          <LayoutDashboardIcon aria-hidden="true" className="sm:hidden" />
+          <span className="truncate max-sm:sr-only">{currentName}</span>
+          <ChevronDownIcon aria-hidden="true" className="shrink-0 max-sm:hidden" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-56">

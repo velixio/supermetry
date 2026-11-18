@@ -125,7 +125,7 @@ describe('DashboardSummary', () => {
   it('collapses through the remembered preference', async () => {
     serve()
     renderSummary()
-    const toggle = screen.getByRole('button', { name: 'In short' })
+    const toggle = screen.getByRole('button', { name: 'Hide summary' })
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     fireEvent.click(toggle)
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PATCH', '/api/private/me', { body: { preferences: { summary_collapsed: true } } }))
@@ -136,7 +136,7 @@ describe('DashboardSummary', () => {
     renderSummary({ collapsed: true })
     expect(screen.queryByTestId('dashboard-summary-text')).toBeNull()
     expect(useStats).not.toHaveBeenCalled()
-    const toggle = screen.getByRole('button', { name: 'In short' })
+    const toggle = screen.getByRole('button', { name: 'Show summary' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(toggle)
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PATCH', '/api/private/me', { body: { preferences: { summary_collapsed: false } } }))

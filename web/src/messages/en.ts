@@ -337,6 +337,8 @@ export const en = {
   // The plain-language summary above the dashboard metrics. Sentences are built from typed facts and worded here.
   dashboardSummary: {
     title: 'In short',
+    hide: 'Hide summary',
+    show: 'Show summary',
     people: '{count, plural, one {# person} other {# people}}',
     visitorsCount: '{count, plural, one {# visitor} other {# visitors}}',
     matchingFilters: ' matching your filters',
