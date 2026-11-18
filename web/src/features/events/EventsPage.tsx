@@ -1,4 +1,5 @@
 import { useCapability } from '@/lib/authorization'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
@@ -127,6 +128,8 @@ export function EventsPage({
         <div aria-label="Loading events" className="flex flex-col gap-3">
           <Skeleton className="h-10 w-full" /><Skeleton className="h-64 w-full" />
         </div>
+      ) : events.data.data.length === 0 && filters.length === 0 && !name && !cursor ? (
+        <FeatureEmptyState kind="events" />
       ) : events.data.data.length === 0 ? (
         <Empty><EmptyHeader><EmptyTitle>No events found</EmptyTitle><EmptyDescription>Try another date range, event name, or filter.</EmptyDescription></EmptyHeader></Empty>
       ) : (

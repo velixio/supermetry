@@ -157,7 +157,8 @@ describe('Web Vitals page', () => {
 
     renderPage()
 
-    expect(await screen.findByText(/full tracker script/i)).toBeVisible()
+    expect(await screen.findByText('No Web Vitals yet')).toBeVisible()
+    expect(screen.getByText('See how fast your pages feel to real visitors.')).toBeVisible()
   })
 
   it('shows trend loading and request errors', async () => {

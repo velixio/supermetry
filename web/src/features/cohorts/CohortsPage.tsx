@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { CopyIcon, FilterIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon, UsersRoundIcon } from 'lucide-react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
+import { CopyIcon, FilterIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
@@ -10,7 +11,6 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -207,13 +207,7 @@ function CohortsTab({
           <Skeleton className="h-24 w-full" />
         </div>
       ) : cohorts.data.length === 0 ? (
-        <Empty>
-          <UsersRoundIcon aria-hidden="true" />
-          <EmptyHeader>
-            <EmptyTitle>{t.empty}</EmptyTitle>
-            <EmptyDescription>{t.emptyDescription}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        builder ? null : <FeatureEmptyState kind="cohorts" noAction={!canEdit} onAction={() => open({ draft: blankDraft() })} />
       ) : (
         <div className="min-w-0 overflow-x-auto rounded-xl border bg-card" tabIndex={0}>
           <Table aria-label={t.title}>

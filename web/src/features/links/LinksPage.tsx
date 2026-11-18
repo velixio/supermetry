@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { Link } from '@tanstack/react-router'
 import { ChartColumnIcon, PencilIcon, PlusIcon, QrCodeIcon, Trash2Icon } from 'lucide-react'
 
@@ -76,10 +77,7 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
         </div>
       ) : null}
       {links.data && links.data.length === 0 ? (
-        <div className="rounded-xl border bg-card p-8 text-center">
-          <p className="font-medium">{t.empty}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{t.emptyHint}</p>
-        </div>
+        <FeatureEmptyState kind="links" noAction={!canManage} onAction={() => { save.reset(); setEditing(null) }} />
       ) : null}
       {links.data && links.data.length > 0 ? (
         <ul className="flex flex-col gap-3">

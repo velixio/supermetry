@@ -1,6 +1,6 @@
 import { PageContainer } from '@/components/PageContainer'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageHeader } from '@/components/PageHeader'
-import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Filter } from '@/lib/search'
@@ -68,7 +68,7 @@ export function JourneysPage({
           <Skeleton className="h-16 w-3/5" />
         </div>
       ) : !report.data || report.data.nodes.length === 0 ? (
-        <EmptyState />
+        <FeatureEmptyState kind="journeys" />
       ) : (
         <JourneyFlow links={report.data.links} nodes={report.data.nodes} />
       )}

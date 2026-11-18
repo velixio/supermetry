@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -13,13 +14,15 @@ import { activeLocale } from '@/lib/i18n/intl'
 
 type GoalsPageProps = {
   siteId: number
+  /** Needed for the picker of already-seen pages and events. */
+  orgId?: number
   dateRange: { from: string; to: string }
   timezone?: string
   revenueCurrency?: string
   revenueCurrencyState?: 'unconfigured' | 'configured' | 'conflict'
 }
 
-export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
+export function GoalsPage({ siteId, orgId, dateRange, timezone = 'UTC', revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
   const goals = useGoals(siteId)
   const save = useSaveGoal(siteId)
   const [editing, setEditing] = useState<Goal>()
@@ -59,12 +62,13 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
           </table>
           {goals.isPending ? <p className="p-5 text-sm text-muted-foreground" role="status">Loading goals…</p> : null}
           {goals.isError ? <div className="p-5" role="alert">Goals could not be loaded. <Button variant="outline" size="sm" onClick={() => void goals.refetch()}>Retry goals</Button></div> : null}
-          {!goals.isPending && !goals.isError && goals.data?.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No goals yet.</p> : null}
+          {!goals.isPending && !goals.isError && goals.data?.length === 0 ? <FeatureEmptyState kind="goals" onAction={() => document.getElementById('goal-name')?.focus()} /> : null}
         </section>
         <GoalEditor
           projectCurrency={revenueCurrency}
           currencyState={revenueCurrencyState}
           goal={editing}
+          suggest={orgId === undefined ? undefined : { siteId, orgId, dateRange }}
           pending={save.isPending}
           onCancel={() => setEditing(undefined)}
           onSave={async (input) => {

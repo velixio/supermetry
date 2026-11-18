@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { useCapability, AccessDenied } from '@/lib/authorization'
 import { Link } from '@tanstack/react-router'
 import { SearchIcon, UserRoundIcon } from 'lucide-react'
@@ -83,7 +84,9 @@ function ProfilesPageContent({
               onChange={(event) => onSearchChange(event.target.value)}
             />
           </div>
-          {profiles.data.data.length === 0 ? (
+          {profiles.data.data.length === 0 && !search && !cursor ? (
+            <FeatureEmptyState kind="profiles" />
+          ) : profiles.data.data.length === 0 ? (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>No profiles found</EmptyTitle>

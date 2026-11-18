@@ -171,8 +171,8 @@ describe('HeatmapsPage', () => {
 
     renderPage()
 
-    expect(screen.getByText('Heatmaps are not collecting yet')).toBeVisible()
-    expect(screen.getByText(/full tracker script/i)).toBeVisible()
+    expect(screen.getByText('No heatmaps yet')).toBeVisible()
+    expect(screen.getByText('See where visitors click and how far they scroll.')).toBeVisible()
     expect(screen.queryByTitle('Live preview of /pricing')).not.toBeInTheDocument()
   })
 
@@ -190,7 +190,7 @@ describe('HeatmapsPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Site settings could not be loaded.')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalledOnce()
-    expect(screen.queryByText('Heatmaps are not collecting yet')).not.toBeInTheDocument()
+    expect(screen.queryByText('No heatmaps yet')).not.toBeInTheDocument()
   })
 
   it('shows a retryable error when the heatmap query fails', () => {

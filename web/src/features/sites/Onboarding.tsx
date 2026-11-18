@@ -10,6 +10,7 @@ import { AppCreateFlow } from '@/features/sites/AppCreateFlow'
 import { KindChoice } from '@/features/sites/KindChoice'
 import { PixelProjectForm } from '@/features/sites/PixelProjectForm'
 import { SiteForm } from '@/features/sites/SiteForm'
+import { SiteInstallStep } from '@/features/sites/SiteInstallStep'
 import type { ManagedSite, SiteInput, SiteKind } from '@/features/sites/types'
 import { en } from '@/messages/en'
 import { retentionPolicy, useInstanceConfig } from '@/lib/instanceConfig'
@@ -21,6 +22,8 @@ export function Onboarding({ me, createSite, navigate }: {
   navigate: (path: string, replace?: boolean) => void
 }) {
   const [kind, setKind] = useState<SiteKind>('web')
+  // The web site just created: its install step stays on screen until the person leaves it.
+  const [created, setCreated] = useState<ManagedSite | null>(null)
   // Onboard in an organization where the user can add sites, not just the first one listed:
   // someone invited as a viewer elsewhere who then signs up should set up their own organization.
   const membership = me.memberships.find((item) => canCreateSites(item.role)) ?? me.memberships[0]
@@ -28,16 +31,27 @@ export function Onboarding({ me, createSite, navigate }: {
   const existingSite = membership?.sites[0]
 
   useEffect(() => {
-    if (!membership) return
+    if (!membership || created) return
     if (existingSite) navigate(`/app/${membership.org.slug}/${existingSite.slug ?? existingSite.public_id ?? String(existingSite.id)}`, true)
     else if (!canCreateSites(membership.role)) navigate(`/app/${membership.org.slug}/settings`, true)
-  }, [existingSite, membership, navigate])
+  }, [created, existingSite, membership, navigate])
 
   if (!membership) {
     return (
       <PageContainer width="narrow">
         <PageHeader title="No organization access" description="Ask an organization owner for an invitation. Your account settings are available from the Account menu." />
       </PageContainer>
+    )
+  }
+
+  if (created) {
+    const slug = created.slug ?? created.public_id
+    return (
+      <div className="flex justify-center py-6 md:py-10">
+        <div className="w-full max-w-2xl rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
+          <SiteInstallStep orgId={membership.org.id} siteId={created.id} publicId={created.public_id ?? String(created.id)} dashboardHref={`/app/${membership.org.slug}/${slug}`} />
+        </div>
+      </div>
     )
   }
 
@@ -71,8 +85,7 @@ export function Onboarding({ me, createSite, navigate }: {
             retention={config.data ? retentionPolicy(config.data) : undefined}
             requireDomain={config.data?.managed === true}
             onSubmit={async (input) => {
-              const site = await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input)
-              navigate(`/app/${membership.org.slug}/${site.slug ?? site.public_id}/settings/installation`)
+              setCreated(await (createSite ?? ((value) => createManagedSite(value, membership.org.id)))(input))
             }}
             secondaryAction={me.demo_prompt_dismissed !== false ? <Button type="button" variant="ghost" onClick={() => navigate(`/app/${membership.org.slug}/sites`)}>Skip for now</Button> : undefined}
           />

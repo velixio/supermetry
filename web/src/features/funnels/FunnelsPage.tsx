@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -14,13 +15,15 @@ import type { FunnelCountBy, FunnelStep, FunnelWindow } from './types'
 
 type FunnelsPageProps = {
   siteId: number
+  /** Needed for the picker of already-seen pages and events. */
+  orgId?: number
   dateRange: { from: string; to: string }
   funnelId?: number
   /** App project: installs instead of visitors. */
   app?: boolean
 }
 
-export function FunnelsPage({ siteId, dateRange, funnelId, app = false }: FunnelsPageProps) {
+export function FunnelsPage({ siteId, orgId, dateRange, funnelId, app = false }: FunnelsPageProps) {
   const funnels = useFunnels(siteId)
   const create = useCreateFunnel(siteId)
   const update = useUpdateFunnel(siteId)
@@ -61,7 +64,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId, app = false }: Funnel
                 </li>
               ))}
             </ul>
-          ) : <p className="text-sm text-muted-foreground">No saved funnels yet.</p>}
+          ) : funnels.isPending ? <p className="text-sm text-muted-foreground" role="status">Loading funnels…</p> : <FeatureEmptyState kind="funnels" onAction={() => document.getElementById('funnel-name')?.focus()} />}
         </section>
         <section className="flex min-w-0 flex-col gap-5 rounded-xl border bg-card p-4">
           <Field>
@@ -104,6 +107,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId, app = false }: Funnel
           <FunnelBuilder
             key={selected?.id ?? 'new'}
             initialSteps={selected?.steps}
+            suggest={orgId === undefined ? undefined : { siteId, orgId, dateRange }}
             pending={create.isPending || update.isPending}
             onSubmit={async (nextSteps) => {
               setPreviewSteps(nextSteps)
