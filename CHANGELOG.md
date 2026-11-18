@@ -8,6 +8,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Added
 
+- App releases show adoption, crash-free sessions and users, and session counts, computed from real session lifecycles; the release view adds a daily crash-free sessions chart, the healthy, errored, abnormal and crashed split, and handled versus unhandled errors. Releases without sessions are marked as computed from error events.
 - App issues can be merged into one another and split apart again by fingerprint. Events, daily and hourly counts move with the merge, new events with a merged fingerprint land on the kept issue, and unmerging recomputes both issues from their events.
 - App event detail now shows attachments sent by Sentry SDKs: screenshots as thumbnails, text and JSON files in a viewer, each with a download. Text is scrubbed of personal data; files are capped at 1 MiB (5 MiB per event) and kept for 30 days. Downloads are never rendered as pages.
 - Debug files (dSYM, ELF, ProGuard mappings) can be uploaded with `sentry-cli debug-files upload` and the Gradle plugin through `files/difs/assemble`. Files are detected and stored (up to `SUPERMETRY_DIF_MAX_MB`, default 512, counted in the organization cap), and the site export gains `app_debug_files.csv`; symbolication from them follows in later releases. `SUPERMETRY_SYMCACHE_DISK_MB` bounds the on-disk symbol cache.
