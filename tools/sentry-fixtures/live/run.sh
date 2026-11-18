@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Live SDK acceptance: point the real Sentry SDK generators (Node, browser,
-# Python, Go) at a freshly started Supermetry by changing only the DSN, then
+# Python, Go; plus the OpenTelemetry Go and Python trace exporters) at a freshly started Supermetry by changing only the DSN, then
 # check the private API. Run under the heavy lock:
 #   flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat
 # The server runs on a scratch database (created on the dev Postgres, dropped
@@ -17,7 +17,7 @@ results=()
 
 cleanup() {
   sm_stop
-  rm -rf "$fx/node/node_modules" "$fx/browser/node_modules" "$fx/browser/dist" "$fx/python/.venv" "${work:?}" /tmp/fixture-app
+  rm -rf "$fx/node/node_modules" "$fx/browser/node_modules" "$fx/browser/dist" "$fx/python/.venv" "$fx/otel-python/.venv" "${work:?}" /tmp/fixture-app
 }
 trap cleanup EXIT
 
@@ -28,6 +28,8 @@ echo "== deps"
 (cd "$fx/browser" && bun install --frozen-lockfile >/dev/null && bun build client.mjs --outfile dist/client.js >/dev/null) || exit 1
 (cd "$fx/python" && uv venv -q .venv && uv pip install -q --python .venv/bin/python --require-hashes -r requirements.txt) || exit 1
 (cd "$fx/go" && go build -trimpath -o "$work/fixture-go" .) || exit 1
+(cd "$fx/otel-go" && go build -trimpath -o "$work/fixture-otel-go" .) || exit 1
+(cd "$fx/otel-python" && uv venv -q .venv && uv pip install -q --python .venv/bin/python --require-hashes -r requirements.txt) || exit 1
 (cd "$root" && go build -o "$work/supermetry" ./cmd/supermetry) || exit 1
 
 echo "== server"
@@ -100,6 +102,9 @@ trace_case node/transaction   "GET /api/items" "$FORBID" "$fx/node" "${NODE[@]}"
 trace_case python/transaction "GET /api/items" "$FORBID" "$fx/python" /bin/bash run.sh transaction
 trace_case go/transaction     "GET /api/items" "$FORBID" "$fx/go" "$work/fixture-go" transaction
 trace_case browser/pageload   "/" "$FORBID" "$fx/browser" /usr/bin/node app.mjs pageload
+# OpenTelemetry exporters: only the endpoint (/api/<id>/otlp/v1/traces) and one header change.
+trace_case otel-go/traces     "GET /api/items" "$FORBID" "$fx/otel-go" "$work/fixture-otel-go"
+trace_case otel-python/traces "GET /api/items" "$FORBID" "$fx/otel-python" "$fx/otel-python/.venv/bin/python" app.py
 
 echo "== results"
 printf '%s\n' "${results[@]}"
