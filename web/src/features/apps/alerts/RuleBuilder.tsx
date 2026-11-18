@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import type { AlertInput, AlertRule } from '@/features/settings/alertsApi'
+import { uiAlerts as t } from '@/messages/uiAlerts'
 
 import { ActionFields } from './ActionFields'
 import { CheckField, NumberField } from './fieldBits'
@@ -83,31 +84,31 @@ export function RuleBuilder({ alert, channels, assignees, monitorSlugs, orgSlug,
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <form className="flex flex-col gap-5" onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>{alert ? 'Edit alert rule' : 'Create alert rule'}</DialogTitle>
-            <DialogDescription>Pick a trigger, narrow it with filters, then choose what happens.</DialogDescription>
+            <DialogTitle>{alert ? t.rules.editTitle : t.rules.createTitle}</DialogTitle>
+            <DialogDescription>{t.rules.dialogNote}</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field data-invalid={errorAt(message, 'name') ? true : undefined}>
-              <FieldLabel htmlFor="rule-name">Name</FieldLabel>
+              <FieldLabel htmlFor="rule-name">{t.rules.name}</FieldLabel>
               <Input id="rule-name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
               {errorAt(message, 'name') ? <FieldError>{errorAt(message, 'name')}</FieldError> : null}
             </Field>
             <TriggerFields trigger={rule.trigger} error={message} monitorSlugs={monitorSlugs} onChange={(trigger) => setRule((r) => changeTrigger(r, trigger))} />
             {type === 'event' ? (
-              <NumberField id="rule-frequency" label="At most one notice per issue every (minutes)" min={0} value={rule.frequency_minutes} error={errorAt(message, 'frequency_minutes')}
+              <NumberField id="rule-frequency" label={t.rules.frequency} min={0} value={rule.frequency_minutes} error={errorAt(message, 'frequency_minutes')}
                 onChange={(frequency_minutes) => setRule((r) => ({ ...r, frequency_minutes }))} />
             ) : null}
             {incidental ? (
-              <CheckField id="rule-notify-resolve" label="Also notify when it resolves" checked={rule.notify_on_resolve ?? true} onChange={(checked) => setRule((r) => ({ ...r, notify_on_resolve: checked }))} />
+              <CheckField id="rule-notify-resolve" label={t.rules.notifyResolve} checked={rule.notify_on_resolve ?? true} onChange={(checked) => setRule((r) => ({ ...r, notify_on_resolve: checked }))} />
             ) : null}
             <FilterFields filters={rule.filters} incidental={incidental} error={message} assignees={assignees} onChange={(filters) => setRule((r) => ({ ...r, filters }))} />
             <ActionFields actions={rule.actions} incidental={incidental} error={message} channels={channels} assignees={assignees} orgSlug={orgSlug} onChange={(actions) => setRule((r) => ({ ...r, actions }))} />
-            <CheckField id="rule-enabled" label="Enabled" checked={enabled} onChange={setEnabled} />
+            <CheckField id="rule-enabled" label={t.rules.enabled} checked={enabled} onChange={setEnabled} />
           </FieldGroup>
           {unhandled ? <FieldError>{message}</FieldError> : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={pending}>Save rule</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
+            <Button type="submit" disabled={pending}>{t.rules.save}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

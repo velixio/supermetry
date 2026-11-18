@@ -10,22 +10,15 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { useGoals } from '@/features/goals/api'
+import { uiAlerts as t } from '@/messages/uiAlerts'
 
 import { type AlertInput, type AlertKind, type AlertRule, type WebAlertKind, useAlerts, useDeleteAlert, useSaveAlert } from './alertsApi'
 import { useChannels } from './notificationApi'
 
 const blank: AlertInput = { kind: 'traffic_spike', threshold: 25, channel_ids: [], enabled: true }
 const webKinds: WebAlertKind[] = ['traffic_spike', 'traffic_drop', 'goal_reached']
-const labels: Record<WebAlertKind, string> = {
-  traffic_spike: 'Traffic spike',
-  traffic_drop: 'Traffic drop',
-  goal_reached: 'Goal reached',
-}
-const thresholdDescriptions: Record<WebAlertKind, string> = {
-  traffic_spike: 'Active visitors in this process during the last 60 minutes.',
-  traffic_drop: 'Percentage of visitors in the same 24-hour window seven days earlier.',
-  goal_reached: 'Conversions in the current local day.',
-}
+const labels: Record<WebAlertKind, string> = t.alerts.kinds
+const thresholdDescriptions: Record<WebAlertKind, string> = t.alerts.thresholdNotes
 
 export function AlertsPage({ orgId, orgSlug, siteId }: { orgId: number; orgSlug?: string; siteId: number }) {
   const alerts = useAlerts(siteId, orgId)
@@ -38,26 +31,26 @@ export function AlertsPage({ orgId, orgSlug, siteId }: { orgId: number; orgSlug?
   return (
     <PageContainer width="narrow">
       <PageHeader
-        title="Alerts"
-        description="Notify your team when traffic changes or a goal reaches its threshold."
-        actions={<Button onClick={() => setEditing(null)}>Create alert</Button>}
+        title={t.alerts.title}
+        description={t.alerts.description}
+        actions={<Button onClick={() => setEditing(null)}>{t.alerts.create}</Button>}
       />
       {alerts.error || channels.error || remove.error ? (
         <p role="alert" className="text-sm text-destructive">
           {alerts.error?.message ?? channels.error?.message ?? remove.error?.message}
         </p>
       ) : null}
-      {alerts.data?.data.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">No alerts yet.</p> : null}
+      {alerts.data?.data.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.alerts.empty}</p> : null}
       <div className="flex flex-col gap-3">
         {alerts.data?.data.map((alert) => (
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={alert.id}>
             <div>
               <h2 className="font-medium">{labels[alert.kind as WebAlertKind] ?? alert.kind}</h2>
-              <p className="text-sm text-muted-foreground">Threshold {alert.threshold} · {alert.enabled ? 'Enabled' : 'Disabled'}</p>
+              <p className="text-sm text-muted-foreground">{t.alerts.threshold(alert.threshold ?? '')} · {alert.enabled ? t.common.enabled : t.common.disabled}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditing(alert)}>Edit</Button>
-              <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(alert.id)}>Delete</Button>
+              <Button variant="outline" onClick={() => setEditing(alert)}>{t.common.edit}</Button>
+              <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(alert.id)}>{t.common.delete}</Button>
             </div>
           </section>
         ))}
@@ -109,35 +102,35 @@ function AlertDialog({ alert, orgSlug, channels, goals, error, pending, onClose,
       <DialogContent>
         <form className="flex flex-col gap-5" onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>{alert ? 'Edit alert' : 'Create alert'}</DialogTitle>
-            <DialogDescription>Select a trigger and at least one notification channel.</DialogDescription>
+            <DialogTitle>{alert ? t.alerts.editTitle : t.alerts.create}</DialogTitle>
+            <DialogDescription>{t.alerts.dialogNote}</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="alert-kind">Alert type</FieldLabel>
+              <FieldLabel htmlFor="alert-kind">{t.alerts.type}</FieldLabel>
               <select id="alert-kind" className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput((value) => changeKind(value, event.target.value as AlertKind))}>
                 {webKinds.map((kind) => <option key={kind} value={kind}>{labels[kind]}</option>)}
               </select>
             </Field>
             {input.kind === 'goal_reached' ? (
               <Field>
-                <FieldLabel htmlFor="alert-goal">Goal</FieldLabel>
+                <FieldLabel htmlFor="alert-goal">{t.alerts.goal}</FieldLabel>
                 <select id="alert-goal" required className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.goal_id ?? ''} onChange={(event) => setInput((value) => ({ ...value, goal_id: Number(event.target.value) }))}>
-                  <option value="" disabled>Select a goal</option>
+                  <option value="" disabled>{t.alerts.selectGoal}</option>
                   {goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.name}</option>)}
                 </select>
               </Field>
             ) : null}
             <Field>
-              <FieldLabel htmlFor="alert-threshold">Threshold</FieldLabel>
+              <FieldLabel htmlFor="alert-threshold">{t.alerts.thresholdLabel}</FieldLabel>
               <Input id="alert-threshold" min="1" required type="number" value={input.threshold ?? ''} onChange={(event) => setInput((value) => ({ ...value, threshold: Number(event.target.value) }))} />
               <FieldDescription>{thresholdDescriptions[input.kind as WebAlertKind]}</FieldDescription>
             </Field>
             <FieldSet>
-              <FieldLegend>Notification channels</FieldLegend>
+              <FieldLegend>{t.alerts.channels}</FieldLegend>
               {channels.length === 0 ? (
                 <FieldDescription>
-                  No notification channels yet.{orgSlug ? <> <Link className="underline" to="/app/$org/settings/notifications" params={{ org: orgSlug }}>Create a channel</Link> first.</> : ' Create one in the organization notification settings first.'}
+                  {t.alerts.noChannels}{orgSlug ? <> <Link className="underline" to="/app/$org/settings/notifications" params={{ org: orgSlug }}>{t.alerts.createChannelLink}</Link> {t.alerts.createChannelFirst}</> : ` ${t.alerts.createChannelElsewhere}`}
                 </FieldDescription>
               ) : null}
               {channels.map((channel) => (
@@ -155,20 +148,20 @@ function AlertDialog({ alert, orgSlug, channels, goals, error, pending, onClose,
                         : value.channel_ids.filter((id) => id !== channel.id),
                     }))}
                   />
-                  <FieldLabel htmlFor={`alert-channel-${channel.id}`}>{channel.name}{channel.enabled ? '' : ' (disabled)'}</FieldLabel>
+                  <FieldLabel htmlFor={`alert-channel-${channel.id}`}>{channel.name}{channel.enabled ? '' : t.common.disabledSuffix}</FieldLabel>
                 </Field>
               ))}
             </FieldSet>
             <Field orientation="horizontal">
               <input id="alert-enabled" checked={input.enabled} type="checkbox" onChange={(event) => setInput((value) => ({ ...value, enabled: event.target.checked }))} />
-              <FieldLabel htmlFor="alert-enabled">Enabled</FieldLabel>
+              <FieldLabel htmlFor="alert-enabled">{t.common.enabled}</FieldLabel>
             </Field>
           </FieldGroup>
-          {input.channel_ids.length === 0 ? <FieldDescription>Select at least one channel before saving.</FieldDescription> : null}
+          {input.channel_ids.length === 0 ? <FieldDescription>{t.alerts.pickChannel}</FieldDescription> : null}
           <FieldError>{error?.message}</FieldError>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={pending || input.channel_ids.length === 0}>Save alert</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{t.common.cancel}</Button>
+            <Button type="submit" disabled={pending || input.channel_ids.length === 0}>{t.alerts.save}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
