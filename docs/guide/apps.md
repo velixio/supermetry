@@ -104,7 +104,7 @@ allowed-hosts check, and a custom User-Agent is not required.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | string, 1 to 64 | Required. Dedup key; a repeat within 15 minutes is dropped as `duplicate`. |
-| `kind` | enum | Required: `crash`, `error`, `hang`, `install_failed`, `install_stalled`, `incompatibility`, `operation_failed`, `session`. |
+| `kind` | enum | Required: `crash`, `error`, `hang`, `install_failed`, `install_stalled`, `incompatibility`, `operation_failed`, `session`, plus the product kinds `screen` and `event` (see [Product analytics](#product-analytics-for-apps)). |
 | `ts` | integer, ms | Time the event happened. Optional (defaults to receive time). More than 5 minutes ahead is clamped to receive time. |
 | `level` | enum | `fatal`, `error`, `warning`. Defaults to `fatal` for a crash and `error` otherwise. |
 | `handled` | boolean | |
@@ -121,6 +121,9 @@ allowed-hosts check, and a custom User-Agent is not required.
 | `occurrences` | integer, 1 to 1,000,000 | For clients that coalesce repeats. |
 | `install_id`, `session_id` | string, up to 128 and 64 | Pseudonymous ids for crash-free users and sessions. Stored only as an HMAC with a per-app secret. |
 | `tags` | object | Up to 20 keys; string, number or boolean values; keys up to 64 characters, values up to 200 bytes. |
+| `screen` | string, 1 to 200 bytes | `screen` kind only, required: the screen name. Shown as `/name` in funnels and journeys. |
+| `name` | string, 1 to 64 | `event` kind only, required: the custom event name. Letters, digits and `_ . : $ - ` and space; must not start with `$`. |
+| `props` | object | `screen` and `event` kinds: up to 20 string values; keys up to 64 characters, not starting with `$`; values up to 200 bytes. |
 
 A wrong type, an over-long value or an unknown enum value drops that event as
 `invalid`. Unknown fields are ignored.
@@ -394,6 +397,73 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
 The export never includes end-user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
+
+## Product analytics for apps
+
+An app project also answers product questions: who uses the app, which screens and
+features they use, and whether they come back. Open **Sessions & Users** and
+**Events** in the project's sidebar.
+
+### Where the data comes from
+
+- **Sentry SDK sessions.** A Sentry SDK that has `release` set and sends a device id
+  (the mobile and desktop SDKs do; browser SDKs do not) counts one `$app_open` event
+  per session start. Session updates and aggregate session buckets add nothing, and a
+  browser session without a device id is counted on **Data health** as
+  `session_no_install` and creates no product session. Crash-free numbers are not
+  affected either way.
+- **`track()` and `screen()` in the Supermetry kits.** `track("purchase", { plan: "pro" })`
+  records a custom event and `screen("paywall")` a screen view. Both need the kit's
+  `installId`, are batched and queued like every other report (20 per request, offline
+  queue, 7 days), check the name before sending (a name starting with `$` or with
+  characters outside `A-Z a-z 0-9 _ . : $ - ` and space is ignored) and never send a user id.
+  The same events can be sent to the [app events endpoint](#the-app-events-endpoint)
+  with `kind` `screen` or `event`.
+
+### What is counted
+
+The install id is hashed with a per-app secret on arrival (the same HMAC that powers
+crash-free users) and only the hash is stored, so an install is one stable pseudonymous
+visitor across days: there is no daily salt, and an install that reports twice a month
+is the same person both times. Raw install ids, device ids and user ids are never
+stored. A screen is stored as a page (`/home`), the platform as the hostname, and the
+release, device class and locale as reserved `$` properties.
+
+Product hits are accepted up to `max report age` days late (7 by default). A hit for a
+day that has already been rolled up marks the day for recalculation, so the charts
+and rollups catch up; a hit older than the limit is dropped as `too_old`.
+
+| Metric | Definition |
+|---|---|
+| Daily, weekly, monthly active installs | Distinct installs with a hit in the site's local day, in the 7 and 30 local days ending that day. Counts are never summed across days, so a range total is the distinct installs of the range |
+| Stickiness | Mean daily active installs over the range divided by the distinct installs of the range |
+| New installs | Installs whose first active day inside the retention window is that day |
+| Release, platform, country, OS, device adoption | Installs per value and their share of the active installs. An install that used two values in the period counts once in each, so shares can add up to more than 100% |
+| Engagement | Sessions, sessions per install, mean and median session length, screens per session |
+| Funnels | Ordered screens and events inside one session. Count by installs counts the installs with any session that reached the step; count by sessions counts sessions |
+| Retention | Day, week or month cohorts of installs, linked by the stable install id |
+| Journeys | Screen to screen paths, counted in installs |
+| Feature adoption | Installs that sent any event of a named set (up to 20 event names), as a share of the active installs |
+
+Days follow the site's time zone, so a project in Asia/Kolkata or Asia/Kathmandu
+has days that start at local midnight.
+
+Funnels, retention, journeys and the events explorer need the instance's identified
+tracking mode (`SUPERMETRY_TRACKING_MODE`), exactly like web sites: in anonymous mode they return the same
+"history is not available" problem, and screen names are not stored. Active installs,
+adoption and engagement keep working, because they use the hashed install id only.
+
+### API and AI assistants
+
+All reads are under `/api/public/v1/sites/{site_id}/app/product/` and need
+`stats:read`: `active-users`, `adoption?by=release|platform|country|os|device`,
+`engagement`, `features` and `features/{id}/adoption`. They take `range`, `release`,
+`environment` and `platform`, and answer `404` for web sites. Funnels, retention and
+journeys use their existing endpoints, which now also work for app projects.
+
+The MCP server adds `get_product_overview`, `get_active_users`, `get_retention`,
+`get_funnel`, `get_event_breakdown` and `get_user_journey`. They return counts only,
+never install ids, hashes or profile identifiers.
 
 ## Ask your AI assistant
 

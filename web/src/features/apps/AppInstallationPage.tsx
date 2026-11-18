@@ -120,6 +120,9 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
         <p className="text-sm text-muted-foreground">
           Use the official Sentry SDK for your platform with its default settings. Only the DSN and the release change. Sentry SDKs send sessions only when <code>release</code> is set in <code>Sentry.init</code>. Without it, crash-free rates fall back to error events.
         </p>
+        <p className="text-sm text-muted-foreground">
+          Sentry SDKs count an app open per session when <code>release</code> is set and the SDK sends a device id (mobile and desktop SDKs do; browser SDKs do not). Use <code>track()</code> and <code>screen()</code> from the Supermetry kits for custom events and screens.
+        </p>
         <Tabs defaultValue="browser" className="min-w-0">
           <TabsList className="h-auto flex-wrap justify-start">
             {sdks.map((sdk) => <TabsTrigger key={sdk.value} value={sdk.value}>{sdk.label}</TabsTrigger>)}

@@ -247,3 +247,73 @@ describe("queue", () => {
     expect(server.accepted.length).toBe(1);
   });
 });
+
+describe("product events", () => {
+  test("track sends kind event with name and props, no level or user id", async () => {
+    const { server, client } = setup({ installId: "inst-1" });
+    client.track("purchase", { plan: "pro", $release: "9", n: 5 as unknown as string });
+    await client.flush();
+    const e = server.accepted[0]!;
+    expect(e.kind).toBe("event");
+    expect(e.name).toBe("purchase");
+    expect(e.props).toEqual({ plan: "pro" });
+    expect(e.install_id).toBe("inst-1");
+    expect(e.screen).toBeUndefined();
+    expect(e.level).toBeUndefined();
+    expect(e.handled).toBeUndefined();
+    expect(e.user_id).toBeUndefined();
+  });
+
+  test("screen sends kind screen with the screen name", async () => {
+    const { server, client } = setup({ installId: "inst-1" });
+    client.screen("paywall", { from: "home" });
+    await client.flush();
+    const e = server.accepted[0]!;
+    expect(e.kind).toBe("screen");
+    expect(e.screen).toBe("paywall");
+    expect(e.props).toEqual({ from: "home" });
+    expect(e.name).toBeUndefined();
+    expect(e.level).toBeUndefined();
+  });
+
+  test("rejects invalid names and calls without an install id", async () => {
+    const { server, client } = setup({ installId: "inst-1" });
+    client.track("$app_open");
+    client.track("");
+    client.track("bad/name");
+    client.track("x".repeat(65));
+    client.screen("");
+    await client.flush();
+    expect(server.requests.length).toBe(0);
+    const anon = setup();
+    anon.client.track("purchase");
+    anon.client.screen("home");
+    await anon.client.flush();
+    expect(anon.server.requests.length).toBe(0);
+  });
+
+  test("props are capped at 20 keys and 200 bytes", async () => {
+    const { server, client } = setup({ installId: "inst-1" });
+    const props: Record<string, string> = {};
+    for (let i = 0; i < 25; i++) props[`k${i}`] = "v".repeat(300);
+    client.track("many", props);
+    await client.flush();
+    const sent = server.accepted[0]!.props as Record<string, string>;
+    expect(Object.keys(sent).length).toBe(20);
+    expect(sent.k0!.length).toBe(200);
+  });
+
+  test("honours the batch cap of 20 per request", async () => {
+    const { server, client } = setup({ installId: "inst-1" });
+    for (let i = 0; i < 25; i++) client.track(`e${i}`);
+    await client.flush();
+    expect(server.requests.map((r) => r.parsed.events.length)).toEqual([20, 5]);
+  });
+
+  test("a disabled client records nothing", async () => {
+    const { server, client } = setup({ installId: "inst-1", enabled: false });
+    client.track("purchase");
+    await client.flush();
+    expect(server.requests.length).toBe(0);
+  });
+});
