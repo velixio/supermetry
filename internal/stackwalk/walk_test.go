@@ -47,7 +47,7 @@ type fakeSyms struct {
 }
 
 func (f *fakeSyms) CFI(*minidump.Module) (*breakpad.CFITable, bool) { return f.tab, f.tab != nil }
-func (f *fakeSyms) Covers(_ *minidump.Module, rel uint64) bool       { return !f.reject[rel] }
+func (f *fakeSyms) Covers(_ *minidump.Module, rel uint64) bool      { return !f.reject[rel] }
 
 func appCFI(t testing.TB) *breakpad.CFITable {
 	t.Helper()
