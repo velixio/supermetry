@@ -89,7 +89,7 @@ function InlinePageHeader({ title, description, actions, className, titleId, inl
         {description && typeof description !== 'string' ? <div className="min-w-0 truncate text-sm text-muted-foreground max-md:hidden">{description}</div> : null}
       </div>
       {actions ? (
-        <div className={cn('flex flex-wrap items-center gap-2 empty:hidden', inlineActions && 'max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:justify-end')} data-slot="page-header-actions">
+        <div className={cn('flex max-w-full min-w-0 flex-wrap items-center gap-2 empty:hidden', inlineActions && 'max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:justify-end')} data-slot="page-header-actions">
           {actions}
         </div>
       ) : null}
