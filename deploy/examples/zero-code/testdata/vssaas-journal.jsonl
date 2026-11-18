@@ -1,0 +1,15 @@
+{"_SYSTEMD_UNIT": "vssaas-api.service", "MESSAGE": "time=2026-11-19T10:00:00.000Z level=INFO msg=\"listening on :8080\" addr=:8080", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-api.service", "MESSAGE": "time=2026-11-19T10:00:01.000Z level=ERROR msg=\"order 1001 failed\" err=\"db timeout\"", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-worker.service", "MESSAGE": "{\"time\":\"2026-11-19T10:00:02Z\",\"level\":\"ERROR\",\"msg\":\"job 77 failed\",\"job\":\"render\"}", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "panic: runtime error: invalid memory address or nil pointer dereference", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x4a1b2c]", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "goroutine 1 [running]:", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "main.handle(0x0)", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "\t/opt/vssaas/cmd/api/main.go:42 +0x1c", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "main.run()", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "\t/opt/vssaas/cmd/api/main.go:30 +0x2d", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "main.main()", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "\t/opt/vssaas/cmd/api/main.go:12 +0x19", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "exit status 2", "PRIORITY": "6"}
+{"_SYSTEMD_UNIT": "vssaas-sync.service", "MESSAGE": "stack end", "PRIORITY": "6"}
