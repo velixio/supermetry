@@ -3117,18 +3117,28 @@ type AppNotificationPrefsSite struct {
 
 // AppOverview defines model for AppOverview.
 type AppOverview struct {
+	AbnormalSessions  int64   `json:"abnormal_sessions"`
 	CrashFreeSessions AppRate `json:"crash_free_sessions"`
 	CrashFreeUsers    AppRate `json:"crash_free_users"`
 	Crashes           int64   `json:"crashes"`
+	ErroredSessions   int64   `json:"errored_sessions"`
 	Events            int64   `json:"events"`
-	NewIssues         int64   `json:"new_issues"`
-	RegressedIssues   int64   `json:"regressed_issues"`
-	Series            []struct {
-		CrashFreeUsers AppRate            `json:"crash_free_users"`
-		Crashes        int64              `json:"crashes"`
-		Day            openapi_types.Date `json:"day"`
-		Events         int64              `json:"events"`
+	HandledErrors     int64   `json:"handled_errors"`
+
+	// HealthSource sessions (tracked session lifecycles) or events (v1 pings)
+	HealthSource    string `json:"health_source"`
+	NewIssues       int64  `json:"new_issues"`
+	RegressedIssues int64  `json:"regressed_issues"`
+	Series          []struct {
+		CrashFreeSessions AppRate            `json:"crash_free_sessions"`
+		CrashFreeUsers    AppRate            `json:"crash_free_users"`
+		Crashes           int64              `json:"crashes"`
+		Day               openapi_types.Date `json:"day"`
+		Events            int64              `json:"events"`
 	} `json:"series"`
+	Sessions        int64 `json:"sessions"`
+	UnhandledErrors int64 `json:"unhandled_errors"`
+	Users           int64 `json:"users"`
 }
 
 // AppRate defines model for AppRate.
@@ -3137,14 +3147,24 @@ type AppRate = float64
 // AppReleases defines model for AppReleases.
 type AppReleases struct {
 	Releases []struct {
+		AbnormalSessions  int64     `json:"abnormal_sessions"`
+		Adoption          AppRate   `json:"adoption"`
 		CrashFreeSessions AppRate   `json:"crash_free_sessions"`
 		CrashFreeUsers    AppRate   `json:"crash_free_users"`
+		ErroredSessions   int64     `json:"errored_sessions"`
 		FirstSeen         time.Time `json:"first_seen"`
-		Installs          int64     `json:"installs"`
-		LastSeen          time.Time `json:"last_seen"`
-		NewIssues         int64     `json:"new_issues"`
-		RegressedIssues   int64     `json:"regressed_issues"`
-		Release           string    `json:"release"`
+		HandledErrors     int64     `json:"handled_errors"`
+
+		// HealthSource sessions (tracked session lifecycles) or events (v1 pings)
+		HealthSource    string    `json:"health_source"`
+		Installs        int64     `json:"installs"`
+		LastSeen        time.Time `json:"last_seen"`
+		NewIssues       int64     `json:"new_issues"`
+		RegressedIssues int64     `json:"regressed_issues"`
+		Release         string    `json:"release"`
+		Sessions        int64     `json:"sessions"`
+		UnhandledErrors int64     `json:"unhandled_errors"`
+		Users           int64     `json:"users"`
 	} `json:"releases"`
 }
 

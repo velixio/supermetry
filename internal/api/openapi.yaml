@@ -5842,7 +5842,7 @@ components:
       maximum: 1
     AppOverview:
       type: object
-      required: [events, crashes, new_issues, regressed_issues, crash_free_users, crash_free_sessions, series]
+      required: [events, crashes, new_issues, regressed_issues, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, handled_errors, unhandled_errors, health_source, series]
       properties:
         events: { type: integer, format: int64 }
         crashes: { type: integer, format: int64 }
@@ -5850,16 +5850,24 @@ components:
         regressed_issues: { type: integer, format: int64 }
         crash_free_users: { $ref: '#/components/schemas/AppRate' }
         crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+        sessions: { type: integer, format: int64 }
+        users: { type: integer, format: int64 }
+        abnormal_sessions: { type: integer, format: int64 }
+        errored_sessions: { type: integer, format: int64 }
+        handled_errors: { type: integer, format: int64 }
+        unhandled_errors: { type: integer, format: int64 }
+        health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
         series:
           type: array
           items:
             type: object
-            required: [day, events, crashes, crash_free_users]
+            required: [day, events, crashes, crash_free_users, crash_free_sessions]
             properties:
               day: { type: string, format: date }
               events: { type: integer, format: int64 }
               crashes: { type: integer, format: int64 }
               crash_free_users: { $ref: '#/components/schemas/AppRate' }
+              crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
     AppIssueRow:
       type: object
       required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, events, users, sparkline, assignee_user_id, assignee_name, priority]
@@ -6145,7 +6153,7 @@ components:
           type: array
           items:
             type: object
-            required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, new_issues, regressed_issues]
+            required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, adoption, handled_errors, unhandled_errors, health_source, new_issues, regressed_issues]
             properties:
               release: { type: string }
               first_seen: { type: string, format: date-time }
@@ -6153,6 +6161,14 @@ components:
               installs: { type: integer, format: int64 }
               crash_free_users: { $ref: '#/components/schemas/AppRate' }
               crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+              sessions: { type: integer, format: int64 }
+              users: { type: integer, format: int64 }
+              abnormal_sessions: { type: integer, format: int64 }
+              errored_sessions: { type: integer, format: int64 }
+              adoption: { $ref: '#/components/schemas/AppRate' }
+              handled_errors: { type: integer, format: int64 }
+              unhandled_errors: { type: integer, format: int64 }
+              health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
               new_issues: { type: integer, format: int64 }
               regressed_issues: { type: integer, format: int64 }
     AppLink:

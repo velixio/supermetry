@@ -51,3 +51,42 @@ where site_id = 7 and ts >= '2026-11-10 00:00+00' and ts < '2026-11-16 00:00+00'
 		t.Fatalf("plan uses a sequential scan:\n%s", text)
 	}
 }
+
+// TestSessionRollupReadUsesThePrimaryKey seeds a year of daily session rows for
+// several sites and checks the release list's rollup read is a range scan on
+// the primary key. Run with -v to see the plan.
+func TestSessionRollupReadUsesThePrimaryKey(t *testing.T) {
+	f := appfixture.New(t)
+	ctx := context.Background()
+	if _, err := f.Pool.Exec(ctx, `
+insert into app_session_daily(site_id, day, release, environment, platform, sessions, errored, crashed, abnormal, users)
+select 7, d::date, 'r' || r, e, p, 100, 5, 1, 1, 10
+from generate_series(date '2026-01-01', date '2026-11-15', interval '1 day') d, generate_series(1, 30) r,
+     unnest(array['production','beta']) e, unnest(array['linux','macos','windows']) p`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Pool.Exec(ctx, `analyze app_session_daily`); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := f.Pool.Query(ctx, `explain (costs off) select release, day, sum(sessions), sum(errored), sum(crashed), sum(abnormal)
+from app_session_daily
+where site_id = 7 and day >= '2026-10-17' and day <= '2026-11-15' and ('' = '' or release = '') and ('' = '' or environment = '') and ('' = '' or platform = '') and release <> ''
+group by 1, day`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var plan []string
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			t.Fatal(err)
+		}
+		plan = append(plan, line)
+	}
+	text := strings.Join(plan, "\n")
+	t.Log("\n" + text)
+	if !strings.Contains(text, "app_session_daily_pkey") || strings.Contains(text, "Seq Scan") {
+		t.Fatalf("unexpected plan:\n%s", text)
+	}
+}

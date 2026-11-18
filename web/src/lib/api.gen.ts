@@ -4703,6 +4703,20 @@ export interface components {
             regressed_issues: number;
             crash_free_users: components["schemas"]["AppRate"];
             crash_free_sessions: components["schemas"]["AppRate"];
+            /** Format: int64 */
+            sessions: number;
+            /** Format: int64 */
+            users: number;
+            /** Format: int64 */
+            abnormal_sessions: number;
+            /** Format: int64 */
+            errored_sessions: number;
+            /** Format: int64 */
+            handled_errors: number;
+            /** Format: int64 */
+            unhandled_errors: number;
+            /** @description sessions (tracked session lifecycles) or events (v1 pings) */
+            health_source: string;
             series: {
                 /** Format: date */
                 day: string;
@@ -4711,6 +4725,7 @@ export interface components {
                 /** Format: int64 */
                 crashes: number;
                 crash_free_users: components["schemas"]["AppRate"];
+                crash_free_sessions: components["schemas"]["AppRate"];
             }[];
         };
         AppIssueRow: {
@@ -5023,6 +5038,21 @@ export interface components {
                 installs: number;
                 crash_free_users: components["schemas"]["AppRate"];
                 crash_free_sessions: components["schemas"]["AppRate"];
+                /** Format: int64 */
+                sessions: number;
+                /** Format: int64 */
+                users: number;
+                /** Format: int64 */
+                abnormal_sessions: number;
+                /** Format: int64 */
+                errored_sessions: number;
+                adoption: components["schemas"]["AppRate"];
+                /** Format: int64 */
+                handled_errors: number;
+                /** Format: int64 */
+                unhandled_errors: number;
+                /** @description sessions (tracked session lifecycles) or events (v1 pings) */
+                health_source: string;
                 /** Format: int64 */
                 new_issues: number;
                 /** Format: int64 */
