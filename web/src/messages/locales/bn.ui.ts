@@ -27,6 +27,7 @@ const messages: MessageTree = {
   menus: {
     settings: 'সেটিংস', settingsMenu: 'সেটিংস মেনু', organizationSettings: 'প্রতিষ্ঠানের সেটিংস', siteSettings: 'সাইটের সেটিংস',
     account: 'অ্যাকাউন্ট', accountMenu: 'অ্যাকাউন্ট মেনু', yourAccount: 'আপনার অ্যাকাউন্ট', accountSettings: 'অ্যাকাউন্ট সেটিংস', logOut: 'লগ আউট',
+    plan: 'প্ল্যান', theme: 'থিম', themeToLight: 'হালকা থিমে বদলান', themeToDark: 'গাঢ় থিমে বদলান', language: 'ভাষা',
   },
   emptyState: { setUpTracking: 'ট্র্যাকিং সেট আপ করুন' },
   impersonation: {
@@ -45,7 +46,17 @@ const messages: MessageTree = {
     name: 'সেগমেন্টের নাম', cancel: 'বাতিল করুন', saving: 'সংরক্ষণ করা হচ্ছে…', deleteTitle: 'সেগমেন্ট মুছবেন?',
     deleteBody: (name: string) => `“${name}” মুছবেন? এটি ফিরিয়ে আনা যাবে না।`, deleting: 'মোছা হচ্ছে…', delete: 'সেগমেন্ট মুছুন',
   },
-  sidebar: { demo: 'ডেমো', chooseOrganization: 'প্রতিষ্ঠান বেছে নিন' },
+  sidebar: {
+    demo: 'ডেমো', chooseOrganization: 'প্রতিষ্ঠান বেছে নিন',
+    organizationScope: 'প্রতিষ্ঠান',
+    pinned: 'পিন করা',
+    pin: (label: string) => `${label} উপরে পিন করুন`,
+    unpin: (label: string) => `${label} আনপিন করুন`,
+  },
+  help: {
+    menu: 'সহায়তা', shortcuts: 'কিবোর্ড শর্টকাট', about: 'Supermetry সম্পর্কে',
+    aboutDescription: 'এই ইনস্টলেশনের সংস্করণ ও কৃতজ্ঞতা।', version: 'সংস্করণ',
+  },
   appShell: { loadingLive: 'সরাসরি দর্শনার্থী লোড হচ্ছে' },
   crumbs: {
     label: 'ব্রেডক্রাম্ব', detail: 'বিস্তারিত', account: 'অ্যাকাউন্ট', admin: 'অ্যাডমিন',
@@ -58,7 +69,7 @@ const messages: MessageTree = {
       pixel: 'পিক্সেল', general: 'সাধারণ', alerts: 'সতর্কতা', installation: 'ইনস্টলেশন', integrations: 'ইন্টিগ্রেশন',
       imports: 'আমদানি', reports: 'রিপোর্ট', shares: 'শেয়ার', tracking: 'ট্র্যাকিং', members: 'সদস্য', invites: 'আমন্ত্রণ',
       audit: 'অডিট লগ', api: 'API', 'api-keys': 'API কী', notifications: 'বিজ্ঞপ্তি', 'notification-history': 'বিজ্ঞপ্তির ইতিহাস',
-      'replay-storage': 'রিপ্লে স্টোরেজ', new: 'নতুন', profile: 'প্রোফাইল', security: 'নিরাপত্তা', organizations: 'প্রতিষ্ঠান', users: 'ব্যবহারকারী', update: 'সিস্টেম আপডেট',
+      'replay-storage': 'রিপ্লে স্টোরেজ', new: 'নতুন', profile: 'প্রোফাইল', security: 'নিরাপত্তা', organizations: 'প্রতিষ্ঠান', users: 'ব্যবহারকারী', update: 'সিস্টেম আপডেট', 'github-stars': 'GitHub স্টার',
     },
   },
   inspector: {
@@ -76,10 +87,16 @@ const messages: MessageTree = {
   },
   language: { menu: 'ভাষা', saveFailed: 'ভাষাটি সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।' },
   palette: {
+    searchField: 'খুঁজুন বা যান…',
     open: 'কমান্ড প্যালেট খুলুন', loadFailed: 'কমান্ড প্যালেট লোড করা যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।', keyHint: 'Ctrl K', keyHintApple: '⌘K',
     title: 'কমান্ড প্যালেট', description: 'কোনো পেজে যান, সাইট বা প্রতিষ্ঠান বদলান, অথবা কোনো কাজ চালান।', inputLabel: 'কমান্ড খুঁজুন',
     placeholder: 'পেজ, সাইট বা কাজ লিখুন…', empty: 'মিলে যাওয়া কোনো কমান্ড নেই',
-    groups: { pages: 'পেজ', sites: 'সাইট', organizations: 'প্রতিষ্ঠান', actions: 'কাজ' },
+    groups: { recent: 'সাম্প্রতিক', pages: 'পেজ', settings: 'সেটিংস', sites: 'সাইট', organizations: 'প্রতিষ্ঠান', actions: 'কাজ' },
+    actions: {
+      createApiKey: 'API কী তৈরি করুন', inviteMember: 'সদস্যকে আমন্ত্রণ জানান', addSite: 'সাইট যোগ করুন',
+      switchTheme: 'থিম বদলান', changeLanguage: 'ভাষা বদলান', about: 'Supermetry সম্পর্কে',
+    },
+    scopes: { org: 'প্রতিষ্ঠানের সেটিংস', site: 'সাইটের সেটিংস', account: 'অ্যাকাউন্ট', admin: 'অ্যাডমিন' },
   },
 }
 

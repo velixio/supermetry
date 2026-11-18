@@ -43,6 +43,11 @@ export const ui = {
     yourAccount: 'Your account',
     accountSettings: 'Account settings',
     logOut: 'Log out',
+    plan: 'Plan',
+    theme: 'Theme',
+    themeToLight: 'Switch to light theme',
+    themeToDark: 'Switch to dark theme',
+    language: 'Language',
   },
   emptyState: { setUpTracking: 'Set up tracking' },
   impersonation: {
@@ -77,7 +82,20 @@ export const ui = {
     deleting: 'Deleting…',
     delete: 'Delete segment',
   },
-  sidebar: { demo: 'Demo', chooseOrganization: 'Choose organization' },
+  sidebar: {
+    demo: 'Demo', chooseOrganization: 'Choose organization',
+    organizationScope: 'Organization',
+    pinned: 'Pinned',
+    pin: (label: string) => `Pin ${label} to the top`,
+    unpin: (label: string) => `Unpin ${label}`,
+  },
+  help: {
+    menu: 'Help',
+    shortcuts: 'Keyboard shortcuts',
+    about: 'About Supermetry',
+    aboutDescription: 'Version and credits for this installation.',
+    version: 'Version',
+  },
   appShell: { loadingLive: 'Loading live visitors' },
   crumbs: {
     label: 'Breadcrumb',
@@ -98,7 +116,7 @@ export const ui = {
       'api-keys': 'API keys', notifications: 'Notifications',
       'notification-history': 'Notification history', 'replay-storage': 'Replay storage',
       new: 'New', profile: 'Profile', security: 'Security', organizations: 'Organizations',
-      users: 'Users', update: 'System update',
+      users: 'Users', update: 'System update', 'github-stars': 'GitHub stars',
     } as Record<string, string>,
   },
   inspector: {
@@ -129,6 +147,7 @@ export const ui = {
   },
   palette: {
     open: 'Open command palette',
+    searchField: 'Search or jump to…',
     loadFailed: 'The command palette could not be loaded. Check your connection and try again.',
     keyHint: 'Ctrl K',
     keyHintApple: '⌘K',
@@ -137,7 +156,12 @@ export const ui = {
     inputLabel: 'Search commands',
     placeholder: 'Type a page, site or action…',
     empty: 'No matching commands',
-    groups: { pages: 'Pages', sites: 'Sites', organizations: 'Organizations', actions: 'Actions' },
+    groups: { recent: 'Recent', pages: 'Pages', settings: 'Settings', sites: 'Sites', organizations: 'Organizations', actions: 'Actions' },
+    actions: {
+      createApiKey: 'Create API key', inviteMember: 'Invite member', addSite: 'Add site',
+      switchTheme: 'Switch theme', changeLanguage: 'Change language', about: 'About Supermetry',
+    },
+    scopes: { org: 'Organization settings', site: 'Site settings', account: 'Account', admin: 'Admin' },
   },
 }
 

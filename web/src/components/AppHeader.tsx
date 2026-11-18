@@ -1,9 +1,9 @@
 import { useId, type Ref } from 'react'
 import { Link } from '@tanstack/react-router'
-import { CircleHelpIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
+import { SearchIcon } from 'lucide-react'
 
 import { Breadcrumbs } from './Breadcrumbs'
-import { LanguageMenu } from './LanguageMenu'
+import { HelpMenu } from './HelpMenu'
 import { LiveBadge } from '@/components/LiveBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,8 +12,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import { useUpdateStatus } from '@/features/admin/adminApi'
 import type { Membership, Site } from '@/lib/me'
-import type { LocaleCode } from '@/lib/i18n'
-import type { Theme } from '@/lib/theme'
 import { isApplePlatform } from '@/lib/shortcuts'
 import { isAnonymousTracking } from '@/lib/tracking-policy'
 import { en } from '@/messages/en'
@@ -70,7 +68,8 @@ function UpdateNotice({ instanceAdmin }: { instanceAdmin: boolean }) {
 }
 
 /**
- * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, command palette trigger, live badge, help and theme.
+ * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, search field (opens the command palette), live badge and help.
+ * Language and theme live in the account menu.
  * Outside an organization (no membership) there is no site, so no live badge.
  */
 export function AppHeader({
@@ -78,10 +77,8 @@ export function AppHeader({
   membership,
   site,
   requestedSite,
-  locale = '',
-  theme,
-  onToggleTheme,
   onOpenHelp,
+  onOpenAbout,
   onOpenPalette,
   paletteTriggerRef,
 }: {
@@ -89,11 +86,8 @@ export function AppHeader({
   membership?: Membership
   site?: Site
   requestedSite?: string
-  /** The signed-in user's saved interface language; '' follows the browser. */
-  locale?: LocaleCode | ''
-  theme: Theme
-  onToggleTheme: () => void
   onOpenHelp: () => void
+  onOpenAbout: () => void
   onOpenPalette: () => void
   /** Lets the shell return focus here after a command that leaves focus nowhere else. */
   paletteTriggerRef?: Ref<HTMLButtonElement>
@@ -105,25 +99,25 @@ export function AppHeader({
         <Breadcrumbs membership={membership} />
       </div>
       <div className="flex items-center gap-1">
-        {/* The shortcut hint sits beside the button's text, not inside it: the button's name is
-            "Open command palette" and the shortcut is announced through aria-keyshortcuts. */}
-        <span className="relative inline-flex">
-          <Button
-            ref={paletteTriggerRef}
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="gap-1.5 text-muted-foreground md:pr-12"
-            aria-label={ui.palette.open}
-            aria-keyshortcuts="Control+K Meta+K"
-            onClick={onOpenPalette}
-          >
-            <SearchIcon aria-hidden="true" />
-          </Button>
-          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium text-muted-foreground md:inline">
+        {/* One search field for the command palette. Its accessible name is its visible text; the
+            shortcut hint sits inside the field and is announced through aria-keyshortcuts. */}
+        <Button
+          ref={paletteTriggerRef}
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 justify-start gap-2 px-2 font-normal text-muted-foreground max-md:w-8 max-md:justify-center md:w-64 lg:w-72"
+          aria-haspopup="dialog"
+          aria-keyshortcuts="Control+K Meta+K"
+          aria-label={ui.palette.searchField}
+          onClick={onOpenPalette}
+        >
+          <SearchIcon aria-hidden="true" />
+          <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{ui.palette.searchField}</span>
+          <kbd aria-hidden="true" className="pointer-events-none hidden rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium text-muted-foreground md:inline">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
-        </span>
+        </Button>
         <UpdateNotice instanceAdmin={instanceAdmin} />
         {membership && site && requestedSite && site.kind !== 'app' ? (
           <div className="hidden sm:block">
@@ -135,26 +129,7 @@ export function AppHeader({
             />
           </div>
         ) : null}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="hidden sm:inline-flex"
-          aria-label={en.shortcuts.open}
-          onClick={onOpenHelp}
-        >
-          <CircleHelpIcon />
-        </Button>
-        <LanguageMenu locale={locale} />
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          aria-label={theme === 'dark' ? en.theme.dark : en.theme.light}
-          onClick={onToggleTheme}
-        >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </Button>
+        <HelpMenu onOpenAbout={onOpenAbout} onOpenShortcuts={onOpenHelp} />
       </div>
     </header>
   )
