@@ -55,6 +55,7 @@ import (
 	"supermetry/internal/minutes"
 	"supermetry/internal/obslogs"
 	"supermetry/internal/obsmetrics"
+	"supermetry/internal/obsquota"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
@@ -540,6 +541,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// The log writer starts its own flush goroutine; the OTLP and Sentry log
 	// front doors enqueue into it. Close flushes it before the pool closes.
 	logWriter := obslogs.NewWriter(pool, obslogs.WriterConfig{Now: settings.clock.Now}, obslogs.HealthStats{})
+	// The daily quota tracker is primed once from today's counters and then
+	// served from memory; it flushes its deltas every minute.
+	obsQuota := obsquota.New(pool, settings.clock.Now)
+	if err := obsQuota.Prime(ctx); err != nil {
+		return err
+	}
 	metricRegistry, err := obsmetrics.LoadRegistry(ctx, pool, obsmetrics.DefaultSeriesCap)
 	if err != nil {
 		return fmt.Errorf("load metric series: %w", err)
@@ -557,12 +564,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
 			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
 		})
-		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
+		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget).WithLogs(logWriter, obsQuota)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
 		sentryHandler.WithSessions(appSessions)
 		sentryIngest = sentryHandler
 		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now).
-			WithMetrics(metricWriter, obsmetrics.NewQuota(obsmetrics.DefaultDailyQuota), obsmetrics.HealthStats{})
+			WithMetrics(metricWriter, obsQuota, obsmetrics.HealthStats{}).
+			WithLogs(logWriter, obsQuota, obslogs.HealthStats{})
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -654,6 +662,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	metricWriterCtx, cancelMetricWriter := context.WithCancel(context.Background())
 	metricWriterDone := make(chan error, 1)
 	go func() { metricWriterDone <- metricWriter.Run(metricWriterCtx) }()
+	obsQuota.Start()
 	appBodiesDone := make(chan error, 1)
 	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
 	appReportsDone := make(chan error, 1)
@@ -828,6 +837,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	logWriter.Close()
 	cancelMetricWriter()
 	cause = errors.Join(cause, <-metricWriterDone)
+	obsQuota.Close()
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
