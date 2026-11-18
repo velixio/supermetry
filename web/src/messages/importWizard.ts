@@ -3,7 +3,7 @@ import { registerCatalogue } from '@/lib/i18n'
 // Strings of the import wizard (src/features/imports).
 export const importWizard = {
   title: 'Import historical data',
-  intro: 'Bring data from your old analytics tool into this site. Only aggregates are imported: no visitor identifiers and no IP addresses.',
+  intro: 'Bring data from your old analytics tool into this project. Only aggregates are imported: no visitor identifiers and no IP addresses.',
   stepperLabel: 'Import progress',
   steps: {
     source: 'Source',
@@ -51,7 +51,7 @@ export const importWizard = {
     plausibleKey: 'Plausible API key',
     plausibleKeyHelp: 'Create a Stats API key in Plausible under Settings, API keys. It is used for this import only and is deleted afterwards.',
     matomoToken: 'Matomo token_auth',
-    matomoTokenHelp: 'A token with view access to the site (Personal, Security, Auth tokens). It is used for this import only and is deleted afterwards.',
+    matomoTokenHelp: 'A token with view access to the project (Personal, Security, Auth tokens). It is used for this import only and is deleted afterwards.',
     ga4Heading: 'Google account',
     ga4ConnectHelp: 'Sign in with the Google account that can read the property. Supermetry only asks for read access to Analytics data.',
     ga4Connect: 'Connect Google',
@@ -75,7 +75,7 @@ export const importWizard = {
     heading: 'What to import',
     from: 'From',
     to: 'To',
-    rangeHelp: 'Both days are included. Days are counted in the site’s time zone.',
+    rangeHelp: 'Both days are included. Days are counted in the project’s time zone.',
     includedHeading: 'Included',
     included: {
       totals: 'Daily visitors, visits, pageviews, bounces and visit duration',
@@ -86,7 +86,7 @@ export const importWizard = {
       events: 'Goals and custom events',
     },
     includedNote: 'Anything the service does not provide is skipped. The next step shows exactly what was found.',
-    sitesFixed: 'The data is imported into this site.',
+    sitesFixed: 'The data is imported into this project.',
     fileHeading: 'File to import',
     fileSummary: (name: string, size: string) => `${name} (${size})`,
     fileRange: 'The date range comes from the file.',
@@ -157,7 +157,7 @@ export const importWizard = {
     leaveNote: 'You can leave this page. The import keeps running on the server, and this page picks it up again when you come back.',
     completed: 'The import is complete.',
     failed: 'The import failed.',
-    failedHint: 'Nothing was added to your site. Check the message above, then start over.',
+    failedHint: 'Nothing was added to your project. Check the message above, then start over.',
     toReview: 'Review the result',
     loadFailed: 'Could not read the import status. Retrying…',
     status: {
@@ -200,7 +200,7 @@ export const importWizard = {
     action: 'Undo import',
     actionFor: (name: string) => `Undo import ${name}`,
     title: 'Undo this import?',
-    description: (name: string) => `The data imported from ${name} is removed from this site. Data Supermetry collected itself is not affected.`,
+    description: (name: string) => `The data imported from ${name} is removed from this project. Data Supermetry collected itself is not affected.`,
     confirm: 'Undo import',
     failed: 'The import could not be undone.',
     done: 'Import removed.',
