@@ -301,7 +301,9 @@ describe('live dot', () => {
     expect(link.textContent).toBe('Realtime')
     act(() => { client.setQueryData(liveSummaryKey(1), { active_visitors: 0, visitors_last_30m: 9 }) })
     await waitFor(() => expect(screen.queryByTestId('live-dot')).toBeNull(), { timeout: 4000 })
-    expect(fetcher).not.toHaveBeenCalled()
+    // Other sidebar queries may fetch in this render; the live dot itself must never request the summary.
+    const requested = fetcher.mock.calls.map(([input]) => String(input instanceof Request ? input.url : input))
+    expect(requested.filter((url) => url.includes('/realtime/summary'))).toEqual([])
     fetcher.mockRestore()
   })
 })
