@@ -53,7 +53,7 @@ func TestKeyLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !regexp.MustCompile(`^pnl_[a-z2-7]{8}_[A-Za-z0-9]{40,}$`).MatchString(plain) {
+	if !regexp.MustCompile(`^smkapi_[a-z2-7]{8}[A-Za-z0-9]{38}$`).MatchString(plain) {
 		t.Fatalf("format %q", plain)
 	}
 	verified, ok := keys.Verify(ctx, plain)
@@ -64,7 +64,7 @@ func TestKeyLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(fmt.Sprint(list), plain[13:]) {
+	if strings.Contains(fmt.Sprint(list), plain[15:]) {
 		t.Fatal("secret leaked in list")
 	}
 	if err := keys.Revoke(ctx, principal, info.ID); err != nil {
@@ -91,7 +91,7 @@ func TestKeyLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantHash := sha256.Sum256([]byte(plain))
-	if storedPrefix != plain[4:12] || !bytes.Equal(storedHash, wantHash[:]) {
+	if storedPrefix != plain[7:15] || !bytes.Equal(storedHash, wantHash[:]) {
 		t.Fatalf("stored key material = (%q, %x)", storedPrefix, storedHash)
 	}
 	if lastUsedAt == nil {

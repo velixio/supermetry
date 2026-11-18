@@ -9,6 +9,7 @@ import (
 	"encoding/base32"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -46,14 +47,33 @@ type KeyInfo struct {
 	LastUsedAt *time.Time
 	ExpiresAt  *time.Time
 	RevokedAt  *time.Time
+	// LastUsedCountry and LastUsedClient are empty until the key is used.
+	LastUsedCountry string
+	LastUsedClient  string
 }
 
+// DefaultExpiry is how long a key lives when its creator makes no explicit
+// choice. ExpiringSoonWindow is when a list flags a key.
+const (
+	DefaultExpiry      = 90 * 24 * time.Hour
+	ExpiringSoonWindow = 14 * 24 * time.Hour
+)
+
+// ExpiringSoon reports whether the key is live and expires within the window.
+func (i KeyInfo) ExpiringSoon(now time.Time) bool {
+	return i.RevokedAt == nil && i.ExpiresAt != nil && i.ExpiresAt.After(now) && i.ExpiresAt.Sub(now) <= ExpiringSoonWindow
+}
+
+// NeverExpires reports whether the key has no expiry.
+func (i KeyInfo) NeverExpires() bool { return i.ExpiresAt == nil }
+
 type Keys struct {
-	store  *store.Store
-	used   chan int64
-	cancel context.CancelFunc
-	done   chan struct{}
-	once   sync.Once
+	store   *store.Store
+	country func(*http.Request) string
+	used    chan store.APIKeyUse
+	cancel  context.CancelFunc
+	done    chan struct{}
+	once    sync.Once
 }
 
 func New(data *store.Store) *Keys {
@@ -63,7 +83,7 @@ func New(data *store.Store) *Keys {
 func newWithFlushInterval(data *store.Store, interval time.Duration) *Keys {
 	ctx, cancel := context.WithCancel(context.Background())
 	keys := &Keys{
-		store: data, used: make(chan int64, lastUseQueueSize),
+		store: data, used: make(chan store.APIKeyUse, lastUseQueueSize),
 		cancel: cancel, done: make(chan struct{}),
 	}
 	go keys.flushLastUsed(ctx, interval)
@@ -78,18 +98,31 @@ func (k *Keys) Close() {
 	})
 }
 
+// Create makes a key that expires at the given instant, or never when expires is
+// nil. Callers that want the default policy use CreateDefaultExpiry.
 func (k *Keys) Create(ctx context.Context, principal authz.Principal, name string, scopes []string, siteIDs []int32, expires *time.Time) (plain string, info KeyInfo, err error) {
+	return k.create(ctx, principal, name, scopes, siteIDs, expires, false)
+}
+
+// CreateDefaultExpiry makes a key that expires DefaultExpiry from now. A key
+// delegating to a child that expires sooner gives the child that earlier
+// expiry rather than failing.
+func (k *Keys) CreateDefaultExpiry(ctx context.Context, principal authz.Principal, name string, scopes []string, siteIDs []int32) (string, KeyInfo, error) {
+	expires := time.Now().Add(DefaultExpiry)
+	return k.create(ctx, principal, name, scopes, siteIDs, &expires, true)
+}
+
+func (k *Keys) create(ctx context.Context, principal authz.Principal, name string, scopes []string, siteIDs []int32, expires *time.Time, clampToCaller bool) (plain string, info KeyInfo, err error) {
 	if !authz.Can(principal, authz.ActionKeysManage, 0) || principal.Role != authz.RoleKey && principal.UserID == 0 {
 		return "", KeyInfo{}, ErrForbidden
 	}
 	if !authz.ValidScopes(scopes) {
 		return "", KeyInfo{}, ErrInvalid
 	}
-	prefix, secret, err := newKeyParts(isUploadKey(scopes))
+	plain, prefix, err := newPlainKey(scopes)
 	if err != nil {
 		return "", KeyInfo{}, err
 	}
-	plain = "pnl_" + prefix + "_" + secret
 	hash := sha256.Sum256([]byte(plain))
 
 	var stored store.APIKey
@@ -124,6 +157,10 @@ func (k *Keys) Create(ctx context.Context, principal authz.Principal, name strin
 				}
 				return callerErr
 			}
+			if clampToCaller && caller.ExpiresAt != nil && expires != nil && expires.After(*caller.ExpiresAt) {
+				clamped := *caller.ExpiresAt
+				expires = &clamped
+			}
 			if !canDelegate(caller, scopes, siteIDs, expires) {
 				return ErrForbidden
 			}
@@ -146,6 +183,24 @@ func (k *Keys) Create(ctx context.Context, principal authz.Principal, name strin
 		return "", KeyInfo{}, err
 	}
 	return plain, keyInfo(stored), nil
+}
+
+// newPlainKey makes a key secret. Upload keys keep the legacy shape.
+func newPlainKey(scopes []string) (plain, prefix string, err error) {
+	if isUploadKey(scopes) {
+		prefix, secret, err := newKeyParts(true)
+		if err != nil {
+			return "", "", err
+		}
+		return "pnl_" + prefix + "_" + secret, prefix, nil
+	}
+	prefixBytes := make([]byte, 5)
+	if _, err := rand.Read(prefixBytes); err != nil {
+		return "", "", fmt.Errorf("generate API key prefix: %w", err)
+	}
+	prefix = strings.ToLower(base32NoPadding.EncodeToString(prefixBytes))
+	plain, err = newCurrentKey(prefix)
+	return plain, prefix, err
 }
 
 func canDelegate(caller store.APIKey, scopes []string, siteIDs []int32, expires *time.Time) bool {
@@ -191,7 +246,23 @@ func containsSite(values []int32, want int32) bool {
 	return false
 }
 
+// Verify authenticates a key without recording where it was used from.
 func (k *Keys) Verify(ctx context.Context, plain string) (authz.Principal, bool) {
+	return k.verify(ctx, plain, store.APIKeyUse{})
+}
+
+// VerifyRequest authenticates a key and queues its last use with the country
+// (from the local GeoIP database) and client family of the request. The IP
+// address and User-Agent are read and discarded.
+func (k *Keys) VerifyRequest(r *http.Request, plain string) (authz.Principal, bool) {
+	use := store.APIKeyUse{Client: ClientFamily(r.UserAgent())}
+	if k.country != nil {
+		use.Country = k.country(r)
+	}
+	return k.verify(r.Context(), plain, use)
+}
+
+func (k *Keys) verify(ctx context.Context, plain string, use store.APIKeyUse) (authz.Principal, bool) {
 	prefix, ok := parseKeyPrefix(plain)
 	if !ok {
 		return authz.Principal{}, false
@@ -214,8 +285,9 @@ func (k *Keys) Verify(ctx context.Context, plain string) (authz.Principal, bool)
 		if candidate.RevokedAt != nil || candidate.ExpiresAt != nil && !candidate.ExpiresAt.After(now) {
 			return authz.Principal{}, false
 		}
+		use.ID = candidate.ID
 		select {
-		case k.used <- candidate.ID:
+		case k.used <- use:
 		default:
 		}
 		return authz.Principal{
@@ -298,27 +370,27 @@ func (k *Keys) flushLastUsed(ctx context.Context, interval time.Duration) {
 	defer close(k.done)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	pending := make(map[int64]struct{})
+	pending := make(map[int64]store.APIKeyUse)
 	flush := func(flushCtx context.Context) {
-		ids := make([]int64, 0, len(pending))
-		for id := range pending {
-			ids = append(ids, id)
+		uses := make([]store.APIKeyUse, 0, len(pending))
+		for _, use := range pending {
+			uses = append(uses, use)
 		}
-		if err := store.TouchAPIKeys(flushCtx, k.store, ids); err == nil {
+		if err := store.TouchAPIKeys(flushCtx, k.store, uses); err == nil {
 			clear(pending)
 		}
 	}
 	for {
 		select {
-		case id := <-k.used:
-			pending[id] = struct{}{}
+		case use := <-k.used:
+			pending[use.ID] = mergeUse(pending[use.ID], use)
 		case <-ticker.C:
 			flush(ctx)
 		case <-ctx.Done():
 			for {
 				select {
-				case id := <-k.used:
-					pending[id] = struct{}{}
+				case use := <-k.used:
+					pending[use.ID] = mergeUse(pending[use.ID], use)
 				default:
 					flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					flush(flushCtx)
@@ -366,7 +438,24 @@ func newKeyParts(upload bool) (string, string, error) {
 	return prefix, secret, nil
 }
 
+// mergeUse keeps the newest known country and client for a key within a batch.
+func mergeUse(old, next store.APIKeyUse) store.APIKeyUse {
+	if next.Country == "" {
+		next.Country = old.Country
+	}
+	if next.Client == "" {
+		next.Client = old.Client
+	}
+	return next
+}
+
+// parseKeyPrefix checks a presented key's shape (and checksum, for the current
+// format) and returns its display prefix, so a malformed key never reaches the
+// database.
 func parseKeyPrefix(plain string) (string, bool) {
+	if strings.HasPrefix(plain, currentKeyPrefix) {
+		return parseCurrentKey(plain)
+	}
 	if len(plain) < len("pnl_")+keyPrefixLength+1+uploadSecretLength || !strings.HasPrefix(plain, "pnl_") {
 		return "", false
 	}
@@ -399,7 +488,8 @@ func keyInfo(key store.APIKey) KeyInfo {
 		Scopes: cloneStrings(key.Scopes), SiteIDs: cloneSites(key.SiteIDs),
 		CreatedBy: key.CreatedBy, CreatedAt: key.CreatedAt,
 		LastUsedAt: cloneTime(key.LastUsedAt), ExpiresAt: cloneTime(key.ExpiresAt),
-		RevokedAt: cloneTime(key.RevokedAt),
+		RevokedAt:       cloneTime(key.RevokedAt),
+		LastUsedCountry: derefString(key.LastUsedCountry), LastUsedClient: derefString(key.LastUsedClient),
 	}
 }
 
@@ -464,4 +554,11 @@ func keyWithinAuthority(caller, target store.APIKey) bool {
 		}
 	}
 	return true
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
