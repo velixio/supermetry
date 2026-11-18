@@ -55,9 +55,9 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
 
   const items = checklistItems({
     eventReceived: status.data?.install_status !== undefined && status.data.install_status !== 'waiting',
-    goalCount: goals.data?.length ?? 0,
-    memberCount: members.data?.data.length ?? 0,
-    pendingInvitationCount: invitations.data?.data.length ?? 0,
+    goalCount: Array.isArray(goals.data) ? goals.data.length : 0,
+    memberCount: members.data?.data?.length ?? 0,
+    pendingInvitationCount: invitations.data?.data?.length ?? 0,
     keys: keys.data?.data ?? [],
   })
   const progress = checklistProgress(items)
