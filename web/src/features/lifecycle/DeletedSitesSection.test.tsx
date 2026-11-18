@@ -37,8 +37,8 @@ it('lists scheduled sites and restores one through the lifecycle API', async () 
 
 it.each([
   ['not_restorable', 'This can no longer be restored.'],
-  ['site_limit', 'Your organization is at its site limit.'],
-  ['unexpected', 'The site could not be restored.'],
+  ['site_limit', 'Your organization is at its project limit.'],
+  ['unexpected', 'The project could not be restored.'],
 ])('shows %s restore errors inline', async (code, message) => {
   vi.mocked(getDeletedSites).mockResolvedValue([{ id: 7, name: 'Docs', deleted_at: '2026-10-11T08:00:00Z', purge_at: '2026-10-18T08:00:00Z' }])
   vi.mocked(restoreSite).mockRejectedValue(new Error(code))

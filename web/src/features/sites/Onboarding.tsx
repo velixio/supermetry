@@ -81,7 +81,7 @@ export function Onboarding({ me, createSite, navigate }: {
           />
         ) : (
           <SiteForm
-            submitLabel="Create site"
+            submitLabel="Create project"
             retention={config.data ? retentionPolicy(config.data) : undefined}
             requireDomain={config.data?.managed === true}
             onSubmit={async (input) => {

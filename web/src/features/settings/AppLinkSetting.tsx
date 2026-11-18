@@ -41,7 +41,7 @@ export function AppLinkSetting({ orgId, siteId }: { orgId: number; siteId: numbe
         ))}
       </select>
       <FieldDescription>
-        Diagnostic reports this site receives are stored in the chosen app project as crash and error reports, not as custom events.
+        Diagnostic reports this project receives are stored in the chosen app project as crash and error reports, not as custom events.
       </FieldDescription>
       {save.error ? <FieldError>{save.error.message}</FieldError> : null}
     </Field>

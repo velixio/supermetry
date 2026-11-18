@@ -84,7 +84,7 @@ export function TrackingSnippet({
     <div className="flex flex-col gap-3">
       {generatedSnippet ? (
         <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-          <p>This URL applies the tracker features selected in Site settings → Tracking, and session replay when it is on.</p>
+          <p>This URL applies the tracker features selected in Project settings → Tracking, and session replay when it is on.</p>
           <p className="text-xs">
             Installed an older snippet with <code>/js/script.js</code> or <code>/js/script.full.js</code>? Replace it with
             this one: session replay only starts from this URL.

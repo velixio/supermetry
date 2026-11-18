@@ -76,7 +76,7 @@ describe('member permission requests', () => {
     await screen.findByRole('combobox', { name: 'Member role' })
     expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()
     if (field === 'site') {
-      fireEvent.change(screen.getByLabelText('Site access'), { target: { value: 'all' } })
+      fireEvent.change(screen.getByLabelText('Project access'), { target: { value: 'all' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     } else {
       fireEvent.click(screen.getByRole('checkbox', { name: /Read profiles/ }))
@@ -120,7 +120,7 @@ describe('member permission requests', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
       target: { value: 'teammate@example.test' },
     })
-    fireEvent.change(screen.getByLabelText('Site access'), {
+    fireEvent.change(screen.getByLabelText('Project access'), {
       target: { value: 'none' },
     })
     expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()

@@ -74,7 +74,7 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
             <caption className="sr-only">{en.admin.sites}</caption>
             <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
-                <th scope="col" className={cellClass}>Site</th><th scope="col" className={cellClass}>Organization</th>
+                <th scope="col" className={cellClass}>Project</th><th scope="col" className={cellClass}>Organization</th>
                 <th scope="col" className={cellClass}>{en.admin.usage}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}>{en.admin.lastEvent}</th><th scope="col" className={cellClass}>{en.admin.retention}</th>
               </tr>
             </thead>

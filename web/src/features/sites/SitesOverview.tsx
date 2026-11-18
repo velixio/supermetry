@@ -91,10 +91,10 @@ function SiteActions({ site, onDelete }: { site: OverviewSite; onDelete(site: Ov
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem asChild><Link to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={siteSearch(site)}>Open dashboard</Link></DropdownMenuItem>
-          {canEdit ? <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/general" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }}>Site settings</Link></DropdownMenuItem> : null}
+          {canEdit ? <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/general" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }}>Project settings</Link></DropdownMenuItem> : null}
           <DropdownMenuItem asChild><Link to="/app/$org/$site/settings/installation" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }}>Installation</Link></DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void copyText(site.tracking_snippet)}>Copy tracking snippet</DropdownMenuItem>
-          {canDelete ? <DropdownMenuItem variant="destructive" onSelect={() => onDelete(site)}>Delete site</DropdownMenuItem> : null}
+          {canDelete ? <DropdownMenuItem variant="destructive" onSelect={() => onDelete(site)}>Delete project</DropdownMenuItem> : null}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -131,8 +131,8 @@ function SiteCard({ site, multipleOrganizations, onDelete }: { site: OverviewSit
 function SitesTable({ sites, multipleOrganizations, onDelete }: { sites: OverviewSite[]; multipleOrganizations: boolean; onDelete(site: OverviewSite): void }) {
   return (
     <div className="rounded-xl border bg-card">
-      <Table aria-label="Sites overview"><TableHeader><TableRow>
-        <TableHead>Site</TableHead>{multipleOrganizations ? <TableHead>Organization</TableHead> : null}<TableHead>Created</TableHead><TableHead>Visitors</TableHead><TableHead>Change</TableHead><TableHead>Traffic</TableHead><TableHead>Live</TableHead><TableHead>Last event</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead>
+      <Table aria-label="Projects overview"><TableHeader><TableRow>
+        <TableHead>Project</TableHead>{multipleOrganizations ? <TableHead>Organization</TableHead> : null}<TableHead>Created</TableHead><TableHead>Visitors</TableHead><TableHead>Change</TableHead><TableHead>Traffic</TableHead><TableHead>Live</TableHead><TableHead>Last event</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead>
       </TableRow></TableHeader><TableBody>{sites.map((site) => (
         <TableRow className="h-20" key={site.id}>
           <TableCell><div className="flex items-center gap-3"><SiteIcon iconUrl={site.icon_url} name={site.name} size={32} /><div className="min-w-0"><Link className="font-medium hover:underline" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={siteSearch(site)}>{site.name}</Link><p className="max-w-52 truncate text-xs text-muted-foreground">{site.domain}</p></div></div></TableCell>
@@ -193,22 +193,22 @@ export function SitesOverview({ canAdd, orgs, org = '', period, query, sort, vie
       <PageHeader
         title={en.sitesOverview.title}
         description={en.sitesOverview.description}
-        actions={canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}><PlusIcon data-icon="inline-start" />Add site</Link></Button> : undefined}
+        actions={canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}><PlusIcon data-icon="inline-start" />Add project</Link></Button> : undefined}
       />
       <div className="flex flex-wrap items-center gap-2">
-        <Input className="min-w-48 flex-1 sm:max-w-xs" aria-label="Search sites" type="search" placeholder="Search name or domain" value={query} onChange={(event) => onSearchChange(event.target.value)} />
+        <Input className="min-w-48 flex-1 sm:max-w-xs" aria-label="Search projects" type="search" placeholder="Search name or domain" value={query} onChange={(event) => onSearchChange(event.target.value)} />
         {orgs.length > 1 ? <Select value={org || 'all'} onValueChange={(value) => onOrgChange(value === 'all' ? '' : value)}><SelectTrigger aria-label="Organization"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="all">All organizations</SelectItem>{orgs.map((item) => <SelectItem key={item.id} value={item.slug}>{item.name}</SelectItem>)}</SelectGroup></SelectContent></Select> : null}
         <Select value={period} onValueChange={(value) => onPeriodChange(value as OverviewPeriod)}><SelectTrigger aria-label="Period"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="24h">24 hours</SelectItem><SelectItem value="7d">7 days</SelectItem><SelectItem value="30d">30 days</SelectItem></SelectGroup></SelectContent></Select>
-        <Select value={sort} onValueChange={(value) => onSortChange(value as SitesOverviewSort)}><SelectTrigger aria-label="Sort sites"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="visitors">Most visitors</SelectItem><SelectItem value="change">Biggest change</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="created">Newest</SelectItem><SelectItem value="last_event">Latest event</SelectItem></SelectGroup></SelectContent></Select>
-        <ToggleGroup aria-label="Site view" type="single" value={view} onValueChange={(value) => { if (value) viewPreference.mutate(value as SitesOverviewView) }}><ToggleGroupItem value="cards" aria-label="Card view"><LayoutGridIcon /></ToggleGroupItem><ToggleGroupItem value="table" aria-label="Table view"><ListIcon /></ToggleGroupItem></ToggleGroup>
+        <Select value={sort} onValueChange={(value) => onSortChange(value as SitesOverviewSort)}><SelectTrigger aria-label="Sort projects"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="visitors">Most visitors</SelectItem><SelectItem value="change">Biggest change</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="created">Newest</SelectItem><SelectItem value="last_event">Latest event</SelectItem></SelectGroup></SelectContent></Select>
+        <ToggleGroup aria-label="Project view" type="single" value={view} onValueChange={(value) => { if (value) viewPreference.mutate(value as SitesOverviewView) }}><ToggleGroupItem value="cards" aria-label="Card view"><LayoutGridIcon /></ToggleGroupItem><ToggleGroupItem value="table" aria-label="Table view"><ListIcon /></ToggleGroupItem></ToggleGroup>
       </div>
-      {!enabled || overview.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Loading sites">{Array.from({ length: 6 }, (_, index) => <Skeleton className="h-72 rounded-xl" key={index} />)}</div>
+      {!enabled || overview.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Loading projects">{Array.from({ length: 6 }, (_, index) => <Skeleton className="h-72 rounded-xl" key={index} />)}</div>
         : overview.isError ? <ErrorState level="page" detail={overview.error.message} onRetry={() => void overview.refetch()} />
-          : (overview.data?.data.length ?? 0) === 0 ? <Empty><EmptyHeader><EmptyTitle>No sites yet</EmptyTitle><EmptyDescription>Add a site to start collecting analytics.</EmptyDescription></EmptyHeader>{canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}>Add your first site</Link></Button> : null}</Empty>
-            : filtered.length === 0 ? <Empty><EmptyHeader><EmptyTitle>No sites match these filters.</EmptyTitle><EmptyDescription>Change the search or organization filter to see your sites.</EmptyDescription></EmptyHeader><Button variant="outline" onClick={() => { onSearchChange(''); onOrgChange('') }}>Clear filters</Button></Empty>
+          : (overview.data?.data.length ?? 0) === 0 ? <Empty><EmptyHeader><EmptyTitle>No projects yet</EmptyTitle><EmptyDescription>Add a project to start collecting analytics.</EmptyDescription></EmptyHeader>{canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}>Add your first project</Link></Button> : null}</Empty>
+            : filtered.length === 0 ? <Empty><EmptyHeader><EmptyTitle>No projects match these filters.</EmptyTitle><EmptyDescription>Change the search or organization filter to see your projects.</EmptyDescription></EmptyHeader><Button variant="outline" onClick={() => { onSearchChange(''); onOrgChange('') }}>Clear filters</Button></Empty>
               : view === 'cards' ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{filtered.map((site) => <SiteCard key={site.id} site={site} multipleOrganizations={multipleOrganizations} onDelete={setPendingDelete} />)}</div>
                 : <SitesTable sites={filtered} multipleOrganizations={multipleOrganizations} onDelete={setPendingDelete} />}
-      <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(undefined) }}><DialogContent role="alertdialog"><DialogHeader><DialogTitle>Delete {pendingDelete?.name}?</DialogTitle><DialogDescription>The site stops collecting data now. You can restore it for 7 days.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" disabled={deletion.isPending} onClick={async () => { if (!pendingDelete) return; await deletion.mutateAsync(pendingDelete); setPendingDelete(undefined) }}>Delete site</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(undefined) }}><DialogContent role="alertdialog"><DialogHeader><DialogTitle>Delete {pendingDelete?.name}?</DialogTitle><DialogDescription>The project stops collecting data now. You can restore it for 7 days.</DialogDescription></DialogHeader><DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" disabled={deletion.isPending} onClick={async () => { if (!pendingDelete) return; await deletion.mutateAsync(pendingDelete); setPendingDelete(undefined) }}>Delete project</Button></DialogFooter></DialogContent></Dialog>
     </PageContainer>
   )
 }

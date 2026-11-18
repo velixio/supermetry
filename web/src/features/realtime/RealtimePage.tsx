@@ -228,12 +228,12 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
     : chartInterval === 'hour'
       ? {
           title: 'Visitors per hour',
-          description: 'Today in the site’s timezone.',
+          description: 'Today in the project’s timezone.',
           label: 'Visitors per hour today',
         }
       : {
           title: 'Visitors per day',
-          description: 'The last 30 days in the site’s timezone.',
+          description: 'The last 30 days in the project’s timezone.',
           label: 'Visitors per day during the last 30 days',
         }
   const chartPending = chartInterval !== 'minute' && historical.isPending

@@ -131,7 +131,7 @@ describe('SPA navigation', () => {
       Analyze: ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays'],
       Behaviour: ['Journeys', 'Retention', 'Profiles', 'Cohorts', 'Heatmaps', 'Web Vitals'],
       Conversion: ['Funnels', 'Goals', 'Revenue'],
-      Manage: ['Sites', 'Links and pixels', 'Data health', 'GitHub stars'],
+      Manage: ['Projects', 'Links and pixels', 'Data health', 'GitHub stars'],
     }
     for (const [name, links] of Object.entries(expected)) {
       const navigation = await screen.findByRole('navigation', { name })
@@ -167,9 +167,9 @@ describe('SPA navigation', () => {
   })
 
   it.each([
-    ['owner', ['Site settings', 'Organization settings']],
-    ['admin', ['Site settings', 'Organization settings']],
-    ['editor', ['Site settings', 'Organization settings']],
+    ['owner', ['Project settings', 'Organization settings']],
+    ['admin', ['Project settings', 'Organization settings']],
+    ['editor', ['Project settings', 'Organization settings']],
     ['viewer', ['Organization settings']],
   ] as const)('lists settings for a %s in a group after Manage', async (role, labels) => {
     renderSidebar('/app/acme/docs-public', { membership: { ...membership, role } })
@@ -177,7 +177,7 @@ describe('SPA navigation', () => {
     expect(Array.from(settings.querySelectorAll('a')).map((link) => link.textContent?.trim())).toEqual(labels)
     expect(within(settings).getByRole('link', { name: 'Organization settings' })).toHaveAttribute('href', '/app/acme/settings')
     if (role !== 'viewer') {
-      expect(within(settings).getByRole('link', { name: 'Site settings' })).toHaveAttribute('href', '/app/acme/docs-public/settings/general')
+      expect(within(settings).getByRole('link', { name: 'Project settings' })).toHaveAttribute('href', '/app/acme/docs-public/settings/general')
     }
     const manage = screen.getByRole('navigation', { name: 'Manage' })
     expect(manage.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -187,7 +187,7 @@ describe('SPA navigation', () => {
   it('marks site settings as the current page on a settings route', async () => {
     renderSidebar('/app/acme/docs-public/settings')
     const settings = await screen.findByRole('navigation', { name: 'Settings' })
-    expect(within(settings).getByRole('link', { name: 'Site settings' })).toHaveAttribute('aria-current', 'page')
+    expect(within(settings).getByRole('link', { name: 'Project settings' })).toHaveAttribute('aria-current', 'page')
     expect(within(settings).getByRole('link', { name: 'Organization settings' })).not.toHaveAttribute('aria-current')
   })
 
@@ -207,7 +207,7 @@ describe('SPA navigation', () => {
     expect(link).toHaveAttribute('href', '/app/acme/github-stars')
     // It sits in the Manage section with Sites and Health, not in a group of its own.
     const manage = link.closest('nav') as HTMLElement
-    expect(within(manage).getByRole('link', { name: 'Sites' })).toBeInTheDocument()
+    expect(within(manage).getByRole('link', { name: 'Projects' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Community' })).toBeNull()
     cleanup()
     renderSidebar('/app/acme/docs-public', { me: { ...me, memberships: [{ ...me.memberships[0], role: 'viewer' }] } })
@@ -238,7 +238,7 @@ describe('SPA navigation', () => {
       ['Funnels', `${site}/funnels`],
       ['Goals', `${site}/goals`],
       ['Revenue', `${site}/revenue?${base}`],
-      ['Sites', '/app/acme/sites'],
+      ['Projects', '/app/acme/sites'],
       ['Links and pixels', `${site}/links`],
       ['Data health', '/app/acme/health'],
       ['GitHub stars', '/app/acme/github-stars'],
@@ -391,7 +391,7 @@ describe('icon rail', () => {
     const sidebar = document.querySelector('[data-slot="sidebar"]')
     expect(sidebar).toHaveAttribute('data-state', 'collapsed')
     expect(sidebar).toHaveAttribute('data-collapsible', 'icon')
-    for (const name of ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays', 'Funnels', 'Site settings', 'Organization settings']) {
+    for (const name of ['Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays', 'Funnels', 'Project settings', 'Organization settings']) {
       expect(screen.getByRole('link', { name })).toBeInTheDocument()
     }
     expect(screen.getByRole('button', { name: /Docs\s*Acme/ })).toBeInTheDocument()

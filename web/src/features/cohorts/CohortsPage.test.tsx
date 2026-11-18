@@ -61,7 +61,7 @@ describe('CohortsPage', () => {
 
   it('explains that profiles must be enabled', async () => {
     await show(['profiles.read'], { policy: 'profiles_disabled' })
-    expect(screen.getByRole('heading', { name: 'Profiles are disabled for this site' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Profiles are disabled for this project' })).toBeVisible()
   })
 
   it('lists cohorts in plain language with accessible actions and a dashboard filter link', async () => {

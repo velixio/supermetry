@@ -75,7 +75,7 @@ function renderShell(initialEntry: string, shellMembership = membership) {
   const siteGeneral = createRoute({
     getParentRoute: () => siteSettings,
     path: 'general',
-    component: () => <h1>Site settings</h1>,
+    component: () => <h1>Project settings</h1>,
   })
   const realtime = createRoute({
     getParentRoute: () => site,
@@ -191,12 +191,12 @@ describe('AppShell live visitor badge', () => {
 
     const badge = await screen.findByRole('link', { name: /12 live/ })
     expect(badge).toHaveTextContent('● 12 live')
-    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. 48 visitors in the last 30 minutes.')
+    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and project exclusions are not counted. 48 visitors in the last 30 minutes.')
     expect(badge).toHaveAttribute('href', '/app/acme/docs-public/realtime')
 
     fireEvent.focus(badge)
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      '12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. 48 visitors in the last 30 minutes.',
+      '12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and project exclusions are not counted. 48 visitors in the last 30 minutes.',
     )
 
     fireEvent.click(badge)
@@ -276,7 +276,7 @@ describe('AppShell live visitor badge', () => {
     expect(await screen.findByRole('link', { name: /12 live/ })).toHaveAttribute('href', `/app/acme/${alias}/realtime`)
     expect(useLiveSummary).toHaveBeenCalledWith(7)
     const settings = screen.getByRole('navigation', { name: 'Settings' })
-    expect(within(settings).getByRole('link', { name: 'Site settings' })).toHaveAttribute('href', '/app/acme/docs/settings/general')
+    expect(within(settings).getByRole('link', { name: 'Project settings' })).toHaveAttribute('href', '/app/acme/docs/settings/general')
   })
 
   it('keeps settings and account out of the header and offers them in the sidebar', async () => {
@@ -319,7 +319,7 @@ describe('AppShell live visitor badge', () => {
     useReplayAvailability.mockReturnValue({ enabled })
     const identifiedMembership = { ...membership, effective_capabilities: grant ? ['replay.read'] : [] }
     renderShell('/app/acme/docs-public/settings/general', identifiedMembership)
-    await screen.findByRole('heading', { name: 'Site settings' })
+    await screen.findByRole('heading', { name: 'Project settings' })
     const link = screen.queryByRole('link', { name: 'Replays' })
     if (visible) {
       expect(link).toBeVisible()
@@ -337,7 +337,7 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByRole('heading', { name: 'Realtime page' })).not.toBeInTheDocument()
     const badge = screen.getByText('12 live').closest('[tabindex="0"]')
     expect(badge).toHaveTextContent('● 12 live')
-    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted. 48 visitors in the last 30 minutes.')
+    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and project exclusions are not counted. 48 visitors in the last 30 minutes.')
     expect(screen.queryByRole('link', { name: /12 live/ })).not.toBeInTheDocument()
     expect(useReplayAvailability).not.toHaveBeenCalled()
     for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals']) {
@@ -370,7 +370,7 @@ describe('AppShell live visitor badge', () => {
     const menu = await screen.findByRole('menu')
     // Switching site keeps the page: settings/general of the other site.
     expect(within(menu).getByRole('menuitem', { name: /Other/ })).toHaveAttribute('href', '/app/acme/other/settings/general')
-    expect(within(menu).getByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
+    expect(within(menu).getByRole('menuitem', { name: /Add project/ })).toHaveAttribute('href', '/app/acme/sites/new')
   })
 
   it('marks the current project and organization and keeps add actions free of a literal plus', async () => {
@@ -379,28 +379,28 @@ describe('AppShell live visitor badge', () => {
     fireEvent.pointerDown(within(sidebar).getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
     const menu = await screen.findByRole('menu')
     const names = within(menu).getAllByRole('menuitem').map((item) => item.textContent)
-    expect(names).toEqual(['OOther', 'DDocs(current)', 'Add site', 'AAcme(current)', 'Add organization'])
+    expect(names).toEqual(['OOther', 'DDocs(current)', 'Add project', 'AAcme(current)', 'Add organization'])
     expect(within(menu).getByRole('menuitem', { name: /Docs.*\(current\)/ })).toHaveAttribute('href', '/app/acme/docs/settings/general')
     expect(within(menu).queryByRole('menuitem', { name: /Other.*\(current\)/ })).toBeNull()
   })
 
-  it.each(['viewer', 'editor'] as const)('hides Add site from the switcher for a %s', async (role) => {
+  it.each(['viewer', 'editor'] as const)('hides Add project from the switcher for a %s', async (role) => {
     renderShell('/app/acme/docs/settings/general', { ...membership, role })
     const sidebar = await screen.findByRole('complementary', { name: 'Application sidebar' })
     fireEvent.pointerDown(within(sidebar).getByRole('button', { name: /Docs\s*Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
     const menu = await screen.findByRole('menu')
     expect(within(menu).getByRole('menuitem', { name: /Other/ })).toBeInTheDocument()
-    expect(within(menu).queryByRole('menuitem', { name: /Add site/ })).toBeNull()
+    expect(within(menu).queryByRole('menuitem', { name: /Add project/ })).toBeNull()
   })
 
-  it('pins the header to the top with no sites and keeps Add site in the switcher', async () => {
+  it('pins the header to the top with no sites and keeps Add project in the switcher', async () => {
     renderShell('/app/acme/settings/members', { ...membership, sites: [] })
     const header = await screen.findByRole('banner', { name: 'Application header' })
     expect(header).toHaveClass('top-0')
     const settings = screen.getByRole('navigation', { name: 'Settings' })
     expect(within(settings).getAllByRole('link').map((link) => link.textContent)).toEqual(['Organization settings'])
     fireEvent.pointerDown(screen.getByRole('button', { name: /Organization: Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
-    expect(await screen.findByRole('menuitem', { name: /Add site/ })).toHaveAttribute('href', '/app/acme/sites/new')
+    expect(await screen.findByRole('menuitem', { name: /Add project/ })).toHaveAttribute('href', '/app/acme/sites/new')
   })
 
   it('orders focus as skip link, sidebar, header, then main', async () => {
@@ -498,8 +498,8 @@ describe('AppShell live visitor badge', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
     const settings = within(dialog).getByRole('group', { name: 'Settings' })
     expect(within(settings).getByRole('option', { name: 'Organization settings: Members' })).toBeVisible()
-    // Site settings > General is already the Pages entry for site settings, so it is not listed twice.
-    expect(within(settings).queryByRole('option', { name: 'Site settings: General' })).toBeNull()
+    // Project settings > General is already the Pages entry for site settings, so it is not listed twice.
+    expect(within(settings).queryByRole('option', { name: 'Project settings: General' })).toBeNull()
     fireEvent.click(within(settings).getByRole('option', { name: 'Organization settings: Members' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/app/acme/settings/members'))
     expect(JSON.parse(localStorage.getItem('sm.palette.recent.v1.1') ?? '[]')).toEqual(['settings:/app/acme/settings/members'])
@@ -516,7 +516,7 @@ describe('AppShell live visitor badge', () => {
     }
     const actions = within(await openPalette()).getByRole('group', { name: 'Actions' })
     expect(within(actions).getAllByRole('option').map((option) => option.textContent)).toEqual([
-      'Create API key', 'Invite member', 'Add site', 'Change language', 'Switch theme', 'Show keyboard shortcuts', 'About Supermetry', 'Log out',
+      'Create API key', 'Invite member', 'Add project', 'Change language', 'Switch theme', 'Show keyboard shortcuts', 'About Supermetry', 'Log out',
     ])
     fireEvent.click(within(actions).getByRole('option', { name: 'Switch theme' }))
     expect(toggleTheme).toHaveBeenCalledOnce()
@@ -573,7 +573,7 @@ describe('AppShell live visitor badge', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Command palette' })
     expect(within(within(dialog).getByRole('group', { name: 'Pages' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Account settings', 'GitHub stars'])
     expect(within(within(dialog).getByRole('group', { name: 'Organizations' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Acme'])
-    expect(within(dialog).queryByRole('group', { name: 'Sites' })).toBeNull()
+    expect(within(dialog).queryByRole('group', { name: 'Projects' })).toBeNull()
   })
 
   it('loads the palette code only when it is first opened', async () => {

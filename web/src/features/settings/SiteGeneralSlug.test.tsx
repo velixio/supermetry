@@ -116,7 +116,7 @@ describe('site retention', () => {
     expect(privateRequest.mock.calls.some(([method]) => method === 'PATCH')).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: 'Lower retention' }))
     await waitFor(() => expect(privateRequest.mock.calls.find(([method]) => method === 'PATCH')?.[2].body).toMatchObject({ retention_days: 7 }))
-    expect(await screen.findByText('Site settings saved.')).toHaveAttribute('role', 'status')
+    expect(await screen.findByText('Project settings saved.')).toHaveAttribute('role', 'status')
   })
 
   it('saves a longer retention without asking', async () => {

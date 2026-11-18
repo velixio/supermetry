@@ -55,7 +55,7 @@ async function waitForSessions(page: Page) {
 }
 
 async function waitForSettings(page: Page) {
-  await expect(page.getByRole('heading', { level: 1, name: 'Site settings' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Project settings' })).toBeVisible()
   await expect(page.getByLabel('Revenue currency')).toBeVisible()
 }
 
@@ -216,7 +216,7 @@ test('account recovery, invitation, first-run, account security and admin pages 
   await expect(page.getByRole('heading', { level: 1, name: 'Account security' })).toBeVisible()
   reports.push(await expectNoSeriousViolations(page, 'account-security'))
 
-  for (const [path, heading] of [['/app/admin/users', 'Users'], ['/app/admin/organizations', 'Organizations'], ['/app/admin/sites', 'Sites']] as const) {
+  for (const [path, heading] of [['/app/admin/users', 'Users'], ['/app/admin/organizations', 'Organizations'], ['/app/admin/sites', 'Projects']] as const) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible()
     await expect(page.getByRole('table').first()).toBeVisible()
@@ -224,7 +224,7 @@ test('account recovery, invitation, first-run, account security and admin pages 
   }
 
   await page.goto(`/app/${owner.orgSlug}/no-such-site`)
-  await expect(page.getByRole('heading', { level: 1, name: 'Site not found' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Project not found' })).toBeVisible()
   reports.push(await expectNoSeriousViolations(page, 'site-not-found'))
 
   await page.goto('/no-such-page')

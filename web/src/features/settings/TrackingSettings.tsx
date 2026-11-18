@@ -140,7 +140,7 @@ function TrackingSettingsForm({ orgId, siteId }: { orgId: number; siteId: number
           Tracking
         </h2>
         <p className="text-sm text-muted-foreground">
-          Choose which browser events this site's generated script collects. Snippet attributes override these settings.
+          Choose which browser events this project's generated script collects. Snippet attributes override these settings.
         </p>
       </header>
       {settings && savedSettings ? (

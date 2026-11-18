@@ -110,7 +110,7 @@ test('serves an authenticated nested route as a direct URL', async ({ page, owne
 
   expect(response?.ok()).toBe(true)
   await expect(page).toHaveURL(settings)
-  await expect(page.getByRole('heading', { name: 'Site settings' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Project settings' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'General', exact: true })).toHaveAttribute(
     'aria-current',
     'page',

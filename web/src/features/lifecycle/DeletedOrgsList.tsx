@@ -13,7 +13,7 @@ function localDate(value: string): string {
 function restoreError(error: unknown): string {
   const code = error instanceof Error ? error.message : ''
   if (code === 'not_restorable') return 'This can no longer be restored.'
-  if (code === 'site_limit') return 'Your organization is at its site limit.'
+  if (code === 'site_limit') return 'Your organization is at its project limit.'
   return 'The organization could not be restored.'
 }
 

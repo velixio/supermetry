@@ -45,7 +45,7 @@ describe('ApiKeysPage', () => {
     const table = await screen.findByRole('table', { name: 'API keys' })
     expect(within(table).getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Name', 'Access', 'Last used', 'Expires', 'Actions'])
     const rows = within(table).getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('1 site')
+    expect(rows[1]).toHaveTextContent('1 project')
     expect(rows[1]).toHaveTextContent('Active')
     expect(rows[2]).toHaveTextContent('No expiry')
     expect(rows[2]).toHaveTextContent('Unused 90 days')

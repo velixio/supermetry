@@ -236,7 +236,7 @@ test('owner invitation controls copy a working no-site invitation without billin
   owner,
 }) => {
   await owner.login(page, `/app/${owner.orgSlug}/settings/invites`)
-  await page.getByRole('combobox', { name: 'Site access', exact: true }).selectOption('none')
+  await page.getByRole('combobox', { name: 'Project access', exact: true }).selectOption('none')
   await expect(page.getByRole('checkbox', { name: /Billing Admin/ })).toHaveCount(0)
   for (const name of [/Read profiles/, /Watch replays/, /Export data/])
     await expect(page.getByRole('checkbox', { name })).not.toBeChecked()

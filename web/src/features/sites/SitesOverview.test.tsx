@@ -99,7 +99,7 @@ describe('sites overview', () => {
   it('shows loading, error, and filtered-empty states', async () => {
     privateRequest.mockImplementation(() => new Promise(() => undefined))
     const loading = renderOverview()
-    expect(await screen.findByRole('status', { name: 'Loading sites' })).toBeVisible()
+    expect(await screen.findByRole('status', { name: 'Loading projects' })).toBeVisible()
     loading.unmount()
 
     privateRequest.mockRejectedValue(new Error('overview unavailable'))
@@ -109,12 +109,12 @@ describe('sites overview', () => {
 
     privateRequest.mockResolvedValue({ data: [site] })
     renderOverview({ query: 'missing' })
-    expect(await screen.findByText('No sites match these filters.')).toBeVisible()
+    expect(await screen.findByText('No projects match these filters.')).toBeVisible()
   })
 
   it('switches view through the remembered-preference callback and handles 100 sites', async () => {
     const onViewChange = vi.fn()
-    privateRequest.mockResolvedValue({ data: Array.from({ length: 100 }, (_, index) => ({ ...site, id: index + 1, public_id: `site-${index + 1}`, name: `Site ${index + 1}` })) })
+    privateRequest.mockResolvedValue({ data: Array.from({ length: 100 }, (_, index) => ({ ...site, id: index + 1, public_id: `site-${index + 1}`, name: `Project ${index + 1}` })) })
     renderOverview({ onViewChange })
     expect(await screen.findAllByTestId('site-overview-card')).toHaveLength(100)
     fireEvent.click(screen.getByRole('radio', { name: 'Table view' }))
@@ -126,7 +126,7 @@ describe('sites overview', () => {
     const onSearchChange = vi.fn()
     const onPeriodChange = vi.fn()
     renderOverview({ onSearchChange, onPeriodChange })
-    fireEvent.change(await screen.findByLabelText('Search sites'), { target: { value: 'docs' } })
+    fireEvent.change(await screen.findByLabelText('Search projects'), { target: { value: 'docs' } })
     fireEvent.click(screen.getByLabelText('Period'))
     fireEvent.click(await screen.findByRole('option', { name: '7 days' }))
     expect(onSearchChange).toHaveBeenCalledWith('docs')

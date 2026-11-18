@@ -69,7 +69,7 @@ describe('CommandPalette', () => {
     const { dialog, input } = await open()
     await waitFor(() => expect(input).toHaveFocus())
     expect(within(dialog).getByRole('group', { name: 'Pages' })).toBeInTheDocument()
-    expect(within(dialog).getByRole('group', { name: 'Sites' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Projects' })).toBeInTheDocument()
     expect(within(dialog).getByRole('group', { name: 'Actions' })).toBeInTheDocument()
     expect(within(dialog).getByRole('group', { name: 'Organizations' })).toBeInTheDocument()
     expect(within(dialog).getByRole('option', { name: /Shop/ })).toHaveTextContent('Acme')

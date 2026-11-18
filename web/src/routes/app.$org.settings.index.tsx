@@ -28,11 +28,11 @@ function OrganizationOverview() {
       {!membership.sites.length ? (
         <p className="text-sm text-muted-foreground">
           No project data access. An organization owner or admin can assign
-          sites to your membership.
+          projects to your membership.
         </p>
       ) : (
         <Link className="text-primary underline-offset-4 hover:underline" to="/app/$org/sites" params={{ org }}>
-          View your sites
+          View your projects
         </Link>
       )}
       <Link className="text-primary underline-offset-4 hover:underline" to="/app/account/profile">

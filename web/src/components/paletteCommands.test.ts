@@ -28,23 +28,23 @@ describe('paletteCommands', () => {
     const commands = run()
     expect(labels(commands, 'pages')).toEqual([
       'Dashboard', 'Events', 'Sessions', 'Realtime', 'Replays', 'Journeys', 'Retention', 'Profiles', 'Cohorts',
-      'Heatmaps', 'Web Vitals', 'Funnels', 'Goals', 'Revenue', 'Sites', 'Links and pixels', 'Data health', 'GitHub stars',
-      'Site settings', 'Organization settings', 'Account settings',
+      'Heatmaps', 'Web Vitals', 'Funnels', 'Goals', 'Revenue', 'Projects', 'Links and pixels', 'Data health', 'GitHub stars',
+      'Project settings', 'Organization settings', 'Account settings',
     ])
     expect(hrefOf(commands, 'Dashboard')).toBe(`/app/acme/docs${base}`)
     expect(hrefOf(commands, 'Events')).toBe(`/app/acme/docs/events${base}&name=&property=`)
     expect(hrefOf(commands, 'Replays')).toBe(`/app/acme/docs/replays${base}`)
     expect(hrefOf(commands, 'Links and pixels')).toBe('/app/acme/docs/links')
-    expect(hrefOf(commands, 'Sites')).toBe('/app/acme/sites')
+    expect(hrefOf(commands, 'Projects')).toBe('/app/acme/sites')
     expect(hrefOf(commands, 'Data health')).toBe('/app/acme/health')
-    expect(hrefOf(commands, 'Site settings')).toBe('/app/acme/docs/settings/general')
+    expect(hrefOf(commands, 'Project settings')).toBe('/app/acme/docs/settings/general')
     expect(hrefOf(commands, 'Organization settings')).toBe('/app/acme/settings')
     expect(hrefOf(commands, 'Account settings')).toBe('/app/account/profile')
   })
 
   it('gates pages by role and capability exactly like the sidebar', () => {
     const pages = labels(run({ membership: { ...acme, role: 'viewer', effective_capabilities: [] } }), 'pages')
-    for (const hidden of ['Data health', 'Site settings', 'Profiles', 'Cohorts', 'Replays']) expect(pages).not.toContain(hidden)
+    for (const hidden of ['Data health', 'Project settings', 'Profiles', 'Cohorts', 'Replays']) expect(pages).not.toContain(hidden)
     expect(pages).toContain('Organization settings')
     expect(pages).toContain('Events')
   })
@@ -55,7 +55,7 @@ describe('paletteCommands', () => {
       sites: acme.sites.map((site) => ({ ...site, tracking_policy: { instance_mode: 'anonymous', effective_mode: 'anonymous', configured_profiles_enabled: true, restrictions: ['instance_anonymous'] } })),
     }
     const commands = run({ membership: anonymous })
-    expect(labels(commands, 'pages')).toEqual(['Dashboard', 'Sites', 'Links and pixels', 'Data health', 'GitHub stars', 'Site settings', 'Organization settings', 'Account settings'])
+    expect(labels(commands, 'pages')).toEqual(['Dashboard', 'Projects', 'Links and pixels', 'Data health', 'GitHub stars', 'Project settings', 'Organization settings', 'Account settings'])
     for (const command of commands) {
       if (command.kind === 'navigate') expect(anonymousRouteRestricted(command.href), command.href).toBe(false)
     }
@@ -101,7 +101,7 @@ describe('paletteCommands', () => {
 
   it('offers only existing actions, labels theme for the current theme, and keeps ids unique', () => {
     expect(labels(run(), 'actions')).toEqual([
-      'Create API key', 'Invite member', 'Add site', 'Change language', 'Switch theme', 'Show keyboard shortcuts', 'About Supermetry', 'Log out',
+      'Create API key', 'Invite member', 'Add project', 'Change language', 'Switch theme', 'Show keyboard shortcuts', 'About Supermetry', 'Log out',
     ])
     const ids = run().map((command) => command.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -113,10 +113,10 @@ describe('palette actions and settings', () => {
     const commands = run()
     expect(hrefOf(commands, 'Create API key')).toBe('/app/acme/settings/api-keys?create=1')
     expect(hrefOf(commands, 'Invite member')).toBe('/app/acme/settings/invites?invite=1')
-    expect(hrefOf(commands, 'Add site')).toBe('/app/acme/sites/new')
+    expect(hrefOf(commands, 'Add project')).toBe('/app/acme/sites/new')
     expect(hrefOf(commands, 'Change language')).toBe('/app/account/profile')
     const viewer = labels(run({ membership: { ...acme, role: 'viewer' } }), 'actions')
-    for (const hidden of ['Create API key', 'Invite member', 'Add site']) expect(viewer).not.toContain(hidden)
+    for (const hidden of ['Create API key', 'Invite member', 'Add project']) expect(viewer).not.toContain(hidden)
   })
 
   it('derives settings destinations from the route tree, so a new settings route appears', () => {
@@ -128,16 +128,16 @@ describe('palette actions and settings', () => {
     const commands = run({ routePaths })
     expect(labels(commands, 'settings')).toEqual([
       'Organization settings: Members', 'Organization settings: API keys', 'Organization settings: Developers · Webhooks',
-      'Site settings: Tracking', 'Account: Security',
+      'Project settings: Tracking', 'Account: Security',
     ])
     expect(hrefOf(commands, 'Organization settings: Developers · Webhooks')).toBe('/app/acme/settings/developers/webhooks')
-    expect(hrefOf(commands, 'Site settings: Tracking')).toBe('/app/acme/docs/settings/tracking')
+    expect(hrefOf(commands, 'Project settings: Tracking')).toBe('/app/acme/docs/settings/tracking')
     // Instance administration only for instance admins.
     const admin = run({ routePaths, me: { ...me, user: { ...me.user, instance_admin: true } } })
     expect(labels(admin, 'settings')).toContain('Admin: Security')
     expect(labels(commands, 'settings')).not.toContain('Admin: Security')
     // Viewers cannot open site settings.
-    expect(labels(run({ routePaths, membership: { ...acme, role: 'viewer' } }), 'settings')).not.toContain('Site settings: Tracking')
+    expect(labels(run({ routePaths, membership: { ...acme, role: 'viewer' } }), 'settings')).not.toContain('Project settings: Tracking')
   })
 
   it('humanises a segment without a known label', () => {

@@ -29,7 +29,7 @@ function NewSiteRoute() {
   const config = useInstanceConfig()
 
   if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
-    return <p role="alert" className="text-sm text-muted-foreground">You do not have permission to add sites.</p>
+    return <p role="alert" className="text-sm text-muted-foreground">You do not have permission to add projects.</p>
   }
 
   async function submit(input: SiteInput) {
@@ -75,7 +75,7 @@ function NewSiteRoute() {
             />
           : kind === 'pixel'
           ? <PixelProjectForm submitLabel={en.pixels.createProject} onSubmit={submit} />
-          : <SiteForm submitLabel="Add site" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} requireDomain={config.data?.managed === true} />}
+          : <SiteForm submitLabel="Add project" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} requireDomain={config.data?.managed === true} />}
       </section>
     </PageContainer>
   )

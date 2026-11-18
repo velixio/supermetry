@@ -81,7 +81,7 @@ export function FunnelsPage({ siteId, orgId, dateRange, funnelId, app = false }:
               </SelectContent>
             </Select>
             <FieldDescription>
-              Profile-linked visitors can continue across sessions. Anonymous visitors only link within one site-local day.
+              Profile-linked visitors can continue across sessions. Anonymous visitors only link within one project-local day.
             </FieldDescription>
           </Field>
           <Field>

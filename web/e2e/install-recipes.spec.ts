@@ -19,10 +19,10 @@ test('install recipes show real snippets, switch platforms and verify the instal
   await expect(page.getByRole('heading', { name: 'Install recipes' })).toBeVisible()
 
   const origin = new URL(page.url()).origin
-  await expect(page.getByLabel('Site ID', { exact: true })).toHaveText(owner.sitePublicID)
+  await expect(page.getByLabel('Project ID', { exact: true })).toHaveText(owner.sitePublicID)
   await expect(page.getByLabel('Host', { exact: true })).toHaveText(origin)
   const prompt = page.getByLabel('AI install prompt')
-  await expect(prompt).toContainText(`Site ID: ${owner.sitePublicID}`)
+  await expect(prompt).toContainText(`Project ID: ${owner.sitePublicID}`)
   await expect(prompt).toContainText(`Host: ${origin}`)
 
   const html = page.getByLabel('HTML snippet')

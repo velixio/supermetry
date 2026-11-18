@@ -34,7 +34,7 @@ function RevenueRoute() {
         <p className="text-sm text-muted-foreground">{conflict
           ? 'This project has mixed historical currencies. Revenue totals stay unavailable until the conflict is resolved without converting or merging amounts.'
           : 'Choose the project’s permanent revenue currency before viewing totals and breakdowns.'}</p>
-        <Button asChild variant="outline"><Link to="/app/$org/$site/settings/general" params={{ org, site: siteSlug }}>Open site settings</Link></Button>
+        <Button asChild variant="outline"><Link to="/app/$org/$site/settings/general" params={{ org, site: siteSlug }}>Open project settings</Link></Button>
       </section>
     </PageContainer>
   }

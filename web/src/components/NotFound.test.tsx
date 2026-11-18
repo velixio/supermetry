@@ -61,8 +61,8 @@ describe('unknown site', () => {
         <UnknownSite membership={membership} />
       </QueryClientProvider>,
     )
-    expect(await screen.findByRole('heading', { level: 1, name: 'Site not found' })).toBeVisible()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Project not found' })).toBeVisible()
     expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute('href', '/app/acme/docs')
-    expect(screen.getByRole('link', { name: 'All sites' })).toHaveAttribute('href', '/app/acme/sites')
+    expect(screen.getByRole('link', { name: 'All projects' })).toHaveAttribute('href', '/app/acme/sites')
   })
 })

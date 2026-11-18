@@ -140,7 +140,7 @@ function Preview({
           <div className="mb-3 rounded-lg border bg-card p-4 text-sm">
             <p className="font-medium">Page preview blocked</p>
             <p className="mt-1 text-muted-foreground">
-              The site may block embedding with X-Frame-Options or CSP. Allow Supermetry&apos;s host in the site&apos;s frame-ancestors directive to show the live page.
+              The website may block embedding with X-Frame-Options or CSP. Allow Supermetry&apos;s host in the website&apos;s frame-ancestors directive to show the live page.
             </p>
           </div>
         ) : null}

@@ -45,7 +45,7 @@ describe('buildCrumbs', () => {
   })
   it('org pages', () => {
     expect(labels('/app/acme/health')).toEqual(['Health'])
-    expect(labels('/app/acme/sites')).toEqual(['Sites'])
+    expect(labels('/app/acme/sites')).toEqual(['Projects'])
     expect(labels('/app/acme/settings/members')).toEqual(['Settings', 'Members'])
   })
   it('account and admin have no org crumb', () => {
@@ -59,7 +59,7 @@ describe('buildCrumbs', () => {
     expect(buildCrumbs('/app/acme/docs-public/funnels/4', membership)[0]).toMatchObject({ params: { org: 'acme', site: 'docs-public' } })
   })
   it('an org with no sites shows only the page', () => {
-    expect(labels('/app/acme/sites', empty)).toEqual(['Sites'])
+    expect(labels('/app/acme/sites', empty)).toEqual(['Projects'])
   })
   it('an unknown site slug does not throw', () => {
     expect(labels('/app/acme/ghost/events')).toEqual(['Events'])
@@ -95,7 +95,7 @@ describe('buildCrumbs', () => {
   })
   it('without a membership keeps account and admin crumbs and shows none for an organization path', () => {
     expect(buildCrumbs('/app/account/security').map((c) => c.label)).toEqual(['Account', 'Security'])
-    expect(buildCrumbs('/app/admin/sites').map((c) => c.label)).toEqual(['Admin', 'Sites'])
+    expect(buildCrumbs('/app/admin/sites').map((c) => c.label)).toEqual(['Admin', 'Projects'])
     expect(buildCrumbs('/app/missing')).toEqual([])
     expect(buildCrumbs('/app/missing/docs/events')).toEqual([])
     expect(buildCrumbs('/app')).toEqual([])

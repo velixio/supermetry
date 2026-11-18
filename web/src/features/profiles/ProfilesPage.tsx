@@ -66,7 +66,7 @@ function ProfilesPageContent({
           <UserRoundIcon aria-hidden="true" />
           <EmptyHeader>
             <EmptyTitle>Profiles are disabled</EmptyTitle>
-            <EmptyDescription>Enable profiles in General site settings, then identify users from your site.</EmptyDescription>
+            <EmptyDescription>Enable profiles in General project settings, then identify users from your website.</EmptyDescription>
           </EmptyHeader>
           <code className="max-w-full overflow-x-auto rounded-md bg-muted px-3 py-2 text-sm">supermetry.identify(&quot;user-123&quot;, {'{ plan: "pro" }'});</code>
           <p className="text-sm text-muted-foreground">Call identify on every page load. Supermetry stores nothing in the browser.</p>

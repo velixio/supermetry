@@ -71,7 +71,7 @@ describe('onboarding', () => {
     fireEvent.change(screen.getByLabelText('Revenue currency (optional)'), {
       target: { value: 'usd' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create site' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }))
 
     await waitFor(() =>
       expect(createSite).toHaveBeenCalledWith({

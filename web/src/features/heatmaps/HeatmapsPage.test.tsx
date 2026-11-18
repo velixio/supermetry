@@ -179,7 +179,7 @@ describe('HeatmapsPage', () => {
   it('does not mistake a failed site settings request for a disabled heatmap', () => {
     const refetch = vi.fn()
     useHeatmapSite.mockReturnValue({
-      error: { detail: 'Site settings could not be loaded.' },
+      error: { detail: 'Project settings could not be loaded.' },
       isPending: false,
       isError: true,
       refetch,
@@ -187,7 +187,7 @@ describe('HeatmapsPage', () => {
 
     renderPage()
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Site settings could not be loaded.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Project settings could not be loaded.')
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(refetch).toHaveBeenCalledOnce()
     expect(screen.queryByText('No heatmaps yet')).not.toBeInTheDocument()

@@ -76,7 +76,7 @@ describe('AccountSidebar', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Acme' }).getAttribute('href')).toMatch(/^\/app\/acme\/docs\?/)
     expect(within(menu).getByRole('menuitem', { name: 'Other' })).toHaveAttribute('href', '/app/other/settings')
     expect(within(menu).getByRole('menuitem', { name: /Add organization/ })).toHaveAttribute('href', '/app/account/organizations/new')
-    expect(within(menu).queryByRole('menuitem', { name: /Add site/ })).toBeNull()
+    expect(within(menu).queryByRole('menuitem', { name: /Add project/ })).toBeNull()
     expect(within(menu).queryByText('Projects')).toBeNull()
   })
 

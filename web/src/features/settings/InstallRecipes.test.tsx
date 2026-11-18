@@ -65,7 +65,7 @@ describe('SiteDetails', () => {
 
   it('shows and copies the site id and host', async () => {
     render(<SiteDetails publicId="abc123def456" snippet={snippet} />)
-    expect(screen.getByLabelText('Site ID')).toHaveTextContent('abc123def456')
+    expect(screen.getByLabelText('Project ID')).toHaveTextContent('abc123def456')
     expect(screen.getByLabelText('Host')).toHaveTextContent('https://stats.supermetry.com')
     fireEvent.click(screen.getByRole('button', { name: 'Copy host' }))
     await waitFor(() => expect(copyText).toHaveBeenCalledWith('https://stats.supermetry.com'))
@@ -79,7 +79,7 @@ describe('AiInstallPrompt', () => {
     render(<AiInstallPrompt publicId="abc123def456" snippet={snippet} />)
     fireEvent.click(screen.getByRole('button', { name: 'Copy AI prompt' }))
     await waitFor(() => expect(copyText).toHaveBeenCalledTimes(1))
-    expect(copyText.mock.calls[0]?.[0]).toContain('Site ID: abc123def456')
+    expect(copyText.mock.calls[0]?.[0]).toContain('Project ID: abc123def456')
     expect(copyText.mock.calls[0]?.[0]).toContain('Host: https://stats.supermetry.com')
   })
 })

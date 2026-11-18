@@ -211,11 +211,11 @@ it("shows per-site dropped traffic and spike warnings", async () => {
     </QueryClientProvider>,
   );
 
-  await screen.findByText("Site 7");
+  await screen.findByText("Project 7");
   const section = screen.getByRole("region", {
     name: "Dropped and throttled traffic",
   });
-  expect(section).toHaveTextContent("Site 7");
+  expect(section).toHaveTextContent("Project 7");
   expect(section).toHaveTextContent("Bot user agent140");
   expect(section).toHaveTextContent("Spike");
   expect(section).toHaveTextContent("Googlebot\\/80");

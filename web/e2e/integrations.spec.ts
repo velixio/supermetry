@@ -42,7 +42,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
   await owner.login(page, settings(owner))
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
   await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Site settings' }).getByRole('link', { name: 'Integrations' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('navigation', { name: 'Project settings' }).getByRole('link', { name: 'Integrations' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByText('Not connected')).toBeVisible()
 
   // Only the Google side is mocked: the browser must be sent to the authorization URL.

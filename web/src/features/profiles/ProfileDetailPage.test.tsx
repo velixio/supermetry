@@ -54,7 +54,7 @@ describe('ProfileDetailPage', () => {
     useDeleteProfile.mockReturnValue({ mutate: vi.fn(), isPending: false })
     useProfile.mockReturnValue({ data: { id: 12, site_id: 99, external_id: 'FOREIGN_PROFILE', traits: { email: 'private@example.test' }, timeline: [] }, isPending: false, isError: false })
     renderPage()
-    expect(screen.getByRole('alert')).toHaveTextContent('selected site')
+    expect(screen.getByRole('alert')).toHaveTextContent('selected project')
     expect(screen.queryByText('FOREIGN_PROFILE')).not.toBeInTheDocument()
     expect(screen.queryByText('private@example.test')).not.toBeInTheDocument()
   })

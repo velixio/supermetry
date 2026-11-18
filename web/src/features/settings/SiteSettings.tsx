@@ -67,8 +67,8 @@ export function SiteIconSettings({
     <section aria-labelledby="site-icon-heading" className="flex flex-wrap items-center gap-3 border-b pb-5">
       <SiteIcon iconUrl={iconUrl} name={name} size={40} />
       <div className="min-w-0 flex-1">
-        <h2 id="site-icon-heading" className="text-sm font-medium">Site icon</h2>
-        <p className="text-sm text-muted-foreground">Fetched from your site's pages</p>
+        <h2 id="site-icon-heading" className="text-sm font-medium">Project icon</h2>
+        <p className="text-sm text-muted-foreground">Fetched from your website's pages</p>
       </div>
       {canRefetch ? (
         <Button
@@ -108,7 +108,7 @@ const appSettingsTabs: readonly string[] = ['general', 'installation', 'symbols'
 
 export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false, kind }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean; kind?: string }) {
   return (
-    <nav aria-label="Site settings" className="overflow-x-auto border-b">
+    <nav aria-label="Project settings" className="overflow-x-auto border-b">
       <div className="flex min-w-max gap-5">
         {settingsTabs.filter(([value]) => (kind === 'app' ? appSettingsTabs.includes(value) : value !== 'app') && (value !== 'replay' || showReplay) && (!trackingRestricted || !['imports', 'goals', 'funnels'].includes(value))).map(([value, label, to]) => (
           <Link
@@ -133,8 +133,8 @@ export function installationStatusInterval(status?: InstallStatus): number {
 
 const featureSetup: { feature: string; needs: string; code?: string }[] = [
   { feature: 'Pageviews, sources, countries, devices', needs: 'Either script. Nothing else to do.' },
-  { feature: 'Outbound links, file downloads, data-supermetry-event clicks', needs: 'Enable them in Site settings → Tracking.' },
-  { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Enable Web Vitals in Site settings → Tracking. Data appears after a visitor leaves.' },
+  { feature: 'Outbound links, file downloads, data-supermetry-event clicks', needs: 'Enable them in Project settings → Tracking.' },
+  { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Enable Web Vitals in Project settings → Tracking. Data appears after a visitor leaves.' },
   { feature: '404 pages', needs: 'Enable 404 tracking, then add this tag to your 404 page:', code: '<meta name="supermetry:404">' },
   { feature: 'Custom events', needs: 'Either script. Call from your code:', code: "supermetry.track('Signup', { plan: 'pro' })" },
   {
@@ -142,7 +142,7 @@ const featureSetup: { feature: string; needs: string; code?: string }[] = [
     needs: 'Either script. Send an amount and currency with an event, then add a revenue goal:',
     code: "supermetry.track('Purchase', { plan: 'pro' }, { revenue: { amount: '49.90', currency: 'USD' } })",
   },
-  { feature: 'Heatmaps', needs: 'Turn on heatmaps and click tracking in Site settings → Tracking.' },
+  { feature: 'Heatmaps', needs: 'Turn on heatmaps and click tracking in Project settings → Tracking.' },
   {
     feature: 'Visitor opt-out',
     needs: 'Use this in an opt-out link or button. It stores only supermetry_ignore="1" in localStorage; call supermetry.optIn() to resume:',
@@ -150,7 +150,7 @@ const featureSetup: { feature: string; needs: string; code?: string }[] = [
   },
   {
     feature: 'User profiles',
-    needs: 'Either script. Turn on profiles in Site settings → General (needs your users\' consent), then on every page load call:',
+    needs: 'Either script. Turn on profiles in Project settings → General (needs your users\' consent), then on every page load call:',
     code: "supermetry.identify('user-123', { plan: 'pro' })",
   },
 ]

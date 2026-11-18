@@ -132,7 +132,7 @@ export function HealthPage({ orgId, version = "dev", appSites = [] }: { orgId?: 
             Dropped and throttled traffic
           </h2>
           <p className="text-sm text-muted-foreground">
-            Per-site counts use each site's local day.
+            Per-project counts use each project's local day.
           </p>
           <a
             className="text-sm text-primary underline-offset-4 hover:underline"
@@ -180,7 +180,7 @@ function reasonExplanation(reason: string): string {
     bot_headless: "matched an automated headless-browser signature.",
     bot_spam_referrer: "used a known referrer-spam domain.",
     rate_limited_ip: "one network identity exceeded its intake allowance.",
-    rate_limited_site: "this site exceeded its intake allowance.",
+    rate_limited_site: "this project exceeded its intake allowance.",
     rate_limited_global: "the instance reached its global intake allowance.",
     privacy_signal: "the browser sent DNT or Global Privacy Control.",
     dimension_overflow: "a high-cardinality value was grouped into Other.",

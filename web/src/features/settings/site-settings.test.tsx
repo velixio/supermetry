@@ -62,7 +62,7 @@ describe('site settings', () => {
       'aria-current',
       'page',
     )
-    expect(screen.getByRole('navigation', { name: 'Site settings' })).toBeVisible()
+    expect(screen.getByRole('navigation', { name: 'Project settings' })).toBeVisible()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
   })
@@ -96,8 +96,8 @@ describe('site settings', () => {
     expect(setup).toHaveTextContent(/currency: 'USD'/)
     expect(setup).toHaveTextContent(/supermetry\.identify\('user-123'/)
     expect(setup).toHaveTextContent(/name="supermetry:404"/)
-    expect(setup).toHaveTextContent(/Site settings → Tracking/)
-    expect(setup).toHaveTextContent(/Site settings → General/)
+    expect(setup).toHaveTextContent(/Project settings → Tracking/)
+    expect(setup).toHaveTextContent(/Project settings → General/)
     expect(setup).toHaveTextContent(/supermetry\.optOut\(\)/)
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js' }), { button: 0, ctrlKey: false })
     expect(screen.getByText('app/layout.tsx')).toBeVisible()
@@ -196,6 +196,6 @@ describe('site settings', () => {
     renderIconSettings(role)
 
     expect(screen.queryByRole('button', { name: 'Refetch' })).not.toBeInTheDocument()
-    expect(screen.getByText("Fetched from your site's pages")).toBeVisible()
+    expect(screen.getByText("Fetched from your website's pages")).toBeVisible()
   })
 })

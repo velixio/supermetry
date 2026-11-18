@@ -54,7 +54,7 @@ test('sidebar settings links and account menu work on desktop and mobile with ke
       : page.getByRole('complementary', { name: 'Application sidebar' })
     const settings = sidebar.getByRole('navigation', { name: 'Settings', exact: true })
     await expect(settings.getByRole('link', { name: 'Organization settings', exact: true })).toHaveAttribute('href', `/app/${owner.orgSlug}/settings`)
-    await expect(settings.getByRole('link', { name: 'Site settings', exact: true })).toHaveAttribute('href', `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
+    await expect(settings.getByRole('link', { name: 'Project settings', exact: true })).toHaveAttribute('href', `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
     const account = sidebar.getByRole('button', { name: 'Account', exact: true })
     await expect(account).toBeInViewport()
     await account.focus()
@@ -88,7 +88,7 @@ for (const role of ['viewer', 'editor', 'admin'] as const) {
     await login(page, user.email, owner.orgSlug)
     const settings = page.getByRole('navigation', { name: 'Settings', exact: true })
     await expect(settings.getByRole('link', { name: 'Organization settings', exact: true })).toBeVisible()
-    await expect(settings.getByRole('link', { name: 'Site settings', exact: true })).toHaveCount(role === 'viewer' ? 0 : 1)
+    await expect(settings.getByRole('link', { name: 'Project settings', exact: true })).toHaveCount(role === 'viewer' ? 0 : 1)
     await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
   })
 }
@@ -98,7 +98,7 @@ test('no-site and no-organization users can use account pages and log out', asyn
   await login(page, user.email)
   const settings = page.getByRole('navigation', { name: 'Settings', exact: true })
   await expect(settings.getByRole('link', { name: 'Organization settings', exact: true })).toBeVisible()
-  await expect(settings.getByRole('link', { name: 'Site settings', exact: true })).toHaveCount(0)
+  await expect(settings.getByRole('link', { name: 'Project settings', exact: true })).toHaveCount(0)
   if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('isolated schema required')
   execFileSync('psql', [process.env.SUPERMETRY_TEST_DSN!, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${owner.schema}`, '-v', `member=${user.id}`], {
     input: 'SET search_path TO :"schema"; DELETE FROM memberships WHERE user_id=:member;',

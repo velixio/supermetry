@@ -243,7 +243,7 @@ export function SiteGeneralPage({
   }
   return (
     <Page
-      title="Site settings"
+      title="Project settings"
       description="Control identity, accepted hosts, local time, and raw-data retention."
     >
       <Surface>
@@ -281,8 +281,8 @@ export function SiteGeneralPage({
                       spellCheck={false}
                     />
                     <FieldDescription>
-                      Used in this site's address. Lowercase letters, digits and single hyphens. Changing it
-                      does not break older links that use the site id.
+                      Used in this project's address. Lowercase letters, digits and single hyphens. Changing it
+                      does not break older links that use the project id.
                     </FieldDescription>
                   </Field>
                 ) : null}
@@ -367,7 +367,7 @@ export function SiteGeneralPage({
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Loading site settings…
+            Loading project settings…
           </p>
         )}
       </Surface>
@@ -848,7 +848,7 @@ export function ReportsPage({
   return (
     <Page
       title="Email reports"
-      description="Receive a concise analytics summary in the site's time zone."
+      description="Receive a concise analytics summary in the project's time zone."
     >
       <Surface>
         <div className="flex gap-2">

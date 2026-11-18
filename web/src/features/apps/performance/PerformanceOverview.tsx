@@ -60,7 +60,7 @@ export function PerformanceOverview({ org, site, siteId, timezone, search, onSea
       </div>
       {link ? (
         <Card>
-          <CardHeader><CardTitle>Web Vitals</CardTitle><CardDescription>75th percentile on the linked web site.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Web Vitals</CardTitle><CardDescription>75th percentile on the linked website.</CardDescription></CardHeader>
           <CardContent className="flex flex-wrap items-center gap-6 text-sm">
             <span>LCP {vital(link.lcp_p75)}</span>
             <span>INP {vital(link.inp_p75)}</span>

@@ -77,7 +77,7 @@ export function ImportsExportPage({ siteId, orgId, search, onSearchChange }: Pag
 
   return (
     <PageContainer width="narrow">
-      <PageHeader title="Imports &amp; export" description="Bring historical aggregate data into this site or download a portable ZIP." />
+      <PageHeader title="Imports &amp; export" description="Bring historical aggregate data into this project or download a portable ZIP." />
 
       <ImportWizard siteId={siteId} orgId={orgId} search={search} onSearchChange={onSearchChange} reviewTarget={reviewTarget} />
       <div className="rounded-xl border bg-card p-4 text-card-foreground md:p-5">
@@ -87,7 +87,7 @@ export function ImportsExportPage({ siteId, orgId, search, onSearchChange }: Pag
         <SwitchOverPanel siteId={siteId} orgId={orgId} />
       </div>
 
-      {canExport ? <Surface title="Export site data" description="Download daily totals, dimensions, and custom events as CSV files in one ZIP.">
+      {canExport ? <Surface title="Export project data" description="Download daily totals, dimensions, and custom events as CSV files in one ZIP.">
         <form className="flex flex-col gap-5" onSubmit={submitExport}>
           <FieldGroup className="sm:flex-row">
             <Field>

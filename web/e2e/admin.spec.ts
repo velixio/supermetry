@@ -35,8 +35,8 @@ test('instance admin console lists users, organizations and sites and manages se
   await page.getByRole('button', { name: /^Details: / }).first().click()
   await expect(page.getByRole('button', { name: 'Close details' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Sites', exact: true }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Sites' })).toBeVisible()
+  await page.getByRole('link', { name: 'Projects', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible()
   await expect(page.getByRole('cell', { name: /Site 1/ }).first()).toBeVisible()
 
   await page.getByRole('link', { name: 'Instance settings', exact: true }).click()

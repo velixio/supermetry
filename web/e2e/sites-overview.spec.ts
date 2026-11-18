@@ -37,7 +37,7 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
   })
 
   await owner.login(page, '/app')
-  await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
   await expect(page.getByRole('banner', { name: 'Application header' })).toBeVisible()
   await expect(page.getByRole('main')).toHaveCount(1)
   await expect(page.getByTestId('site-overview-card').first()).toBeVisible()
@@ -57,7 +57,7 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
   await expect(page).toHaveURL(/period=7d/)
 
   await page.getByRole('radio', { name: 'Table view' }).click()
-  await expect(page.getByRole('table', { name: 'Sites overview' })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Projects overview' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('radio', { name: 'Table view' })).toHaveAttribute('aria-checked', 'true')
   await page.getByRole('radio', { name: 'Card view' }).click()
@@ -74,7 +74,7 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
   await page.screenshot({ path: `${screenshotDirectory}/1024.png`, fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await page.screenshot({ path: `${screenshotDirectory}/390.png`, fullPage: true })
   expect(serverErrors).toEqual([])

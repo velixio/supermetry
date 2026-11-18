@@ -16,7 +16,7 @@ export const projectGrants = [
     value: 'data.export',
     label: 'Export data',
     description:
-      'Download CSV and site exports. Sensitive exports also require the matching read permission.',
+      'Download CSV and project exports. Sensitive exports also require the matching read permission.',
   },
 ] as const
 
@@ -28,10 +28,10 @@ export type MemberAccess = {
 
 export function siteAccessLabel(siteIds?: number[] | null): string {
   return siteIds == null
-    ? 'All current and future sites'
+    ? 'All current and future projects'
     : siteIds.length === 0
-      ? 'No sites'
-      : `${siteIds.length} selected site${siteIds.length === 1 ? '' : 's'}`
+      ? 'No projects'
+      : `${siteIds.length} selected project${siteIds.length === 1 ? '' : 's'}`
 }
 
 export function MemberAccessControls({
@@ -71,7 +71,7 @@ export function MemberAccessControls({
           />
         </label>
         <label className="flex flex-col gap-1 text-sm" htmlFor={`${id}-sites`}>
-          Site access
+          Project access
           <select
             id={`${id}-sites`}
             className="h-9 rounded-lg border bg-background px-3 text-sm disabled:opacity-50"
@@ -88,18 +88,18 @@ export function MemberAccessControls({
               })
             }
           >
-            <option value="all">All current and future sites</option>
+            <option value="all">All current and future projects</option>
             <option value="selected" disabled={sites.length === 0}>
-              Selected sites
+              Selected projects
             </option>
-            <option value="none">No sites</option>
+            <option value="none">No projects</option>
           </select>
         </label>
       </div>
       {!preset && scope === 'selected' ? (
         <fieldset className="flex flex-wrap gap-3">
           <legend className="mb-2 text-xs text-muted-foreground">
-            Selected sites
+            Selected projects
           </legend>
           {sites.map((site) => (
             <label className="flex items-center gap-2 text-sm" key={site.id}>

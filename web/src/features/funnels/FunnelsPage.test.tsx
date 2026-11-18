@@ -37,7 +37,7 @@ describe('FunnelsPage', () => {
       'sessions',
       'session',
     )
-    expect(screen.getByText(/anonymous visitors only link within one site-local day/i)).toBeVisible()
+    expect(screen.getByText(/anonymous visitors only link within one project-local day/i)).toBeVisible()
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Count by' }))
     fireEvent.click(screen.getByRole('option', { name: 'Visitors' }))

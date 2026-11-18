@@ -178,11 +178,11 @@ describe('organization shell authentication', () => {
 
   it('shows the organization Sites page to every role', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
-      expect(visibleNavigation(role).map((item) => item.label)).toContain('Sites')
+      expect(visibleNavigation(role).map((item) => item.label)).toContain('Projects')
     }
   })
 
-  it('offers Add site only to roles that can create sites', () => {
+  it('offers Add project only to roles that can create sites', () => {
     expect(canCreateSites('owner')).toBe(true)
     expect(canCreateSites('admin')).toBe(true)
     expect(canCreateSites('editor')).toBe(false)
@@ -191,7 +191,7 @@ describe('organization shell authentication', () => {
 
   it('hides site-scoped navigation when the organization has no sites', () => {
     expect(visibleNavigation('owner', false).map((item) => item.label)).toEqual([
-      'Sites',
+      'Projects',
       'Data health',
       'GitHub stars',
     ])

@@ -18,7 +18,7 @@ export function DemoChoice({
     <Alert>
       <AlertTitle>Explore with demo data</AlertTitle>
       <AlertDescription className="flex flex-col items-start gap-3">
-        <p>Open a ready-to-use analytics project while you set up your own site.</p>
+        <p>Open a ready-to-use analytics project while you set up your own project.</p>
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"

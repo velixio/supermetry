@@ -38,7 +38,7 @@ describe('CreateKeyWizard', () => {
     expect(within(dialog).getByText('Who can use this key')).toBeVisible()
     expect(within(dialog).getByRole('checkbox', { name: /Read analytics/ })).toBeChecked()
     expect(within(dialog).getByRole('checkbox', { name: /Export data/ })).toBeChecked()
-    expect(within(dialog).getByRole('checkbox', { name: /Manage sites/ })).not.toBeChecked()
+    expect(within(dialog).getByRole('checkbox', { name: /Manage projects/ })).not.toBeChecked()
     expect(within(dialog).getByText('stats:read')).toBeVisible()
     expect(within(dialog).getByLabelText('Key name')).toHaveValue('CI or server')
   })
@@ -65,10 +65,10 @@ describe('CreateKeyWizard', () => {
     })))
   })
 
-  it('sends selected site ids', async () => {
+  it('sends selected project ids', async () => {
     const { dialog } = renderWizard()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }))
-    fireEvent.click(within(dialog).getByRole('radio', { name: 'Only these sites' }))
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Only these projects' }))
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Docs' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create key' }))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/private/orgs/3/api-keys', expect.objectContaining({
