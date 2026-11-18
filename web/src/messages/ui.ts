@@ -12,7 +12,7 @@ export const ui = {
     channels: 'Channels',
     verified: 'Verified',
     tabs: {
-      top: 'Top', entry: 'Entry', exit: 'Exit', source: 'Source', channel: 'Channels', utmSource: 'UTM Source',
+      top: 'Top', entry: 'Entry', exit: 'Exit', source: 'Source', channel: 'Channels', utmSource: 'UTM source',
       medium: 'Medium', campaign: 'Campaign', countries: 'Countries', regions: 'Regions', cities: 'Cities',
       language: 'Language', hostname: 'Hostname', browser: 'Browser', browserVersion: 'Browser version', os: 'OS',
       osVersion: 'OS version', device: 'Device', screenSize: 'Screen size', goals: 'Goals', events: 'Events',

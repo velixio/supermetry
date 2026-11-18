@@ -16,7 +16,7 @@ function ToggleGroupItem({ className, ...props }: React.ComponentProps<typeof To
   return (
     <ToggleGroupPrimitive.Item
       className={cn(
-        'inline-flex h-7 items-center justify-center rounded-md px-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm',
+        'inline-flex h-7 items-center justify-center rounded-md px-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-[inset_0_0_0_1.5px_var(--selected-edge)]',
         className,
       )}
       {...props}
