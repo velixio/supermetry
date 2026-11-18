@@ -1,10 +1,12 @@
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { fmt } from '@/lib/format'
-import { dashboardSearch } from '@/lib/search'
 
 import { AppFilters } from './AppFilters'
 import { useAppReleases } from './api'
@@ -16,13 +18,20 @@ export function ReleasesTable({ org, site, siteId, timezone, search, onSearch }:
   org: string; site: string; siteId: number; timezone: string; search: AppSearch; onSearch: (next: AppSearch) => void
 }) {
   const releases = useAppReleases(siteId, search, timezone)
+  const [picked, setPicked] = useState<string[]>([])
+  const toggle = (release: string, on: boolean) => setPicked((current) => on ? (current.includes(release) ? current : [...current, release].slice(-2)) : current.filter((item) => item !== release))
   const issuesLink = (release: string, status: 'all' | 'regressed', count: number) => count === 0
     ? <span className="text-muted-foreground">0</span>
     : <Link className="underline" to="/app/$org/$site/issues" params={{ org, site }} search={{ period: search.period, release, status }}>{fmt.number(count)}</Link>
   const note = (source: string) => source === 'events' ? <span className="block text-xs font-normal text-muted-foreground">{EVENTS_NOTE}</span> : null
   return (
     <PageContainer>
-      <PageHeader title="Releases" description="Newest first, with crash-free rates and issue counts." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} />} />
+      <PageHeader title="Releases" description="Newest first, with crash-free rates and issue counts." actions={<>
+        {picked.length === 2
+          ? <Button asChild variant="outline" size="sm"><Link to="/app/$org/$site/releases/compare" params={{ org, site }} search={{ period: search.period, a: picked[0], b: picked[1] }}>Compare selected</Link></Button>
+          : <Button variant="outline" size="sm" disabled title="Tick two releases to compare them">Compare selected</Button>}
+        <AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} />
+      </>} />
       {releases.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading releases…</p> : null}
       {releases.isError ? <p role="alert" className="text-sm text-destructive">{releases.error.message}</p> : null}
       {releases.data && releases.data.releases.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No releases reported in this period.</p> : null}
@@ -30,7 +39,7 @@ export function ReleasesTable({ org, site, siteId, timezone, search, onSearch }:
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Release</TableHead><TableHead>First seen</TableHead><TableHead>Last seen</TableHead>
+              <TableHead className="w-8"><span className="sr-only">Compare</span></TableHead><TableHead>Release</TableHead><TableHead>First seen</TableHead><TableHead>Last seen</TableHead>
               <TableHead className="text-right">Adoption</TableHead><TableHead className="text-right">Crash-free sessions</TableHead><TableHead className="text-right">Crash-free users</TableHead><TableHead className="text-right">Sessions</TableHead><TableHead className="text-right">Installs</TableHead>
               <TableHead className="text-right">New issues</TableHead><TableHead className="text-right">Regressed</TableHead>
             </TableRow>
@@ -38,7 +47,8 @@ export function ReleasesTable({ org, site, siteId, timezone, search, onSearch }:
           <TableBody>
             {releases.data.releases.map((item) => (
               <TableRow key={item.release}>
-                <TableCell className="font-medium"><Link className="underline" to="/app/$org/$site" params={{ org, site }} search={{ ...dashboardSearch.parse({ period: search.period }), release: item.release }}>{item.release}</Link></TableCell>
+                <TableCell><Checkbox aria-label={`Compare ${item.release}`} checked={picked.includes(item.release)} onCheckedChange={(on) => toggle(item.release, on === true)} /></TableCell>
+                <TableCell className="font-medium"><Link className="underline" to="/app/$org/$site/releases/$release" params={{ org, site, release: item.release }} search={{ period: search.period }}>{item.release}</Link></TableCell>
                 <TableCell>{formatDay(item.first_seen)}</TableCell>
                 <TableCell>{formatDay(item.last_seen)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatRate(item.adoption)}</TableCell>

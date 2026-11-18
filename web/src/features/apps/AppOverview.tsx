@@ -9,7 +9,8 @@ import { fmt } from '@/lib/format'
 
 import { AppEmptyState } from './AppEmptyState'
 import { AppFilters } from './AppFilters'
-import { useAppIssues, useAppOverview, useAppPlatforms } from './api'
+import { useAppDeploys, useAppIssues, useAppOverview, useAppPlatforms } from './api'
+import { DeployList, deployMarkers, deployReferenceLines } from './DeployMarkers'
 import { formatRate } from './format'
 import { IssueRowsTable } from './IssuesTable'
 import { ReleaseHealth } from './ReleaseHealth'
@@ -35,12 +36,15 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
   const overview = useAppOverview(siteId, search, timezone)
   const platforms = useAppPlatforms(siteId, search, timezone)
   const active = useActiveUsers(siteId, search, timezone)
+  const deploys = useAppDeploys(siteId, search, timezone)
   const top = useAppIssues(siteId, search, timezone, { status: 'open', limit: 10 })
   if (overview.isPending) return <PageContainer><PageHeader title="Overview" /><p role="status" className="text-sm text-muted-foreground">Loading overview…</p></PageContainer>
   if (overview.isError) return <PageContainer><PageHeader title="Overview" /><p role="alert" className="text-sm text-destructive">{overview.error.message}</p></PageContainer>
   const data = overview.data
   if (data.events === 0 && !hasAppFilters(search)) return <AppEmptyState org={org} site={site} />
   const sessions = data.crash_free_sessions
+  const deployRows = deploys.data?.deploys ?? []
+  const markers = deployMarkers(deployRows, timezone, data.series.map((point) => point.day))
   return (
     <PageContainer>
       <PageHeader title="Overview" description="Crash-free rates and issues for this app." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} />} />
@@ -72,10 +76,12 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
                   <Bar yAxisId="count" dataKey="events" name="Events" fill="var(--chart-2)" />
                   <Bar yAxisId="count" dataKey="crashes" name="Crashes" fill="var(--chart-1)" />
                   <Line yAxisId="rate" dataKey="crash_free_users" name="Crash-free users" stroke="var(--chart-3)" dot={false} connectNulls />
+                  {deployReferenceLines(markers, 'count')}
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
+          <DeployList deploys={deployRows} timezone={timezone} />
         </CardContent>
       </Card>
       {platforms.data && platforms.data.platforms.length > 0 ? (
