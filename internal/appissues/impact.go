@@ -63,4 +63,3 @@ where site_id = $1 and issue_id = $2 and ts >= $3 and `+dim.col+` <> '' group by
 	}
 	return out, nil
 }
-
