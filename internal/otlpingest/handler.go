@@ -47,6 +47,7 @@ type Handler struct {
 	dedup    *digestSet
 	inflight chan struct{}
 	metrics  *metricsFront
+	logs     *logsFront
 }
 
 // NewHandler builds the handler. intake, budget and stats may be nil (no
@@ -61,35 +62,57 @@ func NewHandler(reg sites.DSNRegistry, intake *appingest.Intake, sink Sink, budg
 	}
 }
 
-// parseRoute extracts the project id from /api/{id}/otlp/v1/traces and
-// /api/{id}/otlp/v1/metrics; metrics reports which of the two it was.
-func parseRoute(path string) (id int32, metrics, ok bool) {
+type routeKind int
+
+const (
+	routeTraces routeKind = iota
+	routeMetrics
+	routeLogs
+)
+
+// parseRoute extracts the project id from the traces, metrics and logs routes
+// under /api/{id}/otlp/v1/, and which of the three it was.
+func parseRoute(path string) (id int32, kind routeKind, ok bool) {
 	rest, found := strings.CutPrefix(path, "/api/")
 	if !found {
-		return 0, false, false
+		return 0, 0, false
 	}
-	idPart, kind, found := strings.Cut(rest, "/")
+	idPart, tail, found := strings.Cut(rest, "/")
 	if !found {
-		return 0, false, false
+		return 0, 0, false
 	}
-	switch strings.TrimSuffix(kind, "/") {
+	switch strings.TrimSuffix(tail, "/") {
 	case "otlp/v1/traces":
+		kind = routeTraces
 	case "otlp/v1/metrics":
-		metrics = true
+		kind = routeMetrics
+	case "otlp/v1/logs":
+		kind = routeLogs
 	default:
-		return 0, false, false
+		return 0, 0, false
 	}
 	n, err := strconv.ParseInt(idPart, 10, 32)
 	if err != nil || n <= 0 || idPart != strconv.FormatInt(n, 10) {
-		return 0, false, false
+		return 0, 0, false
 	}
-	return int32(n), metrics, true
+	return int32(n), kind, true
+}
+
+// enabled reports whether the route's front door is wired in.
+func (h *Handler) enabled(kind routeKind) bool {
+	switch kind {
+	case routeMetrics:
+		return h.metrics != nil
+	case routeLogs:
+		return h.logs != nil
+	}
+	return true
 }
 
 // Matches reports whether the request is for this handler.
 func (h *Handler) Matches(r *http.Request) bool {
-	_, metrics, ok := parseRoute(r.URL.Path)
-	return ok && (!metrics || h.metrics != nil)
+	_, kind, ok := parseRoute(r.URL.Path)
+	return ok && h.enabled(kind)
 }
 
 func (h *Handler) count(name string, n int) {
@@ -156,8 +179,8 @@ func applyOrigin(w http.ResponseWriter, r *http.Request, key sites.DSNKey) bool 
 
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	pathID, isMetrics, ok := parseRoute(r.URL.Path)
-	if !ok || (isMetrics && h.metrics == nil) {
+	pathID, kind, ok := parseRoute(r.URL.Path)
+	if !ok || !h.enabled(kind) {
 		http.NotFound(w, r)
 		return
 	}
@@ -195,8 +218,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusUnsupportedMediaType, "content type must be application/x-protobuf or application/json")
 		return
 	}
-	if isMetrics {
+	switch kind {
+	case routeMetrics:
 		h.serveMetrics(w, r, site, ct, now)
+		return
+	case routeLogs:
+		h.serveLogs(w, r, site, ct, now)
 		return
 	}
 	if site.App.PerformanceEnabled != nil && !*site.App.PerformanceEnabled {

@@ -1,6 +1,7 @@
 package sentryingest
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,12 +26,20 @@ const (
 	ipLimits     = "60:error;default:ip:rate_limit"
 )
 
-// unsupportedLimits is the not_supported quota list sent on every 2xx.
-func unsupportedLimits(perf bool) string {
+// logLimits accompanies a log item that was over the project's daily quota.
+const logLimits = "60:log_item;log_byte:project:rate_limit"
+
+// unsupportedLimits is the not_supported quota list sent on every 2xx. Log
+// items are left out of it when the project stores them.
+func unsupportedLimits(perf, logs bool) string {
+	list := rejectUnsupported
 	if perf {
-		return perfUnsupported
+		list = perfUnsupported
 	}
-	return rejectUnsupported
+	if logs {
+		list = strings.Replace(list, ";log;", ";", 1)
+	}
+	return list
 }
 
 // spikeGuard caps events per site per minute with a fixed window. It is

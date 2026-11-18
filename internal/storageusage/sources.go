@@ -96,6 +96,7 @@ var sourceRegistry = []Source{
 	{Table: "span_hour_state", Category: CategoryAuxiliary},
 	{Table: "span_groups", Category: CategoryAuxiliary},
 	{Table: "logs", Category: CategoryHot, Partitioned: true},
+	{Table: "obs_ingest_daily", Category: CategoryAuxiliary},
 	{Table: "stripe_connections", Category: CategoryAuxiliary},
 	{Table: "stripe_customers", Category: CategoryAuxiliary},
 	{Table: "stripe_refunds", Category: CategoryAuxiliary},

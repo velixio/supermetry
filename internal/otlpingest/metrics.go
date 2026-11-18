@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"supermetry/internal/obsmetrics"
+	"supermetry/internal/obsquota"
 	"supermetry/internal/sites"
 )
 
@@ -30,13 +31,13 @@ type MetricSink interface {
 
 type metricsFront struct {
 	sink  MetricSink
-	quota *obsmetrics.Quota
+	quota *obsquota.Tracker
 	stats obsmetrics.Stats
 }
 
 // WithMetrics enables POST /api/{project_id}/otlp/v1/metrics. quota and stats
 // may be nil.
-func (h *Handler) WithMetrics(sink MetricSink, quota *obsmetrics.Quota, stats obsmetrics.Stats) *Handler {
+func (h *Handler) WithMetrics(sink MetricSink, quota *obsquota.Tracker, stats obsmetrics.Stats) *Handler {
 	h.metrics = &metricsFront{sink: sink, quota: quota, stats: stats}
 	return h
 }
@@ -345,6 +346,9 @@ func (h *Handler) serveMetrics(w http.ResponseWriter, r *http.Request, site site
 	} else {
 		req, err = DecodeMetricsJSON(body)
 	}
+	if m.quota != nil {
+		m.quota.AddBytes(site.ID, obsquota.ClassMetrics, len(body))
+	}
 	body = nil
 	release()
 	if err != nil {
@@ -361,8 +365,14 @@ func (h *Handler) serveMetrics(w http.ResponseWriter, r *http.Request, site site
 	req = nil
 
 	msg := ""
+	taken, quotaRejected := 0, 0
 	if n := len(points); n > 0 && m.quota != nil {
-		fit := m.quota.Take(site.ID, n, now)
+		var limit int64
+		if site.App != nil {
+			limit = site.App.MetricDailyQuota
+		}
+		fit := m.quota.Take(site.ID, obsquota.ClassMetrics, n, limit)
+		taken, quotaRejected = fit, n-fit
 		if fit < n {
 			if m.stats != nil {
 				m.stats.Add("metric_quota_rejected", n-fit)
@@ -376,6 +386,9 @@ func (h *Handler) serveMetrics(w http.ResponseWriter, r *http.Request, site site
 		dropped, ok := m.sink.Enqueue(points)
 		if !ok {
 			h.dedup.release(digest)
+			if m.quota != nil {
+				m.quota.Release(site.ID, obsquota.ClassMetrics, taken)
+			}
 			w.Header().Set("Retry-After", "5")
 			fail(w, http.StatusServiceUnavailable, "ingest queue full")
 			return
@@ -387,6 +400,10 @@ func (h *Handler) serveMetrics(w http.ResponseWriter, r *http.Request, site site
 	}
 	if rejected > 0 && msg == "" {
 		msg = "some data points were rejected (invalid, unsupported or too old)"
+	}
+	if m.quota != nil && rejected > 0 {
+		// Quota rejections were counted by Take; count the others here.
+		m.quota.Reject(site.ID, obsquota.ClassMetrics, rejected-quotaRejected)
 	}
 	h.respondMetrics(w, ct, rejected, msg)
 }

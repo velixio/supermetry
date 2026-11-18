@@ -28,6 +28,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
+	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
+	resourcepb "go.opentelemetry.io/proto/otlp/resource/v1"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 )
 
 type fixture struct {
@@ -145,6 +151,8 @@ func main() {
 	gz := flag.Float64("gzip", 0.5, "share of requests sent gzip-compressed")
 	otlp := flag.Bool("otlp", false, "send OTLP/JSON trace requests to /api/{site}/otlp/v1/traces instead of envelopes and report accepted spans/s")
 	otlpMetrics := flag.Bool("otlp-metrics", false, "send OTLP/JSON metric requests to /api/{site}/otlp/v1/metrics and report accepted points/s")
+	otlpLogs := flag.Bool("otlp-logs", false, "send gzip OTLP protobuf log requests to /api/{site}/otlp/v1/logs and report accepted records/s")
+	logsPerReq := flag.Int("logs-per-request", 100, "log records in each OTLP logs request (-otlp-logs only)")
 	pointsPerReq := flag.Int("points-per-request", 100, "data points in each OTLP metrics request (-otlp-metrics only)")
 	perReq := flag.Int("spans-per-request", 50, "spans in each OTLP request (-otlp only)")
 	txShare := flag.Float64("tx", 0.25, "share of requests that carry a transaction or span fixture")
@@ -203,6 +211,9 @@ func main() {
 				if *otlpMetrics {
 					fx = fixture{events: *pointsPerReq, items: *pointsPerReq}
 				}
+				if *otlpLogs {
+					fx = fixture{events: *logsPerReq, items: *logsPerReq}
+				}
 				head := dsnRe.ReplaceAll(fx.header, []byte(fmt.Sprintf(`"dsn":"http://%s@%s/%s"`, k.key, strings.TrimPrefix(*base, "http://"), k.site)))
 				body := append(append(append([]byte{}, head...), '\n'), fx.rest...)
 				if fx.tx {
@@ -238,8 +249,12 @@ func main() {
 					body = otlpMetricsBody(r, *pointsPerReq)
 					target = fmt.Sprintf("%s/api/%s/otlp/v1/metrics", *base, k.site)
 				}
+				if *otlpLogs {
+					body = otlpLogsBody(r, *logsPerReq)
+					target = fmt.Sprintf("%s/api/%s/otlp/v1/logs", *base, k.site)
+				}
 				req, _ := http.NewRequest(http.MethodPost, target, nil)
-				if r.Float64() < *gz {
+				if *otlpLogs || r.Float64() < *gz {
 					var b bytes.Buffer
 					zw := gzip.NewWriter(&b)
 					_, _ = zw.Write(body)
@@ -249,7 +264,10 @@ func main() {
 				}
 				req.Body = io.NopCloser(bytes.NewReader(body))
 				req.ContentLength = int64(len(body))
-				if *otlp || *otlpMetrics {
+				if *otlpLogs {
+					req.Header.Set("Content-Type", "application/x-protobuf")
+					req.Header.Set("Authorization", "Bearer "+k.key)
+				} else if *otlp || *otlpMetrics {
 					req.Header.Set("Content-Type", "application/json")
 					req.Header.Set("Authorization", "Bearer "+k.key)
 				} else {
@@ -303,6 +321,9 @@ func main() {
 	}
 	if *otlpMetrics {
 		fmt.Printf("accepted points/s=%.0f\n", float64(accEvents.Load())/secs)
+	}
+	if *otlpLogs {
+		fmt.Printf("accepted log records/s=%.0f\n", float64(accEvents.Load())/secs)
 	}
 	fmt.Printf("accepted events/s=%.0f  accepted items/s=%.0f\n", float64(accEvents.Load())/secs, float64(accItems.Load())/secs)
 	fmt.Printf("latency p50=%s p99=%s max=%s\n", pct(0.5), pct(0.99), pct(1))
@@ -367,4 +388,55 @@ func otlpMetricsBody(r *mrand.Rand, n int) []byte {
 		parts = append(parts, `{"name":"bench.latency","histogram":{"aggregationTemporality":2,"dataPoints":[`+strings.Join(hists, ",")+`]}}`)
 	}
 	return []byte(`{"resourceMetrics":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"bench"}}]},"scopeMetrics":[{"metrics":[` + strings.Join(parts, ",") + `]}]}]}`)
+}
+
+var logWords = strings.Fields("request handled cache miss upstream timeout retry order payment user session login failed started finished queue worker job scheduled connection pool refused slow query disk memory limit reached")
+
+// otlpLogsBody builds an OTLP protobuf logs request of n records: 60% info,
+// 25% debug, 10% warn, 5% error, 20% with a trace id, bodies of a few words
+// from a small vocabulary plus an id, stamped now.
+func otlpLogsBody(r *mrand.Rand, n int) []byte {
+	now := uint64(time.Now().Add(-time.Second).UnixNano())
+	res := &logspb.ResourceLogs{
+		Resource: &resourcepb.Resource{Attributes: []*commonpb.KeyValue{
+			{Key: "service.name", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: fmt.Sprintf("svc-%d", r.IntN(50))}}},
+			{Key: "deployment.environment.name", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "bench"}}},
+		}},
+	}
+	scope := &logspb.ScopeLogs{}
+	for i := 0; i < n; i++ {
+		sev := logspb.SeverityNumber_SEVERITY_NUMBER_INFO
+		switch v := r.IntN(100); {
+		case v < 25:
+			sev = logspb.SeverityNumber_SEVERITY_NUMBER_DEBUG
+		case v < 35:
+			sev = logspb.SeverityNumber_SEVERITY_NUMBER_WARN
+		case v < 40:
+			sev = logspb.SeverityNumber_SEVERITY_NUMBER_ERROR
+		}
+		words := make([]string, 4+r.IntN(5))
+		for j := range words {
+			words[j] = logWords[r.IntN(len(logWords))]
+		}
+		rec := &logspb.LogRecord{
+			TimeUnixNano:   now,
+			SeverityNumber: sev,
+			Body:           &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: strings.Join(words, " ") + fmt.Sprintf(" id=%d", r.IntN(1_000_000))}},
+			Attributes: []*commonpb.KeyValue{
+				{Key: "http.route", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: fmt.Sprintf("/r/%d", r.IntN(40))}}},
+				{Key: "attempt", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_IntValue{IntValue: int64(r.IntN(5))}}},
+			},
+		}
+		if r.IntN(5) == 0 {
+			tid := make([]byte, 16)
+			for j := range tid {
+				tid[j] = byte(r.IntN(255) + 1)
+			}
+			rec.TraceId = tid
+		}
+		scope.LogRecords = append(scope.LogRecords, rec)
+	}
+	res.ScopeLogs = []*logspb.ScopeLogs{scope}
+	b, _ := proto.Marshal(res)
+	return protowire.AppendBytes(protowire.AppendTag(nil, 1, protowire.BytesType), b)
 }

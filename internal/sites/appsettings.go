@@ -13,9 +13,13 @@ const (
 	defaultSpanRetentionDays = 14
 	defaultLogRetentionDays  = 7
 	maxLogRetentionDays      = 30
-	maxReportAgeDaysLimit    = 30
-	maxTagKeys               = 50
-	maxEnvironments          = 20
+	// DefaultLogDailyQuota and DefaultMetricDailyQuota are the daily intake
+	// quotas per app project.
+	DefaultLogDailyQuota    int64 = 5_000_000
+	DefaultMetricDailyQuota int64 = 50_000_000
+	maxReportAgeDaysLimit         = 30
+	maxTagKeys                    = 50
+	maxEnvironments               = 20
 )
 
 var (
@@ -44,6 +48,11 @@ type AppSettings struct {
 	// A nil pointer means on; the server switch SUPERMETRY_ELECTRON_SYMBOLS can
 	// still turn it off for every project.
 	ElectronSymbols *bool `json:"electron_symbols"`
+	// LogDailyQuota and MetricDailyQuota cap log records and metric points per
+	// UTC day. A nil pointer means the default; 0 means unlimited (self-hosting
+	// admins, Cloud plan overrides).
+	LogDailyQuota    *int64 `json:"log_daily_quota"`
+	MetricDailyQuota *int64 `json:"metric_daily_quota"`
 }
 
 // ParseAppSettings decodes stored settings; empty or missing input gives the defaults.
@@ -91,6 +100,17 @@ func (a AppSettings) Normalize() (AppSettings, error) {
 	}
 	if a.LogRetentionDays < 1 || a.LogRetentionDays > maxLogRetentionDays {
 		return AppSettings{}, fmt.Errorf("log_retention_days must be between 1 and %d", maxLogRetentionDays)
+	}
+	if a.LogDailyQuota == nil {
+		q := DefaultLogDailyQuota
+		a.LogDailyQuota = &q
+	}
+	if a.MetricDailyQuota == nil {
+		q := DefaultMetricDailyQuota
+		a.MetricDailyQuota = &q
+	}
+	if *a.LogDailyQuota < 0 || *a.MetricDailyQuota < 0 {
+		return AppSettings{}, fmt.Errorf("daily quotas must be 0 (unlimited) or more")
 	}
 	if a.MaxReportAgeDays == 0 {
 		a.MaxReportAgeDays = defaultMaxReportAgeDays
