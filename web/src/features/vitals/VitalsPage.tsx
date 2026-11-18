@@ -81,8 +81,8 @@ function Distribution({ value }: { value: VitalMetric }) {
       className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
       role="img"
     >
-      <span className="bg-chart-2" style={{ width: `${good}%` }} />
-      <span className="bg-chart-4" style={{ width: `${needs}%` }} />
+      <span className="bg-success" style={{ width: `${good}%` }} />
+      <span className="bg-warning" style={{ width: `${needs}%` }} />
       <span className="bg-destructive" style={{ width: `${poor}%` }} />
     </div>
   )
@@ -99,7 +99,7 @@ function MetricCard({ metric, value, name, short }: { metric: VitalMetricName; v
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-3">
           <strong className="text-3xl font-semibold tabular-nums">{formatP75(metric, value.p75)}</strong>
-          <span className={cn('text-sm font-medium', state === 'Good' && 'text-chart-2', state === 'Needs improvement' && 'text-chart-4', state === 'Poor' && 'text-destructive', state === 'No data' && 'text-muted-foreground')}>{state}</span>
+          <span className={cn('text-sm font-medium', state === 'Good' && 'text-success', state === 'Needs improvement' && 'text-warning', state === 'Poor' && 'text-destructive', state === 'No data' && 'text-muted-foreground')}>{state}</span>
         </div>
         <Distribution value={value} />
       </CardContent>
@@ -153,7 +153,7 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
                   ? [Number(value).toLocaleString(), 'Samples']
                   : [formatP75(metric, Number(value)), String(name).toUpperCase()]}
               />
-              <ReferenceLine yAxisId="value" y={good} stroke="var(--chart-2)" strokeDasharray="4 4" />
+              <ReferenceLine yAxisId="value" y={good} stroke="var(--success)" strokeDasharray="4 4" />
               <ReferenceLine yAxisId="value" y={poor} stroke="var(--destructive)" strokeDasharray="4 4" />
               <Line yAxisId="value" dataKey="p50" name="p50" type="monotone" stroke="var(--chart-3)" strokeWidth={1.5} dot={false} connectNulls={false} />
               <Line yAxisId="value" dataKey="p75" name="p75" type="monotone" stroke="var(--chart-1)" strokeWidth={2.5} dot={false} connectNulls={false} />

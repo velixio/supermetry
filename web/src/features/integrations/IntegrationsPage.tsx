@@ -87,7 +87,7 @@ function ConnectForm({
           aria-describedby={`property-hint-${entry.provider}`}
           aria-invalid={invalid || undefined}
           autoComplete="off"
-          className="min-h-11"
+          className="max-sm:min-h-11"
           id={`property-${entry.provider}`}
           onChange={(event) => setProperty(event.target.value)}
           placeholder="sc-domain:supermetry.com"
@@ -100,7 +100,7 @@ function ConnectForm({
       <div className="flex flex-col gap-1 sm:max-w-xs">
         <label className="text-sm font-medium" htmlFor={`backfill-${entry.provider}`}>{t.backfillLabel}</label>
         <select
-          className="min-h-11 rounded-lg border border-input bg-background px-2.5 text-sm"
+          className="max-sm:min-h-11 rounded-lg border border-input bg-background px-2.5 text-sm"
           id={`backfill-${entry.provider}`}
           onChange={(event) => setBackfillDays(Number(event.target.value))}
           value={backfillDays}
@@ -110,7 +110,7 @@ function ConnectForm({
       </div>
       {connect.isError ? <p className="text-sm text-destructive" role="alert">{connect.error.message}</p> : null}
       <div>
-        <Button className="min-h-11" disabled={pending} type="submit">
+        <Button className="max-sm:min-h-11" disabled={pending} type="submit">
           {pending ? t.connecting : reconnecting ? t.reconnect : t.connect}
         </Button>
       </div>
@@ -159,7 +159,7 @@ function ProviderCard({
 
       {connection && canManage ? (
         <div>
-          <Button className="min-h-11" onClick={() => setConfirming(true)} type="button" variant="outline">
+          <Button className="max-sm:min-h-11" onClick={() => setConfirming(true)} type="button" variant="outline">
             {t.disconnect}
             <span className="sr-only"> {entry.name}</span>
           </Button>
@@ -178,9 +178,9 @@ function ProviderCard({
           </AlertDialogHeader>
           {disconnect.isError ? <p role="alert">{disconnect.error.message}</p> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel className="max-sm:min-h-11">{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
-              className="min-h-11"
+              className="max-sm:min-h-11"
               disabled={disconnect.isPending}
               onClick={(event) => {
                 event.preventDefault()
@@ -220,7 +220,7 @@ export function IntegrationsPage({
           role={result === 'connected' ? 'status' : 'alert'}
         >
           <p>{resultMessage(result)}</p>
-          {onDismissResult ? <Button className="min-h-11" onClick={onDismissResult} type="button" variant="ghost">{t.dismiss}</Button> : null}
+          {onDismissResult ? <Button className="max-sm:min-h-11" onClick={onDismissResult} type="button" variant="ghost">{t.dismiss}</Button> : null}
         </div>
       ) : null}
 

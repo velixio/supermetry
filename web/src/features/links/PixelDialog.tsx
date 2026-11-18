@@ -52,7 +52,7 @@ function PixelForm({ pixel, error, pending, onClose, onSave }: Omit<Props, 'pixe
               <FieldLabel htmlFor="pixel-name">{t.pixelName}</FieldLabel>
               <Input
                 id="pixel-name"
-                className="min-h-11"
+                className="max-sm:min-h-11"
                 maxLength={120}
                 required
                 value={name}
@@ -66,7 +66,7 @@ function PixelForm({ pixel, error, pending, onClose, onSave }: Omit<Props, 'pixe
                   id="pixel-tag"
                   autoCapitalize="none"
                   autoComplete="off"
-                  className="min-h-11"
+                  className="max-sm:min-h-11"
                   maxLength={64}
                   aria-invalid={!tagValid}
                   spellCheck={false}
@@ -80,8 +80,8 @@ function PixelForm({ pixel, error, pending, onClose, onSave }: Omit<Props, 'pixe
           </FieldGroup>
           <FieldError>{error?.message}</FieldError>
           <DialogFooter>
-            <Button className="min-h-11" type="button" variant="outline" onClick={onClose}>{t.cancel}</Button>
-            <Button className="min-h-11" disabled={pending} type="submit">
+            <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={onClose}>{t.cancel}</Button>
+            <Button className="max-sm:min-h-11" disabled={pending} type="submit">
               {pending ? t.pixelSaving : pixel ? t.pixelSave : t.pixelCreate}
             </Button>
           </DialogFooter>

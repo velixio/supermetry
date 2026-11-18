@@ -68,7 +68,7 @@ function UpdateNotice({ instanceAdmin }: { instanceAdmin: boolean }) {
 }
 
 /**
- * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, search field (opens the command palette), live badge and help.
+ * The single 48px sticky bar above every page: sidebar trigger, breadcrumbs, search field (opens the command palette), live badge and help.
  * Language and theme live in the account menu.
  * Outside an organization (no membership) there is no site, so no live badge.
  */
@@ -93,7 +93,7 @@ export function AppHeader({
   paletteTriggerRef?: Ref<HTMLButtonElement>
 }) {
   return (
-    <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
+    <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger aria-label={en.navigation.collapse} />
         <Breadcrumbs membership={membership} />
@@ -105,8 +105,7 @@ export function AppHeader({
           ref={paletteTriggerRef}
           type="button"
           variant="outline"
-          size="sm"
-          className="h-8 justify-start gap-2 px-2 font-normal text-muted-foreground max-md:w-8 max-md:justify-center md:w-64 lg:w-72"
+          className="justify-start gap-2 border-border bg-muted/50 px-3 font-normal text-muted-foreground shadow-none max-md:w-9 max-md:justify-center max-md:px-0 md:w-64 lg:w-72"
           aria-haspopup="dialog"
           aria-keyshortcuts="Control+K Meta+K"
           aria-label={ui.palette.searchField}
@@ -114,7 +113,7 @@ export function AppHeader({
         >
           <SearchIcon aria-hidden="true" />
           <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline">{ui.palette.searchField}</span>
-          <kbd aria-hidden="true" className="pointer-events-none hidden rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium text-muted-foreground md:inline">
+          <kbd aria-hidden="true" className="pointer-events-none hidden rounded border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
         </Button>

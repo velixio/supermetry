@@ -58,7 +58,7 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
         description={t.description}
         actions={
           canManage ? (
-            <Button className="min-h-11" onClick={() => { save.reset(); setEditing(null) }}>
+            <Button className="max-sm:min-h-11" onClick={() => { save.reset(); setEditing(null) }}>
               <PlusIcon data-icon="inline-start" />
               {t.create}
             </Button>
@@ -73,7 +73,7 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
       {links.isError ? (
         <div className="flex items-center gap-3 text-sm" role="alert">
           {t.loadError}
-          <Button className="min-h-11" variant="outline" onClick={() => void links.refetch()}>{t.retry}</Button>
+          <Button className="max-sm:min-h-11" variant="outline" onClick={() => void links.refetch()}>{t.retry}</Button>
         </div>
       ) : null}
       {links.data && links.data.length === 0 ? (
@@ -102,11 +102,11 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
               </div>
               <div className="flex flex-wrap gap-2">
                 <CopyButton label={t.copyShortUrl.replace('{name}', link.name)} text={absoluteShortUrl(link)} />
-                <Button aria-label={`${t.qr} ${link.name}`} className="min-h-11" variant="outline" onClick={() => setQr(link)}>
+                <Button aria-label={`${t.qr} ${link.name}`} className="max-sm:min-h-11" variant="outline" onClick={() => setQr(link)}>
                   <QrCodeIcon data-icon="inline-start" />
                   {t.qr}
                 </Button>
-                <Button asChild className="min-h-11" variant="outline">
+                <Button asChild className="max-sm:min-h-11" variant="outline">
                   <Link aria-label={`${t.stats} ${link.name}`} params={{ org, site: siteSlug, id: String(link.id) }} to="/app/$org/$site/links/$id">
                     <ChartColumnIcon data-icon="inline-start" />
                     {t.stats}
@@ -114,11 +114,11 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
                 </Button>
                 {canManage ? (
                   <>
-                    <Button aria-label={`${t.edit} ${link.name}`} className="min-h-11" variant="outline" onClick={() => { save.reset(); setEditing(link) }}>
+                    <Button aria-label={`${t.edit} ${link.name}`} className="max-sm:min-h-11" variant="outline" onClick={() => { save.reset(); setEditing(link) }}>
                       <PencilIcon data-icon="inline-start" />
                       {t.edit}
                     </Button>
-                    <Button aria-label={`${t.delete} ${link.name}`} className="min-h-11" variant="outline" onClick={() => setDeleting(link)}>
+                    <Button aria-label={`${t.delete} ${link.name}`} className="max-sm:min-h-11" variant="outline" onClick={() => setDeleting(link)}>
                       <Trash2Icon data-icon="inline-start" />
                       {t.delete}
                     </Button>
@@ -160,9 +160,9 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
             <AlertDialogDescription>{t.confirmDelete}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel className="max-sm:min-h-11">{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
-              className="min-h-11"
+              className="max-sm:min-h-11"
               onClick={() => { if (deleting) remove.mutate(deleting.id); setDeleting(undefined) }}
             >
               {t.deleteAction}

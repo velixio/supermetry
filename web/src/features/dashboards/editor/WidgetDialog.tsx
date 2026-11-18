@@ -45,7 +45,7 @@ function Pick({ id, label, value, onChange, options }: {
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="min-h-11 w-full sm:min-h-9" id={id}><SelectValue /></SelectTrigger>
+        <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id={id}><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectGroup>
             {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
@@ -112,7 +112,7 @@ export function WidgetDialog({ siteId, siteKind, mode, widget, onSubmit, onClose
             ) : null}
             <Field>
               <FieldLabel htmlFor="widget-title">{t.titleLabel}</FieldLabel>
-              <Input className="min-h-11 sm:min-h-9" id="widget-title" maxLength={120} value={draft.title ?? ''} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+              <Input className="max-sm:min-h-11" id="widget-title" maxLength={120} value={draft.title ?? ''} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
               <FieldDescription>{t.titleHint}</FieldDescription>
             </Field>
             <Pick id="widget-period" label={t.periodLabel} value={draft.period ?? inherit}
@@ -132,7 +132,7 @@ export function WidgetDialog({ siteId, siteKind, mode, widget, onSubmit, onClose
                     const checked = config.metrics?.includes(metric) ?? false
                     const full = !checked && (config.metrics?.length ?? 0) >= rule.metrics![1]
                     return (
-                      <Field className="min-h-11 sm:min-h-9" key={metric} orientation="horizontal">
+                      <Field className="max-sm:min-h-11" key={metric} orientation="horizontal">
                         <Checkbox checked={checked} disabled={full} id={`widget-metric-${metric}`} onCheckedChange={(value) => toggleMetric(metric, value === true)} />
                         <FieldLabel htmlFor={`widget-metric-${metric}`}>{humanize(metric)}</FieldLabel>
                       </Field>
@@ -153,7 +153,7 @@ export function WidgetDialog({ siteId, siteKind, mode, widget, onSubmit, onClose
                 {dimensionChoice === property ? (
                   <Field>
                     <FieldLabel htmlFor="widget-property">{t.propertyLabel}</FieldLabel>
-                    <Input className="min-h-11 sm:min-h-9" id="widget-property" maxLength={55} value={propKey}
+                    <Input className="max-sm:min-h-11" id="widget-property" maxLength={55} value={propKey}
                       onChange={(event) => { setPropKey(event.target.value); setConfig({ dimension: event.target.value.trim() ? `prop:${event.target.value.trim()}` : '' }) }} />
                   </Field>
                 ) : null}
@@ -163,7 +163,7 @@ export function WidgetDialog({ siteId, siteKind, mode, widget, onSubmit, onClose
             {rule.limit ? (
               <Field>
                 <FieldLabel htmlFor="widget-limit">{t.limitLabel}</FieldLabel>
-                <Input className="min-h-11 sm:min-h-9" id="widget-limit" inputMode="numeric" max={50} min={1} type="number"
+                <Input className="max-sm:min-h-11" id="widget-limit" inputMode="numeric" max={50} min={1} type="number"
                   value={config.limit ?? ''} onChange={(event) => setConfig({ limit: event.target.value === '' ? undefined : Number(event.target.value) })} />
               </Field>
             ) : null}
@@ -175,7 +175,7 @@ export function WidgetDialog({ siteId, siteKind, mode, widget, onSubmit, onClose
                 <Field>
                   <FieldLabel htmlFor="widget-funnel">{t.funnelLabel}</FieldLabel>
                   <Select value={config.funnel_id ? String(config.funnel_id) : ''} onValueChange={(value) => setConfig({ funnel_id: Number(value) })}>
-                    <SelectTrigger className="min-h-11 w-full sm:min-h-9" id="widget-funnel"><SelectValue placeholder={t.funnelPlaceholder} /></SelectTrigger>
+                    <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id="widget-funnel"><SelectValue placeholder={t.funnelPlaceholder} /></SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
                         {(funnels.data ?? []).map((funnel) => <SelectItem key={funnel.id} value={String(funnel.id)}>{funnel.name}</SelectItem>)}
@@ -191,8 +191,8 @@ export function WidgetDialog({ siteId, siteKind, mode, widget, onSubmit, onClose
             <ul className="list-disc pl-5 text-sm text-destructive" role="alert">{errors.map((message) => <li key={message}>{message}</li>)}</ul>
           ) : null}
           <DialogFooter className="gap-2">
-            <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={onClose}>{t.cancel}</Button>
-            <Button className="min-h-11 sm:min-h-9" type="submit">{mode === 'add' ? t.addConfirm : t.apply}</Button>
+            <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={onClose}>{t.cancel}</Button>
+            <Button className="max-sm:min-h-11" type="submit">{mode === 'add' ? t.addConfirm : t.apply}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

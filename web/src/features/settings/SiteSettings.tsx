@@ -114,7 +114,7 @@ export function SiteSettingsTabs({ org, site, current, showReplay = false, track
           <Link
             key={value}
             aria-current={current === value ? 'page' : undefined}
-            className="border-b-2 border-transparent px-0.5 py-3 text-sm font-medium text-muted-foreground aria-current-page:border-accent aria-current-page:text-foreground"
+            className="border-b-2 border-transparent px-0.5 py-3 text-sm font-medium text-muted-foreground aria-current-page:border-primary aria-current-page:text-foreground"
             to={to}
             params={{ org, site }}
           >
@@ -201,7 +201,7 @@ export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, la
       <AiInstallPrompt publicId={publicId} snippet={snippet} />
       <InstallRecipes publicId={publicId} snippet={snippet} verify={verify} troubleshooting={troubleshooting} />
       <FeatureSetup currency={revenueCurrency} />
-      <aside className="border-l-2 border-accent pl-4 text-sm">
+      <aside className="border-l-2 border-border pl-4 text-sm">
         <p className="font-medium">Track custom clicks</p>
         <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>
         <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all" tabIndex={0}><code>{'<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>'}</code></pre>

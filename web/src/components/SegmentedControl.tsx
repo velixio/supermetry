@@ -60,7 +60,7 @@ export function SegmentedControl<T extends string>({
       data-slot="segmented-control"
       data-size={size}
       className={cn(
-        'inline-flex items-center gap-1 rounded-lg bg-muted p-1',
+        'inline-flex items-center rounded-lg bg-muted p-[3px] text-muted-foreground',
         size === 'sm' ? 'h-8' : 'h-9',
         className,
       )}
@@ -80,10 +80,10 @@ export function SegmentedControl<T extends string>({
             onClick={() => onValueChange(option.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
             className={cn(
-              'inline-flex min-w-6 items-center justify-center rounded-md font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
-              size === 'sm' ? 'h-6 px-2 text-xs' : 'h-7 px-2.5 text-sm',
+              'inline-flex min-w-6 items-center justify-center rounded-md font-medium whitespace-nowrap transition-colors outline-none border border-transparent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50',
+              size === 'sm' ? 'h-[calc(100%-1px)] px-2 text-xs' : 'h-[calc(100%-1px)] px-2.5 text-sm',
               selected
-                ? 'bg-background text-foreground shadow-[inset_0_0_0_1.5px_var(--selected-edge)]'
+                ? 'border-input bg-background text-foreground shadow-sm dark:bg-input/30'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >

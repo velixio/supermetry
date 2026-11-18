@@ -12,20 +12,20 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-// The app header is the only sticky bar above content: 44px (h-11) at top-0.
+// The app header is the only sticky bar above content: 48px (h-12) at top-0.
 // Anything that sticks inside a page must clear it; dialogs have their own scroll context.
 // The two sidebar headers (switcher) stick inside the sidebar's own column, beside the app header, not under it.
 const EXPECTED = [
   'src/components/AccountSidebar.tsx: sticky top-0',
   'src/components/Sidebar.tsx: sticky top-0',
   'src/components/AppHeader.tsx: sticky top-0',
-  'src/components/DashboardPanels.tsx: sticky top-[calc(2.75rem+var(--dashboard-filter-h,3.75rem)+0.5rem)]',
+  'src/components/DashboardPanels.tsx: sticky top-[calc(3rem+var(--dashboard-filter-h,3.75rem)+0.5rem)]',
   'src/components/FullReportDialog.tsx: sticky top-0',
   'src/features/settings/SettingsPages.tsx: lg:sticky lg:top-17',
-  'src/routes/app.$org.$site.index.tsx: sticky top-11',
+  'src/routes/app.$org.$site.index.tsx: sticky top-12',
 ]
 
-it('lists every sticky top offset and keeps them clear of the 44px app header', () => {
+it('lists every sticky top offset and keeps them clear of the 48px app header', () => {
   const files = sourceFiles(join(web, 'src'))
   const found = files.flatMap((file) =>
     [...readFileSync(file, 'utf8').matchAll(/((?:[\w-]+:)?sticky)\b[^"'`\n]*?\s((?:[\w-]+:)?top-[^\s"'`]+)/g)]

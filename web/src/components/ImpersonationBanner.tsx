@@ -41,7 +41,7 @@ export function ImpersonationBanner({ me }: { me: Me }) {
       role={announced ? 'region' : 'alert'}
       aria-label={uiFlows.impersonation.region}
       data-testid="impersonation-banner"
-      className="sticky bottom-0 z-40 border-t border-amber-500/60 bg-amber-50 px-4 py-2.5 text-amber-950 shadow-[0_-4px_12px_rgb(0_0_0/0.08)] dark:bg-amber-950 dark:text-amber-50"
+      className="sticky bottom-0 z-40 border-t border-amber-500/60 bg-amber-50 px-4 py-2.5 text-amber-950 dark:bg-amber-950 dark:text-amber-50"
     >
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-sm">
         <p className="flex min-w-0 items-center gap-2">

@@ -36,7 +36,7 @@ export function DashboardSettings({ layout, siteId, orgId, anonymous, dateRange,
         <Field>
           <FieldLabel htmlFor="dash-edit-period">{t.period}</FieldLabel>
           <Select value={layout.period ?? '30d'} onValueChange={(value) => onChange({ period: value as DashboardLayout['period'] })}>
-            <SelectTrigger className="min-h-11 w-full sm:min-h-9" id="dash-edit-period"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id="dash-edit-period"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {periods.map((period) => <SelectItem key={period} value={period}>{en.dashboard.periods[period]}</SelectItem>)}
@@ -47,7 +47,7 @@ export function DashboardSettings({ layout, siteId, orgId, anonymous, dateRange,
         <Field>
           <FieldLabel htmlFor="dash-edit-compare">{t.compare}</FieldLabel>
           <Select value={layout.compare ?? 'off'} onValueChange={(value) => onChange({ compare: value as DashboardLayout['compare'] })}>
-            <SelectTrigger className="min-h-11 w-full sm:min-h-9" id="dash-edit-compare"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id="dash-edit-compare"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {compares.map((compare) => <SelectItem key={compare} value={compare}>{t.compareOptions[compare]}</SelectItem>)}
@@ -69,7 +69,7 @@ export function DashboardSettings({ layout, siteId, orgId, anonymous, dateRange,
                     <span className="min-w-0 break-words">{describe(filter)}</span>
                     <Button
                       aria-label={t.removeFilter(describe(filter))}
-                      className="min-h-11 min-w-11"
+                      className="max-sm:min-h-11 max-sm:min-w-11"
                       size="icon"
                       type="button"
                       variant="ghost"

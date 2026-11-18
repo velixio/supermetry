@@ -222,8 +222,8 @@ describe('DashboardPanels', () => {
     viewport(1440)
     render(<DashboardPanels main={<p>Main</p>} inspector={panel()} returnFocusRef={createRef()} />)
     const aside = screen.getByRole('complementary')
-    expect(aside).toHaveClass('sticky', 'top-[calc(2.75rem+var(--dashboard-filter-h,3.75rem)+0.5rem)]')
-    expect(aside).toHaveClass('max-h-[calc(100dvh-2.75rem-var(--dashboard-filter-h,3.75rem)-1rem)]')
+    expect(aside).toHaveClass('sticky', 'top-[calc(3rem+var(--dashboard-filter-h,3.75rem)+0.5rem)]')
+    expect(aside).toHaveClass('max-h-[calc(100dvh-3rem-var(--dashboard-filter-h,3.75rem)-1rem)]')
   })
 
   describe('stable tree', () => {

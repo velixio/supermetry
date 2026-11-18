@@ -123,7 +123,7 @@ describe('dashboard breakdown route', () => {
   it('puts the date range, segments and include-imported in one sticky filter row and Export in the header actions', async () => {
     renderDashboard()
     const row = await screen.findByRole('group', { name: 'Filters' })
-    expect(row).toHaveClass('sticky', 'top-11', 'z-10', 'bg-background')
+    expect(row).toHaveClass('sticky', 'top-12', 'z-10', 'bg-background')
     const date = within(row).getByRole('button', { name: /date range/i })
     const segments = within(row).getByRole('button', { name: 'Segments' })
     const options = within(row).getByRole('button', { name: 'View options' })

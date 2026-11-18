@@ -30,7 +30,7 @@ function Frame({ frame }: { frame: BodyFrame }) {
       </div>
       {context ? (
         <pre className="mt-1 overflow-auto whitespace-pre text-foreground"><code>{[...(frame.pre_context ?? []), context, ...(frame.post_context ?? [])].map((line, i) => (
-          <span key={i} className={line === context && i === (frame.pre_context ?? []).length ? 'font-semibold' : 'opacity-70'}>{line}{'\n'}</span>
+          <span key={i} className={line === context && i === (frame.pre_context ?? []).length ? 'font-semibold' : 'text-muted-foreground'}>{line}{'\n'}</span>
         ))}</code></pre>
       ) : null}
     </li>

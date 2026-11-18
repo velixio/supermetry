@@ -179,7 +179,7 @@ export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search
     <AdminPage title={en.admin.users}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <SearchForm onSearch={setSearch} initial={search} />
-        <Button type="button" className="min-h-11" onClick={() => setCreating(true)}>{uiFlows.admin.addUser}</Button>
+        <Button type="button" className="max-sm:min-h-11" onClick={() => setCreating(true)}>{uiFlows.admin.addUser}</Button>
       </div>
       <ErrorLine error={users.error ?? (pending ? null : update.error)} />
       {notice ? <p role="status" className="text-sm text-muted-foreground">{notice}</p> : null}
@@ -209,25 +209,25 @@ export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search
                     <td className={cellClass}>{formatDate(user.last_login_at)}</td>
                     <td className={cellClass}>
                       <div className="flex flex-wrap gap-1">
-                        <Button size="sm" variant="outline" className="min-h-11" disabled={update.isPending || self}
+                        <Button size="sm" variant="outline" className="max-sm:min-h-11" disabled={update.isPending || self}
                           aria-label={`${user.disabled ? en.admin.enable : en.admin.disable} ${user.email}`}
                           onClick={() => user.disabled
                             ? act(user, { disabled: false })
                             : setPending({ user, patch: { disabled: true }, title: uiFlows.admin.disableTitle(user.email), body: en.admin.confirmDisable })}>
                           {user.disabled ? en.admin.enable : en.admin.disable}
                         </Button>
-                        <Button size="sm" variant="outline" className="min-h-11" disabled={update.isPending || user.password_reset_required}
+                        <Button size="sm" variant="outline" className="max-sm:min-h-11" disabled={update.isPending || user.password_reset_required}
                           aria-label={`${en.admin.requireReset}: ${user.email}`} onClick={() => act(user, { password_reset_required: true })}>
                           {en.admin.requireReset}
                         </Button>
-                        <Button size="sm" variant="outline" className="min-h-11" disabled={update.isPending || (self && user.instance_admin)}
+                        <Button size="sm" variant="outline" className="max-sm:min-h-11" disabled={update.isPending || (self && user.instance_admin)}
                           aria-label={`${user.instance_admin ? en.admin.demote : en.admin.promote}: ${user.email}`}
                           onClick={() => user.instance_admin
                             ? setPending({ user, patch: { instance_admin: false }, title: uiFlows.admin.demoteTitle(user.email), body: en.admin.confirmDemote })
                             : act(user, { instance_admin: true })}>
                           {user.instance_admin ? en.admin.demote : en.admin.promote}
                         </Button>
-                        <Button size="sm" variant="outline" className="min-h-11"
+                        <Button size="sm" variant="outline" className="max-sm:min-h-11"
                           disabled={self || user.instance_admin || user.disabled || user.password_reset_required}
                           aria-label={uiFlows.admin.signInAsAria(user.email)} onClick={() => setImpersonating(user)}>
                           {uiFlows.admin.signInAs}

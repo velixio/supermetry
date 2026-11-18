@@ -68,11 +68,11 @@ export function ImportHistory({ siteId, orgId, items, loading, onReview }: Props
                   <td className="py-3 text-right">
                     <div className="flex justify-end gap-1">
                       {item.status === 'completed' ? (
-                        <Button type="button" variant="ghost" className="min-h-11 min-w-11" aria-label={t.reviewFor(item.file_name)} onClick={() => onReview(item)}>{t.review}</Button>
+                        <Button type="button" variant="ghost" className="max-sm:min-h-11 max-sm:min-w-11" aria-label={t.reviewFor(item.file_name)} onClick={() => onReview(item)}>{t.review}</Button>
                       ) : null}
                       <ConfirmDangerDialog
                         trigger={
-                          <Button type="button" variant="ghost" className="min-h-11 min-w-11" aria-label={importWizard.undo.actionFor(item.file_name)} disabled={remove.isPending}>
+                          <Button type="button" variant="ghost" className="max-sm:min-h-11 max-sm:min-w-11" aria-label={importWizard.undo.actionFor(item.file_name)} disabled={remove.isPending}>
                             <Undo2Icon data-icon="inline-start" />{importWizard.undo.action}
                           </Button>
                         }

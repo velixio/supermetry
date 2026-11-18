@@ -50,7 +50,7 @@ export default function LinkQr({ url, name }: { url: string; name: string }) {
         <path d={qrPath(matrix)} fill="#000" />
       </svg>
       <p className="text-center text-xs text-muted-foreground">{en.linksUi.qrNote}</p>
-      <Button className="min-h-11" type="button" variant="outline" onClick={download}>
+      <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={download}>
         <DownloadIcon data-icon="inline-start" />
         {en.linksUi.qrDownload}
       </Button>

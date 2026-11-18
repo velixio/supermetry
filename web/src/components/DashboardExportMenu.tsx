@@ -68,7 +68,7 @@ export function DashboardExportMenu({ query, anonymous = false }: { query: Stats
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" disabled={exporting}>
+        <Button className="max-sm:min-h-11" type="button" variant="outline" disabled={exporting}>
           <DownloadIcon data-icon="inline-start" />
           {exporting ? 'Exporting…' : 'Export CSV'}
           <ChevronDownIcon data-icon="inline-end" />

@@ -58,7 +58,7 @@ export function RepoCard({ org, repo }: { org: string; repo: StarsRepo }) {
       to="/app/$org/github-stars/$owner/$name"
       params={{ org, owner, name }}
       aria-label={stars ? t.cardLabel(repo.repo, stars) : repo.repo}
-      className="flex min-h-11 min-w-0 flex-col gap-2 rounded-xl border bg-card p-4 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex max-sm:min-h-11 min-w-0 flex-col gap-2 rounded-xl border bg-card p-4 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <span className="truncate text-sm font-medium" title={repo.repo}>{repo.repo}</span>
       {summary.isPending ? <Skeleton aria-hidden="true" className="h-9 w-32" /> : failed ? (
@@ -83,7 +83,7 @@ function OverviewBody({ org }: { org: string }) {
   const [adding, setAdding] = useState(false)
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const list = repos.data?.data ?? []
-  const add = <Button type="button" className="min-h-11" onClick={() => setAdding(true)}>{t.addRepo}</Button>
+  const add = <Button type="button" className="max-sm:min-h-11" onClick={() => setAdding(true)}>{t.addRepo}</Button>
   return (
     <PageContainer>
       <section className="flex min-w-0 flex-col gap-4" aria-labelledby={headingId}>

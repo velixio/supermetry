@@ -353,10 +353,10 @@ describe('AppShell live visitor badge', () => {
     expect(useLiveSummary).not.toHaveBeenCalled()
   })
 
-  it('renders exactly one 44px sticky bar above the content and no project tabs', async () => {
+  it('renders exactly one 48px sticky bar above the content and no project tabs', async () => {
     const { container } = renderShell('/app/acme/docs/settings/general')
     const header = await screen.findByRole('banner', { name: 'Application header' })
-    expect(header).toHaveClass('sticky', 'top-0', 'h-11')
+    expect(header).toHaveClass('sticky', 'top-0', 'h-12')
     expect(container.querySelectorAll('.sticky:not([data-slot="sidebar-header"])')).toHaveLength(1)
     expect(screen.queryByRole('navigation', { name: 'Projects' })).not.toBeInTheDocument()
   })
@@ -422,7 +422,7 @@ describe('AppShell live visitor badge', () => {
   it('renders account pages in the same shell with account links and no site switcher', async () => {
     const { container } = renderAppShell('/app/account/profile')
     const header = await screen.findByRole('banner', { name: 'Application header' })
-    expect(header).toHaveClass('sticky', 'top-0', 'h-11')
+    expect(header).toHaveClass('sticky', 'top-0', 'h-12')
     expect(container.querySelectorAll('main')).toHaveLength(1)
     expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('id', 'main-content')
     expect(screen.getByRole('heading', { name: 'Profile' })).toBeVisible()

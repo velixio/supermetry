@@ -14,7 +14,7 @@ export function CopyButton({ text, label, children }: { text: string; label: str
   }
   return (
     <>
-      <Button aria-label={label} className="min-h-11" type="button" variant="outline" onClick={() => void copy()}>
+      <Button aria-label={label} className="max-sm:min-h-11" type="button" variant="outline" onClick={() => void copy()}>
         {state === 'copied' ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
         {children ?? (state === 'copied' ? en.linksUi.copied : en.linksUi.copy)}
       </Button>

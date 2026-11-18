@@ -38,7 +38,7 @@ function Pick({ id, label, value, onChange, options, placeholder }: {
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="min-h-11 w-full sm:min-h-9" id={id}><SelectValue placeholder={placeholder} /></SelectTrigger>
+        <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id={id}><SelectValue placeholder={placeholder} /></SelectTrigger>
         <SelectContent>
           <SelectGroup>
             {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
@@ -120,14 +120,14 @@ export function MetricExplorer({ siteId, timezone, initial }: Props) {
                   options={keys.map((key) => ({ value: key, label: key }))} />
                 <Field>
                   <FieldLabel htmlFor={`obs-filter-value-${index}`}>{t.filterValue}</FieldLabel>
-                  <Input className="min-h-11 sm:min-h-9" id={`obs-filter-value-${index}`} maxLength={256} value={row.value} onChange={(event) => setFilter(index, { value: event.target.value })} />
+                  <Input className="max-sm:min-h-11" id={`obs-filter-value-${index}`} maxLength={256} value={row.value} onChange={(event) => setFilter(index, { value: event.target.value })} />
                 </Field>
-                <Button aria-label={t.removeFilter} className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9" size="icon" type="button" variant="outline"
+                <Button aria-label={t.removeFilter} className="max-sm:min-h-11 max-sm:min-w-11 sm:min-h-9 sm:min-w-9" size="icon" type="button" variant="outline"
                   onClick={() => patch({ filters: state.filters.filter((_, i) => i !== index) })}><XIcon /></Button>
               </div>
             ))}
             {state.filters.length < 16 && keys.length > 0 ? (
-              <Button className="min-h-11 w-fit sm:min-h-9" size="sm" type="button" variant="outline"
+              <Button className="max-sm:min-h-11 w-fit sm:min-h-9" size="sm" type="button" variant="outline"
                 onClick={() => patch({ filters: [...state.filters, { key: keys[0], value: '' }] })}><PlusIcon />{t.addFilter}</Button>
             ) : null}
           </fieldset>
@@ -136,10 +136,10 @@ export function MetricExplorer({ siteId, timezone, initial }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ToggleGroup aria-label={t.chartType} type="single" value={state.chart}
             onValueChange={(value) => { if (value === 'line' || value === 'bar') patch({ chart: value }) }}>
-            <ToggleGroupItem className="min-h-11 sm:min-h-9" value="line">{t.line}</ToggleGroupItem>
-            <ToggleGroupItem className="min-h-11 sm:min-h-9" value="bar">{t.bar}</ToggleGroupItem>
+            <ToggleGroupItem className="max-sm:min-h-11" value="line">{t.line}</ToggleGroupItem>
+            <ToggleGroupItem className="max-sm:min-h-11" value="bar">{t.bar}</ToggleGroupItem>
           </ToggleGroup>
-          <Button className="min-h-11 sm:min-h-9" size="sm" type="button" variant="outline" onClick={() => { setNow(floorMinute(new Date())); void result.refetch() }}>
+          <Button className="max-sm:min-h-11" size="sm" type="button" variant="outline" onClick={() => { setNow(floorMinute(new Date())); void result.refetch() }}>
             <RefreshCwIcon />{t.refresh}
           </Button>
         </div>

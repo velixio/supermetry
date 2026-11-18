@@ -45,7 +45,7 @@ export function VerifyInstallation({ verify, intervalMs = pollEveryMs, troublesh
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" className="min-h-11" disabled={state === 'checking'} onClick={() => void start()}>
+        <Button type="button" variant="outline" className="max-sm:min-h-11" disabled={state === 'checking'} onClick={() => void start()}>
           Verify installation
         </Button>
         <span role="status" className="text-sm text-muted-foreground">
@@ -79,7 +79,7 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
   const { copied, copy } = useCopyStatus()
   return (
     <div className="flex items-center gap-3">
-      <Button type="button" variant="outline" className="min-h-11" onClick={() => void copy(value)}>
+      <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => void copy(value)}>
         {copied === 'yes' ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
         {label}
       </Button>
@@ -167,7 +167,7 @@ export function InstallRecipes({ publicId, snippet, verify, troubleshooting }: {
       <Tabs defaultValue="html" className="min-w-0">
         <TabsList aria-label="Installation method" className="h-auto max-w-full flex-wrap justify-start">
           {groups.flatMap((group) => group.items).map((recipe) => (
-            <TabsTrigger key={recipe.id} value={recipe.id} className="h-11 px-3">{recipe.label}</TabsTrigger>
+            <TabsTrigger key={recipe.id} value={recipe.id} className="max-sm:h-11 px-3">{recipe.label}</TabsTrigger>
           ))}
         </TabsList>
         {recipes.map((recipe) => (
@@ -215,7 +215,7 @@ export function AdBlockerSetup({ publicId, snippet, managed }: { publicId: strin
           <p className="font-medium">{++step}. Add the proxy to your server</p>
           <Tabs defaultValue={recipes[0]?.id} className="min-w-0">
             <TabsList aria-label="Proxy server" className="h-auto max-w-full flex-wrap justify-start">
-              {recipes.map((recipe) => <TabsTrigger key={recipe.id} value={recipe.id} className="h-11 px-3">{recipe.label}</TabsTrigger>)}
+              {recipes.map((recipe) => <TabsTrigger key={recipe.id} value={recipe.id} className="max-sm:h-11 px-3">{recipe.label}</TabsTrigger>)}
             </TabsList>
             {recipes.map((recipe) => (
               <TabsContent key={recipe.id} value={recipe.id} className="min-w-0 pt-3"><RecipePanel recipe={recipe} /></TabsContent>

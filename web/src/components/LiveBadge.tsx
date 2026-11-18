@@ -21,7 +21,7 @@ export function LiveBadge({
 }: LiveBadgeProps) {
   const content = (
     <>
-      <span aria-hidden="true" className="text-accent">
+      <span aria-hidden="true" className="text-chart-1">
         ●{' '}
       </span>
       <span>{label(count)}</span>

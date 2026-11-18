@@ -12,7 +12,7 @@ describe('PageHeader', () => {
   it('renders one level-one heading with the standard title style', () => {
     render(<PageHeader title="Funnels" />)
     const heading = screen.getByRole('heading', { level: 1, name: 'Funnels' })
-    expect(heading).toHaveClass('text-lg', 'font-semibold', 'tracking-tight')
+    expect(heading).toHaveClass('text-xl', 'font-semibold', 'tracking-tight')
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 

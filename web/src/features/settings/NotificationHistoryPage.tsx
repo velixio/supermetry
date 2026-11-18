@@ -37,19 +37,19 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
       <section aria-label={t.history.filters} className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t.history.status}
-          <select className="h-11 rounded-lg border border-input bg-background px-3" value={filters.status ?? ''} onChange={(event) => onFilters({ ...filters, status: event.target.value as DeliveryStatus || undefined })}>
+          <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={filters.status ?? ''} onChange={(event) => onFilters({ ...filters, status: event.target.value as DeliveryStatus || undefined })}>
             <option value="">{t.history.allStatuses}</option><option value="pending">{t.history.statuses.pending}</option><option value="succeeded">{t.history.statuses.succeeded}</option><option value="failed">{t.history.statuses.failed}</option><option value="suppressed">{t.history.statuses.suppressed}</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t.history.channel}
-          <select className="h-11 rounded-lg border border-input bg-background px-3" value={filters.channel ?? ''} onChange={(event) => onFilters({ ...filters, channel: event.target.value || undefined })}>
+          <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={filters.channel ?? ''} onChange={(event) => onFilters({ ...filters, channel: event.target.value || undefined })}>
             <option value="">{t.history.allChannels}</option>{Object.entries(t.common.channelKind).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t.history.alertId}
-          <Input className="h-11" min="1" placeholder={t.history.anyAlert} type="number" value={filters.alertId ?? ''} onChange={(event) => onFilters({ ...filters, alertId: event.target.value ? Number(event.target.value) : undefined })} />
+          <Input className="max-sm:min-h-11" min="1" placeholder={t.history.anyAlert} type="number" value={filters.alertId ?? ''} onChange={(event) => onFilters({ ...filters, alertId: event.target.value ? Number(event.target.value) : undefined })} />
         </label>
       </section>
       {history.error || retry.error ? <p role="alert" className="text-sm text-destructive">{history.error?.message ?? retry.error?.message}</p> : null}
@@ -75,7 +75,7 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
                 <p className="text-sm text-muted-foreground"><button type="button" className="underline" onClick={() => onFilters({ ...filters, alertId: item.alert_id })}>{t.history.alert(item.alert_id)}</button> · {t.history.attempts(item.attempts)} · {t.history.fired(new Date(item.fired_at).toLocaleString())}</p>
                 {item.error_text ? <p className="break-words text-sm text-destructive">{item.error_text}</p> : null}
               </div>
-              {item.status === 'failed' ? <Button className="min-h-11" variant="outline" disabled={retry.isPending} onClick={() => retry.mutate(item.id)}><RotateCcwIcon aria-hidden />{t.history.retry}</Button> : null}
+              {item.status === 'failed' ? <Button className="max-sm:min-h-11" variant="outline" disabled={retry.isPending} onClick={() => retry.mutate(item.id)}><RotateCcwIcon aria-hidden />{t.history.retry}</Button> : null}
             </li>
           )
         })}

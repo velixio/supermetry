@@ -11,8 +11,8 @@ import { maxConditions, maxWindowDays, type ConditionType } from './types'
 
 const t = en.cohorts
 
-const selectClass = 'h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
-const inputClass = 'h-11 md:h-9'
+const selectClass = 'max-sm:min-h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
+const inputClass = 'max-sm:min-h-11 md:h-9'
 const conditionTypes: ConditionType[] = ['event', 'page', 'event_property', 'activity', 'first_seen', 'last_seen']
 
 function ConditionFields({ condition, onChange }: { condition: DraftCondition; onChange: (next: DraftCondition) => void }) {
@@ -120,11 +120,11 @@ function ConditionRow({
         <ConditionFields condition={condition} onChange={onChange} />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9">
+        <label className="flex max-sm:min-h-11 items-center gap-2 text-sm md:min-h-9">
           <input checked={condition.negate} className="size-4" type="checkbox" onChange={(event) => onChange({ ...condition, negate: event.target.checked })} />
           {t.negateLabel}
         </label>
-        <Button aria-label={t.removeCondition(position)} className="h-11 md:h-8" disabled={!removable} type="button" variant="outline" onClick={onRemove}>
+        <Button aria-label={t.removeCondition(position)} className="max-md:h-11" disabled={!removable} type="button" variant="outline" onClick={onRemove}>
           <Trash2Icon data-icon="inline-start" />
           Remove
         </Button>
@@ -170,7 +170,7 @@ export function ConditionBuilder({ draft, onChange }: { draft: DraftCohort; onCh
           />
         ))}
         <div>
-          <Button className="h-11 md:h-8" disabled={draft.conditions.length >= maxConditions} type="button" variant="outline" onClick={() => onChange({ ...draft, conditions: [...draft.conditions, blankCondition()] })}>
+          <Button className="max-md:h-11" disabled={draft.conditions.length >= maxConditions} type="button" variant="outline" onClick={() => onChange({ ...draft, conditions: [...draft.conditions, blankCondition()] })}>
             <PlusIcon data-icon="inline-start" />
             {t.addCondition}
           </Button>

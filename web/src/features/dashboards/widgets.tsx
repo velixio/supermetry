@@ -283,7 +283,7 @@ export class WidgetBoundary extends Component<{ title: string; children: ReactNo
     return (
       <div className="flex min-h-24 flex-col items-start gap-2 rounded-xl border bg-card p-4" role="alert">
         <p className="text-sm text-muted-foreground">{t.widgetFailed(this.props.title)}</p>
-        <Button className="min-h-11 sm:min-h-9" size="sm" type="button" variant="outline" onClick={() => this.setState({ failed: false })}>{t.retry}</Button>
+        <Button className="max-sm:min-h-11" size="sm" type="button" variant="outline" onClick={() => this.setState({ failed: false })}>{t.retry}</Button>
       </div>
     )
   }
