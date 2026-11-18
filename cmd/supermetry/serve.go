@@ -24,6 +24,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
@@ -612,7 +613,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), AppIssues: appissues.New(pool, settings.clock.Now), Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appQuerier(pool, settings.clock.Now, engine), AppIssues: appissues.New(pool, settings.clock.Now), Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
 		StripeAttribution: &stripe.AttributionHandler{
@@ -1693,4 +1694,21 @@ func ensureSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time
 // partition is dropped and counted.
 func ensureLogPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
 	return db.EnsureDailyPartitions(ctx, pool, "logs", now.AddDate(0, 0, -1), now.AddDate(0, 0, 3))
+}
+
+// appQuerier builds the app read querier and lets the performance overview
+// show the 75th percentile Web Vitals of a linked web site.
+func appQuerier(pool *pgxpool.Pool, now func() time.Time, engine interface {
+	Vitals(ctx context.Context, req api.VitalsRequest) (api.VitalsResponse, error)
+}) *appquery.Querier {
+	return appquery.New(pool, now).WithVitals(func(ctx context.Context, siteID int32, f appquery.Filter) (*float64, *float64, *float64, error) {
+		res, err := engine.Vitals(ctx, api.VitalsRequest{
+			SiteId:    siteID,
+			DateRange: api.DateRange{From: openapi_types.Date{Time: f.From}, To: openapi_types.Date{Time: f.To}},
+		})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return res.Overall.Lcp.P75, res.Overall.Inp.P75, res.Overall.Cls.P75, nil
+	})
 }
