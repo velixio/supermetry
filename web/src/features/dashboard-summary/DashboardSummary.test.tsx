@@ -58,21 +58,21 @@ describe('DashboardSummary', () => {
   it('leads with the headline, with the figures emphasised', () => {
     serve()
     renderSummary()
-    expect(screen.getByTestId('dashboard-summary-text')).toHaveTextContent('1,240 people visited in the last 7 days, 18% more than the 7 days before.')
+    expect(screen.getByTestId('dashboard-summary-text')).toHaveTextContent('1,240 people visited in the last 7 days, 18.1% more than the 7 days before.')
     expect(screen.getByText('1,240 people')).toHaveClass('font-semibold', 'text-foreground', 'tabular-nums')
-    expect(screen.getByTestId('dashboard-summary-text')).toHaveClass('text-base', 'text-foreground')
+    expect(screen.getByTestId('dashboard-summary-text')).toHaveClass('text-foreground')
   })
 
   it('says so when filters apply, and keeps the delta with comparison off', () => {
     serve()
     renderSummary({ filtered: true, compare: 'off' })
-    expect(screen.getByTestId('dashboard-summary-text')).toHaveTextContent('1,240 people visited in the last 7 days matching your filters, 18% more than the 7 days before.')
+    expect(screen.getByTestId('dashboard-summary-text')).toHaveTextContent('1,240 people visited in the last 7 days matching your filters, 18.1% more than the 7 days before.')
   })
 
   it('compares with the same dates last year when asked', () => {
     serve()
     renderSummary({ compare: 'previous_year' })
-    expect(screen.getByTestId('dashboard-summary-text')).toHaveTextContent('18% more than the same dates last year.')
+    expect(screen.getByTestId('dashboard-summary-text')).toHaveTextContent('18.1% more than the same dates last year.')
   })
 
   it('adds the biggest source mover and the top page from the cards queries', () => {

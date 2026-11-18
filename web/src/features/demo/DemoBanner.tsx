@@ -93,16 +93,16 @@ export function DemoBanner({
   const expiry = useDemoExpiry(currentSite.demo_expires_at)
 
   return (
-    <Alert className="mb-4">
-      <AlertTitle>{title}</AlertTitle>
-      <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
+    <Alert className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-sm [&>svg]:hidden">
+      <AlertTitle className="col-auto line-clamp-none font-medium">{title}</AlertTitle>
+      <AlertDescription className="col-auto flex flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
           <span>{description}</span>
           {expiry ? <span>{expiry}</span> : null}
         </div>
         <Dialog>
           <DialogTrigger asChild>
-            <Button type="button" size="sm" variant="outline">Remove demo project</Button>
+            <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground">Remove demo project</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

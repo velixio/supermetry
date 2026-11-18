@@ -58,8 +58,8 @@ export function sentenceNodes(sentence: Sentence): ReactNode[] {
       }
       const { delta } = sentence
       if (delta === undefined) return fill(t.headlineOnly, values, ['people'])
-      // Prose reads better with whole percents from 10% up; below that one decimal keeps small changes honest.
-      values.percent = fmt.percent(Math.abs(delta) >= 10 ? Math.round(Math.abs(delta)) : Math.abs(delta))
+      // Same rounding as the KPI cards, so the sentence and the card never disagree.
+      values.percent = fmt.percent(Math.abs(delta))
       // A change that rounds to 0.0% reads as "about the same".
       if (Math.abs(delta) < 0.05) return fill(t.headlineSame, values, ['people'])
       return fill(delta > 0 ? t.headlineMore : t.headlineLess, values, ['people', 'percent'])
@@ -107,7 +107,7 @@ function Lead({ summary, onFailed }: { summary: Summary; onFailed(failed: boolea
 function LeadText({ summary }: { summary: Summary }) {
   if (summary.loading || !summary.sentences) return <Skeleton aria-hidden="true" className="h-5 w-2/3" data-testid="dashboard-summary-loading" />
   return (
-    <p className="max-w-prose text-base leading-relaxed text-foreground" data-testid="dashboard-summary-text">
+    <p className="max-w-3xl text-[0.9375rem] leading-6 text-foreground" data-testid="dashboard-summary-text">
       {summary.sentences.map((sentence, index) => <Fragment key={sentence.kind}>{index > 0 ? ' ' : null}{sentenceNodes(sentence)}</Fragment>)}
     </p>
   )
