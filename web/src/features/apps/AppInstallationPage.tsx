@@ -119,6 +119,9 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
       <section aria-labelledby="app-traces-title" className="flex min-w-0 flex-col gap-3">
         <h2 id="app-traces-title" className="text-lg font-semibold">Performance and traces</h2>
         <OtlpSetup endpoint={otlpEndpoint(host, siteId)} apiKey={primary?.public_key} />
+        <p className="text-sm text-muted-foreground">
+          Logs and metrics use the same two variables: the OpenTelemetry SDK sends them to <code>/v1/logs</code> and <code>/v1/metrics</code> under the endpoint above. With a Sentry SDK, set <code>enableLogs: true</code> in <code>Sentry.init</code> to send logs over the DSN.
+        </p>
         <Tabs defaultValue="env" className="min-w-0">
           <TabsList className="h-auto flex-wrap justify-start">
             <TabsTrigger value="env">OpenTelemetry</TabsTrigger>

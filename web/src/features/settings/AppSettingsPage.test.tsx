@@ -49,12 +49,17 @@ describe('AppSettingsPage', () => {
     fireEvent.change(tags, { target: { value: 'beta, stable\nbeta' } })
     fireEvent.change(screen.getByLabelText('Max report age (days)'), { target: { value: '14' } })
     fireEvent.change(screen.getByLabelText('Environments'), { target: { value: 'prod' } })
+    fireEvent.change(screen.getByLabelText('Log retention (days)'), { target: { value: '3' } })
+    fireEvent.change(screen.getByLabelText('Log records per day'), { target: { value: '1000' } })
+    fireEvent.change(screen.getByLabelText('Metric points per day'), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(privateRequest).toHaveBeenCalledWith('PUT', '/api/private/sites/7/app-settings', {
       orgId: 3,
       body: {
         tag_allowlist: ['beta', 'stable'], max_report_age_days: 14, environments: ['prod'],
         filter_extensions: true, filter_crawlers: true, filter_localhost: null, electron_symbols: true,
+        performance_enabled: null, span_retention_days: 0,
+        log_retention_days: 3, log_daily_quota: 1000, metric_daily_quota: 0,
       },
     }))
     await waitFor(() => expect(screen.getByLabelText('Tag allowlist')).toHaveValue('beta\nstable'))

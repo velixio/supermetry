@@ -24,6 +24,11 @@ type AppSettings = {
   filter_crawlers: boolean | null
   filter_localhost: boolean | null
   electron_symbols?: boolean | null
+  performance_enabled?: boolean | null
+  span_retention_days?: number
+  log_retention_days?: number
+  log_daily_quota?: number | null
+  metric_daily_quota?: number | null
   filter_localhost_default: boolean
 }
 type Erasure = {
@@ -53,6 +58,9 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
   const [crawlers, setCrawlers] = useState(true)
   const [localhost, setLocalhost] = useState(false)
   const [electronSymbols, setElectronSymbols] = useState(true)
+  const [logDays, setLogDays] = useState('7')
+  const [logQuota, setLogQuota] = useState('5000000')
+  const [metricQuota, setMetricQuota] = useState('50000000')
   // Until the owner flips the localhost switch the project keeps following the server default.
   const [localhostTouched, setLocalhostTouched] = useState(false)
   const [eraseId, setEraseId] = useState('')
@@ -68,6 +76,9 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
     setCrawlers(value.filter_crawlers !== false)
     setLocalhost(value.filter_localhost ?? value.filter_localhost_default)
     setElectronSymbols(value.electron_symbols !== false)
+    setLogDays(String(value.log_retention_days || 7))
+    setLogQuota(String(value.log_daily_quota ?? 5_000_000))
+    setMetricQuota(String(value.metric_daily_quota ?? 50_000_000))
     setLocalhostTouched(value.filter_localhost !== null && value.filter_localhost !== undefined)
   }
   useEffect(() => { if (settings.data) show(settings.data) }, [settings.data])
@@ -78,6 +89,9 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
       body: {
         tag_allowlist: toList(tags), max_report_age_days: Number(age), environments: toList(environments),
         filter_extensions: extensions, filter_crawlers: crawlers, filter_localhost: localhostTouched ? localhost : null, electron_symbols: electronSymbols,
+        // The server resets any field left out, so send back what this form does not edit.
+        performance_enabled: settings.data?.performance_enabled ?? null, span_retention_days: settings.data?.span_retention_days ?? 0,
+        log_retention_days: Number(logDays), log_daily_quota: Number(logQuota), metric_daily_quota: Number(metricQuota),
       },
     }),
     onSuccess: (value) => { show(value); client.setQueryData(['app-settings', siteId], value) },
@@ -151,6 +165,18 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
             <FilterSwitch id="electron-symbols" label="Fetch Electron's public symbols" checked={electronSymbols} onChange={setElectronSymbols}
               hint="Sends only Electron module names and ids to symbols.electronjs.org." />
           </Field>
+          {canErase ? (
+            <Field>
+              <FieldLabel>Logs and metrics</FieldLabel>
+              <FieldDescription>Raw logs are dropped after the retention period. Over a daily quota, new records are rejected until the next UTC day; 0 means no limit.</FieldDescription>
+              <FieldLabel htmlFor="app-log-days">Log retention (days)</FieldLabel>
+              <Input id="app-log-days" type="number" min={1} max={30} value={logDays} onChange={(event) => setLogDays(event.target.value)} />
+              <FieldLabel htmlFor="app-log-quota">Log records per day</FieldLabel>
+              <Input id="app-log-quota" type="number" min={0} value={logQuota} onChange={(event) => setLogQuota(event.target.value)} />
+              <FieldLabel htmlFor="app-metric-quota">Metric points per day</FieldLabel>
+              <Input id="app-metric-quota" type="number" min={0} value={metricQuota} onChange={(event) => setMetricQuota(event.target.value)} />
+            </Field>
+          ) : null}
           {save.error ? <FieldError>{save.error.message}</FieldError> : null}
         </FieldGroup>
         <div><Button type="submit" disabled={save.isPending}>Save</Button></div>

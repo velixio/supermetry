@@ -46,6 +46,14 @@ describe('primary sidebar navigation', () => {
     expect(replaysAvailable({ capabilities: ['replay.read'] } as never, { id: 1, name: 'D', kind: 'app' } as Site)).toBe(false)
   })
 
+  it('offers Logs and Metrics to app projects only', () => {
+    const app = visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)
+    expect(app).toEqual(expect.arrayContaining(['/obs/logs', '/obs/metrics']))
+    for (const kind of ['web', 'pixel'] as const) {
+      expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind } as Site).map((item) => item.suffix)).not.toContain('/obs/logs')
+    }
+  })
+
   it('offers Issues, Compatibility and Releases to app projects only', () => {
     const pages = ['/issues', '/compatibility', '/releases', '/users']
     expect(visibleNavigation('owner', true, undefined, { id: 1, name: 'D', kind: 'app' } as Site).map((item) => item.suffix)).toEqual(expect.arrayContaining(pages))

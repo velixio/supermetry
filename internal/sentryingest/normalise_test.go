@@ -1,6 +1,7 @@
 package sentryingest
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/netip"
@@ -598,5 +599,24 @@ func TestNormaliseKeepsSymbolicationInputs(t *testing.T) {
 	}
 	if b, _ := json.Marshal(body); strings.Contains(string(b), "a.example") && strings.Contains(string(b), "debug_id") {
 		t.Fatalf("in-memory fields leaked into the stored body: %s", b)
+	}
+}
+
+func TestNormaliseTraceContext(t *testing.T) {
+	trace, span := strings.Repeat("ab", 16), strings.Repeat("12", 8)
+	ev, _ := normalise(t, `{"event_id":"`+strings.Repeat("c1", 16)+`","message":"x","contexts":{"trace":{"trace_id":"`+trace+`","span_id":"`+span+`"}}}`)
+	if hex.EncodeToString(ev.TraceID) != trace || hex.EncodeToString(ev.SpanID) != span {
+		t.Fatalf("trace=%x span=%x", ev.TraceID, ev.SpanID)
+	}
+	for _, bad := range []string{
+		`{"trace_id":"` + strings.Repeat("0", 32) + `"}`,
+		`{"trace_id":"abc"}`,
+		`{"trace_id":"` + strings.Repeat("zz", 16) + `","span_id":"12"}`,
+		`"nope"`,
+	} {
+		ev, _ := normalise(t, `{"message":"x","contexts":{"trace":`+bad+`}}`)
+		if ev.TraceID != nil || ev.SpanID != nil {
+			t.Fatalf("%s: trace=%x span=%x", bad, ev.TraceID, ev.SpanID)
+		}
 	}
 }

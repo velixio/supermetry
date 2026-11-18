@@ -75,6 +75,8 @@ export const en = {
     compatibility: 'Compatibility',
     releases: 'Releases',
     performance: 'Performance',
+    logs: 'Logs',
+    metrics: 'Metrics',
     goals: 'Goals',
     revenue: 'Revenue',
     settings: 'Site settings',

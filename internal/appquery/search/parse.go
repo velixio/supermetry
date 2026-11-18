@@ -43,13 +43,13 @@ type Term struct {
 }
 
 // Keys is the set of keys the grammar knows.
-var Keys = []string{"is", "assigned", "release", "environment", "platform", "level", "kind", "priority", "first-seen", "last-seen", "events", "users"}
+var Keys = []string{"is", "assigned", "release", "environment", "platform", "process", "level", "kind", "priority", "first-seen", "last-seen", "events", "users"}
 
 var (
 	isValues       = map[string]bool{"unresolved": true, "resolved": true, "ignored": true, "archived": true, "snoozed": true, "assigned": true, "unassigned": true}
 	priorityValues = map[string]bool{"high": true, "medium": true, "low": true}
 	kindValues     = map[string]bool{"crash": true, "oom": true, "watchdog": true, "error": true, "hang": true, "install_failed": true, "install_stalled": true, "incompatibility": true, "operation_failed": true}
-	textKeys       = map[string]bool{"release": true, "environment": true, "platform": true, "level": true}
+	textKeys       = map[string]bool{"release": true, "environment": true, "platform": true, "process": true, "level": true}
 )
 
 // Parse parses input. Every failure is a *ParseError.

@@ -4518,6 +4518,18 @@ export interface components {
             performance_enabled?: boolean | null;
             /** @description Raw span retention in days. 0 means the default of 14. */
             span_retention_days?: number;
+            /** @description Raw log retention in days. 0 means the default of 7. */
+            log_retention_days?: number;
+            /**
+             * Format: int64
+             * @description Log records accepted per UTC day. Omitted or null means the default of 5,000,000; 0 means unlimited.
+             */
+            log_daily_quota?: number | null;
+            /**
+             * Format: int64
+             * @description Metric points accepted per UTC day. Omitted or null means the default of 50,000,000; 0 means unlimited.
+             */
+            metric_daily_quota?: number | null;
             /** @description Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on. */
             electron_symbols?: boolean | null;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
@@ -12828,7 +12840,7 @@ export interface operations {
                  * @description Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
                  *     `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
                  *     (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
-                 *     email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+                 *     email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `process` (Electron: main, renderer, gpu, utility), `level`,
                  *     `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
                  *     `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
                  *     A syntax error is a 400 whose `position` is the character offset of the problem.

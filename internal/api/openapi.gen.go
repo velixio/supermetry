@@ -3927,8 +3927,17 @@ type AppSettings struct {
 	// FilterLocalhostDefault The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update.
 	FilterLocalhostDefault *bool `json:"filter_localhost_default,omitempty"`
 
+	// LogDailyQuota Log records accepted per UTC day. Omitted or null means the default of 5,000,000; 0 means unlimited.
+	LogDailyQuota *int64 `json:"log_daily_quota,omitempty"`
+
+	// LogRetentionDays Raw log retention in days. 0 means the default of 7.
+	LogRetentionDays *int `json:"log_retention_days,omitempty"`
+
 	// MaxReportAgeDays 0 means the default of 7.
 	MaxReportAgeDays *int `json:"max_report_age_days,omitempty"`
+
+	// MetricDailyQuota Metric points accepted per UTC day. Omitted or null means the default of 50,000,000; 0 means unlimited.
+	MetricDailyQuota *int64 `json:"metric_daily_quota,omitempty"`
 
 	// PerformanceEnabled Accept transactions and spans. Omitted or null means on.
 	PerformanceEnabled *bool `json:"performance_enabled,omitempty"`
@@ -6591,7 +6600,7 @@ type ListAppIssuesParams struct {
 	// Query Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
 	// `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
 	// (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
-	// email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+	// email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `process` (Electron: main, renderer, gpu, utility), `level`,
 	// `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
 	// `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
 	// A syntax error is a 400 whose `position` is the character offset of the problem.
