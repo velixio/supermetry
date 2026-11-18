@@ -104,7 +104,7 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
               {item.done
                 ? <CheckCircle2Icon aria-hidden="true" className="size-4 shrink-0 text-success" />
                 : <CircleIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-w-0 flex-1 flex-col max-sm:flex-[1_1_calc(100%-1.75rem)]">
                 <span className={item.done ? 'text-sm font-medium text-muted-foreground' : 'text-sm font-medium'}>
                   {copy.title}
                   <span className="sr-only"> ({item.done ? text.done : text.todo})</span>
@@ -112,7 +112,7 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
                 {item.done ? null : <span className="text-xs text-muted-foreground">{copy.hint}</span>}
               </div>
               {item.done ? null : (
-                <Button asChild size="sm" variant="outline">
+                <Button asChild size="sm" variant="outline" className="max-sm:ml-auto max-sm:min-h-11">
                   <Link to={hrefs[item.id]}>{copy.action}</Link>
                 </Button>
               )}

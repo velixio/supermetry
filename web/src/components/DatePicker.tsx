@@ -94,7 +94,7 @@ export function DatePicker({ search, dateRange, labels, onChange }: DatePickerPr
   }
 
   return (
-    <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+    <div className="-m-1 flex max-w-full min-w-0 items-center gap-2 overflow-x-auto p-1 [&>*]:shrink-0">
       <Popover>
         <PopoverTrigger asChild>
           <Button aria-label={`${en.polish.chooseRange}: ${rangeLabel(search, labels, dateRange)}`} className="max-sm:min-h-11 justify-start" type="button" variant="outline">
@@ -142,7 +142,7 @@ export function DatePicker({ search, dateRange, labels, onChange }: DatePickerPr
         </PopoverContent>
       </Popover>
       <Select value={search.compare} onValueChange={(value) => onChange({ ...search, compare: value as Compare })}>
-        <SelectTrigger aria-label={labels.compare} className="max-sm:min-h-11 min-w-44 flex-1 sm:flex-none" data-testid="compare-control">
+        <SelectTrigger aria-label={labels.compare} className="max-sm:min-h-11 min-w-44" data-testid="compare-control">
           <SelectValue>{`${labels.compare}: ${labels.comparisons[search.compare]}`}</SelectValue>
         </SelectTrigger>
         <SelectContent><SelectGroup>{compareValues.map((compare) => <SelectItem key={compare} value={compare}>{labels.comparisons[compare]}</SelectItem>)}</SelectGroup></SelectContent>

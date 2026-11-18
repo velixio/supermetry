@@ -246,7 +246,7 @@ export function SharedDashboard({
   return (
     <main className={`mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 ${summary.data?.transparent_background ? 'bg-transparent' : 'bg-background'}`}>
       <header className="flex items-end justify-between gap-4 border-b pb-5">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col items-start gap-1">
           <BrandLogo className="h-6 w-auto" />
           <h1 className="text-2xl font-semibold tracking-tight">Shared dashboard</h1>
         </div>

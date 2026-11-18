@@ -13,6 +13,7 @@ export function PageHeader({
   actions,
   className,
   titleId,
+  inlineActions = false,
 }: {
   title: ReactNode
   description?: ReactNode
@@ -20,15 +21,17 @@ export function PageHeader({
   className?: string
   /** Optional id for the h1, so a surrounding region can reference it with aria-labelledby. */
   titleId?: string
+  /** Keep title and actions on one row below 640px; the actions shrink and truncate instead of wrapping. */
+  inlineActions?: boolean
 }) {
   return (
-    <header className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2', className)}>
-      <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+    <header className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-2', className)}>
+      <div className={cn('flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5', inlineActions && 'max-sm:shrink-0')}>
         <h1 id={titleId} className="min-w-0 wrap-anywhere text-xl leading-tight font-semibold tracking-tight">{title}</h1>
         {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? (
-        <div className="flex flex-wrap items-center gap-2 empty:hidden" data-slot="page-header-actions">
+        <div className={cn('flex flex-wrap items-center gap-2 empty:hidden', inlineActions && 'max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:justify-end')} data-slot="page-header-actions">
           {actions}
         </div>
       ) : null}
