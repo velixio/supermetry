@@ -42,6 +42,7 @@ type fixture struct {
 var eventID = regexp.MustCompile(`"event_id":"[0-9a-f]{32}"`)
 var tsNum = regexp.MustCompile(`"(start_timestamp|timestamp|end_timestamp)":[0-9.]+`)
 var tsStr = regexp.MustCompile(`"(start_timestamp|timestamp|sent_at)":"[^"]*"`)
+var lengthRe = regexp.MustCompile(`,"length":[0-9]+`)
 var dsnRe = regexp.MustCompile(`"dsn":"[^"]*"`)
 
 func loadFixtures(dir string) ([]fixture, error) {
@@ -196,6 +197,8 @@ func main() {
 				body := append(append(append([]byte{}, head...), '\n'), fx.rest...)
 				if fx.tx {
 					now := time.Now().UTC()
+					// Rewriting timestamps changes payload sizes; payloads are one line, so drop the lengths.
+					body = lengthRe.ReplaceAll(body, nil)
 					body = tsNum.ReplaceAllFunc(body, func(m []byte) []byte {
 						off := 500 * time.Millisecond
 						if bytes.HasPrefix(m, []byte(`"start_timestamp"`)) {
