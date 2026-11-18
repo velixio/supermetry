@@ -481,6 +481,42 @@ In the dashboard:
 
 An AI assistant can ask for the same data through the MCP tools `get_release_health`, `compare_releases` and `find_regression_release`; commit authors appear by name only.
 
+## Performance
+
+Performance monitoring is on by default for app projects. Turn tracing on in the SDK, with no change on the server: set `tracesSampleRate` (`traces_sample_rate` in Python, `TracesSampleRate` and `EnableTracing` in Go) and, for browsers, add the browser tracing integration. Supermetry accepts the classic `transaction` envelope item and the span container that `@sentry/browser` and `@sentry/node` 11 send by default (span streaming). Live acceptance runs in `make sdk-compat`: Node, browser, Python and Go transactions, and the OpenTelemetry Go and Python exporters, with only the DSN or endpoint changed.
+
+```js
+Sentry.init({
+  dsn: "https://<public key>@<your host>/<project id>",
+  release: "my-app@1.0.0",
+  tracesSampleRate: 0.2,
+});
+```
+
+The **Performance** page lists transactions with throughput, error rate and p50, p75, p90, p95 and p99 durations, plus app start times (cold and warm, from the `app_start_cold` and `app_start_warm` measurements of mobile SDKs). Click a transaction to see its daily series, its slowest child span groups (database queries and outgoing HTTP calls grouped by their parameterised description) and its slowest samples. A sample opens the **trace** as a waterfall with the errors captured inside it, and an error's event page links back to its trace. **Regressions** compares transaction latency between two releases, **Network** lists failing outgoing calls, and a project linked to a web site shows that site's Web Vitals beside the overview. Percentiles are estimates from a fixed log-scale histogram, within 4.9 % of the exact value. Alert rules can use `transaction_p50`, `transaction_p75`, `transaction_p95` and `transaction_p99`. The MCP tools are `get_performance_overview`, `list_slow_transactions`, `get_transaction` and `get_trace`.
+
+### OpenTelemetry traces
+
+Point any OTLP/HTTP trace exporter (protobuf or JSON, gzip allowed) at your project:
+
+```text
+https://<your host>/api/<project id>/otlp/v1/traces
+X-Supermetry-Key: <public key>
+```
+
+`Authorization: Bearer <public key>` works too. A request may hold 4 MiB compressed and 20 MiB decompressed. The same request body sent twice within 10 minutes is stored once. Server spans become transactions (named after `http.route` when there is one; otherwise the path is parameterised), and exception events on spans become errors that group into issues like Sentry errors and link to their trace.
+
+### Limits
+
+- 60,000 spans per project per minute (`SUPERMETRY_SPANS_PER_MIN`). Spans over the limit are dropped and counted, and the reply is `429` with `X-Sentry-Rate-Limits` when nothing in the request was accepted. If the server's span queue is full the reply is `503`.
+- At most 1,000 spans per transaction or span container, and 1,000 distinct transaction names per project per day. Further names are grouped as `<other>`.
+- Raw spans are kept 14 days (setting `span_retention_days`, 1 to 14); hourly rollups for the transaction views follow the project's retention class. Late spans are accepted up to the project's maximum report age (at most 13 days) and update the hours they belong to.
+- Setting `performance_enabled` (default on) turns span ingest off per project; the SDK is then told that transactions are not supported.
+
+### What spans keep and drop
+
+A span keeps its trace, span and parent ids, name, operation, timing, status, HTTP status, release, environment and platform, and a short allowlist of attributes: `http.method`, `http.status_code`, `db.system`, `db.operation`, `server.address` (host only), `messaging.system` and `rpc.method`. Database statements lose their literals (`where email = ?`), URLs lose credentials, query strings and fragments and have ids replaced by `*` (`GET https://api.example.com/v1/items/*`), and IP addresses and emails in free text are scrubbed. Spans never store user ids, IP addresses, cookies, header values or request bodies, and there is nothing to erase for a user, because spans carry no user identifier.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.
@@ -491,6 +527,7 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_events.csv` | Stored events in the range: event id, timestamp, issue id, kind, level, release, dist, environment, platform, SDK name and version, OS version, architecture, device class, runtime, symbolication status, occurrences |
 | `app_releases.csv`, `app_deploys.csv` | Releases and deploys created in the range that apply to the project |
 | `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
+| `app_transactions_hourly.csv`, `app_span_groups.csv` | Hourly transaction counts, errors, p50 and p95 per name, operation, release, environment and platform (local hours), and the parameterised span groups: operation, label and first seen. No trace ids or user data |
 | `app_saved_views.csv` | Shared saved searches: id, name, query, owner id, created. Private views are not exported |
 | `app_issue_activity.csv`, `app_issue_comments.csv` | The issue timeline and the comments written in the range (deleted comments are left out). Authors and actors appear as organisation member ids |
 | `app_feedback.csv` | User feedback written in the range: id, issue id, event id, time, whether a contact address was given, text, page path. Reporter emails are stored only as a hash and are not exported |
