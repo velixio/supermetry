@@ -10,6 +10,7 @@ import { DatePicker } from '../components/DatePicker'
 import { DashboardExportMenu } from '../components/DashboardExportMenu'
 import { FilterBar } from '../components/FilterBar'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
+import { GettingStartedChecklist } from '@/features/onboarding/GettingStartedChecklist'
 import { StatsStrip } from '../components/StatsStrip'
 import { ResponsiveFilters } from '../components/ResponsiveFilters'
 import { Button } from '../components/ui/button'
@@ -323,6 +324,17 @@ function WebDashboardStateRoute() {
           </ResponsiveFilters>
         </div>
       )}
+      {membership && me.data ? (
+        <GettingStartedChecklist
+          orgId={membership.org.id}
+          orgSlug={org}
+          siteId={site.id}
+          siteSlug={siteSlug}
+          userId={me.data.user.id}
+          canManage={membership.role === 'owner' || membership.role === 'admin'}
+          isDemo={site.is_demo}
+        />
+      ) : null}
       <DashboardNoDataBanner
         siteId={site.id}
         orgId={membership?.org.id}
