@@ -18,6 +18,7 @@ const files = sourceFiles(join(web, 'src')).map((file) => relative(web, file))
 // the semantic tokens in src/index.css (chart series are --chart-1..5 there).
 const HEX_ALLOW = new Set([
   'src/features/links/LinkQr.tsx', // a QR code is black on white by definition
+  'src/components/BrandLogo.tsx', // the brand mark's fixed gradient stops
   'src/components/ui/chart.tsx', // shadcn's selector for recharts' default #ccc grid stroke
 ])
 
