@@ -52,6 +52,16 @@ check() { # name cmd...
   case $rc in 0) record "$name" PASS "$out";; 3) record "$name" SKIP "$out";; *) record "$name" FAIL "$out";; esac
 }
 
+# trace_case <sdk/case> <names> <forbidden> <dir> <cmd...>: a tracing scenario with only the DSN changed
+trace_case() {
+  local label="$1" names="$2" forbidden="$3" dir="$4"; shift 4
+  local out id key
+  out="$(python3 -I "$here/check.py" site "$base" "$state" "${label//\//-}")" || { record "$label" FAIL "site setup: $out"; return; }
+  read -r id key <<<"$out"
+  sdk "http://$key@127.0.0.1:$port/$id" "$dir" "$@"
+  check "$label transactions" python3 -I "$here/check.py" transactions "$base" "$state" "$id" 25 "$db_url" "$names" "$forbidden"
+}
+
 # run_case <sdk/case> <expect: issues|sessions|both|feedback|none> <breadcrumbs 0/1> <dir> <cmd...>
 run_case() {
   local label="$1" expect="$2" crumbs="$3" dir="$4"; shift 4
@@ -83,6 +93,13 @@ run_case python/logging-error       issues 0 "$fx/python" /bin/bash run.sh loggi
 run_case python/wsgi-sessions       sessions 0 "$fx/python" /bin/bash run.sh wsgi-sessions
 run_case go/captured-exception issues 0 "$fx/go" "$work/fixture-go" captured-exception
 run_case go/recovered-panic    issues 0 "$fx/go" "$work/fixture-go" recovered-panic
+
+echo "== tracing runs"
+FORBID="fixture-token,token=,owner = 'fixture'"
+trace_case node/transaction   "GET /api/items" "$FORBID" "$fx/node" "${NODE[@]}" transaction
+trace_case python/transaction "GET /api/items" "$FORBID" "$fx/python" /bin/bash run.sh transaction
+trace_case go/transaction     "GET /api/items" "$FORBID" "$fx/go" "$work/fixture-go" transaction
+trace_case browser/pageload   "/" "$FORBID" "$fx/browser" /usr/bin/node app.mjs pageload
 
 echo "== results"
 printf '%s\n' "${results[@]}"

@@ -9,7 +9,7 @@ const opts = {
   release: "fixture@1.0.0",
   environment: "fixture",
   serverName: "fixture-host",
-  tracesSampleRate: 0,
+  tracesSampleRate: which === "transaction" ? 1 : 0,
   // keep default integrations; rewriteFrames only strips this machine's absolute paths
   integrations: [Sentry.rewriteFramesIntegration({ root: process.cwd() })],
 };
@@ -30,6 +30,14 @@ switch (which) {
     Promise.reject(new Error("fixture unhandled rejection"));
     await delay(300);
     await Sentry.flush(2000);
+    break;
+  case "transaction":
+    // the SDK's span API, so the scenario does not depend on a traced server
+    await Sentry.startSpan({ name: "GET /api/items", op: "http.server", attributes: { "sentry.source": "route" } }, async () => {
+      await Sentry.startSpan({ name: "select * from items where owner = 'fixture' and id = 42", op: "db.query", attributes: { "db.system": "postgresql" } }, () => delay(15));
+      await Sentry.startSpan({ name: "GET https://api.example.com/v1/items/12345?token=fixture-token", op: "http.client", attributes: { "http.request.method": "GET", "http.response.status_code": 200 } }, () => delay(10));
+    });
+    await Sentry.flush(3000);
     break;
   case "captured-message":
     Sentry.captureMessage("fixture captured message", "info");

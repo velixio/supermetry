@@ -12,6 +12,11 @@ const opts = {
 if (which === "client-report") {
   opts.beforeSend = () => null;
 }
+if (which === "pageload") {
+  // tracing as the docs describe it: the integration and a sample rate
+  opts.integrations = [Sentry.browserTracingIntegration()];
+  opts.tracesSampleRate = 1;
+}
 Sentry.init(opts);
 
 window.__run = async () => {
@@ -30,6 +35,9 @@ window.__run = async () => {
       setTimeout(() => {
         throw new Error("fixture breadcrumbs");
       }, 20);
+      break;
+    case "pageload":
+      await fetch("/ping?token=fixture-token").then((r) => r.text());
       break;
     case "client-report":
       setTimeout(() => {
