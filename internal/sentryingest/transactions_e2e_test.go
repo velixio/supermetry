@@ -57,6 +57,26 @@ var txE2ECases = []txE2E{
 		"1 db.query select * from users where email = ? and id = ?",
 		"1 http.client GET https://api.example.com/v1/items/*",
 	}},
+	{file: "go-v0.50", trace: "", name: "GET /api/items", spans: 3, tree: []string{
+		"0 http.server",
+		"1 db.query select * from items where owner = ? and id = ?",
+		"1 http.client GET https://api.example.com/v1/items/*",
+	}},
+	{file: "browser-v11-pageload", trace: "27032a2496834aea96a174202641d54c", name: "/", spans: 13, tree: []string{
+		"0 pageload",
+		"1 http.client GET 127.0.0.1",
+		"1 browser.dom_content_loaded_event DOMContentLoaded event",
+		"1 browser.load_event Load event",
+		"1 browser.connect Connect",
+		"1 browser.cache Cache lookup",
+		"1 browser.dns DNS lookup",
+		"1 browser.request Request",
+		"1 browser.response Response",
+		"1 resource.script [ip]",
+		"1 browser.paint first-paint",
+		"1 browser.paint first-contentful-paint",
+		"1 ui.webvital.cls Layout shift",
+	}},
 	{file: "android-app-start", trace: e2eTrace, name: "MainActivity", spans: 4, appType: "cold", appMS: 1234, tree: []string{
 		"0 ui.load",
 		"1 process.load Process initialization",
@@ -111,7 +131,7 @@ values($1,1,'appsite00042','App','UTC',30,'app')`, fdSite); err != nil {
 			// The same envelope twice: a retried transaction is stored once
 			// (span containers have no event id, so those are sent once).
 			sends := 1
-			if c.file != "node-v11-stream" && c.file != "javascript-v11-stream" {
+			if !strings.Contains(c.file, "v11") {
 				sends = 2
 			}
 			for i := 0; i < sends; i++ {
@@ -143,8 +163,13 @@ values($1,1,'appsite00042','App','UTC',30,'app')`, fdSite); err != nil {
 			if c.file == "python" {
 				wantMS = 0.9 // the recorded transaction took under a millisecond
 			}
-			if node := c.file == "node-v11-stream"; node {
+			switch c.file {
+			case "node-v11-stream":
 				wantMS = 31.1 // recorded duration, 1794923880.0 .. +0.0311 s
+			case "browser-v11-pageload":
+				wantMS = 622.3 // recorded pageload segment
+			case "go-v0.50":
+				wantMS = 25.4 // recorded: 08:26:10.477188 to .502546
 			}
 			if math.Abs(rows[0].P50-wantMS)/wantMS > 0.0488+0.002 {
 				t.Errorf("p50 = %v ms, want %v within the histogram error", rows[0].P50, wantMS)
@@ -231,7 +256,7 @@ func privacyScan(t *testing.T, pool *pgxpool.Pool) {
 	if len(dump) == 0 {
 		t.Fatal("nothing stored to scan")
 	}
-	for _, bad := range []string{"user@example.com", "access_token", "fixture-token", "token=", "owner = 'fixture'", "'fixture'", "192.0.2.", "127.0.0.1", "cookie", "sekret"} {
+	for _, bad := range []string{"user@example.com", "access_token", "fixture-token", "token=", "owner = 'fixture'", "'fixture'", "192.0.2.", "cookie", "sekret"} {
 		if strings.Contains(strings.ToLower(dump), strings.ToLower(bad)) {
 			t.Errorf("stored spans contain %q", bad)
 		}

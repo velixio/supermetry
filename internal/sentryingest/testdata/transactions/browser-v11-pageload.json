@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope",
+    "X-Sentry-Auth": "Sentry sentry_version=7,sentry_client=sentry.javascript.browser/11.13.0,sentry_key=0123456789abcdef0123456789abcdef",
+    "User-Agent": "sentry.javascript.browser/11.13.0"
+  },
+  "sdk": "browser",
+  "sdk_version": "11.13.0",
+  "synthetic": false,
+  "notes": "RECORDED from @sentry/browser 11.13.0 in headless Chromium (browserTracingIntegration, tracesSampleRate 1, default span streaming): a pageload with 13 spans and one fetch. The segment is named Pageload with sentry.segment.name.source url and the page in url.path. Timestamps shifted to the test clock; user agent attributes removed."
+}

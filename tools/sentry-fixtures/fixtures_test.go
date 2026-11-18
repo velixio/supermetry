@@ -73,7 +73,7 @@ func TestFixturesAreRawBodiesWithSidecars(t *testing.T) {
 		// fixtures other than python are built by tools/sentry-fixtures/synthetic,
 		// and the check-in fixtures are hand-built.
 		wantSynthetic := sdk == "android" || sdk == "cocoa" || sdk == "checkins" ||
-			(sdk == "transactions" && filepath.Base(f) != "python.envelope" && filepath.Base(f) != "node-v11-stream.envelope")
+			(sdk == "transactions" && filepath.Base(f) != "python.envelope" && filepath.Base(f) != "node-v11-stream.envelope" && filepath.Base(f) != "go-v0.50.envelope" && filepath.Base(f) != "browser-v11-pageload.envelope")
 		if wantSynthetic != sc.Synthetic {
 			t.Errorf("%s: synthetic flag must be true exactly for android, cocoa, check-ins and the built transaction fixtures", f)
 		}
