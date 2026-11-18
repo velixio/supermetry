@@ -27,8 +27,10 @@ CREATE TABLE app_monitors (
 );
 CREATE INDEX app_monitors_due_idx ON app_monitors (next_expected_at) WHERE status <> 'disabled';
 
--- failure_alert and recovery_alert mark the row whose arrival crossed a
--- threshold; the alert-rules job turns them into one notification each.
+-- failure_status and recovery_at mark the row whose arrival crossed a
+-- threshold (the status that opened the failure, the time the monitor
+-- recovered); the alert-rules job turns each into one notification. They are
+-- separate from status because a late ok completes a failed row in place.
 CREATE TABLE app_checkins (
     site_id        integer     NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     monitor_id     bigint      NOT NULL,
@@ -38,10 +40,12 @@ CREATE TABLE app_checkins (
     expected_at    timestamptz,
     duration_ms    bigint      CHECK (duration_ms IS NULL OR duration_ms >= 0),
     release        text,
-    failure_alert  boolean     NOT NULL DEFAULT false,
-    recovery_alert boolean     NOT NULL DEFAULT false,
+    failure_status text        CHECK (failure_status IN ('error', 'missed', 'timeout')),
+    recovery_at    timestamptz,
     PRIMARY KEY (site_id, checkin_id, ts)
 ) PARTITION BY RANGE (ts);
 
 CREATE INDEX app_checkins_ts_brin ON app_checkins USING brin (ts) WITH (pages_per_range = 8, autosummarize = on);
 CREATE INDEX app_checkins_monitor_idx ON app_checkins (monitor_id, ts DESC);
+-- The timeout sweep only looks at runs that have not finished.
+CREATE INDEX app_checkins_in_progress_idx ON app_checkins (ts) WHERE status = 'in_progress';
