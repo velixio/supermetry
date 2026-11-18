@@ -51,7 +51,7 @@
 }
 
 /*
- * Theme: shadcn/ui default "neutral" base colour, oklch tokens, radius 0.625rem.
+ * Theme: shadcn/ui default "neutral" base colour, oklch tokens, radius 0.5rem (matte spec D103).
  * Source: apps/v4/registry/themes.ts (name: "neutral") and apps/v4/registry/new-york-v4/ui/*.tsx
  * in https://github.com/shadcn-ui/ui at commit 968d8cb9dc42ae5d52e8fd356cf84596ec832a26 (2026-11-17).
  *
@@ -84,7 +84,7 @@
     --success: oklch(0.5 0.12 150);
     --warning: oklch(0.5 0.12 65);
     /* --border is decorative (dividers, cards); --input is a control boundary and needs 3:1. */
-    --border: oklch(0.922 0 0);
+    --border: oklch(0.93 0 0);
     --input: oklch(0.63 0 0);
     --selected-edge: oklch(0.63 0 0);
     --ring: oklch(0.556 0 0);
@@ -93,38 +93,38 @@
     --chart-3: oklch(0.6 0.13 235);
     --chart-4: oklch(0.6 0.12 170);
     --chart-5: oklch(0.6 0.19 355);
-    --radius: 0.625rem;
+    --radius: 0.5rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.97 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-border: oklch(0.93 0 0);
     --sidebar-ring: oklch(0.556 0 0);
 }
 
 .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
+    --card: oklch(0.175 0 0);
     --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
+    --popover: oklch(0.175 0 0);
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.922 0 0);
     --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
+    --secondary: oklch(0.24 0 0);
     --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
+    --muted: oklch(0.24 0 0);
     --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
+    --accent: oklch(0.24 0 0);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
     --destructive-solid: oklch(0.52 0.2 27);
     --destructive-foreground: oklch(0.99 0 0);
     --success: oklch(0.78 0.17 150);
     --warning: oklch(0.82 0.15 85);
-    --border: oklch(1 0 0 / 10%);
+    --border: oklch(1 0 0 / 8%);
     --input: oklch(1 0 0 / 40%);
     --selected-edge: oklch(1 0 0 / 40%);
     --ring: oklch(0.708 0 0);
@@ -133,13 +133,13 @@
     --chart-3: oklch(0.74 0.12 235);
     --chart-4: oklch(0.76 0.13 170);
     --chart-5: oklch(0.74 0.17 355);
-    --sidebar: oklch(0.205 0 0);
+    --sidebar: oklch(0.175 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.922 0 0);
     --sidebar-primary-foreground: oklch(0.205 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent: oklch(0.24 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-border: oklch(1 0 0 / 8%);
     --sidebar-ring: oklch(0.708 0 0);
 }
 
