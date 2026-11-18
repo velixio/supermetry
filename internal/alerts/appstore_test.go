@@ -83,7 +83,7 @@ func TestAppStoreReadsCandidatesFromTheFixture(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	hours, err := store.IssueHours(ctx, f.SiteID, at("2026-11-15", "08:00:00"), 4)
+	hours, err := store.IssueHours(ctx, f.SiteID, at("2026-11-15", "08:00:00"), 4, 7)
 	if err != nil || len(hours) != 1 {
 		t.Fatalf("IssueHours() = %+v, %v", hours, err)
 	}

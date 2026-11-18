@@ -285,6 +285,9 @@ func validateEventTrigger(t EventTrigger) (EventTrigger, error) {
 		return t, invalidField("trigger.event.measure", "must be events or users")
 	}
 	if t.Spike != nil {
+		if t.Measure == "users" {
+			return t, invalidField("trigger.event.measure", "spike compares events, not users")
+		}
 		if t.Above != 0 {
 			return t, invalidField("trigger.event.above", "cannot be combined with spike")
 		}

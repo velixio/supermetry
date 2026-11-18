@@ -163,7 +163,7 @@ func TestSaveDeliveryStateWithKeyRefusesARepeat(t *testing.T) {
 
 func TestRuleWithoutChannelsRecordsTheKeyAndSendsNothing(t *testing.T) {
 	f := newRuleFixture(t)
-	alert := f.newRule(t, "Assign only", Rule{Trigger: Trigger{Type: TriggerIssue, Issue: &IssueTrigger{On: []string{"new"}}}, Actions: []Action{{Type: ActionAssign, UserID: 3}}})
+	alert := f.newRule(t, "Assign only", Rule{Trigger: Trigger{Type: TriggerIssue, Issue: &IssueTrigger{On: []string{"new"}}}, Actions: []Action{{Type: ActionAssign, UserID: f.principal.UserID}}})
 	f.source.newIssues = []AppIssue{{ID: 7, Title: "t", Kind: "crash", FirstSeen: f.now}}
 	for i := 0; i < 2; i++ {
 		if err := f.evaluator().Run(context.Background()); err != nil {
@@ -175,15 +175,25 @@ func TestRuleWithoutChannelsRecordsTheKeyAndSendsNothing(t *testing.T) {
 	}
 }
 
-func TestRuleFiltersBeyondKindsAreNotIgnored(t *testing.T) {
+func TestRuleFiltersReachTheSourceAndDropMismatches(t *testing.T) {
 	f := newRuleFixture(t)
 	f.newRule(t, "Prod only", Rule{
 		Trigger: Trigger{Type: TriggerIssue, Issue: &IssueTrigger{On: []string{"new"}}},
 		Filters: Filters{Environments: []string{"production"}}, Actions: chanAction(f.channelID),
 	})
-	f.source.newIssues = []AppIssue{{ID: 7, Title: "t", Kind: "crash", FirstSeen: f.now}}
-	if err := f.evaluator().Run(context.Background()); err != nil || f.deliverer.calls != 0 {
-		t.Fatalf("Run() = %v with %d deliveries, want a skipped rule", err, f.deliverer.calls)
+	f.source.newIssues = []AppIssue{
+		{ID: 7, Title: "t", Kind: "crash", FirstSeen: f.now},
+		{ID: 8, Title: "u", Kind: "crash", FirstSeen: f.now},
+	}
+	f.source.matching = map[int64]bool{8: true}
+	if err := f.evaluator().Run(context.Background()); err != nil || f.deliverer.calls != 1 {
+		t.Fatalf("Run() = %v with %d deliveries, want 1", err, f.deliverer.calls)
+	}
+	if got := f.deliverer.notifications[0].App.IssueID; got != 8 {
+		t.Fatalf("delivered issue %d, want the matching issue 8", got)
+	}
+	if len(f.source.matchFilters.Environments) != 1 || f.source.matchFilters.Environments[0] != "production" {
+		t.Fatalf("source saw filters %+v", f.source.matchFilters)
 	}
 }
 

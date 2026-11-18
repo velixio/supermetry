@@ -19,6 +19,14 @@ type fakeAppSource struct {
 	newKinds   []string
 	hourAsked  time.Time
 	releaseMin int64
+
+	escalated     []AppIssue
+	counts        []IssueCount
+	matching      map[int64]bool // nil matches every issue
+	matchFilters  Filters
+	windowFrom    time.Time
+	windowTo      time.Time
+	windowMeasure string
 }
 
 func (f *fakeAppSource) Site(context.Context, int32) (AppSite, error) { return f.site, nil }
@@ -36,9 +44,33 @@ func (f *fakeAppSource) LatestRelease(_ context.Context, _ int32, _ time.Time, m
 	}
 	return f.release, nil
 }
-func (f *fakeAppSource) IssueHours(_ context.Context, _ int32, hour time.Time, _ int64) ([]IssueHour, error) {
+func (f *fakeAppSource) IssueHours(_ context.Context, _ int32, hour time.Time, _ int64, _ int) ([]IssueHour, error) {
 	f.hourAsked = hour
 	return f.spikes, nil
+}
+
+func (f *fakeAppSource) EscalatedIssues(_ context.Context, _ int32, _ time.Time, _ int) ([]AppIssue, error) {
+	return f.escalated, nil
+}
+func (f *fakeAppSource) IssueWindowCounts(_ context.Context, _ int32, from, to time.Time, _ Filters, measure string, min int64, _ int) ([]IssueCount, error) {
+	f.windowFrom, f.windowTo, f.windowMeasure = from, to, measure
+	var out []IssueCount
+	for _, c := range f.counts {
+		if c.Count >= min {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+func (f *fakeAppSource) MatchIssue(_ context.Context, _ int32, ids []int64, filters Filters) (map[int64]bool, error) {
+	f.matchFilters = filters
+	out := map[int64]bool{}
+	for _, id := range ids {
+		if f.matching == nil || f.matching[id] {
+			out[id] = true
+		}
+	}
+	return out, nil
 }
 
 type fakeAppDedup struct{ fired map[string]time.Time }
@@ -56,6 +88,9 @@ func (f *fakeAppDedup) AppFired(_ context.Context, alertID int64, keys []string)
 func (f *fakeAppDedup) RecordAppFired(_ context.Context, alertID int64, key string, at time.Time) error {
 	f.fired[strconv.FormatInt(alertID, 10)+"/"+key] = at
 	return nil
+}
+func (f *fakeAppDedup) LastFired(context.Context, int64, string) (time.Time, bool, error) {
+	return time.Time{}, false, nil
 }
 func (f *fakeAppDedup) ForgetAppFired(_ context.Context, alertID int64, key string) error {
 	delete(f.fired, strconv.FormatInt(alertID, 10)+"/"+key)

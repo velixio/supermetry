@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/mail"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -709,6 +710,28 @@ func validateAlertRelations(ctx context.Context, tx pgx.Tx, orgID int64, siteID 
 		return ErrInvalid
 	}
 	if input.Rule != nil {
+		for i, action := range input.Rule.Actions {
+			path := "actions[" + strconv.Itoa(i) + "]"
+			switch action.Type {
+			case ActionAssign:
+				var member bool
+				if err := tx.QueryRow(ctx, `select exists (select 1 from memberships m join sites s on s.org_id=m.org_id where s.id=$1 and s.org_id=$2 and m.user_id=$3 and (m.site_ids is null or $1 = any(m.site_ids)))`, siteID, orgID, action.UserID).Scan(&member); err != nil {
+					return err
+				}
+				if !member {
+					return invalidField(path+".user_id", "must be a member of the organisation with access to this project")
+				}
+			case ActionNotifyOwner:
+				fallbacks := uniqueIDs(action.FallbackChannelIDs)
+				var found int
+				if err := tx.QueryRow(ctx, `select count(*) from notification_channels where org_id=$1 and id=any($2)`, orgID, fallbacks).Scan(&found); err != nil {
+					return err
+				}
+				if found != len(fallbacks) {
+					return invalidField(path+".fallback_channel_ids", "has a channel that does not exist")
+				}
+			}
+		}
 		if hooks := input.Rule.WebhookChannelIDs(); len(hooks) > 0 {
 			var webhookCount int
 			if err := tx.QueryRow(ctx, `select count(*) from notification_channels where org_id=$1 and kind='webhook' and id=any($2)`, orgID, hooks).Scan(&webhookCount); err != nil {
