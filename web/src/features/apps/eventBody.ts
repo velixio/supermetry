@@ -1,5 +1,5 @@
 /** Tolerant view of the scrubbed Sentry-shaped body: every field may be missing. */
-export type BodyFrame = { filename?: string; function?: string; module?: string; lineno?: number; colno?: number; in_app?: boolean; context_line?: string; pre_context?: string[]; post_context?: string[] }
+export type BodyFrame = { filename?: string; function?: string; module?: string; lineno?: number; colno?: number; in_app?: boolean; trust?: string; context_line?: string; pre_context?: string[]; post_context?: string[] }
 export type BodyException = { type?: string; value?: string; mechanism?: { type?: string; handled?: boolean }; frames?: BodyFrame[] }
 export type BodyBreadcrumb = { timestamp?: string | number; type?: string; category?: string; level?: string; message?: string; data?: Record<string, unknown> }
 export type BodyAttachment = { name?: string; type?: string; content_type?: string; size?: number; stored?: boolean }
