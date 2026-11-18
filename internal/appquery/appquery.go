@@ -63,8 +63,9 @@ type Filter struct {
 
 // Querier runs the reads.
 type Querier struct {
-	pool *pgxpool.Pool
-	now  func() time.Time
+	pool   *pgxpool.Pool
+	now    func() time.Time
+	vitals VitalsFunc // optional: Web Vitals of the linked web site
 }
 
 // New returns a Querier; a nil now uses the wall clock.
