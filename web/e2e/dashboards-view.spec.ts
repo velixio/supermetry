@@ -88,18 +88,18 @@ test('a saved dashboard renders every widget kind with overrides, switcher and r
   expect(queryBodies.some((body) => body.date_range.from === range.from && body.date_range.to === range.to)).toBe(true)
 
   // Keyboard: open the switcher with the keyboard and choose the standard dashboard.
-  const switcher = page.getByRole('combobox', { name: 'Dashboard' })
+  const switcher = page.getByRole('button', { name: /Switch dashboard/ })
   await expect(switcher).toBeVisible()
   expect((await switcher.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(36)
   await switcher.focus()
   await page.keyboard.press('Enter')
-  await page.getByRole('option', { name: 'Standard dashboard' }).click()
+  await page.getByRole('menuitemradio', { name: 'Standard dashboard' }).click()
   await expect(page).toHaveURL(/dash=builtin/)
   await expect(page.getByRole('group', { name: 'Dashboard widgets' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Pages' })).toBeVisible()
   await switcher.focus()
   await page.keyboard.press('Enter')
-  await page.getByRole('option', { name: 'Marketing' }).click()
+  await page.getByRole('menuitemradio', { name: 'Marketing' }).click()
   await expect(page).toHaveURL(new RegExp(`dash=${id}`))
   await expect(page.getByRole('group', { name: 'Dashboard widgets' }).locator('[data-widget-id]')).toHaveCount(9)
   // The dashboard's own default period was adopted into the URL.

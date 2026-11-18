@@ -113,7 +113,7 @@ test('create, edit, reorder, resize, save, survive a conflict, set default and d
   await page.reload()
   await expect(page.getByRole('group', { name: 'Dashboard widgets' })).toBeVisible()
   expect(await order(page)).toEqual(['goals', 'trend', 'breakdown-1'])
-  await expect(page.getByRole('combobox', { name: 'Dashboard' })).toContainText('Marketing v2')
+  await expect(page.getByRole('button', { name: /Switch dashboard/ })).toContainText('Marketing v2')
 
   // A save from somewhere else makes this one stale: it is refused and nothing is overwritten.
   await page.getByRole('button', { name: 'Edit dashboard' }).click()
@@ -137,8 +137,8 @@ test('create, edit, reorder, resize, save, survive a conflict, set default and d
 
   // Unsaved changes are guarded when leaving through the switcher.
   await page.getByLabel('Dashboard name').fill('Unsaved name')
-  await page.getByRole('combobox', { name: 'Dashboard' }).click()
-  await page.getByRole('option', { name: 'Standard dashboard' }).click()
+  await page.getByRole('button', { name: /Switch dashboard/ }).click()
+  await page.getByRole('menuitemradio', { name: 'Standard dashboard' }).click()
   const guard = page.getByRole('alertdialog')
   await expect(guard).toContainText('Leave without saving?')
   await guard.getByRole('button', { name: 'Keep editing' }).click()
@@ -164,7 +164,8 @@ test('create, edit, reorder, resize, save, survive a conflict, set default and d
   await expect.poll(async () => (await list(request, owner)).map((item) => item.name)).not.toContain('Marketing from elsewhere (copy)')
 
   // New dashboard from a template.
-  await page.getByRole('button', { name: 'New dashboard' }).click()
+  await page.getByRole('button', { name: /Switch dashboard/ }).click()
+  await page.getByRole('menuitem', { name: 'New dashboard' }).click()
   await page.getByRole('combobox', { name: 'Starting point' }).click()
   await page.getByRole('option', { name: 'Performance' }).click()
   await page.getByRole('button', { name: 'Start editing' }).click()

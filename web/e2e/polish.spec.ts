@@ -19,7 +19,7 @@ test('polished dashboard controls, hierarchy, redirect, and responsive layouts',
 
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await expect(page.getByRole('button', { name: /date range/i })).toBeVisible()
-  await expect(page.getByRole('checkbox', { name: 'Include imported data' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'View options' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Visitors/ })).toHaveAttribute('data-priority', 'primary')
   await expect(page.getByRole('button', { name: /Pageviews/ })).toHaveAttribute('data-priority', 'primary')
   await noHorizontalOverflow(page)
@@ -40,7 +40,7 @@ test('polished dashboard controls, hierarchy, redirect, and responsive layouts',
   const sheet = page.getByRole('dialog', { name: 'Filters' })
   await expect(sheet.getByRole('button', { name: /date range/i })).toBeVisible()
   await expect(sheet.getByRole('combobox', { name: 'Compare' })).toBeVisible()
-  await expect(sheet.getByRole('checkbox', { name: 'Include imported data' })).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'View options' })).toBeVisible()
   await noHorizontalOverflow(page)
   await page.screenshot({ path: `${screenshotDir}/dashboard-390.png`, fullPage: true })
 

@@ -88,7 +88,9 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   await owner.login(page, dashboard)
   await page.goto(dashboard)
   const filterRow = page.getByRole('group', { name: 'Filters' })
-  await expect(filterRow.getByRole('checkbox', { name: 'Include imported data' })).toBeVisible()
+  await filterRow.getByRole('button', { name: 'View options' }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Include imported data' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await expect(filterRow.getByRole('combobox', { name: 'Compare' })).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Compare' }).click()
@@ -99,9 +101,9 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   await expect(page.locator('[data-trend="good"], [data-trend="bad"]').first()).toBeVisible()
 
   const countries = page.getByRole('region', { name: 'Location' })
-  await countries.getByRole('button', { name: 'Details' }).click()
+  await countries.getByRole('button', { name: 'View all Location' }).click()
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'CSV' }).click()
+  await page.getByRole('button', { name: 'Download CSV' }).click()
   const download = await downloadPromise
   const path = await download.path()
   expect(path).not.toBeNull()
