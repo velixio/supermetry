@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { PencilIcon, PlusIcon } from 'lucide-react'
+import { PencilIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -20,11 +20,13 @@ type DashboardManageProps = {
   editing: boolean
   onEdit: (id: number) => void
   onNew: (template: TemplateKey) => void
+  /** The new-dashboard dialog is opened from the dashboard switcher, so its state lives with the page. */
+  newOpen: boolean
+  onNewOpenChange: (open: boolean) => void
 }
 
-/** Entry points to the editor: edit the dashboard on screen, or start a new one from a template. */
-export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew }: DashboardManageProps) {
-  const [open, setOpen] = useState(false)
+/** Entry points to the editor: edit the dashboard on screen; the new-from-template dialog opens from the switcher. */
+export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew, newOpen: open, onNewOpenChange: setOpen }: DashboardManageProps) {
   const [template, setTemplate] = useState<TemplateKey>('standard')
   if (!canWrite || editing) return null
 
@@ -41,9 +43,6 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew }:
           <PencilIcon />{t.edit}
         </Button>
       ) : null}
-      <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={() => setOpen(true)}>
-        <PlusIcon />{t.newDashboard}
-      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

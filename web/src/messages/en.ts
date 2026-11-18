@@ -194,7 +194,7 @@ export const en = {
     to: 'To',
     compare: 'Compare',
     comparisons: {
-      off: 'No comparison',
+      off: 'Off',
       previous_period: 'Previous period',
       previous_year: 'Previous year',
     },

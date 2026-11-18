@@ -42,6 +42,30 @@ beforeAll(() => {
 afterEach(cleanup)
 
 describe('DatePicker', () => {
+  it('names the preset and the dates in one button', () => {
+    render(
+      <DatePicker
+        search={dashboardSearch.parse({})}
+        dateRange={{ from: '2026-10-20', to: '2026-11-18' }}
+        labels={labels}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /date range/i })).toHaveTextContent('Last 30 days · Oct 20 – Nov 18')
+  })
+
+  it('shows the year when the range crosses a year', () => {
+    render(
+      <DatePicker
+        search={dashboardSearch.parse({ period: '30d' })}
+        dateRange={{ from: '2026-12-20', to: '2027-01-18' }}
+        labels={labels}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /date range/i })).toHaveTextContent('Dec 20, 2026 – Jan 18, 2027')
+  })
+
   it('lists every period in calendar order', () => {
     render(
       <DatePicker
@@ -69,7 +93,7 @@ describe('DatePicker', () => {
     ])
   })
 
-  it('shows a visible Compare label and all comparison choices', () => {
+  it('merges compare into one control that names its state and lists every choice', () => {
     render(
       <DatePicker
         search={dashboardSearch.parse({})}
@@ -78,7 +102,7 @@ describe('DatePicker', () => {
       />,
     )
 
-    expect(screen.getByText('Compare')).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Compare' })).toHaveTextContent('Compare: No comparison')
     fireEvent.click(screen.getByRole('combobox', { name: 'Compare' }))
     expect(screen.getByRole('option', { name: 'No comparison' })).toBeVisible()
     expect(screen.getByRole('option', { name: 'Previous period' })).toBeVisible()

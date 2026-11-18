@@ -95,7 +95,7 @@ test('new pages pass axe and fit the viewport in light and dark themes', async (
       'full-report',
       `${site}?${range}`,
       async (p) => {
-        await p.getByRole('region', { name: 'Location' }).getByRole('button', { name: 'View full report' }).click()
+        await p.getByRole('region', { name: 'Location' }).getByRole('button', { name: 'View all Location' }).click()
         await expect(p.getByRole('dialog')).toBeVisible()
       },
     ],

@@ -355,4 +355,29 @@ describe('MainChart ends at the current bucket', () => {
     expect(rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent))).toEqual([['0', '1'], ['5', '2']])
     expect(screen.getByRole('region', { name: 'visitors over time' })).toHaveAttribute('data-last-bucket', '2026-10-26T13:00:00')
   })
+
+  describe('no-data range and partial period', () => {
+    const wide: StatsQuery = { ...query, dateRange: { from: '2026-11-01', to: '2026-11-08' } }
+    const days = [0, 0, 0, 0, 4, 6, 5, 2].map((visitors, index) => ({ time: `2026-11-0${index + 1}`, visitors }))
+
+    it('labels the range before the first event and the unfinished current day', () => {
+      useTimeseries.mockReturnValue(result(days))
+      render(<MainChart query={wide} metric="visitors" compare="off" interval="day" now={new Date('2026-11-08T10:00:00Z')} />)
+      expect(screen.getByTestId('tracking-started')).toHaveTextContent('Tracking started Nov 5, 2026')
+      expect(screen.getByTestId('partial-note')).toHaveTextContent('Today so far')
+    })
+
+    it('shows no notes for a finished range with data from the start', () => {
+      useTimeseries.mockReturnValue(result([3, 4, 5, 6].map((visitors, index) => ({ time: `2026-11-0${index + 1}`, visitors }))))
+      render(<MainChart query={{ ...wide, dateRange: { from: '2026-11-01', to: '2026-11-04' } }} metric="visitors" compare="off" interval="day" now={new Date('2026-11-20T10:00:00Z')} />)
+      expect(screen.queryByTestId('tracking-started')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('partial-note')).not.toBeInTheDocument()
+    })
+
+    it('names the plotted metric', () => {
+      useTimeseries.mockReturnValue(result(days))
+      render(<MainChart query={wide} metric="visitors" compare="off" interval="day" now={new Date('2026-11-08T10:00:00Z')} />)
+      expect(screen.getByRole('list', { name: 'Chart notes' })).toHaveTextContent('Visitors')
+    })
+  })
 })
