@@ -6007,7 +6007,7 @@ components:
         body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.' }
     AppIssueDetail:
       type: object
-      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, assignee_user_id, assignee_name, priority, snooze_until, snooze_events, snooze_users, archived_until_escalating, github_url, series, breakdowns, latest_events]
+      required: [id, title, kind, error_type, status, first_seen, last_seen, first_release, last_release, resolved_in_release, resolved_next, event_count, assignee_user_id, assignee_name, priority, snooze_until, snooze_events, snooze_users, archived_until_escalating, github_url, series, breakdowns, latest_events, introduced_in, suspect_commits]
       properties:
         id: { type: integer, format: int64 }
         title: { type: string }
@@ -6044,6 +6044,30 @@ components:
           description: Top 10 values per dimension (release, platform, os_version, arch, device_class, environment) and per tag key as `tag:<key>`.
           additionalProperties: { type: array, items: { $ref: '#/components/schemas/AppBreakdown' } }
         latest_events: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/AppEventSample' } }
+        introduced_in:
+          type: object
+          nullable: true
+          description: The release the issue first appeared in; null when the issue has no release.
+          required: [release, first_seen, deploy_at]
+          properties:
+            release: { type: string }
+            first_seen: { type: string, format: date-time }
+            deploy_at: { type: string, format: date-time, nullable: true, description: First deploy of that release to the site, when one is recorded. }
+        suspect_commits:
+          type: array
+          maxItems: 3
+          description: Commits of the introducing release that changed a file on the stack of the newest event, best match first. Author emails are never returned.
+          items:
+            type: object
+            required: [sha, repository, message, author_name, at, path, score]
+            properties:
+              sha: { type: string }
+              repository: { type: string }
+              message: { type: string }
+              author_name: { type: string }
+              at: { type: string, format: date-time, nullable: true }
+              path: { type: string }
+              score: { type: integer }
     AppNotificationPrefs:
       type: object
       required: [assigned, resolved, regressed]

@@ -4939,6 +4939,28 @@ export interface components {
                 [key: string]: components["schemas"]["AppBreakdown"][];
             };
             latest_events: components["schemas"]["AppEventSample"][];
+            /** @description The release the issue first appeared in; null when the issue has no release. */
+            introduced_in: {
+                release: string;
+                /** Format: date-time */
+                first_seen: string;
+                /**
+                 * Format: date-time
+                 * @description First deploy of that release to the site
+                 */
+                deploy_at: string | null;
+            } | null;
+            /** @description Commits of the introducing release that changed a file on the stack of the newest event, best match first. Author emails are never returned. */
+            suspect_commits: {
+                sha: string;
+                repository: string;
+                message: string;
+                author_name: string;
+                /** Format: date-time */
+                at: string | null;
+                path: string;
+                score: number;
+            }[];
         };
         AppNotificationPrefs: {
             /** @description An issue was assigned to me. */

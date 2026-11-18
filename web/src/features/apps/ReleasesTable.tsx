@@ -4,10 +4,12 @@ import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { fmt } from '@/lib/format'
+import { dashboardSearch } from '@/lib/search'
 
 import { AppFilters } from './AppFilters'
 import { useAppReleases } from './api'
 import { formatDay, formatRate } from './format'
+import { EVENTS_NOTE } from './ReleaseHealth'
 import type { AppSearch } from './search'
 
 export function ReleasesTable({ org, site, siteId, timezone, search, onSearch }: {
@@ -17,6 +19,7 @@ export function ReleasesTable({ org, site, siteId, timezone, search, onSearch }:
   const issuesLink = (release: string, status: 'all' | 'regressed', count: number) => count === 0
     ? <span className="text-muted-foreground">0</span>
     : <Link className="underline" to="/app/$org/$site/issues" params={{ org, site }} search={{ period: search.period, release, status }}>{fmt.number(count)}</Link>
+  const note = (source: string) => source === 'events' ? <span className="block text-xs font-normal text-muted-foreground">{EVENTS_NOTE}</span> : null
   return (
     <PageContainer>
       <PageHeader title="Releases" description="Newest first, with crash-free rates and issue counts." actions={<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} />} />
@@ -28,19 +31,21 @@ export function ReleasesTable({ org, site, siteId, timezone, search, onSearch }:
           <TableHeader>
             <TableRow>
               <TableHead>Release</TableHead><TableHead>First seen</TableHead><TableHead>Last seen</TableHead>
-              <TableHead className="text-right">Installs</TableHead><TableHead className="text-right">Crash-free users</TableHead><TableHead className="text-right">Crash-free sessions</TableHead>
+              <TableHead className="text-right">Adoption</TableHead><TableHead className="text-right">Crash-free sessions</TableHead><TableHead className="text-right">Crash-free users</TableHead><TableHead className="text-right">Sessions</TableHead><TableHead className="text-right">Installs</TableHead>
               <TableHead className="text-right">New issues</TableHead><TableHead className="text-right">Regressed</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {releases.data.releases.map((item) => (
               <TableRow key={item.release}>
-                <TableCell className="font-medium">{item.release}</TableCell>
+                <TableCell className="font-medium"><Link className="underline" to="/app/$org/$site" params={{ org, site }} search={{ ...dashboardSearch.parse({ period: search.period }), release: item.release }}>{item.release}</Link></TableCell>
                 <TableCell>{formatDay(item.first_seen)}</TableCell>
                 <TableCell>{formatDay(item.last_seen)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatRate(item.adoption)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatRate(item.crash_free_sessions)}{note(item.health_source)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatRate(item.crash_free_users)}{note(item.health_source)}</TableCell>
+                <TableCell className="text-right tabular-nums">{fmt.number(item.sessions)}</TableCell>
                 <TableCell className="text-right tabular-nums">{fmt.number(item.installs)}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatRate(item.crash_free_users)}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatRate(item.crash_free_sessions)}</TableCell>
                 <TableCell className="text-right tabular-nums">{issuesLink(item.release, 'all', item.new_issues)}</TableCell>
                 <TableCell className="text-right tabular-nums">{issuesLink(item.release, 'regressed', item.regressed_issues)}</TableCell>
               </TableRow>
