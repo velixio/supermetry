@@ -44,6 +44,7 @@ var eraseTables = []string{
 	"app_debug_files",
 	"app_client_reports",
 	"spans",
+	"logs",
 	"events",
 	"sessions",
 	"profiles",
@@ -143,6 +144,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		return nil, err
 	}
 	expired = append(expired, spanPartitions...)
+	logPartitions, err := expiredLogPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, logPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -445,6 +451,41 @@ func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now 
 		return nil, fmt.Errorf("list %s partitions: %w", table, err)
 	}
 	cutoff := now.AddDate(0, 0, -appEventBodyRetentionDays-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
+// logDefaultRetentionDays is the raw log life when no app project sets one.
+const logDefaultRetentionDays = 7
+
+// expiredLogPartitions returns the daily logs partitions that lie wholly
+// before the longest log_retention_days of any live app project (default 7),
+// plus one day of closing slack. Days are shared by all projects, so the
+// longest value decides; queries hide rows older than a site's own retention.
+func expiredLogPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('logs') is not null`).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check logs: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+	var longest int
+	if err := pool.QueryRow(ctx, `
+		select coalesce(max(coalesce(nullif((settings->'app'->>'log_retention_days')::int, 0), $1)), $1)
+		from sites where kind = 'app' and deleted_at is null`, logDefaultRetentionDays).Scan(&longest); err != nil {
+		return nil, fmt.Errorf("read log retention: %w", err)
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "logs")
+	if err != nil {
+		return nil, fmt.Errorf("list log partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -longest-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {
