@@ -95,7 +95,7 @@ func (h *handler) listExportSchedules(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) createExportSchedule(w http.ResponseWriter, r *http.Request) {
 	svc, principal, ok := h.exportSchedules(w, r)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	var body exportScheduleBody
@@ -134,7 +134,7 @@ type exportSchedulePatch struct {
 
 func (h *handler) updateExportSchedule(w http.ResponseWriter, r *http.Request) {
 	svc, principal, ok := h.exportSchedules(w, r)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	id, ok := scheduleID(w, r)
@@ -159,7 +159,7 @@ func (h *handler) updateExportSchedule(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) deleteExportSchedule(w http.ResponseWriter, r *http.Request) {
 	svc, principal, ok := h.exportSchedules(w, r)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	id, ok := scheduleID(w, r)
@@ -179,7 +179,7 @@ func (h *handler) deleteExportSchedule(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) runExportSchedule(w http.ResponseWriter, r *http.Request) {
 	svc, principal, ok := h.exportSchedules(w, r)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	id, ok := scheduleID(w, r)
@@ -247,7 +247,7 @@ func (h *handler) orgBundleService(w http.ResponseWriter, r *http.Request) (*org
 
 func (h *handler) exportOrgSettings(w http.ResponseWriter, r *http.Request) {
 	svc, principal, ok := h.orgBundleService(w, r)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	bundle, err := svc.Export(r.Context(), principal)
@@ -270,6 +270,10 @@ func (h *handler) importOrgSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	query := r.URL.Query()
 	opt := orgbundle.ImportOptions{DryRun: query.Get("dry_run") == "true", InviteMembers: query.Get("invite_members") == "true"}
+	// A dry run changes nothing and returns only a report, so it needs no step-up.
+	if !opt.DryRun && !h.requireRecentAuth(w, r, principal) {
+		return
+	}
 	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBundleBytes))
 	if err != nil {
 		writeProblem(w, http.StatusRequestEntityTooLarge, "Request entity too large", "the settings bundle is too large")
