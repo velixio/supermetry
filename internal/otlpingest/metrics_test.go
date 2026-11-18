@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"supermetry/internal/obsmetrics"
+	"supermetry/internal/obsquota"
 	"supermetry/internal/sites"
 )
 
@@ -51,7 +52,9 @@ func metricsRig(t *testing.T, quota int64) (*rig, *metricSink) {
 	t.Helper()
 	r := newRig(t, 0)
 	ms := &metricSink{}
-	r.h.WithMetrics(ms, obsmetrics.NewQuota(quota), r.stats)
+	site, _, _ := r.h.sites.ByDSNKey(testKey)
+	site.App.MetricDailyQuota = quota
+	r.h.WithMetrics(ms, obsquota.New(nil, func() time.Time { return testNow }), r.stats)
 	return r, ms
 }
 

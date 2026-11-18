@@ -131,6 +131,28 @@ func EnsureDailyPartitions(ctx context.Context, pool *pgxpool.Pool, table string
 	return tx.Commit(ctx)
 }
 
+// EnsureMonthlyPartitions creates the monthly partitions (<table>_YYYYMM) of a
+// table partitioned by a timestamp or date column, covering [from, to). The
+// metric rollup calls it before writing an hour, which can lie in a month the
+// regular lookahead never covered.
+func EnsureMonthlyPartitions(ctx context.Context, pool *pgxpool.Pool, table string, from, to time.Time) error {
+	if !from.Before(to) {
+		return nil
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin %s partition creation: %w", table, err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
+		return fmt.Errorf("lock partition creation: %w", err)
+	}
+	if err := ensureMonthlyDayPartitions(ctx, tx, table, from, to); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 // ensureDailyIfTable skips tables that older migration-test schemas lack.
 func ensureDailyIfTable(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
 	var has bool
@@ -208,17 +230,22 @@ func EnsureAppActiveDayPartitions(ctx context.Context, pool *pgxpool.Pool, from,
 	return tx.Commit(ctx)
 }
 
-// ensureAppSessionPartitions creates app_sessions partitions when the table
-// exists (migration tests build older schemas).
+// ensureAppSessionPartitions creates the partitions of app_sessions and
+// app_checkins when the tables exist (migration tests build older schemas).
 func ensureAppSessionPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
-	var has bool
-	if err := tx.QueryRow(ctx, `select to_regclass('app_sessions') is not null`).Scan(&has); err != nil {
-		return fmt.Errorf("check app_sessions: %w", err)
+	for _, table := range []string{"app_sessions", "app_checkins"} {
+		var has bool
+		if err := tx.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&has); err != nil {
+			return fmt.Errorf("check %s: %w", table, err)
+		}
+		if !has {
+			continue
+		}
+		if err := ensureMonthlyTimestampPartitions(ctx, tx, table, from, to); err != nil {
+			return err
+		}
 	}
-	if !has {
-		return nil
-	}
-	return ensureMonthlyTimestampPartitions(ctx, tx, "app_sessions", from, to)
+	return nil
 }
 
 // ensureAppEventBodyPartitions creates the partitions of app_event_bodies and
@@ -411,7 +438,7 @@ func parseRangeBound(bound string) (time.Time, time.Time, error) {
 }
 
 func parsePartitionTime(value string) (time.Time, error) {
-	for _, layout := range []string{time.DateOnly, time.RFC3339, "2006-01-02 15:04:05Z07:00", "2006-01-02 15:04:05Z07"} {
+	for _, layout := range []string{time.DateOnly, time.RFC3339, "2006-01-02 15:04:05Z07:00", "2006-01-02 15:04:05Z07", "2006-01-02 15:04:05"} {
 		if parsed, err := time.Parse(layout, value); err == nil {
 			return parsed.UTC(), nil
 		}

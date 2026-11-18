@@ -31,6 +31,10 @@ type WriterConfig struct {
 	Now              func() time.Time
 	RetryDelay       time.Duration // between the two write attempts; 500ms
 	PartitionRefresh time.Duration // minimum gap between partition-list reads; 5s
+	// OnWritten, when set, is called with each batch after its rows are
+	// stored (the rollup notes late points here). It runs on the writer
+	// goroutine and must not block.
+	OnWritten func(batch []Point)
 }
 
 // Writer stores points in metric_points and series in metric_series. Enqueue
@@ -490,6 +494,10 @@ func (w *Writer) write(ctx context.Context, batch []Point) error {
 	}))
 	if err != nil {
 		w.days = nil // a partition may have been dropped by retention
+		return err
 	}
-	return err
+	if w.cfg.OnWritten != nil {
+		w.cfg.OnWritten(batch)
+	}
+	return nil
 }

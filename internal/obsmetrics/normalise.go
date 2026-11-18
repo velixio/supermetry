@@ -3,24 +3,21 @@ package obsmetrics
 import (
 	"math"
 	"regexp"
-	"sort"
-	"strconv"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 
+	"supermetry/internal/otlpingest/attrs"
 	"supermetry/internal/sentryingest"
 )
 
 // Caps from the phase 6 plan.
 const (
 	MaxNameBytes     = 255
-	MaxAttrs         = 16
-	MaxAttrKeyBytes  = 128
-	MaxAttrValBytes  = 256
+	MaxAttrs         = attrs.MetricMaxAttrs
+	MaxAttrKeyBytes  = attrs.MetricMaxKeyBytes
+	MaxAttrValBytes  = attrs.MetricMaxValBytes
 	MaxBuckets       = 64
 	MaxRequestPoints = 10_000
 
@@ -30,11 +27,9 @@ const (
 
 var namePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.\-/]*$`)
 
-// ipKeys and personal keys are dropped from metric attributes, as for logs.
-var droppedKeys = map[string]struct{}{
-	"client.address": {}, "net.peer.ip": {}, "net.sock.peer.addr": {}, "http.client_ip": {}, "source.address": {},
-	"user.email": {}, "user.name": {}, "user.full_name": {}, "user.id": {},
-}
+// attrCfg is the shared attribute rule set for series attributes: key privacy
+// rules, 16 attributes, 256-byte values, scalars only.
+var attrCfg = attrs.Metrics(sentryingest.IsSensitiveKey)
 
 // resourceKeys are the only resource attributes copied onto a series.
 var resourceKeys = map[string]struct{}{
@@ -263,79 +258,32 @@ func resourceAttrs(kvs []*commonpb.KeyValue) map[string]string {
 		if _, ok := resourceKeys[kv.GetKey()]; !ok {
 			continue
 		}
-		if v, ok := attrString(kv.GetValue()); ok {
+		set := attrCfg.NewSet()
+		set.AddOTLP([]*commonpb.KeyValue{kv})
+		m, _ := set.Finish()
+		if v, ok := m[kv.GetKey()].(string); ok {
 			if out == nil {
 				out = map[string]string{}
 			}
-			out[kv.GetKey()] = clip(v, MaxAttrValBytes)
+			out[kv.GetKey()] = v
 		}
 	}
 	return out
 }
 
-// mergeAttrs applies the key rules to point attributes, adds the kept resource
-// attributes (point attributes win) and caps the result at MaxAttrs keys,
-// keeping the first ones in sorted order. Values are not free text, so they
-// are only length-capped.
+// mergeAttrs applies the shared key rules and caps to point attributes, adds
+// the kept resource attributes (point attributes win) and keeps the first
+// MaxAttrs keys in sorted order. Values are not free text, so they are only
+// length-capped.
 func mergeAttrs(res map[string]string, kvs []*commonpb.KeyValue) map[string]string {
-	all := make(map[string]string, len(res)+len(kvs))
+	set := attrCfg.NewSet()
 	for k, v := range res {
-		all[k] = v
+		set.Add(k, v)
 	}
-	for _, kv := range kvs {
-		k := kv.GetKey()
-		if k == "" || len(k) > MaxAttrKeyBytes || keyDropped(k) {
-			continue
-		}
-		if v, ok := attrString(kv.GetValue()); ok {
-			all[k] = clip(v, MaxAttrValBytes)
-		}
-	}
-	if len(all) <= MaxAttrs {
-		return all
-	}
-	keys := make([]string, 0, len(all))
-	for k := range all {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	kept := make(map[string]string, MaxAttrs)
-	for _, k := range keys[:MaxAttrs] {
-		kept[k] = all[k]
-	}
-	return kept
-}
-
-func keyDropped(k string) bool {
-	lk := strings.ToLower(k)
-	if _, ok := droppedKeys[lk]; ok {
-		return true
-	}
-	return strings.HasPrefix(lk, "enduser.") || sentryingest.IsSensitiveKey(lk)
-}
-
-// attrString renders a scalar attribute value; arrays and maps are skipped.
-func attrString(v *commonpb.AnyValue) (string, bool) {
-	switch x := v.GetValue().(type) {
-	case *commonpb.AnyValue_StringValue:
-		return x.StringValue, true
-	case *commonpb.AnyValue_IntValue:
-		return strconv.FormatInt(x.IntValue, 10), true
-	case *commonpb.AnyValue_BoolValue:
-		return strconv.FormatBool(x.BoolValue), true
-	case *commonpb.AnyValue_DoubleValue:
-		return strconv.FormatFloat(x.DoubleValue, 'g', -1, 64), true
-	}
-	return "", false
+	set.AddOTLP(kvs)
+	m, _ := set.Finish()
+	return attrs.Strings(m)
 }
 
 // clip cuts s to at most n bytes on a UTF-8 boundary.
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	for n > 0 && !utf8.RuneStart(s[n]) {
-		n--
-	}
-	return s[:n]
-}
+func clip(s string, n int) string { return attrs.Cut(s, n) }

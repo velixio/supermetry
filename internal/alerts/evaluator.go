@@ -170,6 +170,15 @@ func (e *Evaluator) fireWithKey(ctx context.Context, alert Alert, notification N
 	if len(channels) != len(alert.ChannelIDs) {
 		return errors.New("one or more notification channels are unavailable")
 	}
+	if key != "" && notification.Rule != nil {
+		rule := *notification.Rule
+		rule.Key = key
+		notification.Rule = &rule
+	}
+	channels, err = e.resolveReceivers(ctx, alert.ID, notification, channels)
+	if err != nil {
+		return err
+	}
 	enabledChannelIDs := make([]int64, 0, len(channels))
 	for _, channel := range channels {
 		if channel.Enabled {
@@ -264,7 +273,12 @@ func (e *Evaluator) deliver(ctx context.Context, alertID int64, state DeliverySt
 			if err := e.deliverer.Deliver(ctx, channel, state.Notification); err != nil {
 				reportedErr := err
 				status := DeliveryPending
-				if state.AttemptCounts[channel.ID] >= maxDeliveryAttempts {
+				if isPermanentDelivery(err) {
+					reportedErr = fmt.Errorf("permanently failed: %w", err)
+					status = DeliveryFailed
+					state.DeliveredChannelIDs = append(state.DeliveredChannelIDs, channel.ID)
+					delivered[channel.ID] = true
+				} else if state.AttemptCounts[channel.ID] >= maxDeliveryAttempts {
 					reportedErr = fmt.Errorf("permanently failed after %d attempts: %w", state.AttemptCounts[channel.ID], err)
 					status = DeliveryFailed
 					state.DeliveredChannelIDs = append(state.DeliveredChannelIDs, channel.ID)

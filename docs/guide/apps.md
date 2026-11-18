@@ -127,7 +127,7 @@ allowed-hosts check, and a custom User-Agent is not required.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | string, 1 to 64 | Required. Dedup key; a repeat within 15 minutes is dropped as `duplicate`. |
-| `kind` | enum | Required: `crash`, `error`, `hang`, `install_failed`, `install_stalled`, `incompatibility`, `operation_failed`, `session`. |
+| `kind` | enum | Required: `crash`, `error`, `hang`, `install_failed`, `install_stalled`, `incompatibility`, `operation_failed`, `session`, plus the product kinds `screen` and `event` (see [Product analytics](#product-analytics-for-apps)). |
 | `ts` | integer, ms | Time the event happened. Optional (defaults to receive time). More than 5 minutes ahead is clamped to receive time. |
 | `level` | enum | `fatal`, `error`, `warning`. Defaults to `fatal` for a crash and `error` otherwise. |
 | `handled` | boolean | |
@@ -144,6 +144,9 @@ allowed-hosts check, and a custom User-Agent is not required.
 | `occurrences` | integer, 1 to 1,000,000 | For clients that coalesce repeats. |
 | `install_id`, `session_id` | string, up to 128 and 64 | Pseudonymous ids for crash-free users and sessions. Stored only as an HMAC with a per-app secret. |
 | `tags` | object | Up to 20 keys; string, number or boolean values; keys up to 64 characters, values up to 200 bytes. |
+| `screen` | string, 1 to 200 bytes | `screen` kind only, required: the screen name. Shown as `/name` in funnels and journeys. |
+| `name` | string, 1 to 64 | `event` kind only, required: the custom event name. Letters, digits and `_ . : $ - ` and space; must not start with `$`. |
+| `props` | object | `screen` and `event` kinds: up to 20 string values; keys up to 64 characters, not starting with `$`; values up to 200 bytes. |
 
 A wrong type, an over-long value or an unknown enum value drops that event as
 `invalid`. Unknown fields are ignored.
@@ -294,6 +297,60 @@ bytes and values of at most 2000 bytes.
    paths that contain home folders. Strip them from stack frames before
    sending.
 
+## Native and mobile symbols
+
+Android, iOS, macOS and Linux crashes show readable function names, files and
+lines once the matching debug files are uploaded. Upload them with the standard
+Sentry tools; only the server address and token change.
+
+1. In the project's **Settings, Installation**, create an **upload token** (see
+   [Upload source maps](source-maps.md)). It is the only secret you set.
+2. Upload with the tool you already use:
+   - **Android Gradle plugin**: in `build.gradle`, set `sentry { url = "https://<your host>/" }` and
+     provide the token as `SENTRY_AUTH_TOKEN` (or `authToken`). The plugin uploads the ProGuard/R8
+     mapping and, when enabled, the native libraries' symbols.
+   - **Xcode**: the build phase of the Sentry iOS guide runs `sentry-cli debug-files upload`; set
+     `SENTRY_URL`, `SENTRY_AUTH_TOKEN` and `SENTRY_PROJECT` in the phase's environment.
+   - **By hand**: `sentry-cli debug-files upload <dir>` for dSYM bundles, Mach-O and ELF files
+     (shared libraries and executables with DWARF or a symbol table), and
+     `sentry-cli upload-proguard --uuid <uuid> mapping.txt` for ProGuard/R8 mappings.
+3. Open **Settings, Symbols** to see every uploaded file and its state, and the
+   debug files that events asked for and nobody uploaded.
+
+Events are symbolicated as they arrive, so a file uploaded later does not rewrite
+events that are already stored. An event whose symbols are missing shows a banner
+naming the missing file (for example "Missing debug file for libfixture.so") with
+a link to **Symbols** and to this guide; the same list is on that settings page.
+System libraries (`/system`, `/usr/lib`, `/apex`, `libc.so`) are never listed:
+nobody uploads symbols for them.
+
+What is supported:
+
+| File | Used for |
+|---|---|
+| ProGuard / R8 `mapping.txt` | Class, method and line names of Java and Kotlin frames, and the exception class. Matched by the mapping UUID the app reports. |
+| Mach-O (thin or fat) with DWARF, dSYM bundles | iOS and macOS frames. A fat file serves every architecture; the event's own slice is used. |
+| ELF with DWARF or a symbol table | Android NDK and Linux frames. The GNU build ID is the match key. |
+
+Stored but not used for symbolication: bitcode symbol maps, PE/PDB, WASM and
+source bundles (`--include-sources`). Uploads of these succeed so the tool never
+fails a build. Split DWARF (`.dwo`, `.dwp`) gives function names only, without
+lines. Swift and C++ names are shown as the debug info spells them: there is no
+demangler yet.
+
+Limits: each file is capped by `SUPERMETRY_DIF_MAX_MB` (default 512, the whole
+file is parsed in memory while its cache is built, one file at a time), and
+uploaded files count toward the organization's storage cap. The converted caches
+live on disk under the data directory, bounded by `SUPERMETRY_SYMCACHE_DISK_MB`.
+
+Out-of-memory kills and watchdog terminations are listed as their own issue kinds
+(`oom`, `watchdog`), and the project overview breaks events and crash-free rates
+down by platform.
+
+`make sdk-compat-debugfiles` replays the command lines of the Gradle plugin and of
+the Xcode build phase with `sentry-cli` against a real server and checks that each
+file is listed with a usable cache.
+
 ## Checking delivery
 
 The **Data health** page lists every dropped event by reason: bot user agent, host
@@ -401,6 +458,29 @@ An unknown key is an error that names the key and where it is; it is never ignor
 
 The issue list filters by the tags each issue's events carried (release, environment, platform, level, OS version, browser and device class). Those per-issue tag counts are rebuilt by the same rollup as the daily counts, which runs every ten minutes, so a very new event can take up to about ten minutes to be found by a `release:` or `level:` term.
 
+## Releases and deploys
+
+The release commands of `sentry-cli` and the release steps of the Sentry bundler plugins work against Supermetry unchanged. They need an upload token with the `releases:write` scope (see [Upload source maps](source-maps.md)) in `SENTRY_AUTH_TOKEN`, the server in `SENTRY_URL`, and the project in `SENTRY_PROJECT`:
+
+```sh
+sentry-cli releases new 1.4.0
+sentry-cli releases set-commits 1.4.0 --auto
+sentry-cli releases finalize 1.4.0
+sentry-cli deploys new -r 1.4.0 -e production
+```
+
+`releases list`, `releases info`, `releases archive` and `releases delete` work too. Deleting a release removes its commits and deploys only; events keep their release name, so the release still appears in the dashboard.
+
+**Commits come from your local git checkout.** `set-commits --auto` and `--local` read the commits (and the files each one changed) from the repository you run them in and send them, which is all Supermetry needs. Running the command again replaces the release's commit list. Updates that only name a repository and commit (`--commit "repo@sha"` without a checkout) are stored as the release's head commit, but Supermetry does not fetch commits from GitHub or other hosts yet.
+
+In the dashboard:
+
+- **Releases** lists every release with adoption and crash-free rates. Click a release for its page: adoption and crash-free sessions per day, its deploys, the issues first seen in it and the issues that regressed in it, and its commit count. Tick two releases and choose **Compare selected** to see them side by side with the change in crash-free sessions and users (in percentage points) and the issues that appear only in the second.
+- **Deploy markers** appear as dashed lines on the overview chart and on a release's rollout chart, placed on the day of the deploy in the project's time zone. A deploy that names no project applies to the projects of its release.
+- An issue's page shows the release it was **introduced in** and, when that release has commits, up to three **suspect commits** that changed a file on the stack.
+
+An AI assistant can ask for the same data through the MCP tools `get_release_health`, `compare_releases` and `find_regression_release`; commit authors appear by name only.
+
 ## Exporting your data
 
 An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-DD&to=YYYY-MM-DD`, needing the `data:export` scope) contains the usual web aggregate files and, for app projects only, these CSVs. Dates are in the project's time zone and timestamps in UTC.
@@ -417,6 +497,73 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
 The export never includes end-user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
+
+## Product analytics for apps
+
+An app project also answers product questions: who uses the app, which screens and
+features they use, and whether they come back. Open **Sessions & Users** and
+**Events** in the project's sidebar.
+
+### Where the data comes from
+
+- **Sentry SDK sessions.** A Sentry SDK that has `release` set and sends a device id
+  (the mobile and desktop SDKs do; browser SDKs do not) counts one `$app_open` event
+  per session start. Session updates and aggregate session buckets add nothing, and a
+  browser session without a device id is counted on **Data health** as
+  `session_no_install` and creates no product session. Crash-free numbers are not
+  affected either way.
+- **`track()` and `screen()` in the Supermetry kits.** `track("purchase", { plan: "pro" })`
+  records a custom event and `screen("paywall")` a screen view. Both need the kit's
+  `installId`, are batched and queued like every other report (20 per request, offline
+  queue, 7 days), check the name before sending (a name starting with `$` or with
+  characters outside `A-Z a-z 0-9 _ . : $ - ` and space is ignored) and never send a user id.
+  The same events can be sent to the [app events endpoint](#the-app-events-endpoint)
+  with `kind` `screen` or `event`.
+
+### What is counted
+
+The install id is hashed with a per-app secret on arrival (the same HMAC that powers
+crash-free users) and only the hash is stored, so an install is one stable pseudonymous
+visitor across days: there is no daily salt, and an install that reports twice a month
+is the same person both times. Raw install ids, device ids and user ids are never
+stored. A screen is stored as a page (`/home`), the platform as the hostname, and the
+release, device class and locale as reserved `$` properties.
+
+Product hits are accepted up to `max report age` days late (7 by default). A hit for a
+day that has already been rolled up marks the day for recalculation, so the charts
+and rollups catch up; a hit older than the limit is dropped as `too_old`.
+
+| Metric | Definition |
+|---|---|
+| Daily, weekly, monthly active installs | Distinct installs with a hit in the site's local day, in the 7 and 30 local days ending that day. Counts are never summed across days, so a range total is the distinct installs of the range |
+| Stickiness | Mean daily active installs over the range divided by the distinct installs of the range |
+| New installs | Installs whose first active day inside the retention window is that day |
+| Release, platform, country, OS, device adoption | Installs per value and their share of the active installs. An install that used two values in the period counts once in each, so shares can add up to more than 100% |
+| Engagement | Sessions, sessions per install, mean and median session length, screens per session |
+| Funnels | Ordered screens and events inside one session. Count by installs counts the installs with any session that reached the step; count by sessions counts sessions |
+| Retention | Day, week or month cohorts of installs, linked by the stable install id |
+| Journeys | Screen to screen paths, counted in installs |
+| Feature adoption | Installs that sent any event of a named set (up to 20 event names), as a share of the active installs |
+
+Days follow the site's time zone, so a project in Asia/Kolkata or Asia/Kathmandu
+has days that start at local midnight.
+
+Funnels, retention, journeys and the events explorer need the instance's identified
+tracking mode (`SUPERMETRY_TRACKING_MODE`), exactly like web sites: in anonymous mode they return the same
+"history is not available" problem, and screen names are not stored. Active installs,
+adoption and engagement keep working, because they use the hashed install id only.
+
+### API and AI assistants
+
+All reads are under `/api/public/v1/sites/{site_id}/app/product/` and need
+`stats:read`: `active-users`, `adoption?by=release|platform|country|os|device`,
+`engagement`, `features` and `features/{id}/adoption`. They take `range`, `release`,
+`environment` and `platform`, and answer `404` for web sites. Funnels, retention and
+journeys use their existing endpoints, which now also work for app projects.
+
+The MCP server adds `get_product_overview`, `get_active_users`, `get_retention`,
+`get_funnel`, `get_event_breakdown` and `get_user_journey`. They return counts only,
+never install ids, hashes or profile identifiers.
 
 ## Ask your AI assistant
 

@@ -1,6 +1,7 @@
 package sentryingest
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,10 +13,10 @@ const DefaultSpikePerMinute = 600
 const (
 	// rejectUnsupported is sent on every 2xx so SDKs stop sending categories
 	// that are not stored. Feedback and user reports are stored.
-	rejectUnsupported = "3600:transaction;span;profile;profile_chunk;replay;log;trace_metric;check_in:project:not_supported"
+	rejectUnsupported = "3600:transaction;span;profile;profile_chunk;replay;log;trace_metric:project:not_supported"
 	// perfUnsupported is sent instead of rejectUnsupported for projects with
 	// performance on: transactions and spans are accepted.
-	perfUnsupported = "3600:profile;profile_chunk;replay;log;trace_metric;check_in:project:not_supported"
+	perfUnsupported = "3600:profile;profile_chunk;replay;log;trace_metric:project:not_supported"
 	// spanLimits accompanies a span or transaction that was over the project's
 	// span budget.
 	spanLimits = "60:transaction;span:project:rate_limit"
@@ -25,12 +26,20 @@ const (
 	ipLimits     = "60:error;default:ip:rate_limit"
 )
 
-// unsupportedLimits is the not_supported quota list sent on every 2xx.
-func unsupportedLimits(perf bool) string {
+// logLimits accompanies a log item that was over the project's daily quota.
+const logLimits = "60:log_item;log_byte:project:rate_limit"
+
+// unsupportedLimits is the not_supported quota list sent on every 2xx. Log
+// items are left out of it when the project stores them.
+func unsupportedLimits(perf, logs bool) string {
+	list := rejectUnsupported
 	if perf {
-		return perfUnsupported
+		list = perfUnsupported
 	}
-	return rejectUnsupported
+	if logs {
+		list = strings.Replace(list, ";log;", ";", 1)
+	}
+	return list
 }
 
 // spikeGuard caps events per site per minute with a fixed window. It is

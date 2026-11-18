@@ -76,6 +76,7 @@ const messages: MessageTree = {
     issues: 'Probleme',
     compatibility: 'Kompatibilität',
     releases: 'Releases',
+    performance: 'Performance',
     goals: 'Ziele',
     revenue: 'Umsatz',
     settings: 'Website-Einstellungen',

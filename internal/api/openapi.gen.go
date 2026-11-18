@@ -358,6 +358,42 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 	}
 }
 
+// Defines values for AlertSilenceKind.
+const (
+	AlertSilenceKindMaintenance AlertSilenceKind = "maintenance"
+	AlertSilenceKindSilence     AlertSilenceKind = "silence"
+)
+
+// Valid indicates whether the value is a known member of the AlertSilenceKind enum.
+func (e AlertSilenceKind) Valid() bool {
+	switch e {
+	case AlertSilenceKindMaintenance:
+		return true
+	case AlertSilenceKindSilence:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertSilenceInputKind.
+const (
+	AlertSilenceInputKindMaintenance AlertSilenceInputKind = "maintenance"
+	AlertSilenceInputKindSilence     AlertSilenceInputKind = "silence"
+)
+
+// Valid indicates whether the value is a known member of the AlertSilenceInputKind enum.
+func (e AlertSilenceInputKind) Valid() bool {
+	switch e {
+	case AlertSilenceInputKindMaintenance:
+		return true
+	case AlertSilenceInputKindSilence:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppAppStartType.
 const (
 	Cold AppAppStartType = "cold"
@@ -706,6 +742,78 @@ func (e AppIssueWebhooksKinds) Valid() bool {
 	}
 }
 
+// Defines values for AppMonitorScheduleType.
+const (
+	Crontab  AppMonitorScheduleType = "crontab"
+	Interval AppMonitorScheduleType = "interval"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorScheduleType enum.
+func (e AppMonitorScheduleType) Valid() bool {
+	switch e {
+	case Crontab:
+		return true
+	case Interval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppMonitorStatus.
+const (
+	AppMonitorStatusDisabled AppMonitorStatus = "disabled"
+	AppMonitorStatusError    AppMonitorStatus = "error"
+	AppMonitorStatusMissed   AppMonitorStatus = "missed"
+	AppMonitorStatusOk       AppMonitorStatus = "ok"
+	AppMonitorStatusTimeout  AppMonitorStatus = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorStatus enum.
+func (e AppMonitorStatus) Valid() bool {
+	switch e {
+	case AppMonitorStatusDisabled:
+		return true
+	case AppMonitorStatusError:
+		return true
+	case AppMonitorStatusMissed:
+		return true
+	case AppMonitorStatusOk:
+		return true
+	case AppMonitorStatusTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppMonitorCheckinStatus.
+const (
+	AppMonitorCheckinStatusError      AppMonitorCheckinStatus = "error"
+	AppMonitorCheckinStatusInProgress AppMonitorCheckinStatus = "in_progress"
+	AppMonitorCheckinStatusMissed     AppMonitorCheckinStatus = "missed"
+	AppMonitorCheckinStatusOk         AppMonitorCheckinStatus = "ok"
+	AppMonitorCheckinStatusTimeout    AppMonitorCheckinStatus = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorCheckinStatus enum.
+func (e AppMonitorCheckinStatus) Valid() bool {
+	switch e {
+	case AppMonitorCheckinStatusError:
+		return true
+	case AppMonitorCheckinStatusInProgress:
+		return true
+	case AppMonitorCheckinStatusMissed:
+		return true
+	case AppMonitorCheckinStatusOk:
+		return true
+	case AppMonitorCheckinStatusTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppReleaseDetailStatus.
 const (
 	AppReleaseDetailStatusArchived AppReleaseDetailStatus = "archived"
@@ -837,9 +945,10 @@ func (e DashboardLayoutSchemaVersion) Valid() bool {
 
 // Defines values for DeliveryStatus.
 const (
-	DeliveryStatusFailed    DeliveryStatus = "failed"
-	DeliveryStatusPending   DeliveryStatus = "pending"
-	DeliveryStatusSucceeded DeliveryStatus = "succeeded"
+	DeliveryStatusFailed     DeliveryStatus = "failed"
+	DeliveryStatusPending    DeliveryStatus = "pending"
+	DeliveryStatusSucceeded  DeliveryStatus = "succeeded"
+	DeliveryStatusSuppressed DeliveryStatus = "suppressed"
 )
 
 // Valid indicates whether the value is a known member of the DeliveryStatus enum.
@@ -850,6 +959,8 @@ func (e DeliveryStatus) Valid() bool {
 	case DeliveryStatusPending:
 		return true
 	case DeliveryStatusSucceeded:
+		return true
+	case DeliveryStatusSuppressed:
 		return true
 	default:
 		return false
@@ -1374,25 +1485,55 @@ func (e Metric) Valid() bool {
 
 // Defines values for NotificationChannelKind.
 const (
-	Discord  NotificationChannelKind = "discord"
-	Email    NotificationChannelKind = "email"
-	Slack    NotificationChannelKind = "slack"
-	Telegram NotificationChannelKind = "telegram"
-	Webhook  NotificationChannelKind = "webhook"
+	NotificationChannelKindDiscord   NotificationChannelKind = "discord"
+	NotificationChannelKindEmail     NotificationChannelKind = "email"
+	NotificationChannelKindNone      NotificationChannelKind = "none"
+	NotificationChannelKindPagerduty NotificationChannelKind = "pagerduty"
+	NotificationChannelKindSlack     NotificationChannelKind = "slack"
+	NotificationChannelKindTelegram  NotificationChannelKind = "telegram"
+	NotificationChannelKindWebhook   NotificationChannelKind = "webhook"
 )
 
 // Valid indicates whether the value is a known member of the NotificationChannelKind enum.
 func (e NotificationChannelKind) Valid() bool {
 	switch e {
-	case Discord:
+	case NotificationChannelKindDiscord:
 		return true
-	case Email:
+	case NotificationChannelKindEmail:
 		return true
-	case Slack:
+	case NotificationChannelKindNone:
 		return true
-	case Telegram:
+	case NotificationChannelKindPagerduty:
 		return true
-	case Webhook:
+	case NotificationChannelKindSlack:
+		return true
+	case NotificationChannelKindTelegram:
+		return true
+	case NotificationChannelKindWebhook:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ObsMetricInfoKind.
+const (
+	Counter   ObsMetricInfoKind = "counter"
+	Gauge     ObsMetricInfoKind = "gauge"
+	Histogram ObsMetricInfoKind = "histogram"
+	Updown    ObsMetricInfoKind = "updown"
+)
+
+// Valid indicates whether the value is a known member of the ObsMetricInfoKind enum.
+func (e ObsMetricInfoKind) Valid() bool {
+	switch e {
+	case Counter:
+		return true
+	case Gauge:
+		return true
+	case Histogram:
+		return true
+	case Updown:
 		return true
 	default:
 		return false
@@ -2803,6 +2944,55 @@ type AdminUsersResponse struct {
 	Data []AdminUser `json:"data"`
 }
 
+// AlertSilence defines model for AlertSilence.
+type AlertSilence struct {
+	// AlertId Absent for a silence covering every rule of the site.
+	AlertId         *int64           `json:"alert_id,omitempty"`
+	CreatedAt       time.Time        `json:"created_at"`
+	CreatedBy       *int64           `json:"created_by,omitempty"`
+	DurationMinutes *int             `json:"duration_minutes,omitempty"`
+	EndsAt          *time.Time       `json:"ends_at,omitempty"`
+	Id              int64            `json:"id"`
+	Kind            AlertSilenceKind `json:"kind"`
+	Reason          string           `json:"reason"`
+	SiteId          int32            `json:"site_id"`
+
+	// StartTime Maintenance only; HH:MM wall clock in tz.
+	StartTime *string   `json:"start_time,omitempty"`
+	StartsAt  time.Time `json:"starts_at"`
+
+	// Tz IANA time zone of the maintenance window.
+	Tz *string `json:"tz,omitempty"`
+
+	// Weekdays Maintenance only; 0 is Sunday.
+	Weekdays *[]int `json:"weekdays,omitempty"`
+}
+
+// AlertSilenceKind defines model for AlertSilence.Kind.
+type AlertSilenceKind string
+
+// AlertSilenceInput defines model for AlertSilenceInput.
+type AlertSilenceInput struct {
+	AlertId         *int64 `json:"alert_id,omitempty"`
+	DurationMinutes *int   `json:"duration_minutes,omitempty"`
+
+	// EndsAt Required for a silence; optional end of a maintenance recurrence.
+	EndsAt    *time.Time            `json:"ends_at,omitempty"`
+	Kind      AlertSilenceInputKind `json:"kind"`
+	Reason    *string               `json:"reason,omitempty"`
+	StartTime *string               `json:"start_time,omitempty"`
+
+	// StartsAt Defaults to now.
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+
+	// Tz Defaults to the site time zone.
+	Tz       *string `json:"tz,omitempty"`
+	Weekdays *[]int  `json:"weekdays,omitempty"`
+}
+
+// AlertSilenceInputKind defines model for AlertSilenceInput.Kind.
+type AlertSilenceInputKind string
+
 // Annotation defines model for Annotation.
 type Annotation struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -3046,7 +3236,10 @@ type AppEventBody struct {
 	// Body message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.
 	Body    map[string]interface{} `json:"body"`
 	EventId string                 `json:"event_id"`
-	Ts      time.Time              `json:"ts"`
+
+	// TraceId Trace of the event, 32 hex characters; present only when the event is linked to a trace.
+	TraceId *string   `json:"trace_id,omitempty"`
+	Ts      time.Time `json:"ts"`
 }
 
 // AppEventSample defines model for AppEventSample.
@@ -3387,6 +3580,61 @@ type AppMergedIssue struct {
 	Title    string    `json:"title"`
 }
 
+// AppMonitor defines model for AppMonitor.
+type AppMonitor struct {
+	CheckinMarginMinutes int       `json:"checkin_margin_minutes"`
+	Environment          string    `json:"environment"`
+	FailureThreshold     int       `json:"failure_threshold"`
+	Id                   int64     `json:"id"`
+	LastCheckinAt        time.Time `json:"last_checkin_at"`
+	MaxRuntimeMinutes    int       `json:"max_runtime_minutes"`
+	NextExpectedAt       time.Time `json:"next_expected_at"`
+	RecoveryThreshold    int       `json:"recovery_threshold"`
+
+	// Schedule A 5-field cron expression, or "N unit" for an interval (unit: minute, hour, day, week, month, year).
+	Schedule     string                 `json:"schedule"`
+	ScheduleType AppMonitorScheduleType `json:"schedule_type"`
+	Slug         string                 `json:"slug"`
+	Status       AppMonitorStatus       `json:"status"`
+	Timezone     string                 `json:"timezone"`
+}
+
+// AppMonitorScheduleType defines model for AppMonitor.ScheduleType.
+type AppMonitorScheduleType string
+
+// AppMonitorStatus defines model for AppMonitor.Status.
+type AppMonitorStatus string
+
+// AppMonitorCheckin defines model for AppMonitorCheckin.
+type AppMonitorCheckin struct {
+	CheckinId  string                  `json:"checkin_id"`
+	DurationMs int64                   `json:"duration_ms"`
+	ExpectedAt time.Time               `json:"expected_at"`
+	Release    string                  `json:"release"`
+	Status     AppMonitorCheckinStatus `json:"status"`
+	Timestamp  time.Time               `json:"timestamp"`
+}
+
+// AppMonitorCheckinStatus defines model for AppMonitorCheckin.Status.
+type AppMonitorCheckinStatus string
+
+// AppMonitorCheckins defines model for AppMonitorCheckins.
+type AppMonitorCheckins struct {
+	Checkins []AppMonitorCheckin `json:"checkins"`
+}
+
+// AppMonitorList defines model for AppMonitorList.
+type AppMonitorList struct {
+	Monitors []AppMonitor `json:"monitors"`
+}
+
+// AppMonitorPatch defines model for AppMonitorPatch.
+type AppMonitorPatch struct {
+	CheckinMarginMinutes *int  `json:"checkin_margin_minutes,omitempty"`
+	Disabled             *bool `json:"disabled,omitempty"`
+	MaxRuntimeMinutes    *int  `json:"max_runtime_minutes,omitempty"`
+}
+
 // AppNetworkFailures defines model for AppNetworkFailures.
 type AppNetworkFailures struct {
 	Failures []AppSpanGroup `json:"failures"`
@@ -3402,18 +3650,22 @@ type AppNotificationPrefs struct {
 
 	// Resolved An issue assigned to me was resolved by someone else.
 	Resolved bool `json:"resolved"`
+
+	// WeeklyDigest Mail the weekly digest on Monday 09:00 in the project time zone. Optional when saving: absent keeps the current value. Always present in responses.
+	WeeklyDigest *bool `json:"weekly_digest,omitempty"`
 }
 
 // AppNotificationPrefsSite defines model for AppNotificationPrefsSite.
 type AppNotificationPrefsSite struct {
-	Assigned  bool   `json:"assigned"`
-	OrgName   string `json:"org_name"`
-	OrgSlug   string `json:"org_slug"`
-	Regressed bool   `json:"regressed"`
-	Resolved  bool   `json:"resolved"`
-	SiteId    int32  `json:"site_id"`
-	SiteName  string `json:"site_name"`
-	SiteSlug  string `json:"site_slug"`
+	Assigned     bool   `json:"assigned"`
+	OrgName      string `json:"org_name"`
+	OrgSlug      string `json:"org_slug"`
+	Regressed    bool   `json:"regressed"`
+	Resolved     bool   `json:"resolved"`
+	SiteId       int32  `json:"site_id"`
+	SiteName     string `json:"site_name"`
+	SiteSlug     string `json:"site_slug"`
+	WeeklyDigest bool   `json:"weekly_digest"`
 }
 
 // AppOverview defines model for AppOverview.
@@ -4012,6 +4264,7 @@ type DashboardWidget struct {
 	// Config Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
 	// `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
 	// (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+	// `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
 	Config *DashboardWidgetConfig `json:"config,omitempty"`
 
 	// Filters Added to the dashboard filters for this widget.
@@ -4035,7 +4288,10 @@ type DashboardWidget struct {
 // DashboardWidgetConfig Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
 // `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
 // (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+// `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
 type DashboardWidgetConfig struct {
+	Chart *string `json:"chart,omitempty"`
+
 	// Dimension A known query dimension, or prop:<key>.
 	Dimension *string `json:"dimension,omitempty"`
 	FunnelId  *int64  `json:"funnel_id,omitempty"`
@@ -4044,6 +4300,9 @@ type DashboardWidgetConfig struct {
 	// Metric exit_rate is exits divided by pageviews; time_on_page is engaged milliseconds divided by engaged sessions, in seconds.
 	Metric  *Metric   `json:"metric,omitempty"`
 	Metrics *[]Metric `json:"metrics,omitempty"`
+
+	// Query An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+	Query *ObsMetricWidgetQuery `json:"query,omitempty"`
 }
 
 // DateRange defines model for DateRange.
@@ -4076,7 +4335,7 @@ type DeletionResult struct {
 	Scheduled bool       `json:"scheduled"`
 }
 
-// DeliveryStatus defines model for DeliveryStatus.
+// DeliveryStatus suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
 type DeliveryStatus string
 
 // DemoError defines model for DemoError.
@@ -4804,8 +5063,10 @@ type NotificationDelivery struct {
 	Id            int64                   `json:"id"`
 	LastAttemptAt *time.Time              `json:"last_attempt_at,omitempty"`
 	SiteId        int32                   `json:"site_id"`
-	Status        DeliveryStatus          `json:"status"`
-	UpdatedAt     time.Time               `json:"updated_at"`
+
+	// Status suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
+	Status    DeliveryStatus `json:"status"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 // NotificationSettings defines model for NotificationSettings.
@@ -4833,6 +5094,99 @@ type NotificationTemplateList struct {
 	Data      []NotificationTemplate `json:"data"`
 	Settings  NotificationSettings   `json:"settings"`
 	Variables []string               `json:"variables"`
+}
+
+// ObsLog defines model for ObsLog.
+type ObsLog struct {
+	Attributes  map[string]interface{} `json:"attributes"`
+	Body        string                 `json:"body"`
+	Environment string                 `json:"environment"`
+	Release     string                 `json:"release"`
+	Service     string                 `json:"service"`
+
+	// Severity OTLP severity number; 0 when unset.
+	Severity int `json:"severity"`
+
+	// SeverityText trace, debug, info, warn, error or fatal; empty when unset.
+	SeverityText string `json:"severity_text"`
+
+	// SpanId 16 hex characters; absent without a span.
+	SpanId *string `json:"span_id,omitempty"`
+
+	// TraceId 32 hex characters; absent without a trace.
+	TraceId   *string   `json:"trace_id,omitempty"`
+	Truncated bool      `json:"truncated"`
+	Ts        time.Time `json:"ts"`
+}
+
+// ObsLogPage defines model for ObsLogPage.
+type ObsLogPage struct {
+	Data       []ObsLog `json:"data"`
+	NextCursor *string  `json:"next_cursor"`
+}
+
+// ObsMetricInfo defines model for ObsMetricInfo.
+type ObsMetricInfo struct {
+	AttributeKeys []string          `json:"attribute_keys"`
+	Kind          ObsMetricInfoKind `json:"kind"`
+	Name          string            `json:"name"`
+
+	// Series Distinct attribute combinations.
+	Series int    `json:"series"`
+	Unit   string `json:"unit"`
+}
+
+// ObsMetricInfoKind defines model for ObsMetricInfo.Kind.
+type ObsMetricInfoKind string
+
+// ObsMetricList defines model for ObsMetricList.
+type ObsMetricList struct {
+	Metrics []ObsMetricInfo `json:"metrics"`
+}
+
+// ObsMetricQuery defines model for ObsMetricQuery.
+type ObsMetricQuery struct {
+	Agg string `json:"agg"`
+
+	// Filters Attribute key to exact value; at most 16.
+	Filters *map[string]string `json:"filters,omitempty"`
+	From    time.Time          `json:"from"`
+
+	// GroupBy Up to two attribute keys.
+	GroupBy  *[]string `json:"group_by,omitempty"`
+	Interval string    `json:"interval"`
+	Name     string    `json:"name"`
+	To       time.Time `json:"to"`
+}
+
+// ObsMetricResult defines model for ObsMetricResult.
+type ObsMetricResult struct {
+	Series []ObsMetricSeries `json:"series"`
+}
+
+// ObsMetricSeries defines model for ObsMetricSeries.
+type ObsMetricSeries struct {
+	// Group The group_by attribute values; empty without group_by.
+	Group  map[string]string      `json:"group"`
+	Points []ObsMetricSeriesPoint `json:"points"`
+}
+
+// ObsMetricSeriesPoint defines model for ObsMetricSeriesPoint.
+type ObsMetricSeriesPoint struct {
+	// Ts Start of the bucket.
+	Ts time.Time `json:"ts"`
+
+	// Value Null when the bucket has no value for the aggregation.
+	Value *float32 `json:"value"`
+}
+
+// ObsMetricWidgetQuery An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+type ObsMetricWidgetQuery struct {
+	Agg      string             `json:"agg"`
+	Filters  *map[string]string `json:"filters,omitempty"`
+	GroupBy  *[]string          `json:"group_by,omitempty"`
+	Interval string             `json:"interval"`
+	Name     string             `json:"name"`
 }
 
 // OpenShareRequest defines model for OpenShareRequest.
@@ -6247,6 +6601,11 @@ type ListAppIssueFeedbackParams struct {
 	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
 }
 
+// ListAppMonitorCheckinsParams defines parameters for ListAppMonitorCheckins.
+type ListAppMonitorCheckinsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // GetAppOverviewParams defines parameters for GetAppOverview.
 type GetAppOverviewParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
@@ -6426,6 +6785,32 @@ type ListNotificationHistoryParams struct {
 	Channel *NotificationChannelKind `form:"channel,omitempty" json:"channel,omitempty"`
 	AlertId *int64                   `form:"alert_id,omitempty" json:"alert_id,omitempty"`
 	Limit   *int                     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// SearchObsLogsParams defines parameters for SearchObsLogs.
+type SearchObsLogsParams struct {
+	// Q Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+	// case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+	// or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+	// 32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// From Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.
+	To    *time.Time `form:"to,omitempty" json:"to,omitempty"`
+	Limit *int       `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor The `next_cursor` of the previous page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListObsTraceLogsParams defines parameters for ListObsTraceLogs.
+type ListObsTraceLogsParams struct {
+	// Around RFC 3339 centre of the window, usually the time of the error or span.
+	Around *time.Time `form:"around,omitempty" json:"around,omitempty"`
+	Limit  *int       `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // PixelStatsParams defines parameters for PixelStats.
@@ -6620,6 +7005,25 @@ type ListEventsParams struct {
 	Filter *Filters `form:"filter,omitempty" json:"filter,omitempty"`
 	Cursor *Cursor  `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *int     `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// SearchObsLogsPublicParams defines parameters for SearchObsLogsPublic.
+type SearchObsLogsPublicParams struct {
+	// Q Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+	// case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+	// or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+	// 32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// From Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.
+	To    *time.Time `form:"to,omitempty" json:"to,omitempty"`
+	Limit *int       `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor The `next_cursor` of the previous page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // ListProfilesParams defines parameters for ListProfiles.
@@ -6860,6 +7264,9 @@ type CreateSharedLinkJSONRequestBody = CreateShareRequest
 // ChangeSharedLinkExpiryJSONRequestBody defines body for ChangeSharedLinkExpiry for application/json ContentType.
 type ChangeSharedLinkExpiryJSONRequestBody = ChangeShareExpiryRequest
 
+// CreateAlertSilenceJSONRequestBody defines body for CreateAlertSilence for application/json ContentType.
+type CreateAlertSilenceJSONRequestBody = AlertSilenceInput
+
 // UpdateAppLinkJSONRequestBody defines body for UpdateAppLink for application/json ContentType.
 type UpdateAppLinkJSONRequestBody = AppLink
 
@@ -6889,6 +7296,9 @@ type MergeAppIssuesJSONRequestBody = AppIssueMergeInput
 
 // UnmergeAppIssueJSONRequestBody defines body for UnmergeAppIssue for application/json ContentType.
 type UnmergeAppIssueJSONRequestBody = AppIssueUnmergeInput
+
+// UpdateAppMonitorJSONRequestBody defines body for UpdateAppMonitor for application/json ContentType.
+type UpdateAppMonitorJSONRequestBody = AppMonitorPatch
 
 // CreateAppFeatureSetJSONRequestBody defines body for CreateAppFeatureSet for application/json ContentType.
 type CreateAppFeatureSetJSONRequestBody = AppFeatureSetInput
@@ -6925,6 +7335,9 @@ type BackfillSiteIntegrationJSONRequestBody = IntegrationBackfillRequest
 
 // ConnectSiteIntegrationJSONRequestBody defines body for ConnectSiteIntegration for application/json ContentType.
 type ConnectSiteIntegrationJSONRequestBody = IntegrationConnectRequest
+
+// QueryObsMetricsJSONRequestBody defines body for QueryObsMetrics for application/json ContentType.
+type QueryObsMetricsJSONRequestBody = ObsMetricQuery
 
 // CreatePixelJSONRequestBody defines body for CreatePixel for application/json ContentType.
 type CreatePixelJSONRequestBody = PixelInput
@@ -7003,6 +7416,9 @@ type CreateFunnelJSONRequestBody = SavedFunnelInput
 
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalInput
+
+// QueryObsMetricsPublicJSONRequestBody defines body for QueryObsMetricsPublic for application/json ContentType.
+type QueryObsMetricsPublicJSONRequestBody = ObsMetricQuery
 
 // CreateSegmentJSONRequestBody defines body for CreateSegment for application/json ContentType.
 type CreateSegmentJSONRequestBody = SegmentInput
@@ -7746,6 +8162,15 @@ type ServerInterface interface {
 	// ChangeSharedLinkExpiry Change a shared dashboard link expiry
 	// (PATCH /api/private/sites/{site_id}/shares/{share_id})
 	ChangeSharedLinkExpiry(w http.ResponseWriter, r *http.Request, siteId SitePathID, shareId int64)
+	// ListAlertSilences List silences and maintenance windows of a site
+	// (GET /api/private/sites/{site}/alert-silences)
+	ListAlertSilences(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateAlertSilence Create a silence or maintenance window (owner, admin, editor; at most 50 active or future per site)
+	// (POST /api/private/sites/{site}/alert-silences)
+	CreateAlertSilence(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAlertSilence Delete a silence or maintenance window
+	// (DELETE /api/private/sites/{site}/alert-silences/{silence})
+	DeleteAlertSilence(w http.ResponseWriter, r *http.Request, site int32, silence int64)
 	// GetAppLink Read the app project a web site sends diagnostic reports to
 	// (GET /api/private/sites/{site}/app-link)
 	GetAppLink(w http.ResponseWriter, r *http.Request, site int32)
@@ -7836,6 +8261,18 @@ type ServerInterface interface {
 	// UnmergeAppIssue Split merged issues back out by fingerprint hash
 	// (POST /api/private/sites/{site}/app/issues/{issue}/unmerge)
 	UnmergeAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// ListAppMonitors The cron monitors of an app project
+	// (GET /api/private/sites/{site}/app/monitors)
+	ListAppMonitors(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppMonitor Delete a cron monitor and its check-ins
+	// (DELETE /api/private/sites/{site}/app/monitors/{monitor})
+	DeleteAppMonitor(w http.ResponseWriter, r *http.Request, site int32, monitor int64)
+	// UpdateAppMonitor Disable, enable or tune a cron monitor
+	// (PATCH /api/private/sites/{site}/app/monitors/{monitor})
+	UpdateAppMonitor(w http.ResponseWriter, r *http.Request, site int32, monitor int64)
+	// ListAppMonitorCheckins The newest check-ins of a cron monitor
+	// (GET /api/private/sites/{site}/app/monitors/{monitor}/checkins)
+	ListAppMonitorCheckins(w http.ResponseWriter, r *http.Request, site int32, monitor int64, params ListAppMonitorCheckinsParams)
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
@@ -7989,6 +8426,18 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+	// SearchObsLogs Search an app project's logs, newest first
+	// (GET /api/private/sites/{site}/obs/logs)
+	SearchObsLogs(w http.ResponseWriter, r *http.Request, site int32, params SearchObsLogsParams)
+	// ListObsMetrics List the metric names of an app project
+	// (GET /api/private/sites/{site}/obs/metrics)
+	ListObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
+	// QueryObsMetrics Query one metric as time series
+	// (POST /api/private/sites/{site}/obs/metrics/query)
+	QueryObsMetrics(w http.ResponseWriter, r *http.Request, site int32)
+	// ListObsTraceLogs The logs of one trace, oldest first
+	// (GET /api/private/sites/{site}/obs/traces/{trace_id}/logs)
+	ListObsTraceLogs(w http.ResponseWriter, r *http.Request, site int32, traceId string, params ListObsTraceLogsParams)
 
 	// (GET /api/private/sites/{site}/pixels)
 	ListPixels(w http.ResponseWriter, r *http.Request, site int32)
@@ -8169,6 +8618,15 @@ type ServerInterface interface {
 	// CreateGoal Create a goal
 	// (POST /api/public/v1/sites/{site_id}/goals)
 	CreateGoal(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// SearchObsLogsPublic Search an app project's logs, newest first
+	// (GET /api/public/v1/sites/{site_id}/obs/logs)
+	SearchObsLogsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID, params SearchObsLogsPublicParams)
+	// ListObsMetricsPublic List the metric names of an app project
+	// (GET /api/public/v1/sites/{site_id}/obs/metrics)
+	ListObsMetricsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// QueryObsMetricsPublic Query one metric as time series
+	// (POST /api/public/v1/sites/{site_id}/obs/metrics/query)
+	QueryObsMetricsPublic(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// ListProfiles List identified profiles
 	// (GET /api/public/v1/sites/{site_id}/profiles)
 	ListProfiles(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListProfilesParams)
@@ -11098,6 +11556,93 @@ func (siw *ServerInterfaceWrapper) ChangeSharedLinkExpiry(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// ListAlertSilences operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertSilences(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertSilences(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAlertSilence operation middleware
+func (siw *ServerInterfaceWrapper) CreateAlertSilence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAlertSilence(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAlertSilence operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAlertSilence(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "silence" -------------
+	var silence int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "silence", r.PathValue("silence"), &silence, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "silence", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAlertSilence(w, r, site, silence)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppLink operation middleware
 func (siw *ServerInterfaceWrapper) GetAppLink(w http.ResponseWriter, r *http.Request) {
 
@@ -12536,6 +13081,153 @@ func (siw *ServerInterfaceWrapper) UnmergeAppIssue(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UnmergeAppIssue(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppMonitors operation middleware
+func (siw *ServerInterfaceWrapper) ListAppMonitors(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppMonitors(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppMonitor operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppMonitor(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppMonitor(w, r, site, monitor)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppMonitor operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppMonitor(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppMonitor(w, r, site, monitor)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppMonitorCheckins operation middleware
+func (siw *ServerInterfaceWrapper) ListAppMonitorCheckins(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAppMonitorCheckinsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppMonitorCheckins(w, r, site, monitor, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15087,6 +15779,216 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
+// SearchObsLogs operation middleware
+func (siw *ServerInterfaceWrapper) SearchObsLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchObsLogsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchObsLogs(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListObsMetrics operation middleware
+func (siw *ServerInterfaceWrapper) ListObsMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsMetrics(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryObsMetrics operation middleware
+func (siw *ServerInterfaceWrapper) QueryObsMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryObsMetrics(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListObsTraceLogs operation middleware
+func (siw *ServerInterfaceWrapper) ListObsTraceLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "trace_id" -------------
+	var traceId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "trace_id", r.PathValue("trace_id"), &traceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trace_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListObsTraceLogsParams
+
+	// ------------- Optional query parameter "around" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "around", r.URL.Query(), &params.Around, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "around"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "around", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsTraceLogs(w, r, site, traceId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPixels operation middleware
 func (siw *ServerInterfaceWrapper) ListPixels(w http.ResponseWriter, r *http.Request) {
 
@@ -17471,6 +18373,152 @@ func (siw *ServerInterfaceWrapper) CreateGoal(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// SearchObsLogsPublic operation middleware
+func (siw *ServerInterfaceWrapper) SearchObsLogsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchObsLogsPublicParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchObsLogsPublic(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListObsMetricsPublic operation middleware
+func (siw *ServerInterfaceWrapper) ListObsMetricsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObsMetricsPublic(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryObsMetricsPublic operation middleware
+func (siw *ServerInterfaceWrapper) QueryObsMetricsPublic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryObsMetricsPublic(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListProfiles operation middleware
 func (siw *ServerInterfaceWrapper) ListProfiles(w http.ResponseWriter, r *http.Request) {
 
@@ -18805,6 +19853,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/sites/{site_id}", wrapper.UpdateSite)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.ListGoals)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/goals", wrapper.CreateGoal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/logs", wrapper.SearchObsLogsPublic)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/profiles", wrapper.ListProfiles)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/sessions", wrapper.ListSessions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sessions/{session_id}", wrapper.GetSession)
@@ -18823,6 +19872,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/funnels", wrapper.CreateFunnel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.DeleteFunnel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/public/v1/funnels/{funnel_id}", wrapper.UpdateFunnel)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/metrics", wrapper.ListObsMetricsPublic)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/obs/metrics/query", wrapper.QueryObsMetricsPublic)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.ListSegments)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/segments", wrapper.CreateSegment)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/segments/{segment_id}", wrapper.DeleteSegment)
@@ -18843,6 +19894,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erase", wrapper.EraseAppUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/logs", wrapper.SearchObsLogs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/traces/{trace_id}/logs", wrapper.ListObsTraceLogs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/bulk", wrapper.BulkUpdateAppIssues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/views", wrapper.ListAppSavedViews)
@@ -18850,8 +19903,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.DeleteAppSavedView)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/views/{view}", wrapper.UpdateAppSavedView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/metrics", wrapper.ListObsMetrics)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/obs/metrics/query", wrapper.QueryObsMetrics)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.GetAppRules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.ReplaceAppRules)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors", wrapper.ListAppMonitors)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}", wrapper.DeleteAppMonitor)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}", wrapper.UpdateAppMonitor)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}/checkins", wrapper.ListAppMonitorCheckins)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}", wrapper.GetAppEventAttachment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.GetAppIssue)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.UpdateAppIssue)
@@ -18931,6 +19990,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/duplicate", wrapper.DuplicateDashboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/dashboards/{dashboard}/default", wrapper.SetDefaultDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/power-users", wrapper.ListPowerUsers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.ListAlertSilences)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.CreateAlertSilence)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences/{silence}", wrapper.DeleteAlertSilence)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)

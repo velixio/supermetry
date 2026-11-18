@@ -185,6 +185,7 @@ func (r *Registry) refresh(ctx context.Context) error {
 				HashSecret: hashSecrets[site.ID], FilterExtensions: parsed.FilterExtensions,
 				FilterCrawlers: parsed.FilterCrawlers, FilterLocalhost: parsed.FilterLocalhost,
 				PerformanceEnabled: parsed.PerformanceEnabled, SpanRetentionDays: parsed.SpanRetentionDays, ElectronSymbols: parsed.ElectronSymbols,
+				LogDailyQuota: *parsed.LogDailyQuota, MetricDailyQuota: *parsed.MetricDailyQuota,
 			}
 			site.App.Rules = compileSiteRules(site.ID, ownership[site.ID], grouping[site.ID])
 			for _, key := range dsnBySite[site.ID] {

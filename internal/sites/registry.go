@@ -49,6 +49,8 @@ type AppConfig struct {
 	PerformanceEnabled *bool         // nil means on
 	SpanRetentionDays  int           // 1..14; 0 means 14
 	ElectronSymbols    *bool         // nil means on
+	LogDailyQuota      int64         // log records per UTC day; 0 means unlimited
+	MetricDailyQuota   int64         // metric points per UTC day; 0 means unlimited
 	Rules              *apprules.Set // compiled ownership and grouping rules; nil when the project has none
 	HashSecret         []byte        // per-app HMAC secret for install and session ids; nil until the first event creates it
 }

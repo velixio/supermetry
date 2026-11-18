@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch'
 
 import { privateRequest } from './privateApi'
 
-type Prefs = { assigned: boolean; resolved: boolean; regressed: boolean }
+type Prefs = { assigned: boolean; resolved: boolean; regressed: boolean; weekly_digest: boolean }
 type SitePrefs = Prefs & { site_id: number; site_name: string; site_slug: string; org_slug: string; org_name: string }
 
 const key = ['app-notification-prefs']
@@ -16,6 +16,7 @@ const switches: { field: keyof Prefs; label: string; note: string }[] = [
   { field: 'assigned', label: 'Assigned to me', note: 'An issue is assigned to you by someone else.' },
   { field: 'regressed', label: 'Regressed', note: 'An issue assigned to you comes back after it was resolved.' },
   { field: 'resolved', label: 'Resolved', note: 'Someone else resolves an issue assigned to you.' },
+  { field: 'weekly_digest', label: 'Weekly digest', note: 'On Monday at 9:00 in the project time zone: last week\'s new and regressed issues, busiest issues and crash-free users.' },
 ]
 
 // Per-user, per-project switches for the issue emails. They only ever change
@@ -35,7 +36,7 @@ export function AccountNotificationsPage() {
 
   return (
     <PageContainer width="narrow">
-      <PageHeader title="Notifications" description="Choose which app issue emails you receive. Emails only go to the person an issue is assigned to, never to the person who made the change." />
+      <PageHeader title="Notifications" description="Choose which app emails you receive. Issue emails only go to the person an issue is assigned to, never to the person who made the change." />
       {prefs.isPending && <p role="status">Loading notification settings…</p>}
       {prefs.isError && (
         <div role="alert" className="flex flex-wrap items-center gap-3">
@@ -65,7 +66,7 @@ export function AccountNotificationsPage() {
                       disabled={save.isPending}
                       onCheckedChange={(on) => save.mutate({
                         site: site.site_id,
-                        next: { assigned: site.assigned, resolved: site.resolved, regressed: site.regressed, [field]: on },
+                        next: { assigned: site.assigned, resolved: site.resolved, regressed: site.regressed, weekly_digest: site.weekly_digest, [field]: on },
                       })}
                     />
                   </li>

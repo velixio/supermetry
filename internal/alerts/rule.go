@@ -285,6 +285,9 @@ func validateEventTrigger(t EventTrigger) (EventTrigger, error) {
 		return t, invalidField("trigger.event.measure", "must be events or users")
 	}
 	if t.Spike != nil {
+		if t.Measure == "users" {
+			return t, invalidField("trigger.event.measure", "spike compares events, not users")
+		}
 		if t.Above != 0 {
 			return t, invalidField("trigger.event.above", "cannot be combined with spike")
 		}
@@ -520,6 +523,9 @@ type RuleNotification struct {
 	Severity    string `json:"severity,omitempty"`
 	Status      string `json:"status"`
 	IncidentID  int64  `json:"incident_id,omitempty"`
+	// Key is the dedup key the notification was fired under; PagerDuty events
+	// of one keyed candidate share a dedup key derived from it.
+	Key string `json:"key,omitempty"`
 }
 
 // Incident is one firing group of a metric or monitor rule.

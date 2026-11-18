@@ -169,6 +169,9 @@ func webhookBody(kind ChannelKind, notification Notification) ([]byte, error) {
 func webhookBodyRendered(kind ChannelKind, notification Notification, message string) ([]byte, error) {
 	switch kind {
 	case ChannelWebhook:
+		if body, ok := ruleIssueWebhookBody(notification); ok {
+			return json.Marshal(body)
+		}
 		return json.Marshal(webhookPayload{
 			Alert: notification.Kind, Site: notification.SiteID, Value: notification.Value,
 			Threshold: notification.Threshold, FiredAt: notification.FiredAt, Message: message,

@@ -69,6 +69,7 @@ export const dashEdit = {
     funnel: 'Funnel',
     retention: 'Retention',
     web_vitals: 'Web Vitals',
+    obs_metric: 'Custom metric',
   },
   kindNotes: {
     kpi_strip: 'A row of up to six headline numbers.',
@@ -80,6 +81,7 @@ export const dashEdit = {
     funnel: 'Step-by-step drop-off of a saved funnel.',
     retention: 'How many visitors come back.',
     web_vitals: 'Loading, interaction and layout stability.',
+    obs_metric: 'One custom metric of this app over time, optionally grouped by an attribute.',
   },
   titleLabel: 'Title (optional)',
   titleHint: 'Leave empty to use the standard title.',
@@ -156,6 +158,7 @@ export const dashEdit = {
     dimension: (name: string) => `${name}: choose what to group by.`,
     funnel: (name: string) => `${name}: choose a funnel.`,
     limit: (name: string) => `${name}: rows must be a whole number from 1 to 50.`,
+    metricName: (name: string) => `${name}: choose a metric.`,
   },
 } as const
 

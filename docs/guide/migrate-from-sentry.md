@@ -47,12 +47,27 @@ Create an upload token under Settings, Installation, set `SENTRY_AUTH_TOKEN`
 (plugins: `authToken` and `url`) and upload as before. See
 [Upload source maps](source-maps.md).
 
+## Releases and deploys
+
+`sentry-cli releases new`, `set-commits --auto`, `finalize`, `list`, `archive`, `delete`
+and `deploys new` work unchanged with the same upload token. Commits are read from your
+local git checkout; Supermetry does not fetch them from GitHub. See
+[Releases and deploys](apps.md#releases-and-deploys).
+
+## Native and mobile symbols
+
+The Android Gradle plugin, the Xcode build phase and `sentry-cli debug-files upload`
+work against Supermetry with the same variables as for source maps. ProGuard/R8
+mappings, dSYM, Mach-O and ELF files are accepted and used to symbolicate crashes.
+See [Native and mobile symbols](apps.md#native-and-mobile-symbols) for what is
+supported and for the files that are only stored.
+
 ## What is not supported yet
 
 - **Performance**: transactions, spans and traces.
 - **Session replay**, **profiles**, **cron monitors**, **user feedback**, logs and
   metrics.
-- Native crash dumps: Crashpad minidumps from Electron (as an envelope attachment or on `/api/<id>/minidump/`) are stack-walked and symbolicated for amd64 and arm64; see [Electron apps and native crashes](apps.md#electron-apps-and-native-crashes). x86 and 32-bit ARM dumps keep modules and the crash reason only.
+- Native crash dumps: Crashpad minidumps from Electron (as an envelope attachment or on `/api/<id>/minidump/`) are stack-walked and symbolicated for amd64 and arm64; see [Electron apps and native crashes](apps.md#electron-apps-and-native-crashes). x86 and 32-bit ARM dumps keep modules and the crash reason only. Crashes sent as events by the other native SDKs are symbolicated from uploaded debug files.
 
 ### Why the SDK stops sending performance data
 

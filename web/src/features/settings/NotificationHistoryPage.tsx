@@ -1,6 +1,6 @@
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { AlertTriangleIcon, CheckCircle2Icon, Clock3Icon, RotateCcwIcon } from 'lucide-react'
+import { AlertTriangleIcon, BellOffIcon, CheckCircle2Icon, Clock3Icon, RotateCcwIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ const statusIcon = {
   pending: Clock3Icon,
   succeeded: CheckCircle2Icon,
   failed: AlertTriangleIcon,
+  suppressed: BellOffIcon,
 } as const
 
 export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
@@ -31,13 +32,13 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
         <label className="flex flex-col gap-1 text-sm font-medium">
           Status
           <select className="h-11 rounded-lg border border-input bg-background px-3" value={filters.status ?? ''} onChange={(event) => onFilters({ ...filters, status: event.target.value as DeliveryStatus || undefined })}>
-            <option value="">All statuses</option><option value="pending">Pending</option><option value="succeeded">Succeeded</option><option value="failed">Failed</option>
+            <option value="">All statuses</option><option value="pending">Pending</option><option value="succeeded">Succeeded</option><option value="failed">Failed</option><option value="suppressed">Suppressed</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           Channel
           <select className="h-11 rounded-lg border border-input bg-background px-3" value={filters.channel ?? ''} onChange={(event) => onFilters({ ...filters, channel: event.target.value || undefined })}>
-            <option value="">All channels</option><option value="email">Email</option><option value="slack">Slack</option><option value="discord">Discord</option><option value="telegram">Telegram</option><option value="webhook">Webhook</option>
+            <option value="">All channels</option><option value="email">Email</option><option value="slack">Slack</option><option value="discord">Discord</option><option value="telegram">Telegram</option><option value="pagerduty">PagerDuty</option><option value="webhook">Webhook</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">

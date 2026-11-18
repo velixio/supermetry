@@ -161,6 +161,33 @@ func (e *env) seedIssue(t *testing.T, site int32, fp, firstRelease, firstSeen, l
 	e.mustExec(t, `insert into app_issues(site_id, fingerprint, kind, first_seen, last_seen, first_release, last_release) values ($1,$2,'error',$3,$4,$5,$5)`, site, fp, firstSeen, lastSeen, firstRelease)
 }
 
+// sentry-cli `releases archive` and `restore` POST the release again with a
+// status instead of sending a PUT; the existing release must take the status.
+func TestRepostExistingReleaseAppliesStatus(t *testing.T) {
+	e := newEnv(t, nil)
+	token := e.svc(t, e.owner, []string{Scope}, nil)
+	e.json(t, "POST", relBase, token, map[string]any{"version": "1.0.0", "projects": []int{10}})
+	s, rel := e.json(t, "POST", relBase, token, map[string]any{"version": "1.0.0", "projects": []int{}, "status": "archived"})
+	if s != 208 || rel["status"] != "archived" {
+		t.Fatalf("archive repost = %d %v", s, rel)
+	}
+	if _, rel = e.json(t, "GET", relBase+"1.0.0/", token, nil); rel["status"] != "archived" {
+		t.Fatalf("stored status = %v", rel["status"])
+	}
+	s, rel = e.json(t, "POST", relBase, token, map[string]any{"version": "1.0.0", "projects": []int{}, "status": "open"})
+	if s != 208 || rel["status"] != "open" {
+		t.Fatalf("restore repost = %d %v", s, rel)
+	}
+	// A restricted key that cannot use the release changes nothing.
+	narrow := e.svc(t, e.owner, []string{Scope}, []int32{20})
+	if s, _ := e.json(t, "POST", relBase, narrow, map[string]any{"version": "1.0.0", "status": "archived"}); s != 404 {
+		t.Fatalf("foreign repost = %d", s)
+	}
+	if _, rel = e.json(t, "GET", relBase+"1.0.0/", token, nil); rel["status"] != "open" {
+		t.Fatalf("status after foreign repost = %v", rel["status"])
+	}
+}
+
 func TestReleaseCountersReal(t *testing.T) {
 	e := newEnv(t, nil)
 	token := e.svc(t, e.owner, []string{Scope}, nil)

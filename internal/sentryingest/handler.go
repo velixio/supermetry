@@ -16,6 +16,8 @@ import (
 	"supermetry/internal/appsessions"
 	"supermetry/internal/clientip"
 	"supermetry/internal/dropstats"
+	"supermetry/internal/obslogs"
+	"supermetry/internal/obsquota"
 	"supermetry/internal/salts"
 	"supermetry/internal/sites"
 	"supermetry/internal/spans"
@@ -62,6 +64,7 @@ type Handler struct {
 	bodies    BodyQueue
 	reports   ClientReportSink
 	sessions  SessionQueue
+	checkins  CheckInQueue
 	product   ProductSink
 	feedback  FeedbackSink
 	geo       GeoLookup
@@ -77,6 +80,26 @@ type Handler struct {
 	spans     SpanSink
 	budget    *spans.Budget
 	names     *spans.NameCaps
+	logs      LogSink
+	logQuota  *obsquota.Tracker
+}
+
+// LogSink takes parsed log records; *obslogs.Writer implements it. Enqueue
+// returns how many records it accepted (a prefix), the rest were refused
+// because its queue is full.
+type LogSink interface {
+	Enqueue([]obslogs.Record) int
+}
+
+// MaxLogItemBytes caps one log item's payload (up to 1,000 records).
+const MaxLogItemBytes = 4 << 20
+
+// WithLogs turns Sentry log items on: they go to sink, limited by the site's
+// daily quota in quota (nil = unlimited). Without it log items are counted and
+// dropped and the SDK is told they are not supported.
+func (h *Handler) WithLogs(sink LogSink, quota *obsquota.Tracker) *Handler {
+	h.logs, h.logQuota = sink, quota
+	return h
 }
 
 // SpanSink takes parsed spans for storage; Enqueue is all or nothing and
@@ -126,6 +149,9 @@ func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r
 
 // WithSessions sets where session updates go; nil discards them.
 func (h *Handler) WithSessions(q SessionQueue) *Handler { h.sessions = q; return h }
+
+// WithCheckIns sets where cron check-ins go; nil counts and discards them.
+func (h *Handler) WithCheckIns(q CheckInQueue) *Handler { h.checkins = q; return h }
 
 // WithProductSessions turns on app product sessions: each session init that
 // carries a device id also counts as an app open for product analytics. nil
@@ -401,7 +427,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		h.fail(w, http.StatusTooManyRequests, "rate limited")
 	default:
-		limits := unsupportedLimits(h.perfOn(site))
+		limits := unsupportedLimits(h.perfOn(site), h.logs != nil)
+		if out.logLimited > 0 {
+			limits += "," + logLimits
+		}
 		if out.spanLimited > 0 {
 			limits += "," + spanLimits
 		}
@@ -417,6 +446,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type outcome struct {
 	accepted, rateLimited, queueFull int
 	spanLimited                      int // items over the span budget (also counted in rateLimited when nothing fit)
+	logLimited                       int // log items over the daily quota
 	eventID                          string
 }
 
@@ -480,6 +510,8 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				continue
 			}
 			h.ingestSpans(&out, site, it, ctx, now, "", parseSpanV2)
+		case "log":
+			h.ingestLogs(&out, site, it, now)
 		case "event":
 			if out.eventID == "" {
 				out.eventID = env.Header.EventID
@@ -515,7 +547,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			if dump != nil {
 				body.Minidump, dump = dump, nil
 			}
-			if h.symb != nil && (needsSymbolication(body) || len(body.Minidump) > 0) {
+			if h.symb != nil && (h.symb.wants(body) || len(body.Minidump) > 0) {
 				// The queued event is accepted later, so answer an exhausted
 				// budget now: the sender must see 429, not a silent 200.
 				if res := h.intake.Admit(site, budgetKey, now); res.Reason != "" {
@@ -566,6 +598,19 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				}
 				if h.sessions != nil {
 					h.sessions.Enqueue(u) // a full queue counts itself
+				}
+			}
+		case "check_in":
+			// Never reads the database: the monitor writer resolves the slug.
+			switch ci, err := ParseCheckIn(it.Payload); {
+			case err != nil:
+				h.stats.Add("checkin_invalid", 1)
+			case h.checkins == nil:
+				h.stats.Add("checkin_discarded", 1)
+			default:
+				ci.SiteID, ci.At = site.ID, checkInAt(now)
+				if h.checkins.Enqueue(ci) {
+					h.stats.Add("checkin_queued", 1)
 				}
 			}
 		case "feedback", "user_report":

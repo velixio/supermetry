@@ -25,6 +25,8 @@ export function init(options: Options): Client {
 export const captureException = (err: unknown, options?: CaptureOptions) => need().captureException(err, options);
 export const captureCrash = (fields?: CrashFields) => need().captureCrash(fields);
 export const captureEvent = (kind: Kind, fields?: EventFields) => need().captureEvent(kind, fields);
+export const track = (name: string, props?: Record<string, string>) => need().track(name, props);
+export const screen = (name: string, props?: Record<string, string>) => need().screen(name, props);
 export const startSession = () => need().startSession();
 export const setEnabled = (on: boolean) => need().setEnabled(on);
 export const flush = (timeoutMs?: number) => need().flush(timeoutMs);

@@ -135,6 +135,8 @@ func templateValues(kind ChannelKind, notification Notification) map[string]stri
 		"app_name": escape(app.AppName), "issue_title": escape(app.IssueTitle), "issue_kind": escape(app.IssueKind),
 		"release": escape(app.Release), "events": strconv.FormatInt(app.Events, 10), "installs": strconv.FormatInt(app.Installs, 10),
 		"crash_free": crashFree, "metric": escape(app.Metric), "baseline": fmt.Sprintf("%.2f", app.Baseline), "issue_url": escape(app.IssueURL),
+		"monitor_slug": escape(app.MonitorSlug), "monitor_status": escape(app.MonitorStatus),
+		"monitor_environment": escape(app.MonitorEnvironment),
 	}
 	rule := RuleNotification{}
 	if notification.Rule != nil {
@@ -176,7 +178,7 @@ func containsUnsafeControl(value string) bool {
 
 func validChannelKind(kind ChannelKind) bool {
 	switch kind {
-	case ChannelEmail, ChannelWebhook, ChannelSlack, ChannelDiscord, ChannelTelegram:
+	case ChannelEmail, ChannelWebhook, ChannelSlack, ChannelDiscord, ChannelTelegram, ChannelPagerDuty:
 		return true
 	default:
 		return false
@@ -185,7 +187,7 @@ func validChannelKind(kind ChannelKind) bool {
 
 func scrubDeliveryError(channel DeliveryChannel, raw string) string {
 	clean := raw
-	for _, secret := range []string{channel.URL, channel.Secret, channel.BotToken} {
+	for _, secret := range []string{channel.URL, channel.Secret, channel.BotToken, channel.RoutingKey} {
 		if secret != "" {
 			clean = strings.ReplaceAll(clean, secret, "[redacted]")
 		}

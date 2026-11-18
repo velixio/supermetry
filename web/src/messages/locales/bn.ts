@@ -68,7 +68,7 @@ const messages: MessageTree = {
   },
   navigation: {
     dashboard: 'ড্যাশবোর্ড', events: 'ইভেন্ট', sessions: 'সেশন', usersAndSessions: 'সেশন ও ব্যবহারকারী', journeys: 'যাত্রাপথ', retention: 'ধরে রাখা', profiles: 'প্রোফাইল', cohorts: 'কোহর্ট',
-    heatmaps: 'হিটম্যাপ', vitals: 'Web Vitals', funnels: 'ফানেল', realtime: 'রিয়েলটাইম', issues: 'সমস্যা', compatibility: 'সামঞ্জস্য', releases: 'রিলিজ', goals: 'লক্ষ্য', revenue: 'আয়', settings: 'সাইট সেটিংস',
+    heatmaps: 'হিটম্যাপ', vitals: 'Web Vitals', funnels: 'ফানেল', realtime: 'রিয়েলটাইম', issues: 'সমস্যা', compatibility: 'সামঞ্জস্য', releases: 'রিলিজ', performance: 'পারফরম্যান্স', goals: 'লক্ষ্য', revenue: 'আয়', settings: 'সাইট সেটিংস',
     organizationSettings: 'প্রতিষ্ঠানের সেটিংস', sites: 'সাইট', addSite: '+ সাইট যোগ করুন', health: 'ডেটার স্বাস্থ্য', organization: 'প্রতিষ্ঠান',
     organizations: 'প্রতিষ্ঠান', addOrganization: '+ প্রতিষ্ঠান যোগ করুন', projects: 'প্রকল্প', brand: 'Supermetry', site: 'সাইট',
     collapse: 'সাইডবার টগল করুন', sidebarTitle: 'সাইডবার', sidebarDescription: 'ড্যাশবোর্ড নেভিগেশন।',

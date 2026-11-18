@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/mail"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -49,6 +50,7 @@ type storedChannelConfig struct {
 	Secret     string   `json:"secret,omitempty"`
 	BotToken   string   `json:"bot_token,omitempty"`
 	ChatID     string   `json:"chat_id,omitempty"`
+	RoutingKey string   `json:"routing_key,omitempty"`
 }
 
 func (s *Service) ListChannels(ctx context.Context, principal authz.Principal) ([]Channel, error) {
@@ -174,7 +176,23 @@ func (s *Service) TestChannel(ctx context.Context, principal authz.Principal, id
 		return err
 	}
 	now := s.now()
-	if err := s.deliverer.Deliver(ctx, channel, Notification{Kind: AlertTrafficSpike, FiredAt: now}); err != nil {
+	test := Notification{Kind: AlertTrafficSpike, FiredAt: now}
+	if channel.Kind == ChannelPagerDuty {
+		// A test page is resolved straight away so it never leaves an open
+		// incident on call.
+		test = Notification{Kind: AlertRule, FiredAt: now, Rule: &RuleNotification{
+			Name: "Supermetry test notification", TriggerType: TriggerMetric, Status: ruleStatusFiring, Key: "test-" + strconv.FormatInt(now.Unix(), 10),
+		}}
+	}
+	err = s.deliverer.Deliver(ctx, channel, test)
+	if err == nil && channel.Kind == ChannelPagerDuty {
+		resolve := test
+		rule := *test.Rule
+		rule.Status = ruleStatusResolve
+		resolve.Rule = &rule
+		_ = s.deliverer.Deliver(ctx, channel, resolve)
+	}
+	if err != nil {
 		_ = s.store.Tx(ctx, func(tx pgx.Tx) error {
 			return audit.Write(ctx, tx, principal, "notification_channel.tested", "notification_channel", id, map[string]any{"status": "failed"})
 		})
@@ -462,6 +480,21 @@ func (s *Service) encodeChannel(input ChannelInput, existing *storedChannelConfi
 		} else {
 			return nil, ErrInvalid
 		}
+	case ChannelPagerDuty:
+		if len(input.Recipients) != 0 || input.URL != "" || input.Secret != "" || input.BotToken != "" || input.ChatID != "" {
+			return nil, ErrInvalid
+		}
+		switch {
+		case input.RoutingKey != "":
+			if !ValidPagerDutyRoutingKey(input.RoutingKey) {
+				return nil, ErrInvalid
+			}
+			config.RoutingKey = base64.StdEncoding.EncodeToString(s.box.Seal([]byte(input.RoutingKey)))
+		case existing != nil && existing.RoutingKey != "":
+			config.RoutingKey = existing.RoutingKey
+		default:
+			return nil, ErrInvalid
+		}
 	default:
 		return nil, ErrInvalid
 	}
@@ -486,7 +519,7 @@ func scanChannel(row rowScanner) (Channel, error) {
 	}
 	channel.Config = ChannelConfig{
 		Recipients: append([]string(nil), config.Recipients...), ChatID: config.ChatID,
-		Configured: len(config.Recipients) > 0 || config.URL != "" || (config.BotToken != "" && config.ChatID != ""),
+		Configured: len(config.Recipients) > 0 || config.URL != "" || (config.BotToken != "" && config.ChatID != "") || config.RoutingKey != "",
 	}
 	return channel, nil
 }
@@ -570,6 +603,12 @@ func (s *Service) scanDeliveryChannel(row rowScanner) (DeliveryChannel, error) {
 		}
 	}
 	channel.ChatID = config.ChatID
+	if config.RoutingKey != "" {
+		channel.RoutingKey, err = s.openConfig(config.RoutingKey)
+		if err != nil {
+			return DeliveryChannel{}, err
+		}
+	}
 	if config.BotToken != "" {
 		channel.BotToken, err = s.openConfig(config.BotToken)
 		if err != nil {
@@ -709,6 +748,28 @@ func validateAlertRelations(ctx context.Context, tx pgx.Tx, orgID int64, siteID 
 		return ErrInvalid
 	}
 	if input.Rule != nil {
+		for i, action := range input.Rule.Actions {
+			path := "actions[" + strconv.Itoa(i) + "]"
+			switch action.Type {
+			case ActionAssign:
+				var member bool
+				if err := tx.QueryRow(ctx, `select exists (select 1 from memberships m join sites s on s.org_id=m.org_id where s.id=$1 and s.org_id=$2 and m.user_id=$3 and (m.site_ids is null or $1 = any(m.site_ids)))`, siteID, orgID, action.UserID).Scan(&member); err != nil {
+					return err
+				}
+				if !member {
+					return invalidField(path+".user_id", "must be a member of the organisation with access to this project")
+				}
+			case ActionNotifyOwner:
+				fallbacks := uniqueIDs(action.FallbackChannelIDs)
+				var found int
+				if err := tx.QueryRow(ctx, `select count(*) from notification_channels where org_id=$1 and id=any($2)`, orgID, fallbacks).Scan(&found); err != nil {
+					return err
+				}
+				if found != len(fallbacks) {
+					return invalidField(path+".fallback_channel_ids", "has a channel that does not exist")
+				}
+			}
+		}
 		if hooks := input.Rule.WebhookChannelIDs(); len(hooks) > 0 {
 			var webhookCount int
 			if err := tx.QueryRow(ctx, `select count(*) from notification_channels where org_id=$1 and kind='webhook' and id=any($2)`, orgID, hooks).Scan(&webhookCount); err != nil {

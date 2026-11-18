@@ -11,6 +11,9 @@ const (
 	ChannelSlack    ChannelKind = "slack"
 	ChannelDiscord  ChannelKind = "discord"
 	ChannelTelegram ChannelKind = "telegram"
+	// ChannelPagerDuty pages through the PagerDuty Events API v2; its routing
+	// key is a secret stored sealed like a webhook secret.
+	ChannelPagerDuty ChannelKind = "pagerduty"
 )
 
 type ChannelConfig struct {
@@ -37,7 +40,10 @@ type ChannelInput struct {
 	Secret     string      `json:"secret,omitempty"`
 	BotToken   string      `json:"bot_token,omitempty"`
 	ChatID     string      `json:"chat_id,omitempty"`
-	Enabled    *bool       `json:"enabled,omitempty"`
+	// RoutingKey is the PagerDuty integration key. Write-only: it is never
+	// returned, logged or put in delivery history.
+	RoutingKey string `json:"routing_key,omitempty"`
+	Enabled    *bool  `json:"enabled,omitempty"`
 }
 
 type AlertKind string
@@ -86,6 +92,7 @@ type DeliveryChannel struct {
 	Secret     string
 	BotToken   string
 	ChatID     string
+	RoutingKey string
 	Template   TemplateInput
 }
 

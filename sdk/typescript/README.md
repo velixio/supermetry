@@ -28,7 +28,7 @@ process.on("uncaughtException", async (err) => {
 });
 ```
 
-`captureCrash({ errorType, exitReason, signal, exitCode, frames, tags })` sends `kind: "crash"`, level `fatal`. `captureEvent(kind, fields)` sends `install_failed`, `incompatibility`, `operation_failed`, `hang` and the other kinds. `setEnabled(bool)`, `flush(timeoutMs?)` and `shutdown()` finish the API. `createClient(options)` gives an independent instance.
+`captureCrash({ errorType, exitReason, signal, exitCode, frames, tags })` sends `kind: "crash"`, level `fatal`. `captureEvent(kind, fields)` sends `install_failed`, `incompatibility`, `operation_failed`, `hang` and the other kinds. `track(name, props?)` records a custom product event and `screen(name, props?)` a screen view, for the app's product analytics (active users, funnels, retention). Both need `installId`, queue and batch like every other report, never send a user id, and ignore a name the server would reject: event names are 1 to 64 characters of letters, digits and `_ . : $ - ` and space, and must not start with `$`; props are strings (up to 20 keys, values up to 200 bytes, no `$` keys). `setEnabled(bool)`, `flush(timeoutMs?)` and `shutdown()` finish the API. `createClient(options)` gives an independent instance.
 
 Options: `maxQueue` (100), `flushIntervalMs` (5000, `0` disables the timer), `maxAgeDays` (7, older events are discarded unsent), `inApp(path)` (first-party filter; the default drops `node_modules` and `node:` internals), `onDrop(events, reason)`, `osVersion`, `deviceClass`, `transport`, `storage`.
 

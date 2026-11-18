@@ -1,4 +1,4 @@
-export type Kind = "crash" | "error" | "hang" | "install_failed" | "install_stalled" | "incompatibility" | "operation_failed" | "session";
+export type Kind = "crash" | "error" | "hang" | "install_failed" | "install_stalled" | "incompatibility" | "operation_failed" | "session" | "screen" | "event";
 export type Level = "fatal" | "error" | "warning";
 export type TagValue = string | number | boolean;
 
@@ -27,6 +27,10 @@ export interface WireEvent {
   install_id?: string;
   session_id?: string;
   tags?: Record<string, TagValue>;
+  /** Product kinds only: screen name (kind "screen") or custom event name (kind "event"). */
+  screen?: string;
+  name?: string;
+  props?: Record<string, string>;
 }
 
 export interface TransportRequest {
@@ -91,6 +95,9 @@ export interface EventFields {
   occurrences?: number;
   deviceClass?: string;
   tags?: Record<string, TagValue>;
+  screen?: string;
+  name?: string;
+  props?: Record<string, string>;
 }
 
 export interface CrashFields {

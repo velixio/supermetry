@@ -75,6 +75,9 @@ var (
 	LogQueueFull             Counter
 	LogOutOfRange            Counter
 	LogWriteFailed           Counter
+	LogAttrsDropped          Counter
+	LogQuotaRejected         Counter
+	LogInvalid               Counter
 	MetricQueueFull          Counter
 	MetricWriteFailed        Counter
 	MetricNoPartition        Counter
@@ -239,6 +242,9 @@ func Snapshot() map[string]float64 {
 		"log_queue_full_total":                       float64(LogQueueFull.Load()),
 		"log_out_of_range_total":                     float64(LogOutOfRange.Load()),
 		"log_write_failed_total":                     float64(LogWriteFailed.Load()),
+		"log_attrs_dropped_total":                    float64(LogAttrsDropped.Load()),
+		"log_quota_rejected_total":                   float64(LogQuotaRejected.Load()),
+		"log_invalid_total":                          float64(LogInvalid.Load()),
 		"metric_queue_full_total":                    float64(MetricQueueFull.Load()),
 		"metric_write_failed_total":                  float64(MetricWriteFailed.Load()),
 		"metric_no_partition_total":                  float64(MetricNoPartition.Load()),
@@ -326,6 +332,9 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "log_queue_full_total", "counter")
 	writeFamily(w, snapshot, "log_out_of_range_total", "counter")
 	writeFamily(w, snapshot, "log_write_failed_total", "counter")
+	writeFamily(w, snapshot, "log_attrs_dropped_total", "counter")
+	writeFamily(w, snapshot, "log_quota_rejected_total", "counter")
+	writeFamily(w, snapshot, "log_invalid_total", "counter")
 	writeFamily(w, snapshot, "metric_queue_full_total", "counter")
 	writeFamily(w, snapshot, "metric_write_failed_total", "counter")
 	writeFamily(w, snapshot, "metric_no_partition_total", "counter")

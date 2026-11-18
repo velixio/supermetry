@@ -858,7 +858,7 @@ paths:
       tags: [Apps]
       security: [{ cookieAuth: [] }]
       summary: The signed-in user's issue notification switches for every app project they can read
-      description: Defaults apply until saved. Assigned and regressed are on by default, resolved is off.
+      description: Defaults apply until saved. Assigned and regressed are on by default; resolved and the weekly digest are off.
       responses:
         '200': { description: Projects with switches, content: { application/json: { schema: { type: object, required: [sites], properties: { sites: { type: array, items: { $ref: '#/components/schemas/AppNotificationPrefsSite' } } } } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -2166,6 +2166,33 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/obs/logs:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: searchObsLogsPublic
+      summary: Search an app project's logs, newest first
+      description: Requires stats:read. Same search syntax, window and paging as the private route. User identity is never returned.
+      parameters:
+      - name: q
+        in: query
+        description: |
+          Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+          case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+          or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+          32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+        schema: { type: string, maxLength: 300 }
+      - { name: from, in: query, description: "Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.", schema: { type: string, format: date-time } }
+      - { name: to, in: query, description: "End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.", schema: { type: string, format: date-time } }
+      - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+      - { name: cursor, in: query, description: "The `next_cursor` of the previous page.", schema: { type: string, maxLength: 128 } }
+      responses:
+        '200': { description: A page of logs, content: { application/json: { schema: { $ref: '#/components/schemas/ObsLogPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/public/v1/sites/{site_id}/profiles:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -2607,6 +2634,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/public/v1/sites/{site_id}/obs/metrics:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: listObsMetricsPublic
+      summary: List the metric names of an app project
+      description: Requires the stats:read API-key scope for the requested site, which must be an app project.
+      responses:
+        '200': { description: Metric names, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricList' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/public/v1/sites/{site_id}/obs/metrics/query:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    post:
+      operationId: queryObsMetricsPublic
+      summary: Query one metric as time series
+      description: Same as the private query. Requires the stats:read API-key scope for the requested site.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricQuery' } } }
+      responses:
+        '200': { description: Result series, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /api/public/v1/sites/{site_id}/segments:
     parameters:
       - $ref: '#/components/parameters/SitePathID'
@@ -2984,6 +3041,51 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/logs:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: searchObsLogs
+      tags: [Apps]
+      summary: Search an app project's logs, newest first
+      description: |
+        Walks the site's daily partitions newest first and stops at the page size. Rows older than the site's log
+        retention are never returned. A grammar error answers 400 with the byte position. User identity is never returned.
+      parameters:
+      - name: q
+        in: query
+        description: |
+          Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+          case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+          or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+          32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+        schema: { type: string, maxLength: 300 }
+      - { name: from, in: query, description: "Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention.", schema: { type: string, format: date-time } }
+      - { name: to, in: query, description: "End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days.", schema: { type: string, format: date-time } }
+      - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+      - { name: cursor, in: query, description: "The `next_cursor` of the previous page.", schema: { type: string, maxLength: 128 } }
+      responses:
+        '200': { description: A page of logs, content: { application/json: { schema: { $ref: '#/components/schemas/ObsLogPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/traces/{trace_id}/logs:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: trace_id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-fA-F]{32}$' } }
+    get:
+      operationId: listObsTraceLogs
+      tags: [Apps]
+      summary: The logs of one trace, oldest first
+      description: Looks 24 hours either side of `around` (default now), within the site's log retention.
+      parameters:
+        - { name: around, in: query, description: "RFC 3339 centre of the window, usually the time of the error or span.", schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+      responses:
+        '200': { description: The trace's logs, content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/ObsLog' } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/issues:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3107,6 +3209,39 @@ paths:
         '200': { description: Event body, content: { application/json: { schema: { $ref: '#/components/schemas/AppEventBody' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/metrics:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listObsMetrics
+      tags: [Apps]
+      summary: List the metric names of an app project
+      description: Names with kind, unit, series count and attribute keys, read from the series registry. Every member role may read.
+      responses:
+        '200': { description: Metric names, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricList' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/obs/metrics/query:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    post:
+      operationId: queryObsMetrics
+      tags: [Apps]
+      summary: Query one metric as time series
+      description: |
+        Raw points serve ranges up to 48 hours with a 1m or 5m interval; the hourly rollup serves everything else
+        (1m and 5m are then answered as 1h). Hours and days are the site's local hours and days, so a 1d bucket
+        starts at local midnight (including +05:30 and +05:45 zones). At most 50 groups are returned, the rest
+        merged into one group whose attribute values are `other`. A query holds at most 1,500 buckets. `rate` is
+        the sum (counter) or count (histogram) per second; `p50` to `p99` need a histogram.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricQuery' } } }
+      responses:
+        '200': { description: Result series, content: { application/json: { schema: { $ref: '#/components/schemas/ObsMetricResult' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/rules:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3133,6 +3268,60 @@ paths:
       responses:
         '200': { description: The stored rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+  /api/private/sites/{site}/app/monitors:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppMonitors
+      tags: [Apps]
+      summary: The cron monitors of an app project
+      description: |
+        Monitors are created by the first Sentry `check_in` that carries a `monitor_config` (a crontab or interval
+        schedule), keyed by slug and environment. `status` is the monitor's state after the failure and recovery
+        thresholds; `next_expected_at` is the next slot a check-in is due.
+      responses:
+        '200': { description: Monitors, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitorList' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/monitors/{monitor}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: monitor, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    patch:
+      operationId: updateAppMonitor
+      tags: [Apps]
+      summary: Disable, enable or tune a cron monitor
+      description: Owner, admin or editor only. Re-enabling restarts the monitor as ok with the next slot computed from now.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitorPatch' } } } }
+      responses:
+        '200': { description: The monitor, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitor' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteAppMonitor
+      tags: [Apps]
+      summary: Delete a cron monitor and its check-ins
+      description: Owner, admin or editor only. A later check-in that carries a `monitor_config` creates the monitor again.
+      responses:
+        '204': { description: Deleted. }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/monitors/{monitor}/checkins:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: monitor, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listAppMonitorCheckins
+      tags: [Apps]
+      summary: The newest check-ins of a cron monitor
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: Check-ins, newest first, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitorCheckins' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/events/{event_id}/attachments/{idx}:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -4447,6 +4636,46 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/private/sites/{site}/alert-silences:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAlertSilences
+      summary: List silences and maintenance windows of a site
+      responses:
+        '200':
+          description: Silences newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties: { data: { type: array, items: { $ref: '#/components/schemas/AlertSilence' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createAlertSilence
+      summary: Create a silence or maintenance window (owner, admin, editor; at most 50 active or future per site)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AlertSilenceInput' } } } }
+      responses:
+        '201': { description: Created silence., content: { application/json: { schema: { $ref: '#/components/schemas/AlertSilence' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/alert-silences/{silence}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: silence, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    delete:
+      operationId: deleteAlertSilence
+      summary: Delete a silence or maintenance window
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/notification-history:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -5031,6 +5260,54 @@ components:
         span_retention_days: { type: integer, minimum: 0, maximum: 14, description: "Raw span retention in days. 0 means the default of 14." }
         electron_symbols: { type: boolean, nullable: true, description: "Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on." }
         filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
+    AppMonitor:
+      type: object
+      required: [id, slug, environment, schedule_type, schedule, timezone, checkin_margin_minutes, max_runtime_minutes, failure_threshold, recovery_threshold, status, next_expected_at, last_checkin_at]
+      additionalProperties: false
+      properties:
+        id: { type: integer, format: int64 }
+        slug: { type: string }
+        environment: { type: string }
+        schedule_type: { type: string, enum: [crontab, interval] }
+        schedule: { type: string, description: 'A 5-field cron expression, or "N unit" for an interval (unit: minute, hour, day, week, month, year).' }
+        timezone: { type: string }
+        checkin_margin_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        max_runtime_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        failure_threshold: { type: integer, minimum: 1 }
+        recovery_threshold: { type: integer, minimum: 1 }
+        status: { type: string, enum: [ok, missed, error, timeout, disabled] }
+        next_expected_at: { type: string, format: date-time, nullable: true }
+        last_checkin_at: { type: string, format: date-time, nullable: true }
+    AppMonitorList:
+      type: object
+      required: [monitors]
+      additionalProperties: false
+      properties:
+        monitors: { type: array, items: { $ref: '#/components/schemas/AppMonitor' } }
+    AppMonitorPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        disabled: { type: boolean }
+        checkin_margin_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        max_runtime_minutes: { type: integer, minimum: 1, maximum: 1440 }
+    AppMonitorCheckin:
+      type: object
+      required: [checkin_id, timestamp, status, expected_at, duration_ms, release]
+      additionalProperties: false
+      properties:
+        checkin_id: { type: string }
+        timestamp: { type: string, format: date-time }
+        status: { type: string, enum: [in_progress, ok, error, missed, timeout] }
+        expected_at: { type: string, format: date-time, nullable: true }
+        duration_ms: { type: integer, format: int64, nullable: true }
+        release: { type: string }
+    AppMonitorCheckins:
+      type: object
+      required: [checkins]
+      additionalProperties: false
+      properties:
+        checkins: { type: array, items: { $ref: '#/components/schemas/AppMonitorCheckin' } }
     AppRules:
       type: object
       required: [ownership, grouping]
@@ -5206,10 +5483,42 @@ components:
         rows: { type: array, items: { $ref: '#/components/schemas/SearchConsoleTopRow' } }
     NotificationChannelKind:
       type: string
-      enum: [email, webhook, slack, discord, telegram]
+      enum: [email, webhook, slack, discord, telegram, pagerduty, none]
     DeliveryStatus:
       type: string
-      enum: [pending, succeeded, failed]
+      description: suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
+      enum: [pending, succeeded, failed, suppressed]
+    AlertSilence:
+      type: object
+      required: [id, site_id, kind, starts_at, reason, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        alert_id: { type: integer, format: int64, description: Absent for a silence covering every rule of the site. }
+        kind: { type: string, enum: [silence, maintenance] }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        weekdays: { type: array, items: { type: integer, minimum: 0, maximum: 6 }, description: Maintenance only; 0 is Sunday. }
+        start_time: { type: string, description: Maintenance only; HH:MM wall clock in tz. }
+        duration_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        tz: { type: string, description: IANA time zone of the maintenance window. }
+        reason: { type: string, maxLength: 200 }
+        created_by: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+    AlertSilenceInput:
+      type: object
+      additionalProperties: false
+      required: [kind]
+      properties:
+        alert_id: { type: integer, format: int64 }
+        kind: { type: string, enum: [silence, maintenance] }
+        starts_at: { type: string, format: date-time, description: Defaults to now. }
+        ends_at: { type: string, format: date-time, description: Required for a silence; optional end of a maintenance recurrence. }
+        weekdays: { type: array, items: { type: integer, minimum: 0, maximum: 6 } }
+        start_time: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+        duration_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        tz: { type: string, description: Defaults to the site time zone. }
+        reason: { type: string, maxLength: 200 }
     RevenueReportRow:
       type: object
       additionalProperties: false
@@ -6287,6 +6596,60 @@ components:
       nullable: true
       minimum: 0
       maximum: 1
+    ObsMetricInfo:
+      type: object
+      required: [name, kind, unit, series, attribute_keys]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [gauge, counter, updown, histogram] }
+        unit: { type: string }
+        series: { type: integer, description: Distinct attribute combinations. }
+        attribute_keys: { type: array, items: { type: string } }
+    ObsMetricList:
+      type: object
+      required: [metrics]
+      properties:
+        metrics: { type: array, items: { $ref: '#/components/schemas/ObsMetricInfo' } }
+    ObsMetricQuery:
+      type: object
+      additionalProperties: false
+      required: [name, agg, from, to, interval]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        agg: { type: string, x-go-type: string, enum: [avg, sum, min, max, last, rate, p50, p75, p90, p95, p99] }
+        group_by: { type: array, maxItems: 2, items: { type: string, maxLength: 128 }, description: Up to two attribute keys. }
+        filters: { type: object, additionalProperties: { type: string, maxLength: 256 }, description: Attribute key to exact value; at most 16. }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        interval: { type: string, x-go-type: string, enum: ['1m', '5m', '1h', '1d'] }
+    ObsMetricWidgetQuery:
+      type: object
+      additionalProperties: false
+      required: [name, agg, interval]
+      description: An ObsMetricQuery without from and to; the dashboard's time range supplies them.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        agg: { type: string, x-go-type: string, enum: [avg, sum, min, max, last, rate, p50, p75, p90, p95, p99] }
+        group_by: { type: array, maxItems: 2, items: { type: string, maxLength: 128 } }
+        filters: { type: object, additionalProperties: { type: string, maxLength: 256 } }
+        interval: { type: string, x-go-type: string, enum: ['1m', '5m', '1h', '1d'] }
+    ObsMetricSeriesPoint:
+      type: object
+      required: [ts, value]
+      properties:
+        ts: { type: string, format: date-time, description: Start of the bucket. }
+        value: { type: [number, 'null'], description: Null when the bucket has no value for the aggregation. }
+    ObsMetricSeries:
+      type: object
+      required: [group, points]
+      properties:
+        group: { type: object, additionalProperties: { type: string }, description: The group_by attribute values; empty without group_by. }
+        points: { type: array, items: { $ref: '#/components/schemas/ObsMetricSeriesPoint' } }
+    ObsMetricResult:
+      type: object
+      required: [series]
+      properties:
+        series: { type: array, items: { $ref: '#/components/schemas/ObsMetricSeries' } }
     AppOverview:
       type: object
       required: [events, crashes, new_issues, regressed_issues, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, handled_errors, unhandled_errors, health_source, series]
@@ -6391,6 +6754,7 @@ components:
       properties:
         event_id: { type: string }
         ts: { type: string, format: date-time }
+        trace_id: { type: string, description: 'Trace of the event, 32 hex characters; present only when the event is linked to a trace.' }
         body: { type: object, additionalProperties: true, description: 'message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.' }
     AppIssueDetail:
       type: object
@@ -6463,9 +6827,10 @@ components:
         assigned: { type: boolean, description: An issue was assigned to me. }
         resolved: { type: boolean, description: An issue assigned to me was resolved by someone else. }
         regressed: { type: boolean, description: An issue assigned to me regressed. }
+        weekly_digest: { type: boolean, description: 'Mail the weekly digest on Monday 09:00 in the project time zone. Optional when saving: absent keeps the current value. Always present in responses.' }
     AppNotificationPrefsSite:
       type: object
-      required: [site_id, site_name, site_slug, org_slug, org_name, assigned, resolved, regressed]
+      required: [site_id, site_name, site_slug, org_slug, org_name, assigned, resolved, regressed, weekly_digest]
       properties:
         site_id: { type: integer, format: int32 }
         site_name: { type: string }
@@ -6475,6 +6840,7 @@ components:
         assigned: { type: boolean }
         resolved: { type: boolean }
         regressed: { type: boolean }
+        weekly_digest: { type: boolean }
     AppIssueChange:
       type: object
       additionalProperties: false
@@ -7701,12 +8067,15 @@ components:
         Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
         `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
         (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+        `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
       properties:
         metric: { $ref: '#/components/schemas/Metric' }
         metrics: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/Metric' } }
         dimension: { type: string, maxLength: 60, description: 'A known query dimension, or prop:<key>.' }
         limit: { type: integer, minimum: 1, maximum: 50 }
         funnel_id: { type: integer, format: int64, minimum: 1 }
+        query: { $ref: '#/components/schemas/ObsMetricWidgetQuery' }
+        chart: { type: string, x-go-type: string, enum: [line, bar] }
     DashboardWidget:
       type: object
       additionalProperties: false
@@ -7714,7 +8083,7 @@ components:
       description: A widget on a 12-column grid. Widgets may be placed in any order; clients reflow overlaps.
       properties:
         id: { type: string, minLength: 1, maxLength: 40, pattern: '^[a-z0-9][a-z0-9_-]*$', description: Unique within the layout. }
-        kind: { type: string, x-go-type: string, enum: [kpi_strip, time_series, breakdown, map, weekly_rhythm, goals, funnel, retention, web_vitals] }
+        kind: { type: string, x-go-type: string, enum: [kpi_strip, time_series, breakdown, map, weekly_rhythm, goals, funnel, retention, web_vitals, obs_metric] }
         title: { type: string, maxLength: 80 }
         x: { type: integer, minimum: 0, maximum: 11 }
         y: { type: integer, minimum: 0, maximum: 199 }
@@ -8601,6 +8970,29 @@ components:
         next_cursor: { type: [string, 'null'] }
         total: { type: integer, minimum: 0, maximum: 10000 }
         total_capped: { type: boolean }
+    ObsLog:
+      type: object
+      additionalProperties: false
+      required: [ts, severity, severity_text, service, environment, release, body, truncated, attributes]
+      properties:
+        ts: { type: string, format: date-time }
+        severity: { type: integer, minimum: 0, maximum: 24, description: OTLP severity number; 0 when unset. }
+        severity_text: { type: string, description: "trace, debug, info, warn, error or fatal; empty when unset." }
+        service: { type: string }
+        environment: { type: string }
+        release: { type: string }
+        trace_id: { type: string, description: 32 hex characters; absent without a trace. }
+        span_id: { type: string, description: 16 hex characters; absent without a span. }
+        body: { type: string }
+        truncated: { type: boolean }
+        attributes: { type: object, additionalProperties: true }
+    ObsLogPage:
+      type: object
+      additionalProperties: false
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/ObsLog' } }
+        next_cursor: { type: [string, 'null'] }
     PropertyKeyCount:
       type: object
       additionalProperties: false

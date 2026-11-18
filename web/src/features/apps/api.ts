@@ -21,6 +21,10 @@ export type AppCompatibilityData = components['schemas']['AppCompatibility']
 export type AppReleasesData = components['schemas']['AppReleases']
 export type AppPlatformsData = components['schemas']['AppPlatforms']
 export type AppDebugFilesData = components['schemas']['AppDebugFiles']
+export type AppDeploysData = components['schemas']['AppDeploys']
+export type AppDeployRow = AppDeploysData['deploys'][number]
+export type AppReleaseDetailData = components['schemas']['AppReleaseDetail']
+export type AppReleaseComparisonData = components['schemas']['AppReleaseComparison']
 
 const base = (siteId: number) => `/api/private/sites/${siteId}/app`
 
@@ -47,6 +51,21 @@ export function useAppCompatibility(siteId: number, search: AppSearch, timezone:
 export function useAppReleases(siteId: number, search: AppSearch, timezone: string) {
   const query = appQuery(search, timezone).toString()
   return useQuery({ queryKey: ['app-releases', siteId, query], queryFn: () => privateRequest<AppReleasesData>('GET', `${base(siteId)}/releases?${query}`) })
+}
+
+export function useAppDeploys(siteId: number, search: AppSearch, timezone: string, release?: string) {
+  const query = appQuery(search, timezone, { release }).toString()
+  return useQuery({ queryKey: ['app-deploys', siteId, query], queryFn: () => privateRequest<AppDeploysData>('GET', `${base(siteId)}/deploys?${query}`) })
+}
+
+export function useAppRelease(siteId: number, release: string, search: AppSearch, timezone: string) {
+  const query = appQuery({ ...search, release: undefined }, timezone).toString()
+  return useQuery({ queryKey: ['app-release', siteId, release, query], queryFn: () => privateRequest<AppReleaseDetailData>('GET', `${base(siteId)}/releases/${encodeURIComponent(release)}?${query}`) })
+}
+
+export function useCompareReleases(siteId: number, a: string, b: string, search: AppSearch, timezone: string) {
+  const query = appQuery({ ...search, release: undefined }, timezone, { a, b }).toString()
+  return useQuery({ queryKey: ['app-release-compare', siteId, query], queryFn: () => privateRequest<AppReleaseComparisonData>('GET', `${base(siteId)}/releases/compare?${query}`), enabled: a !== '' && b !== '' })
 }
 
 export function useAppPlatforms(siteId: number, search: AppSearch, timezone: string) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"supermetry/internal/scheduler"
@@ -23,10 +22,12 @@ const (
 // dedup key committed atomically with the delivery state; GroupKey names the
 // firing group (an issue, a release) and IssueID the issue, when there is one.
 type Candidate struct {
-	Key          string
-	GroupKey     string
-	IssueID      int64
-	Notification Notification
+	Key      string
+	GroupKey string
+	IssueID  int64
+	// AssigneeUserID is the issue's owner at evaluation time, 0 when unassigned.
+	AssigneeUserID int64
+	Notification   Notification
 	// Done runs once the key is committed (sent now, or found already sent by
 	// an earlier run). Incident transitions hang off it, so a crash between
 	// delivery and the state update repeats the update, never the delivery.
@@ -43,8 +44,42 @@ type RuleEvaluator struct {
 	dedup AppDedup
 	sites sites.Registry
 	now   func() time.Time
+
+	assigner IssueAssigner
+	mailer   OwnerMailer
 	// metrics serves the metric triggers; nil leaves them inert.
 	metrics RuleMetricSource
+
+	monitors MonitorSource // cron monitor crossings (WithMonitors)
+	// silences mutes candidates at the send point; nil mutes nothing.
+	silences SilenceRepository
+	// runSilences caches the silences of the sites seen in the current Run.
+	runSilences map[int32][]Silence
+}
+
+// SetSilences enables silences and maintenance windows.
+func (e *RuleEvaluator) SetSilences(repo SilenceRepository) *RuleEvaluator {
+	e.silences = repo
+	return e
+}
+
+// silencesFor loads the silences of a site once per run (fireKeyed called
+// outside a run loads them per call).
+func (e *RuleEvaluator) silencesFor(ctx context.Context, siteID int32, now time.Time) ([]Silence, error) {
+	if e.silences == nil {
+		return nil, nil
+	}
+	if list, ok := e.runSilences[siteID]; ok {
+		return list, nil
+	}
+	list, err := e.silences.ActiveSilences(ctx, siteID, now)
+	if err != nil {
+		return nil, fmt.Errorf("load silences: %w", err)
+	}
+	if e.runSilences != nil {
+		e.runSilences[siteID] = list
+	}
+	return list, nil
 }
 
 // NewRuleEvaluator builds the evaluator of the alert-rules job. It reuses the
@@ -72,6 +107,8 @@ func (e *RuleEvaluator) Run(ctx context.Context) error {
 		return fmt.Errorf("load enabled rules: %w", err)
 	}
 	now := e.now()
+	e.runSilences = map[int32][]Silence{}
+	defer func() { e.runSilences = nil }()
 	var runErr error
 	for _, alert := range alerts {
 		if ctx.Err() != nil {
@@ -124,76 +161,10 @@ func (e *RuleEvaluator) evaluate(ctx context.Context, alert Alert, now time.Time
 	return e.fireKeyed(ctx, alert, candidates, now)
 }
 
-// onlyKindsFilter reports whether the filters use nothing beyond the issue
-// kinds, the only filter this evaluator applies so far. A rule with other
-// filters is skipped rather than fired without them.
-func onlyKindsFilter(f Filters) bool {
-	return len(f.Environments) == 0 && len(f.Releases) == 0 && len(f.Platforms) == 0 &&
-		len(f.Levels) == 0 && len(f.Tags) == 0 && f.Owner == nil
-}
-
-// evalIssue produces the new and regressed candidates with the v1 keys, so a
-// converted v1 alert never repeats a notification it already sent. Escalated
-// candidates land with the activity source of a later task.
-func (e *RuleEvaluator) evalIssue(ctx context.Context, alert Alert, site sites.Site, now time.Time) ([]Candidate, error) {
-	rule := alert.Rule
-	if !onlyKindsFilter(rule.Filters) {
-		return nil, nil
-	}
-	info, err := e.app.Site(ctx, site.ID)
-	if err != nil {
-		return nil, err
-	}
-	since := now.Add(-appLookback)
-	if alert.CreatedAt.After(since) {
-		since = alert.CreatedAt
-	}
-	var out []Candidate
-	for _, on := range rule.Trigger.Issue.On {
-		switch on {
-		case "new":
-			issues, err := e.app.NewIssues(ctx, site.ID, since, rule.Filters.Kinds, appCandidateLimit)
-			if err != nil {
-				return nil, err
-			}
-			for _, issue := range issues {
-				out = append(out, e.issueCandidate("issue:"+strconv.FormatInt(issue.ID, 10), info, issue, issue.FirstSeen, now))
-			}
-		case "regressed":
-			issues, err := e.app.RegressedIssues(ctx, site.ID, since, appCandidateLimit)
-			if err != nil {
-				return nil, err
-			}
-			for _, issue := range issues {
-				key := "regress:" + strconv.FormatInt(issue.ID, 10) + ":" + strconv.FormatInt(issue.RegressedAt.Unix(), 10)
-				out = append(out, e.issueCandidate(key, info, issue, issue.RegressedAt, now))
-			}
-		}
-	}
-	return out, nil
-}
-
-func (e *RuleEvaluator) issueCandidate(key string, info AppSite, issue AppIssue, from, now time.Time) Candidate {
-	return Candidate{
-		Key: key, GroupKey: "issue:" + strconv.FormatInt(issue.ID, 10), IssueID: issue.ID,
-		Notification: Notification{
-			Value: float64(issue.Events), Threshold: 1, From: from, To: now,
-			App: &AppNotification{
-				AppName: info.Name, IssueID: issue.ID, IssueTitle: issue.Title, IssueKind: issue.Kind, Release: issue.Release, Events: issue.Events,
-				IssueURL: fmt.Sprintf("/app/%s/%s/issues/%d", info.OrgSlug, info.SiteSlug, issue.ID),
-			},
-		},
-	}
-}
-
 // The remaining trigger evaluators land with their tasks; until then a rule of
 // that type stores and validates but produces no candidates.
-func (e *RuleEvaluator) evalEvent(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
-	return nil, nil
-}
-
-func (e *RuleEvaluator) evalMonitor(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
-	return nil, nil
+func (e *RuleEvaluator) evalMonitor(ctx context.Context, alert Alert, site sites.Site, now time.Time) ([]Candidate, error) {
+	return e.monitorCandidates(ctx, alert, site, now)
 }
 
 // fireKeyed sends the candidates whose key has not fired yet, at most
@@ -213,7 +184,11 @@ func (e *RuleEvaluator) fireKeyed(ctx context.Context, alert Alert, candidates [
 	if err != nil {
 		return err
 	}
-	sent := 0
+	silences, err := e.silencesFor(ctx, alert.SiteID, now)
+	if err != nil {
+		return err
+	}
+	sent, muted := 0, 0
 	for _, c := range candidates {
 		if sent >= appMaxPerRun {
 			break
@@ -227,20 +202,50 @@ func (e *RuleEvaluator) fireKeyed(ctx context.Context, alert Alert, candidates [
 			continue
 		}
 		seen[c.Key] = now
+		e.runAssignActions(ctx, alert, &c)
 		n := c.Notification
 		n.AlertID, n.SiteID, n.Kind, n.FiredAt = alert.ID, alert.SiteID, AlertRule, now
 		if n.Rule == nil {
 			n.Rule = &RuleNotification{ID: alert.ID, Name: alert.Name, TriggerType: alert.Rule.Trigger.Type, Status: ruleStatusFiring}
 		}
-		if err := e.base.fireWithKey(ctx, alert, n, nil, c.Key); err != nil {
+		if silence, ok := Silenced(silences, alert.ID, now); ok {
+			if err := e.suppress(ctx, alert, c, n, silence, muted, now); err != nil {
+				return err
+			}
+			muted++
+			continue
+		}
+		routed := alert
+		routed.ChannelIDs = ruleChannels(alert, c)
+		if err := e.base.fireWithKey(ctx, routed, n, nil, c.Key); err != nil {
 			return err
 		}
+		e.runOwnerActions(ctx, alert, c)
 		if c.Done != nil {
 			if err := c.Done(ctx); err != nil {
 				return err
 			}
 		}
 		sent++
+	}
+	return nil
+}
+
+// suppress handles a candidate under a silence. Metric incidents are only
+// withheld: the incident keeps its state, the candidate is logged once, and the
+// next run after the silence builds it again, so an incident still open then is
+// sent once. Every other candidate is committed as fired with a suppressed
+// history row and never sent later. index spaces the history timestamps of one
+// run apart (the log is unique on alert, channel and time).
+func (e *RuleEvaluator) suppress(ctx context.Context, alert Alert, c Candidate, n Notification, silence Silence, index int, now time.Time) error {
+	commit := alert.Rule.Trigger.Type != TriggerMetric
+	at := now.Add(time.Duration(index) * time.Microsecond)
+	n.FiredAt = at
+	if _, err := e.silences.RecordSuppressed(ctx, alert, c.Key, commit, n, silence.Reason, at); err != nil {
+		return err
+	}
+	if commit && c.Done != nil {
+		return c.Done(ctx)
 	}
 	return nil
 }

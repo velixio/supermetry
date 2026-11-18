@@ -730,7 +730,7 @@ export interface paths {
         };
         /**
          * The signed-in user's issue notification switches for every app project they can read
-         * @description Defaults apply until saved. Assigned and regressed are on by default, resolved is off.
+         * @description Defaults apply until saved. Assigned and regressed are on by default; resolved and the weekly digest are off.
          */
         get: operations["listAppNotificationPrefs"];
         put?: never;
@@ -1562,6 +1562,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/obs/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Search an app project's logs, newest first
+         * @description Requires stats:read. Same search syntax, window and paging as the private route. User identity is never returned.
+         */
+        get: operations["searchObsLogsPublic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/sites/{site_id}/profiles": {
         parameters: {
             query?: never;
@@ -1846,6 +1868,50 @@ export interface paths {
         head?: never;
         /** Update a saved funnel */
         patch: operations["updateFunnel"];
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/obs/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * List the metric names of an app project
+         * @description Requires the stats:read API-key scope for the requested site, which must be an app project.
+         */
+        get: operations["listObsMetricsPublic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/sites/{site_id}/obs/metrics/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query one metric as time series
+         * @description Same as the private query. Requires the stats:read API-key scope for the requested site.
+         */
+        post: operations["queryObsMetricsPublic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/public/v1/sites/{site_id}/segments": {
@@ -2201,6 +2267,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/obs/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Search an app project's logs, newest first
+         * @description Walks the site's daily partitions newest first and stops at the page size. Rows older than the site's log
+         *     retention are never returned. A grammar error answers 400 with the byte position. User identity is never returned.
+         */
+        get: operations["searchObsLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/obs/traces/{trace_id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The logs of one trace, oldest first
+         * @description Looks 24 hours either side of `around` (default now), within the site's log retention.
+         */
+        get: operations["listObsTraceLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/issues": {
         parameters: {
             query?: {
@@ -2339,6 +2451,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/obs/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the metric names of an app project
+         * @description Names with kind, unit, series count and attribute keys, read from the series registry. Every member role may read.
+         */
+        get: operations["listObsMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/obs/metrics/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Query one metric as time series
+         * @description Raw points serve ranges up to 48 hours with a 1m or 5m interval; the hourly rollup serves everything else
+         *     (1m and 5m are then answered as 1h). Hours and days are the site's local hours and days, so a 1d bucket
+         *     starts at local midnight (including +05:30 and +05:45 zones). At most 50 groups are returned, the rest
+         *     merged into one group whose attribute values are `other`. A query holds at most 1,500 buckets. `rate` is
+         *     the sum (counter) or count (histogram) per second; `p50` to `p99` need a histogram.
+         */
+        post: operations["queryObsMetrics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/rules": {
         parameters: {
             query?: never;
@@ -2360,6 +2520,77 @@ export interface paths {
          *     editor only. The change reaches ingestion with the next registry refresh.
          */
         put: operations["replaceAppRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/monitors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The cron monitors of an app project
+         * @description Monitors are created by the first Sentry `check_in` that carries a `monitor_config` (a crontab or interval
+         *     schedule), keyed by slug and environment. `status` is the monitor's state after the failure and recovery
+         *     thresholds; `next_expected_at` is the next slot a check-in is due.
+         */
+        get: operations["listAppMonitors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/monitors/{monitor}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a cron monitor and its check-ins
+         * @description Owner, admin or editor only. A later check-in that carries a `monitor_config` creates the monitor again.
+         */
+        delete: operations["deleteAppMonitor"];
+        options?: never;
+        head?: never;
+        /**
+         * Disable, enable or tune a cron monitor
+         * @description Owner, admin or editor only. Re-enabling restarts the monitor as ok with the next slot computed from now.
+         */
+        patch: operations["updateAppMonitor"];
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/monitors/{monitor}/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        /** The newest check-ins of a cron monitor */
+        get: operations["listAppMonitorCheckins"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -3900,6 +4131,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/alert-silences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** List silences and maintenance windows of a site */
+        get: operations["listAlertSilences"];
+        put?: never;
+        /** Create a silence or maintenance window (owner, admin, editor; at most 50 active or future per site) */
+        post: operations["createAlertSilence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/alert-silences/{silence}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                silence: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a silence or maintenance window */
+        delete: operations["deleteAlertSilence"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/notification-history": {
         parameters: {
             query?: never;
@@ -4232,6 +4503,50 @@ export interface components {
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
         };
+        AppMonitor: {
+            /** Format: int64 */
+            id: number;
+            slug: string;
+            environment: string;
+            /** @enum {string} */
+            schedule_type: "crontab" | "interval";
+            /** @description A 5-field cron expression, or "N unit" for an interval (unit: minute, hour, day, week, month, year). */
+            schedule: string;
+            timezone: string;
+            checkin_margin_minutes: number;
+            max_runtime_minutes: number;
+            failure_threshold: number;
+            recovery_threshold: number;
+            /** @enum {string} */
+            status: "ok" | "missed" | "error" | "timeout" | "disabled";
+            /** Format: date-time */
+            next_expected_at: string | null;
+            /** Format: date-time */
+            last_checkin_at: string | null;
+        };
+        AppMonitorList: {
+            monitors: components["schemas"]["AppMonitor"][];
+        };
+        AppMonitorPatch: {
+            disabled?: boolean;
+            checkin_margin_minutes?: number;
+            max_runtime_minutes?: number;
+        };
+        AppMonitorCheckin: {
+            checkin_id: string;
+            /** Format: date-time */
+            timestamp: string;
+            /** @enum {string} */
+            status: "in_progress" | "ok" | "error" | "missed" | "timeout";
+            /** Format: date-time */
+            expected_at: string | null;
+            /** Format: int64 */
+            duration_ms: number | null;
+            release: string;
+        };
+        AppMonitorCheckins: {
+            checkins: components["schemas"]["AppMonitorCheckin"][];
+        };
         AppRules: {
             ownership: {
                 /** @description path, module or tag:<key> */
@@ -4404,9 +4719,63 @@ export interface components {
             rows: components["schemas"]["SearchConsoleTopRow"][];
         };
         /** @enum {string} */
-        NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram";
-        /** @enum {string} */
-        DeliveryStatus: "pending" | "succeeded" | "failed";
+        NotificationChannelKind: "email" | "webhook" | "slack" | "discord" | "telegram" | "pagerduty" | "none";
+        /**
+         * @description suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
+         * @enum {string}
+         */
+        DeliveryStatus: "pending" | "succeeded" | "failed" | "suppressed";
+        AlertSilence: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            site_id: number;
+            /**
+             * Format: int64
+             * @description Absent for a silence covering every rule of the site.
+             */
+            alert_id?: number;
+            /** @enum {string} */
+            kind: "silence" | "maintenance";
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at?: string;
+            /** @description Maintenance only; 0 is Sunday. */
+            weekdays?: number[];
+            /** @description Maintenance only; HH:MM wall clock in tz. */
+            start_time?: string;
+            duration_minutes?: number;
+            /** @description IANA time zone of the maintenance window. */
+            tz?: string;
+            reason: string;
+            /** Format: int64 */
+            created_by?: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AlertSilenceInput: {
+            /** Format: int64 */
+            alert_id?: number;
+            /** @enum {string} */
+            kind: "silence" | "maintenance";
+            /**
+             * Format: date-time
+             * @description Defaults to now.
+             */
+            starts_at?: string;
+            /**
+             * Format: date-time
+             * @description Required for a silence; optional end of a maintenance recurrence.
+             */
+            ends_at?: string;
+            weekdays?: number[];
+            start_time?: string;
+            duration_minutes?: number;
+            /** @description Defaults to the site time zone. */
+            tz?: string;
+            reason?: string;
+        };
         RevenueReportRow: {
             /** @description Group label; empty for direct or unknown. */
             key: string;
@@ -5377,6 +5746,66 @@ export interface components {
         };
         /** Format: double */
         AppRate: number | null;
+        ObsMetricInfo: {
+            name: string;
+            /** @enum {string} */
+            kind: "gauge" | "counter" | "updown" | "histogram";
+            unit: string;
+            /** @description Distinct attribute combinations. */
+            series: number;
+            attribute_keys: string[];
+        };
+        ObsMetricList: {
+            metrics: components["schemas"]["ObsMetricInfo"][];
+        };
+        ObsMetricQuery: {
+            name: string;
+            /** @enum {string} */
+            agg: "avg" | "sum" | "min" | "max" | "last" | "rate" | "p50" | "p75" | "p90" | "p95" | "p99";
+            /** @description Up to two attribute keys. */
+            group_by?: string[];
+            /** @description Attribute key to exact value; at most 16. */
+            filters?: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** @enum {string} */
+            interval: "1m" | "5m" | "1h" | "1d";
+        };
+        /** @description An ObsMetricQuery without from and to; the dashboard's time range supplies them. */
+        ObsMetricWidgetQuery: {
+            name: string;
+            /** @enum {string} */
+            agg: "avg" | "sum" | "min" | "max" | "last" | "rate" | "p50" | "p75" | "p90" | "p95" | "p99";
+            group_by?: string[];
+            filters?: {
+                [key: string]: string;
+            };
+            /** @enum {string} */
+            interval: "1m" | "5m" | "1h" | "1d";
+        };
+        ObsMetricSeriesPoint: {
+            /**
+             * Format: date-time
+             * @description Start of the bucket.
+             */
+            ts: string;
+            /** @description Null when the bucket has no value for the aggregation. */
+            value: number | null;
+        };
+        ObsMetricSeries: {
+            /** @description The group_by attribute values; empty without group_by. */
+            group: {
+                [key: string]: string;
+            };
+            points: components["schemas"]["ObsMetricSeriesPoint"][];
+        };
+        ObsMetricResult: {
+            series: components["schemas"]["ObsMetricSeries"][];
+        };
         AppOverview: {
             /** Format: int64 */
             events: number;
@@ -5494,6 +5923,8 @@ export interface components {
             event_id: string;
             /** Format: date-time */
             ts: string;
+            /** @description Trace of the event, 32 hex characters; present only when the event is linked to a trace. */
+            trace_id?: string;
             /** @description message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional. */
             body: {
                 [key: string]: unknown;
@@ -5579,6 +6010,8 @@ export interface components {
             resolved: boolean;
             /** @description An issue assigned to me regressed. */
             regressed: boolean;
+            /** @description Mail the weekly digest on Monday 09:00 in the project time zone. Optional when saving: absent keeps the current value. Always present in responses. */
+            weekly_digest?: boolean;
         };
         AppNotificationPrefsSite: {
             /** Format: int32 */
@@ -5590,6 +6023,7 @@ export interface components {
             assigned: boolean;
             resolved: boolean;
             regressed: boolean;
+            weekly_digest: boolean;
         };
         /** @description A partial update; at least one field is required. Omitted fields are left alone. */
         AppIssueChange: {
@@ -6672,6 +7106,7 @@ export interface components {
          * @description Per-kind options; fields a kind does not use are rejected. `kpi_strip`: `metrics` (1 to 6). `time_series`: `metric` (required).
          *     `breakdown`: `dimension` (required), `metrics` (1 to 4), `limit` (1 to 50, default 10). `map` and `weekly_rhythm`: `metric`
          *     (visitors or pageviews). `goals`: `limit`. `funnel`: `funnel_id` (required). `retention` and `web_vitals`: none.
+         *     `obs_metric` (app projects only): `query` (required; the dashboard's time range fills from and to) and `chart` (line or bar).
          */
         DashboardWidgetConfig: {
             metric?: components["schemas"]["Metric"];
@@ -6681,13 +7116,16 @@ export interface components {
             limit?: number;
             /** Format: int64 */
             funnel_id?: number;
+            query?: components["schemas"]["ObsMetricWidgetQuery"];
+            /** @enum {string} */
+            chart?: "line" | "bar";
         };
         /** @description A widget on a 12-column grid. Widgets may be placed in any order; clients reflow overlaps. */
         DashboardWidget: {
             /** @description Unique within the layout. */
             id: string;
             /** @enum {string} */
-            kind: "kpi_strip" | "time_series" | "breakdown" | "map" | "weekly_rhythm" | "goals" | "funnel" | "retention" | "web_vitals";
+            kind: "kpi_strip" | "time_series" | "breakdown" | "map" | "weekly_rhythm" | "goals" | "funnel" | "retention" | "web_vitals" | "obs_metric";
             title?: string;
             x: number;
             y: number;
@@ -7330,6 +7768,30 @@ export interface components {
             next_cursor?: string | null;
             total: number;
             total_capped: boolean;
+        };
+        ObsLog: {
+            /** Format: date-time */
+            ts: string;
+            /** @description OTLP severity number; 0 when unset. */
+            severity: number;
+            /** @description trace, debug, info, warn, error or fatal; empty when unset. */
+            severity_text: string;
+            service: string;
+            environment: string;
+            release: string;
+            /** @description 32 hex characters; absent without a trace. */
+            trace_id?: string;
+            /** @description 16 hex characters; absent without a span. */
+            span_id?: string;
+            body: string;
+            truncated: boolean;
+            attributes: {
+                [key: string]: unknown;
+            };
+        };
+        ObsLogPage: {
+            data: components["schemas"]["ObsLog"][];
+            next_cursor: string | null;
         };
         PropertyKeyCount: {
             key: string;
@@ -11011,6 +11473,48 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    searchObsLogsPublic: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+                 *     case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+                 *     or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+                 *     32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+                 */
+                q?: string;
+                /** @description Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention. */
+                from?: string;
+                /** @description End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days. */
+                to?: string;
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsLogPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     listProfiles: {
         parameters: {
             query?: {
@@ -11538,6 +12042,63 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listObsMetricsPublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metric names */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    queryObsMetricsPublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsMetricQuery"];
+            };
+        };
+        responses: {
+            /** @description Result series */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
         };
     };
     listSegments: {
@@ -12127,6 +12688,78 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    searchObsLogs: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+                 *     case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+                 *     or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+                 *     32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+                 */
+                q?: string;
+                /** @description Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention. */
+                from?: string;
+                /** @description End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days. */
+                to?: string;
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsLogPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listObsTraceLogs: {
+        parameters: {
+            query?: {
+                /** @description RFC 3339 centre of the window, usually the time of the error or span. */
+                around?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The trace's logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObsLog"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listAppIssues: {
         parameters: {
             query?: {
@@ -12368,6 +13001,59 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listObsMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metric names */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricList"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    queryObsMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsMetricQuery"];
+            };
+        };
+        responses: {
+            /** @description Result series */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsMetricResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getAppRules: {
         parameters: {
             query?: never;
@@ -12417,6 +13103,111 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    listAppMonitors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Monitors */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppMonitorList"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAppMonitor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppMonitor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppMonitorPatch"];
+            };
+        };
+        responses: {
+            /** @description The monitor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppMonitor"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppMonitorCheckins: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Check-ins */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppMonitorCheckins"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getAppEventAttachment: {
@@ -14772,6 +15563,87 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listAlertSilences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Silences newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AlertSilence"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createAlertSilence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertSilenceInput"];
+            };
+        };
+        responses: {
+            /** @description Created silence. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertSilence"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAlertSilence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                silence: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listNotificationHistory: {

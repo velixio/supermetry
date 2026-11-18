@@ -83,3 +83,17 @@ func TestAppSettingsElectronSymbols(t *testing.T) {
 		t.Fatalf("explicit off %+v err=%v", off, err)
 	}
 }
+
+func TestAppSettingsQuotas(t *testing.T) {
+	got, err := sites.ParseAppSettings(nil)
+	if err != nil || *got.LogDailyQuota != 5_000_000 || *got.MetricDailyQuota != 50_000_000 {
+		t.Fatalf("defaults = %+v, %v", got, err)
+	}
+	got, err = sites.ParseAppSettings([]byte(`{"log_daily_quota":0,"metric_daily_quota":10}`))
+	if err != nil || *got.LogDailyQuota != 0 || *got.MetricDailyQuota != 10 {
+		t.Fatalf("explicit = %+v, %v", got, err)
+	}
+	if _, err := sites.ParseAppSettings([]byte(`{"log_daily_quota":-1}`)); err == nil {
+		t.Fatal("negative quota accepted")
+	}
+}

@@ -149,6 +149,25 @@ describe('NotificationsPage', () => {
     ))
   })
 
+  it('creates a PagerDuty channel with a write-only integration key', async () => {
+    renderPage()
+    await screen.findByText('Operations')
+    fireEvent.click(screen.getByRole('button', { name: 'Add channel' }))
+    fireEvent.change(screen.getByLabelText('Channel type'), { target: { value: 'pagerduty' } })
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'On call' } })
+    fireEvent.change(screen.getByLabelText('Integration key'), { target: { value: 'R0UT1NGKEYabcdefghijklmnopqrstuv' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create channel' }))
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith(
+      '/api/private/orgs/3/channels',
+      expect.objectContaining({ body: {
+        kind: 'pagerduty', name: 'On call', enabled: true,
+        config: { routing_key: 'R0UT1NGKEYabcdefghijklmnopqrstuv' },
+      } }),
+    ))
+    expect(screen.queryByDisplayValue('R0UT1NGKEYabcdefghijklmnopqrstuv')).not.toBeInTheDocument()
+  })
+
   it('shows a useful test-delivery failure', async () => {
     post.mockResolvedValueOnce({
       error: { detail: 'Test notification could not be delivered; verify the channel credentials and destination.' },

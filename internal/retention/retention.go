@@ -31,6 +31,8 @@ var eraseTables = []string{
 	"app_release_daily",
 	"app_active_day",
 	"app_sessions",
+	"app_checkins",
+	"app_monitors",
 	"app_session_daily",
 	"app_issue_webhook_outbox",
 	"app_issue_webhooks",
@@ -50,6 +52,7 @@ var eraseTables = []string{
 	"spans",
 	"logs",
 	"metric_points",
+	"metric_hourly",
 	"events",
 	"sessions",
 	"profiles",
@@ -143,12 +146,17 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		expired = append(expired, appPartitions...)
 	}
 	for _, table := range []string{"app_event_bodies", "app_event_attachments"} {
-		bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now, table)
+		bodyPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now, table, appEventBodyRetentionDays)
 		if err != nil {
 			return nil, err
 		}
 		expired = append(expired, bodyPartitions...)
 	}
+	checkinPartitions, err := expiredAppEventBodyPartitions(ctx, pool, now, "app_checkins", appCheckinRetentionDays)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, checkinPartitions...)
 	spanPartitions, err := expiredSpanPartitions(ctx, pool, now)
 	if err != nil {
 		return nil, err
@@ -164,6 +172,11 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]string, erro
 		return nil, err
 	}
 	expired = append(expired, metricPartitions...)
+	hourlyPartitions, err := expiredMetricHourlyPartitions(ctx, pool, now)
+	if err != nil {
+		return nil, err
+	}
+	expired = append(expired, hourlyPartitions...)
 	sort.Slice(expired, func(i, j int) bool { return expired[i].Name < expired[j].Name })
 
 	dropped := make([]string, 0, len(expired))
@@ -459,15 +472,18 @@ func expiredAppEventPartitions(ctx context.Context, pool *pgxpool.Pool, table st
 // appEventBodyRetentionDays is the fixed life of scrubbed event bodies.
 const appEventBodyRetentionDays = 30
 
+// appCheckinRetentionDays is the fixed life of cron check-ins.
+const appCheckinRetentionDays = 90
+
 // expiredAppEventBodyPartitions returns the monthly partitions of table
 // (app_event_bodies or app_event_attachments) that lie wholly before the body
 // retention, plus one day of slack.
-func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, table string) ([]db.Partition, error) {
+func expiredAppEventBodyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, table string, days int) ([]db.Partition, error) {
 	partitions, err := db.ListMonthlyPartitions(ctx, pool, table)
 	if err != nil {
 		return nil, fmt.Errorf("list %s partitions: %w", table, err)
 	}
-	cutoff := now.AddDate(0, 0, -appEventBodyRetentionDays-1)
+	cutoff := now.AddDate(0, 0, -days-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {
@@ -565,6 +581,33 @@ func expiredMetricPartitions(ctx context.Context, pool *pgxpool.Pool, now time.T
 		return nil, fmt.Errorf("list metric partitions: %w", err)
 	}
 	cutoff := now.AddDate(0, 0, -metricPointRetentionDays-1)
+	var expired []db.Partition
+	for _, partition := range partitions {
+		if !partition.To.After(cutoff) {
+			expired = append(expired, partition)
+		}
+	}
+	return expired, nil
+}
+
+// metricHourlyRetentionDays is the life of hourly metric rollups.
+const metricHourlyRetentionDays = 90
+
+// expiredMetricHourlyPartitions returns the monthly metric_hourly partitions
+// that lie wholly before the 90-day retention, plus one day of closing slack.
+func expiredMetricHourlyPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) ([]db.Partition, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, `select to_regclass('metric_hourly') is not null`).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("check metric_hourly: %w", err)
+	}
+	if !exists {
+		return nil, nil
+	}
+	partitions, err := db.ListMonthlyPartitions(ctx, pool, "metric_hourly")
+	if err != nil {
+		return nil, fmt.Errorf("list metric hourly partitions: %w", err)
+	}
+	cutoff := now.AddDate(0, 0, -metricHourlyRetentionDays-1)
 	var expired []db.Partition
 	for _, partition := range partitions {
 		if !partition.To.After(cutoff) {

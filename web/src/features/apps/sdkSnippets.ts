@@ -67,3 +67,26 @@ sentry_sdk.init(
     },
   ]
 }
+
+/** The OTLP/HTTP traces endpoint of a project: exporters append `/v1/traces` themselves. */
+export function otlpEndpoint(origin: string, siteId: number): string {
+  return `${origin}/api/${siteId}/otlp`
+}
+
+/** Environment variables for any OpenTelemetry SDK exporting over OTLP/HTTP. */
+export function otelEnvSnippet(endpoint: string, key: string): string {
+  return `OTEL_EXPORTER_OTLP_ENDPOINT=${endpoint}
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_HEADERS=authorization=Bearer ${key}`
+}
+
+/** Turning on transactions in Sentry SDKs that already have the DSN; 1.0 sends every transaction, so lower it for busy apps. */
+export function tracingSnippets(): { value: string; label: string; code: string }[] {
+  return [
+    { value: 'browser', label: 'JavaScript (browser, Node)', code: 'Sentry.init({\n  // dsn and release as above\n  tracesSampleRate: 1.0,\n});' },
+    { value: 'python', label: 'Python', code: 'sentry_sdk.init(\n    # dsn and release as above\n    traces_sample_rate=1.0,\n)' },
+    { value: 'go', label: 'Go', code: 'sentry.Init(sentry.ClientOptions{\n    // Dsn and Release as above\n    EnableTracing:    true,\n    TracesSampleRate: 1.0,\n})' },
+    { value: 'android', label: 'Android', code: 'options.tracesSampleRate = 1.0' },
+    { value: 'cocoa', label: 'Cocoa (iOS, macOS)', code: 'options.tracesSampleRate = 1.0' },
+  ]
+}

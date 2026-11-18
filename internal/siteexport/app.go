@@ -146,6 +146,30 @@ order by f.at,f.id`
 		return err
 	}
 
+	// Cron monitors are configuration, exported whole; check-ins follow the window.
+	monitors := `
+select m.id,m.slug,m.environment,m.schedule_type,m.schedule,m.tz,m.checkin_margin_minutes,m.max_runtime_minutes,
+ m.failure_threshold,m.recovery_threshold,m.status,` + utc("m.last_checkin_at") + `,` + utc("m.next_expected_at") + `
+from app_monitors m
+where m.site_id=$1
+order by m.id`
+	if err := e.writeRows(ctx, archive, "app_monitors.csv", []string{
+		"monitor_id", "slug", "environment", "schedule_type", "schedule", "timezone", "checkin_margin_minutes",
+		"max_runtime_minutes", "failure_threshold", "recovery_threshold", "status", "last_checkin", "next_expected",
+	}, monitors, siteID); err != nil {
+		return err
+	}
+	checkins := `
+select c.monitor_id,c.checkin_id::text,` + utc("c.ts") + `,c.status,` + utc("c.expected_at") + `,coalesce(c.duration_ms::text,''),coalesce(c.release,'')
+from app_checkins c
+where c.site_id=$1 and ` + inWindow("c.ts") + `
+order by c.ts,c.checkin_id`
+	if err := e.writeRows(ctx, archive, "app_checkins.csv", []string{
+		"monitor_id", "checkin_id", "timestamp", "status", "expected_at", "duration_ms", "release",
+	}, checkins, siteID, f, t, tz); err != nil {
+		return err
+	}
+
 	deploys := `
 select d.id,r.version,d.environment,d.name,d.url,` + utc("d.date_started") + `,` + utc("d.date_finished") + `,` + utc("d.date_created") + `
 from app_deploys d join app_releases r on r.id=d.release_id

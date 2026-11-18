@@ -1,4 +1,4 @@
-.PHONY: sdk-compat-electron build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps envelope-bench bench-otlp-metrics bench bench-full bench-compare
+.PHONY: sdk-compat-electron build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps sdk-compat-releases envelope-bench bench-otlp-metrics bench bench-full bench-compare bench-otlp-logs sdk-compat-debugfiles bench-log-search
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -26,6 +26,16 @@ sdk-compat:
 sdk-compat-sourcemaps:
 	bash tools/sentry-fixtures/live/sourcemaps.sh
 
+# Live release/deploy acceptance (sentry-cli releases new, set-commits --auto, finalize, deploys, archive, delete).
+# Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat-releases
+sdk-compat-releases:
+	bash tools/sentry-fixtures/live/releases.sh
+
+# Live debug file upload acceptance (sentry-cli 3.8.2 with the Gradle plugin and Xcode build phase command lines).
+# Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat-debugfiles
+sdk-compat-debugfiles:
+	bash tools/sentry-fixtures/live/debugfiles.sh
+
 # Live Electron native-crash acceptance (real @sentry/electron, DSN only; needs network and xvfb).
 # Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat-electron
 sdk-compat-electron:
@@ -38,6 +48,17 @@ envelope-bench:
 # OTLP metrics intake load test (points/s written): ENVELOPE_BENCH_MINUTES=5 make bench-otlp-metrics
 bench-otlp-metrics:
 	ENVELOPE_BENCH_OTLP_METRICS=1 bash tools/bench/envelope/run.sh
+
+# OTLP logs intake load test (records/s written): ENVELOPE_BENCH_MINUTES=5 make bench-otlp-logs
+bench-otlp-logs:
+	ENVELOPE_BENCH_OTLP_LOGS=1 bash tools/bench/envelope/run.sh
+
+# Log search p95 on a 7-day, 12M-row dataset in a scratch database (drops and recreates it; needs
+# SUPERMETRY_DATABASE_URL pointing at a server where it may create databases). Run through the bench lock:
+# make bench-log-search LOG_BENCH_SCALE=0.1 for a quick check.
+bench-log-search:
+	go run ./tools/bench/logs load -scale $(or $(LOG_BENCH_SCALE),1)
+	go run ./tools/bench/logs search
 
 accuracy-live:
 	python3 tools/bench/accuracy/compare_live.py --live --creds "$(ACCURACY_CREDS)"
