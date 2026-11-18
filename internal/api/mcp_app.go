@@ -174,6 +174,9 @@ func rejectAppSiteForWebTool(r *http.Request, arguments json.RawMessage) error {
 }
 
 func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name string, arguments json.RawMessage) (any, error) {
+	if mcpPerformanceToolNames[name] {
+		return h.runPerformanceTool(ctx, r, name, arguments)
+	}
 	var (
 		rng                            mcpAppRange
 		release, environment, platform string
