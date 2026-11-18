@@ -341,6 +341,8 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/app-link", h.getAppLink)
 	mux.HandleFunc("PUT /api/private/sites/{site}/app-link", h.updateAppLink)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/overview", h.getAppOverview)
+	mux.HandleFunc("GET /api/private/sites/{site}/obs/logs", h.searchObsLogs)
+	mux.HandleFunc("GET /api/private/sites/{site}/obs/traces/{trace_id}/logs", h.traceObsLogs)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/rules", h.getAppRules)
 	mux.HandleFunc("PUT /api/private/sites/{site}/app/rules", h.replaceAppRules)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/issues", h.listAppIssues)

@@ -1562,6 +1562,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/obs/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Search an app project's logs, newest first
+         * @description Requires stats:read. Same search syntax, window and paging as the private route. User identity is never returned.
+         */
+        get: operations["searchObsLogsPublic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/sites/{site_id}/profiles": {
         parameters: {
             query?: never;
@@ -2193,6 +2215,52 @@ export interface paths {
          *     approximate when one install crosses releases on the same day. A rate is null when its denominator is zero.
          */
         get: operations["getAppOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/obs/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Search an app project's logs, newest first
+         * @description Walks the site's daily partitions newest first and stops at the page size. Rows older than the site's log
+         *     retention are never returned. A grammar error answers 400 with the byte position. User identity is never returned.
+         */
+        get: operations["searchObsLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/obs/traces/{trace_id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The logs of one trace, oldest first
+         * @description Looks 24 hours either side of `around` (default now), within the site's log retention.
+         */
+        get: operations["listObsTraceLogs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6378,6 +6446,30 @@ export interface components {
             total: number;
             total_capped: boolean;
         };
+        ObsLog: {
+            /** Format: date-time */
+            ts: string;
+            /** @description OTLP severity number; 0 when unset. */
+            severity: number;
+            /** @description trace, debug, info, warn, error or fatal; empty when unset. */
+            severity_text: string;
+            service: string;
+            environment: string;
+            release: string;
+            /** @description 32 hex characters; absent without a trace. */
+            trace_id?: string;
+            /** @description 16 hex characters; absent without a span. */
+            span_id?: string;
+            body: string;
+            truncated: boolean;
+            attributes: {
+                [key: string]: unknown;
+            };
+        };
+        ObsLogPage: {
+            data: components["schemas"]["ObsLog"][];
+            next_cursor: string | null;
+        };
         PropertyKeyCount: {
             key: string;
             /** Format: int64 */
@@ -10058,6 +10150,48 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    searchObsLogsPublic: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+                 *     case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+                 *     or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+                 *     32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+                 */
+                q?: string;
+                /** @description Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention. */
+                from?: string;
+                /** @description End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days. */
+                to?: string;
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsLogPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     listProfiles: {
         parameters: {
             query?: {
@@ -11167,6 +11301,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppOverview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    searchObsLogs: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Search syntax, ANDed: space-separated terms (at most 12, 300 characters). A bare word or `"quoted phrase"` is a
+                 *     case-insensitive substring of the body (at least 3 characters). `severity:` takes trace, debug, info, warn, error
+                 *     or fatal, optionally after `>=`, `>`, `<=` or `<`; `service:`, `env:` and `release:` match exactly; `trace:` takes
+                 *     32 hex characters and `span:` 16; `attr.<key>:<value>` matches an attribute. A leading `!` negates a term.
+                 */
+                q?: string;
+                /** @description Start of the window (inclusive), RFC 3339. Defaults to 24 hours before `to`; clamped to the site's log retention. */
+                from?: string;
+                /** @description End of the window (exclusive), RFC 3339. Defaults to now. The window is at most 30 days. */
+                to?: string;
+                limit?: number;
+                /** @description The `next_cursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsLogPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listObsTraceLogs: {
+        parameters: {
+            query?: {
+                /** @description RFC 3339 centre of the window, usually the time of the error or span. */
+                around?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The trace's logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObsLog"][];
+                    };
                 };
             };
             400: components["responses"]["BadRequest"];

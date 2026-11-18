@@ -46,6 +46,7 @@ func (h *handler) registerPublic(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/public/v1/profiles/{profile}", h.getProfile)
 	mux.HandleFunc("GET /api/public/v1/erasures/{erasure}", h.getPublicErasure)
 	mux.HandleFunc("GET /api/public/v1/stats/summary", h.publicStats)
+	mux.HandleFunc("GET /api/public/v1/sites/{site}/obs/logs", h.searchObsLogs)
 }
 
 func (h *handler) publicStats(w http.ResponseWriter, r *http.Request) {
