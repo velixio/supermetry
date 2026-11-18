@@ -35,6 +35,8 @@ export type MenuRow = {
   active: boolean
   render: (context: RowContext) => ReactNode
   pinnable?: boolean
+  /** Second key of the `g` go-to chord, when the row has one. */
+  chord?: string
   children?: MenuRow[]
 }
 
@@ -84,6 +86,7 @@ export function MenuEntry({
         <SidebarMenuAction
           aria-controls={subId}
           aria-expanded={open}
+          tabIndex={-1}
           aria-label={open ? ui.sidebar.collapse(entry.label) : ui.sidebar.expand(entry.label)}
           className="text-muted-foreground max-md:peer-data-[size=default]/menu-button:top-3 md:peer-data-[size=default]/menu-button:top-1"
           onClick={onToggle}
@@ -95,6 +98,7 @@ export function MenuEntry({
         <SidebarMenuAction
           aria-label={pin.pinned ? ui.sidebar.unpin(entry.label) : ui.sidebar.pin(entry.label)}
           aria-pressed={pin.pinned}
+          tabIndex={-1}
           className="max-md:peer-data-[size=default]/menu-button:top-3 md:peer-data-[size=default]/menu-button:top-1"
           showOnHover={!pin.pinned}
           onClick={pin.toggle}
@@ -120,7 +124,6 @@ export function MenuGroup({
   label,
   open,
   onToggle,
-  rail,
   className,
   fixed = false,
   children,
@@ -129,7 +132,6 @@ export function MenuGroup({
   label: string
   open: boolean
   onToggle: () => void
-  rail: boolean
   className?: string
   /** A heading that does not collapse (a group with one or two rows). */
   fixed?: boolean
@@ -138,7 +140,7 @@ export function MenuGroup({
   const headingId = `sidebar-${id}-heading`
   const contentId = `sidebar-${id}-content`
   return (
-    <SidebarGroup className={`p-0 ${className ?? ''}`}>
+    <SidebarGroup className={`p-0 group-data-[collapsible=icon]:not-first:border-t group-data-[collapsible=icon]:not-first:pt-2 ${className ?? ''}`}>
       <SidebarGroupLabel asChild className="group/label h-6 px-2 text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:-mt-6">
         <h2 id={headingId}>
           {fixed ? <span>{label}</span> : <button
@@ -146,7 +148,8 @@ export function MenuGroup({
             aria-expanded={open}
             className="flex h-full w-full items-center justify-between rounded-md text-left outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50"
             onClick={onToggle}
-            tabIndex={rail ? -1 : undefined}
+            data-nav-group=""
+            data-nav-item=""
             type="button"
           >
             <span>{label}</span>

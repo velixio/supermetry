@@ -96,6 +96,8 @@ const messages: MessageTree = {
     matchCount: (n: number) => `${n} Treffer`,
     expand: (label: string) => `${label} aufklappen`,
     collapse: (label: string) => `${label} zuklappen`,
+    liveNow: (n: number) => `${n} live`,
+    projectTooltip: (name: string, org: string) => `Projekt: ${name} · ${org}`,
     subPages: { symbols: 'Symbole', 'alert-silences': 'Stummschaltungen', monitors: 'Cron-Monitore', app: 'App' },
   },
   help: {

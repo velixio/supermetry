@@ -59,6 +59,8 @@ const messages: MessageTree = {
     matchCount: (n: number) => `${n}টি মিল`,
     expand: (label: string) => `${label} প্রসারিত করুন`,
     collapse: (label: string) => `${label} সংকুচিত করুন`,
+    liveNow: (n: number) => `এখন ${n} জন লাইভ`,
+    projectTooltip: (name: string, org: string) => `প্রকল্প: ${name} · ${org}`,
     subPages: { symbols: 'সিম্বল', 'alert-silences': 'নীরবকরণ', monitors: 'ক্রন মনিটর', app: 'অ্যাপ' },
   },
   help: {

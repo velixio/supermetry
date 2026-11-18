@@ -20,6 +20,8 @@ const EXPECTED = [
   'src/components/Sidebar.tsx: sticky top-0',
   'src/components/AppHeader.tsx: sticky top-0',
   'src/components/DashboardPanels.tsx: sticky top-[calc(3rem+var(--dashboard-filter-h,3.75rem)+0.5rem)]',
+  // The context panel is a column beside <main>; it starts exactly under the 48px header.
+  'src/components/context-panel/ContextPanel.tsx: sticky top-12',
   'src/components/FullReportDialog.tsx: sticky top-0',
   'src/features/settings/SettingsPages.tsx: lg:sticky lg:top-17',
   'src/routes/app.$org.$site.index.tsx: sticky top-12',

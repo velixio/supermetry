@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { SearchIcon } from 'lucide-react'
 
 import { Breadcrumbs } from './Breadcrumbs'
+import { ContextPanelToggle } from './context-panel'
 import { HelpMenu } from './HelpMenu'
 import { LiveBadge } from '@/components/LiveBadge'
 import { Badge } from '@/components/ui/badge'
@@ -149,6 +150,7 @@ export function AppHeader({
           </div>
         ) : null}
         <HelpMenu onOpenAbout={onOpenAbout} onOpenShortcuts={onOpenHelp} />
+        <ContextPanelToggle />
       </div>
     </header>
   )

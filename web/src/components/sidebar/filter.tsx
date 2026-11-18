@@ -63,7 +63,7 @@ export function SidebarFilterField({
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton aria-keyshortcuts={FILTER_SHORTCUT} className={rowClass} onClick={onExpand} tooltip={ui.sidebar.filterLabel} type="button">
+          <SidebarMenuButton aria-keyshortcuts={FILTER_SHORTCUT} className={rowClass} data-filter-trigger="" onClick={onExpand} tooltip={ui.sidebar.filterLabel} type="button">
             <SearchIcon aria-hidden="true" />
             <span>{ui.sidebar.filterLabel}</span>
           </SidebarMenuButton>

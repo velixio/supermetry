@@ -41,6 +41,9 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  /** The collapsed icon rail is temporarily shown at full width, over the content (hover or keyboard focus). */
+  peek: boolean
+  setPeek: (peek: boolean) => void
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -69,6 +72,7 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  const [peekRequested, setPeek] = React.useState(false)
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -113,6 +117,8 @@ function SidebarProvider({
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed"
+  // A peek only exists while the sidebar is collapsed; pinning it open ends it.
+  const peek = peekRequested && !open && !isMobile
 
   const contextValue = React.useMemo<SidebarContextProps>(
     () => ({
@@ -123,8 +129,10 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      peek,
+      setPeek,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, peek]
   )
 
   return (
@@ -164,7 +172,30 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, openMobile, setOpenMobile, peek, setPeek } = useSidebar()
+  const peekTimer = React.useRef<number | undefined>(undefined)
+  const container = React.useRef<HTMLDivElement>(null)
+  const peekable = collapsible === "icon" && state === "collapsed"
+  const schedulePeek = (value: boolean, delay: number) => {
+    window.clearTimeout(peekTimer.current)
+    peekTimer.current = window.setTimeout(() => {
+      // An open menu (the project switcher) keeps the peek until it is dismissed.
+      if (!value && container.current?.querySelector('[aria-haspopup="menu"][data-state="open"]')) return
+      setPeek(value)
+    }, delay)
+  }
+  React.useEffect(() => () => window.clearTimeout(peekTimer.current), [])
+  // A click or tap outside the peeking sidebar (and outside its menus) ends the peek.
+  React.useEffect(() => {
+    if (!peek) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null
+      if (container.current?.contains(target) || target?.closest?.('[data-radix-popper-content-wrapper]')) return
+      setPeek(false)
+    }
+    document.addEventListener("pointerdown", onPointerDown)
+    return () => document.removeEventListener("pointerdown", onPointerDown)
+  }, [peek, setPeek])
 
   if (collapsible === "none") {
     return (
@@ -210,7 +241,8 @@ function Sidebar({
     <div
       className="group peer hidden text-sidebar-foreground md:block"
       data-state={state}
-      data-collapsible={state === "collapsed" ? collapsible : ""}
+      data-collapsible={state === "collapsed" && !peek ? collapsible : ""}
+      data-peek={peek ? "true" : undefined}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
@@ -221,6 +253,8 @@ function Sidebar({
         className={cn(
           "relative w-(--sidebar-width) bg-sidebar transition-[width] duration-200 ease-linear",
           "group-data-[collapsible=offcanvas]:w-0",
+          // While peeking the rail keeps its layout footprint: the full sidebar floats over the content.
+          "group-data-[peek=true]:w-(--sidebar-width-icon)",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
             ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
@@ -228,9 +262,34 @@ function Sidebar({
         )}
       />
       <div
+        ref={container}
         data-slot="sidebar-container"
+        onPointerEnter={(event) => {
+          if (event.pointerType !== "mouse" || !peekable) return
+          if (peek) window.clearTimeout(peekTimer.current)
+          else schedulePeek(true, 300)
+        }}
+        onPointerLeave={(event) => {
+          if (event.pointerType !== "mouse") return
+          if (peek) schedulePeek(false, 200)
+          else window.clearTimeout(peekTimer.current)
+        }}
+        onFocus={(event) => {
+          if (!peekable) return
+          window.clearTimeout(peekTimer.current)
+          let keyboard = false
+          try { keyboard = event.target.matches(":focus-visible") } catch { keyboard = false }
+          if (keyboard && !peek) setPeek(true)
+        }}
+        onBlur={(event) => {
+          if (peek && !event.currentTarget.contains(event.relatedTarget as Node | null)) schedulePeek(false, 200)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && peek) setPeek(false)
+        }}
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear motion-reduce:transition-none md:flex",
+          "group-data-[peek=true]:z-30 group-data-[peek=true]:shadow-md",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -510,7 +569,7 @@ function SidebarMenuButton({
   tooltip?: string | React.ComponentProps<typeof TooltipContent>
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot.Root : "button"
-  const { isMobile, state } = useSidebar()
+  const { isMobile, state, peek } = useSidebar()
 
   const button = (
     <Comp
@@ -539,7 +598,7 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
+        hidden={state !== "collapsed" || isMobile || peek}
         {...tooltip}
       />
     </Tooltip>

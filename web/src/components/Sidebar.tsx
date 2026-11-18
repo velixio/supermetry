@@ -34,6 +34,7 @@ import {
   UserRoundIcon,
   UsersRoundIcon,
 } from 'lucide-react'
+import { skipToken, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 
@@ -65,6 +66,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { settingsGroups } from '@/features/settings/SettingsNav'
+import { liveSummaryKey } from '@/features/realtime/liveSummaryKey'
+import { useGoTo } from '@/lib/shortcuts'
+import { NAV_CHORDS, SETTINGS_CHORD, chordLabel } from './sidebar/chords'
+import { useRovingNav } from './sidebar/roving'
 import { FILTER_SHORTCUT, filterGroups, flattenRows, NoMatches, SidebarFilterField } from './sidebar/filter'
 import { MenuEntry, MenuGroup, optionId, rowClass, subRowClass, type MenuGroupData, type MenuRow } from './sidebar/menu'
 import { matchesSite, siteSlug } from '@/lib/matchSite'
@@ -250,15 +255,19 @@ function navigationLink(
   active: boolean,
   closeMobile: () => void,
   label: ReactNode = item.label,
+  extras: { chord?: string; live?: number } = {},
 ) {
   const props = {
     'aria-current': active ? ('page' as const) : undefined,
+    'aria-description': extras.live ? ui.sidebar.liveNow(extras.live) : undefined,
     onClick: closeMobile,
   }
   const content = (
     <>
       <item.icon />
-      <span>{label}</span>
+      <span className="truncate">{label}</span>
+      <LiveDot count={extras.live} />
+      <ChordHint chord={extras.chord} />
     </>
   )
 
@@ -335,11 +344,30 @@ function navigationLink(
   return unreachable
 }
 
+/** A small data-colored dot on an icon: something is happening there right now. Decorative; the row carries aria-description. */
+function LiveDot({ count }: { count?: number }) {
+  if (!count) return null
+  return <span aria-hidden="true" className="absolute top-2.5 left-[18px] size-2 rounded-full border-2 border-sidebar bg-chart-1 md:top-1" data-testid="live-dot" />
+}
+
+/** The go-to chord, muted and right-aligned, only while the row is hovered or focused. Drawn by CSS so it never enters the row's text. */
+function ChordHint({ chord }: { chord?: string }) {
+  if (!chord) return null
+  return <span aria-hidden="true" className="ml-auto hidden text-[11px] text-muted-foreground before:content-[attr(data-chord)] group-focus-within/menu-item:inline group-hover/menu-item:inline group-data-[collapsible=icon]:hidden" data-chord={chordLabel(chord)} />
+}
+
+/** Rail tooltip: the label, then the chord as a small key hint. */
+function tipFor(label: string, chord?: string, live?: number) {
+  const text = live ? `${label} · ${ui.sidebar.liveNow(live)}` : label
+  if (!chord) return text
+  return { children: <>{text}<kbd className="ml-2 rounded-sm bg-background/20 px-1 text-[10px] font-medium">{chordLabel(chord)}</kbd></> }
+}
+
 /** The brand link at the top of every sidebar. It leads to the sites overview. */
 export function SidebarBrandLink({ onClick }: { onClick: () => void }) {
   return (
     <Link aria-label="Supermetry home" className="flex h-8 items-center gap-2 rounded-md px-2 outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={onClick}>
-      <BrandLogo className="h-5 w-5" decorative mark />
+      <BrandLogo decorative mark size="sm" />
       <span className="truncate text-sm font-semibold group-data-[collapsible=icon]:hidden">{en.navigation.brand}</span>
     </Link>
   )
@@ -418,7 +446,7 @@ export function SidebarAccountFooter({ me }: { me: Me }) {
   const { isMobile } = useSidebar()
   const name = me.user.name?.trim() || me.user.email
   return (
-    <SidebarFooter className="p-2">
+    <SidebarFooter className="p-2 group-data-[collapsible=icon]:pb-3">
       <SidebarMenu>
         <SidebarMenuItem>
           <AccountMenu
@@ -426,7 +454,7 @@ export function SidebarAccountFooter({ me }: { me: Me }) {
             me={me}
             side={isMobile ? 'top' : 'right'}
             trigger={
-              <SidebarMenuButton aria-label={ui.menus.account} className={`${rowClass} group-data-[collapsible=icon]:p-1.5!`} tooltip={ui.menus.account}>
+              <SidebarMenuButton aria-label={ui.menus.account} className={`${rowClass} group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!`} tooltip={name}>
                 <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
                   {name.charAt(0).toUpperCase()}
                 </span>
@@ -477,7 +505,7 @@ export function SupermetrySidebar({
   const router = useRouter()
   // The site list keeps the current page (and its portable search) for the chosen site.
   const current = useCurrentRoute()
-  const { setOpenMobile, setOpen, state: sidebarState, isMobile } = useSidebar()
+  const { setOpenMobile, setOpen, state: sidebarState, isMobile, peek, setPeek } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
   const { prefs, setGroupOpen, togglePin } = useSidebarPrefs(me.user.id)
   const orgScope = isOrgScopedPath(pathname)
@@ -486,7 +514,11 @@ export function SupermetrySidebar({
   const visibleItems = visibleNavigation(membership.role, Boolean(navigationSite), membership, navigationSite)
   const showReplays = replaysAvailable(membership, navigationSite)
   // On the icon rail every group shows, so no item is hidden behind a collapsed heading.
-  const rail = sidebarState === 'collapsed' && !isMobile
+  // While the rail is peeking it is drawn at full width, so it behaves like the expanded sidebar.
+  const rail = sidebarState === 'collapsed' && !isMobile && !peek
+  // The live dot reads the cache the header's live badge fills (same key); it never fetches on its own.
+  const liveCount = useQuery<{ active_visitors?: number }>({ queryKey: liveSummaryKey(navigationSite?.id ?? 0), queryFn: skipToken }).data?.active_visitors
+  const nav = useRovingNav({ onRailExpand: () => setPeek(true) })
 
   const [query, setQuery] = useState('')
   const [cursorKey, setCursorKey] = useState<string | null>(null)
@@ -505,9 +537,10 @@ export function SupermetrySidebar({
         href: navigationUrl(item, org, currentSite),
         active,
         pinnable: true,
+        chord: NAV_CHORDS[item.suffix],
         render: ({ label, id, kbd }) => (
-          <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} id={id} isActive={active} tooltip={item.label}>
-            {navigationLink(item, org, currentSite, active, closeMobile, label)}
+          <SidebarMenuButton asChild className={`${rowClass}${item.suffix === '/realtime' && liveCount ? ' relative' : ''}`} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={active} tooltip={tipFor(item.label, NAV_CHORDS[item.suffix], item.suffix === '/realtime' ? liveCount : undefined)}>
+            {navigationLink(item, org, currentSite, active, closeMobile, label, { chord: NAV_CHORDS[item.suffix], live: item.suffix === '/realtime' ? liveCount : undefined })}
           </SidebarMenuButton>
         ),
       })
@@ -519,9 +552,10 @@ export function SupermetrySidebar({
           href: replaysUrl(org, currentSite),
           active: replayActive,
           pinnable: true,
+          chord: NAV_CHORDS['/replays'],
           // ReplayNavLink draws its own fixed label, so the filter match is not highlighted on this row.
           render: ({ id, kbd }) => (
-            <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} id={id} isActive={replayActive} tooltip="Replays">
+            <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={replayActive} tooltip={tipFor('Replays', NAV_CHORDS['/replays'])}>
               <ReplayNavLink enabled org={org} site={currentSite} onClick={closeMobile} />
             </SidebarMenuButton>
           ),
@@ -539,7 +573,7 @@ export function SupermetrySidebar({
     href,
     active,
     render: ({ label: text, id, kbd }) => (
-      <SidebarMenuSubButton asChild className={subRowClass} data-kbd={kbd || undefined} id={id} isActive={active}>
+      <SidebarMenuSubButton asChild className={subRowClass} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={active}>
         <Link aria-current={active ? 'page' : undefined} onClick={closeMobile} to={href as never}>
           <span>{text}</span>
         </Link>
@@ -547,7 +581,10 @@ export function SupermetrySidebar({
     ),
   })
   const managers = membership.role === 'owner' || membership.role === 'admin'
-  const settingsEntries: MenuRow[] = settingsDestinations(membership.role, site).map((destination) => {
+  const settingsList = settingsDestinations(membership.role, site)
+  const settingsEntries: MenuRow[] = settingsList.map((destination) => {
+    // `g ,` goes to project settings when the user has them, else to organization settings.
+    const settingsChord = destination === 'site' || !settingsList.includes('site') ? SETTINGS_CHORD : undefined
     const active = settingsIsActive(destination, pathname, org, site)
     const isSite = destination === 'site' && site
     const label = isSite ? ui.menus.siteSettings : ui.menus.organizationSettings
@@ -566,8 +603,9 @@ export function SupermetrySidebar({
       href,
       active,
       children,
+      chord: settingsChord,
       render: ({ label: text, id, kbd }) => (
-        <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} id={id} isActive={active} tooltip={label}>
+        <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={active} tooltip={tipFor(label, settingsChord)}>
           <Link
             aria-current={active ? 'page' : undefined}
             onClick={closeMobile}
@@ -576,7 +614,8 @@ export function SupermetrySidebar({
               : { params: { org }, to: '/app/$org/settings' as const })}
           >
             {isSite ? <SettingsIcon /> : <Building2Icon />}
-            <span>{text}</span>
+            <span className="truncate">{text}</span>
+            <ChordHint chord={settingsChord} />
           </Link>
         </SidebarMenuButton>
       ),
@@ -587,6 +626,10 @@ export function SupermetrySidebar({
   const pinnedRows = prefs.pinned.flatMap((key) => allEntries.filter((entry) => entry.key === key))
   const pinnedKeys = new Set(pinnedRows.map((entry) => entry.key))
   const activeSection = sections.find((section) => section.entries.some((entry) => entry.active && !pinnedKeys.has(entry.key)))?.key
+  // `g` then a letter jumps to a page; the table is the rows that exist for this project and role.
+  const goTo: Record<string, () => void> = {}
+  for (const row of [...allEntries, ...settingsEntries]) if (row.chord) goTo[row.chord] ??= () => router.history.push(row.href)
+  useGoTo(goTo)
   const activeSettings = settingsEntries.find((entry) => entry.active)?.key
 
   const baseGroups: MenuGroupData[] = [
@@ -621,9 +664,12 @@ export function SupermetrySidebar({
       setOpen(true)
     } else inputRef.current?.focus()
   }
+  // The rail's filter button turns into the field when the sidebar peeks open; keep the keyboard focus on it.
+  const filterButtonFocused = useRef(false)
   useEffect(() => {
-    if (!rail && focusAfterExpand.current) {
+    if (!rail && (focusAfterExpand.current || filterButtonFocused.current)) {
       focusAfterExpand.current = false
+      filterButtonFocused.current = false
       inputRef.current?.focus()
     }
   }, [rail])
@@ -673,25 +719,25 @@ export function SupermetrySidebar({
 
   const switcherTooltip = orgScope
     ? `${ui.sidebar.organizationScope}: ${membership.org.name}`
-    : `${membership.org.name} / ${site?.name ?? en.navigation.site}`
+    : ui.sidebar.projectTooltip(site?.name ?? en.navigation.site, membership.org.name)
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
       <SidebarHeader className="sticky top-0 z-10 h-12 flex-row items-center border-b bg-sidebar p-0 px-2">
         <SidebarBrandLink onClick={closeMobile} />
       </SidebarHeader>
-      <div className="flex flex-col gap-1.5 px-2 pt-2 pb-1">
+      <div className="flex flex-col gap-1.5 px-2 pt-2 pb-1" onFocusCapture={(event) => { filterButtonFocused.current = rail && event.target instanceof HTMLElement && event.target.hasAttribute('data-filter-trigger') }}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton size="lg" className="h-11 gap-2 px-2 text-sm md:h-9 data-[state=open]:bg-accent data-[state=open]:text-foreground hover:bg-accent/60 hover:text-foreground" tooltip={switcherTooltip}>
+            <SidebarMenuButton size="lg" className="h-11 gap-2 px-2 text-sm group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! md:h-9 data-[state=open]:bg-accent data-[state=open]:text-foreground hover:bg-accent/60 hover:text-foreground" tooltip={switcherTooltip}>
               {orgScope ? <Building2Icon aria-hidden="true" /> : site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} className="rounded-md" /> : null}
               {orgScope ? (
-                <span className="flex min-w-0 flex-col text-left leading-4" data-scope="org">
+                <span className="flex min-w-0 flex-col text-left leading-4 group-data-[collapsible=icon]:hidden" data-scope="org">
                   <span className="truncate font-medium">{ui.sidebar.organizationScope}: {membership.org.name}</span>
                   {site ? <span className="truncate text-xs text-muted-foreground" data-testid="switcher-site-dimmed">{site.name}</span> : null}
                 </span>
               ) : (
-                <span className="flex min-w-0 flex-col text-left leading-4" data-scope="site">
+                <span className="flex min-w-0 flex-col text-left leading-4 group-data-[collapsible=icon]:hidden" data-scope="site">
                   <span className="truncate font-medium">{site?.name ?? en.navigation.site}</span>
                   <span className="truncate text-xs text-muted-foreground">{membership.org.name}</span>
                 </span>
@@ -745,7 +791,7 @@ export function SupermetrySidebar({
         />
         <p aria-live="polite" className="sr-only" role="status">{filtering ? ui.sidebar.matchCount(rows.length) : ''}</p>
       </div>
-      <SidebarContent className="gap-2 px-2 pt-1 group-data-[collapsible=icon]:overflow-auto" id="sidebar-menu-results">
+      <SidebarContent ref={nav.ref} className="gap-2 px-2 pt-1 group-data-[collapsible=icon]:overflow-auto" id="sidebar-menu-results" onFocus={nav.onFocus} onKeyDown={nav.onKeyDown}>
         {filtering && groups.length === 0 ? <NoMatches onSearchEverything={searchEverything} /> : null}
         {groups.map((group) => (
           <MenuGroup
@@ -755,7 +801,6 @@ export function SupermetrySidebar({
             label={group.label}
             onToggle={() => setGroupOpen(group.key, !groupOpen(group.key))}
             open={groupOpen(group.key)}
-            rail={rail}
           >
             {group.entries.map((entry) => {
               const subOpen = filtering || (prefs.open[entry.key] ?? (entry.active || Boolean(entry.children?.some((child) => child.active))))

@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AccountSidebar } from './AccountSidebar'
 import { AnalyticsPrivacyBoundary } from './AnalyticsPrivacyBoundary'
 import { AppHeader } from './AppHeader'
+import { ContextPanel, ContextPanelProvider } from './context-panel'
 import { HeaderToolbarContext } from './HeaderToolbar'
 import { buildCrumbs } from './routeCrumbs'
 import { AboutDialog } from '@/components/AboutDialog'
@@ -141,6 +142,7 @@ export function AppShell({
     <InAppShell.Provider value>
     <TooltipProvider>
       <ShellPrefsContext.Provider value={{ theme, toggleTheme: toggle }}>
+      <ContextPanelProvider userId={me.user.id} membership={membership}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <SkipLink
           onClick={(event) => {
@@ -169,6 +171,7 @@ export function AppShell({
             notice={membership && scopedSite?.is_demo ? <DemoBanner org={membership.org} site={scopedSite} /> : undefined}
           />
           <HeaderToolbarContext.Provider value={toolbarSlot}>
+          <div className="flex min-h-0 flex-1">
           <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-3 py-2 md:px-4 md:py-3" id={MAIN_CONTENT_ID} tabIndex={-1}>
             {membership && !scopedSite?.is_demo ? <RemoveDemoBanner currentSite={scopedSite} membership={membership} /> : null}
             <AuthorizationCacheBoundary scope={authorizationScope(me.user.id, membership)}>
@@ -188,10 +191,13 @@ export function AppShell({
               </div>
             </AuthorizationCacheBoundary>
           </main>
+          <ContextPanel membership={membership} />
+          </div>
           </HeaderToolbarContext.Provider>
           <ImpersonationBanner me={me} />
         </SidebarInset>
       </SidebarProvider>
+      </ContextPanelProvider>
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} version={me.version} />
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent>
@@ -205,6 +211,8 @@ export function AppShell({
             <li>{en.shortcuts.sidebar}</li>
             <li>{en.shortcuts.palette}</li>
             <li>{en.shortcuts.menuFilter}</li>
+            <li>{en.shortcuts.contextPanel}</li>
+            <li>{en.shortcuts.goTo}</li>
             <li>{en.shortcuts.period}</li>
             <li>{en.shortcuts.compare}</li>
           </ul>

@@ -95,6 +95,8 @@ export const ui = {
     matchCount: (n: number) => `${n} ${n === 1 ? 'match' : 'matches'}`,
     expand: (label: string) => `Expand ${label}`,
     collapse: (label: string) => `Collapse ${label}`,
+    liveNow: (n: number) => `${n} live now`,
+    projectTooltip: (name: string, org: string) => `Project: ${name} · ${org}`,
     subPages: { symbols: 'Symbols', 'alert-silences': 'Silences', monitors: 'Cron monitors', app: 'App' } as Record<string, string>,
   },
   help: {

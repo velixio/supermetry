@@ -191,12 +191,12 @@ describe('AppShell live visitor badge', () => {
 
     const badge = await screen.findByRole('link', { name: /12 live/ })
     expect(badge).toHaveTextContent('● 12 live')
-    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and project exclusions are not counted. 48 visitors in the last 30 minutes.')
+    expect(badge).toHaveAccessibleDescription('12 visitors in the last 5 minutes, 48 in the last 30. Bots, privacy signals and exclusions are not counted.')
     expect(badge).toHaveAttribute('href', '/app/acme/docs-public/realtime')
 
     fireEvent.focus(badge)
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      '12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and project exclusions are not counted. 48 visitors in the last 30 minutes.',
+      '12 visitors in the last 5 minutes, 48 in the last 30. Bots, privacy signals and exclusions are not counted.',
     )
 
     fireEvent.click(badge)
@@ -337,7 +337,7 @@ describe('AppShell live visitor badge', () => {
     expect(screen.queryByRole('heading', { name: 'Realtime page' })).not.toBeInTheDocument()
     const badge = screen.getByText('12 live').closest('[tabindex="0"]')
     expect(badge).toHaveTextContent('● 12 live')
-    expect(badge).toHaveAccessibleDescription('12 distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and project exclusions are not counted. 48 visitors in the last 30 minutes.')
+    expect(badge).toHaveAccessibleDescription('12 visitors in the last 5 minutes, 48 in the last 30. Bots, privacy signals and exclusions are not counted.')
     expect(screen.queryByRole('link', { name: /12 live/ })).not.toBeInTheDocument()
     expect(useReplayAvailability).not.toHaveBeenCalled()
     for (const label of ['Events', 'Sessions', 'Profiles', 'Replays', 'Journeys', 'Retention', 'Heatmaps', 'Web Vitals', 'Funnels', 'Realtime', 'Goals']) {
@@ -428,6 +428,8 @@ describe('AppShell live visitor badge', () => {
       'Ctrl/⌘ B — Collapse or expand the sidebar',
       'Ctrl/⌘ K — Open the command palette',
       '/ — Filter the sidebar menu',
+      'Ctrl/⌘ . — Show or hide the page context panel',
+      'G then a letter — Go to a page: D dashboard, E events, S sessions, R realtime, P replays, J journeys, T retention, F funnels, O goals, V revenue, , settings',
       'M — Show the last 30 days (dashboard)',
       'C — Turn period comparison on or off (dashboard)',
     ])

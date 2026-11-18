@@ -8,6 +8,7 @@ import { obsMetrics } from '@/messages/obsMetrics'
 import { ui } from '@/messages/ui'
 import { uiAccount } from '@/messages/uiAccount'
 import { uiAlerts } from '@/messages/uiAlerts'
+import { contextPanel } from '@/messages/contextPanel'
 import { uiFlows } from '@/messages/uiFlows'
 import { uiFoundation } from '@/messages/uiFoundation'
 
@@ -30,7 +31,7 @@ describe('English UI strings use sentence case', () => {
 
   it('has no Title Case label in the message catalogues', () => {
     const all: [string, string][] = []
-    const modules = { en, dashEdit, fullReport, obsLogs, obsMetrics, ui, uiAccount, uiAlerts, uiFlows, uiFoundation }
+    const modules = { en, dashEdit, fullReport, obsLogs, obsMetrics, ui, uiAccount, uiAlerts, uiFlows, uiFoundation, contextPanel }
     for (const [name, tree] of Object.entries(modules)) walk(tree, name, all)
     const offenders = all.filter(([, text]) => isTitleCase(text)).map(([key, text]) => `${key}: ${text}`)
     expect(offenders).toEqual([])

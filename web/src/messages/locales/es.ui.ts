@@ -96,6 +96,8 @@ const messages: MessageTree = {
     matchCount: (n: number) => `${n} ${n === 1 ? 'coincidencia' : 'coincidencias'}`,
     expand: (label: string) => `Expandir ${label}`,
     collapse: (label: string) => `Contraer ${label}`,
+    liveNow: (n: number) => `${n} en vivo`,
+    projectTooltip: (name: string, org: string) => `Proyecto: ${name} · ${org}`,
     subPages: { symbols: 'Símbolos', 'alert-silences': 'Silencios', monitors: 'Monitores cron', app: 'App' },
   },
   help: {

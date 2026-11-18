@@ -17,6 +17,7 @@ import type { Me } from '@/lib/me'
 import { en } from '@/messages/en'
 import { ui } from '@/messages/ui'
 
+import { useRovingNav } from './sidebar/roving'
 import { MenuEntry, MenuGroup, rowClass, subRowClass, type MenuRow } from './sidebar/menu'
 import { OrganizationMenuGroup, SidebarAccountFooter, SidebarBrandLink } from './Sidebar'
 
@@ -40,11 +41,11 @@ export function accountDestinationIsActive(destination: AccountDestination, path
  */
 export function AccountSidebar({ me }: { me: Me }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const { setOpenMobile, state: sidebarState, isMobile } = useSidebar()
+  const { setOpenMobile, setPeek } = useSidebar()
   const managed = useManaged()
   const { prefs, setGroupOpen } = useSidebarPrefs(me.user.id)
   const closeMobile = () => setOpenMobile(false)
-  const rail = sidebarState === 'collapsed' && !isMobile
+  const nav = useRovingNav({ onRailExpand: () => setPeek(true) })
 
   const entries: MenuRow[] = accountDestinations(me, managed).map((destination) => {
     const active = accountDestinationIsActive(destination, pathname)
@@ -59,7 +60,7 @@ export function AccountSidebar({ me }: { me: Me }) {
         href: section,
         active: on,
         render: ({ label: text, id, kbd }) => (
-          <SidebarMenuSubButton asChild className={subRowClass} data-kbd={kbd || undefined} id={id} isActive={on}>
+          <SidebarMenuSubButton asChild className={subRowClass} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={on}>
             <Link aria-current={on ? 'page' : undefined} onClick={closeMobile} to={section as never}><span>{text}</span></Link>
           </SidebarMenuSubButton>
         ),
@@ -72,7 +73,7 @@ export function AccountSidebar({ me }: { me: Me }) {
       active,
       children,
       render: ({ label: text, id, kbd }) => (
-        <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} id={id} isActive={active} tooltip={label}>
+        <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={active} tooltip={label}>
           <Link aria-current={active ? 'page' : undefined} onClick={closeMobile} to={href}>
             {destination === 'admin' ? <ShieldCheckIcon /> : <UserRoundIcon />}
             <span>{text}</span>
@@ -97,9 +98,9 @@ export function AccountSidebar({ me }: { me: Me }) {
       <div className="px-2 pt-2 pb-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="h-11 gap-2 px-2 text-sm font-medium md:h-9 hover:bg-accent/60 hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground" tooltip={ui.sidebar.chooseOrganization}>
+            <SidebarMenuButton className="h-11 gap-2 px-2 text-sm font-medium md:h-9 hover:bg-accent/60 hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!" tooltip={ui.sidebar.chooseOrganization}>
               <Building2Icon aria-hidden="true" />
-              <span className="truncate">{ui.sidebar.chooseOrganization}</span>
+              <span className="truncate group-data-[collapsible=icon]:hidden">{ui.sidebar.chooseOrganization}</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-56">
@@ -107,8 +108,8 @@ export function AccountSidebar({ me }: { me: Me }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <SidebarContent className="gap-2 px-2 pt-1 group-data-[collapsible=icon]:overflow-auto">
-        <MenuGroup fixed id="account" label={ui.menus.account} onToggle={() => undefined} open rail={rail}>
+      <SidebarContent ref={nav.ref} className="gap-2 px-2 pt-1 group-data-[collapsible=icon]:overflow-auto" onFocus={nav.onFocus} onKeyDown={nav.onKeyDown}>
+        <MenuGroup fixed id="account" label={ui.menus.account} onToggle={() => undefined} open>
           {entries.map((entry) => {
             const open = prefs.open[entry.key] ?? entry.active
             return <MenuEntry key={entry.key} cursor={null} entry={entry} onToggle={() => setGroupOpen(entry.key, !open)} open={open} query="" />
