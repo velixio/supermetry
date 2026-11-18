@@ -1,6 +1,6 @@
 import { useCapability } from '@/lib/authorization'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -47,11 +47,13 @@ type EventsPageProps = {
   app?: boolean
   replayId?: string
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 export function EventsPage({
   siteId, orgId, dateRange, filters, name, propertyKey, cursor, page,
-  onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site, replayId, onReplayChange, app = false,
+  onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site, replayId, onReplayChange, app = false, toolbar,
 }: EventsPageProps) {
   const canReplay = useCapability('replay.read')
   const [draftName, setDraftName] = useState(name)
@@ -82,7 +84,7 @@ export function EventsPage({
 
   return (
     <PageContainer>
-      <PageHeader title="Events" description={app ? 'Inspect recent screen views, custom events, and their properties.' : 'Inspect recent pageviews, custom events, and their properties.'} />
+      <PageHeader title="Events" description={app ? 'Inspect recent screen views, custom events, and their properties.' : 'Inspect recent pageviews, custom events, and their properties.'} actions={toolbar} />
       <form className="flex items-end gap-2" onSubmit={submitName}>
         <FieldGroup className="max-w-sm flex-1">
           <Field>

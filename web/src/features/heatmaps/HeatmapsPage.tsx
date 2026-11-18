@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
@@ -29,6 +29,8 @@ type HeatmapsPageProps = {
   device: HeatmapDevice
   path: string
   onChange: (value: { device: HeatmapDevice; path: string }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 function pageHeight(cells: HeatmapCell[]): number {
@@ -177,7 +179,7 @@ function Preview({
   )
 }
 
-export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange }: HeatmapsPageProps) {
+export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange, toolbar }: HeatmapsPageProps) {
   const [showScroll, setShowScroll] = useState(false)
   const site = useHeatmapSite(siteId, orgId)
   const pages = useStats({
@@ -223,14 +225,17 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
         title="Heatmaps"
         description="See aggregated clicks and how far visitors scroll, without recording sessions."
         actions={
-          <Button
-            type="button"
-            variant={showScroll ? 'secondary' : 'outline'}
-            aria-pressed={showScroll}
-            onClick={() => setShowScroll((current) => !current)}
-          >
-            Scroll map
-          </Button>
+          <>
+            {toolbar}
+            <Button
+              type="button"
+              variant={showScroll ? 'secondary' : 'outline'}
+              aria-pressed={showScroll}
+              onClick={() => setShowScroll((current) => !current)}
+            >
+              Scroll map
+            </Button>
+          </>
         }
       />
       <Card>

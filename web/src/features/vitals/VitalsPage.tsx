@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { GaugeIcon } from 'lucide-react'
 import {
@@ -32,6 +32,8 @@ type VitalsPageProps = {
   siteId: number
   dateRange: { from: string; to: string }
   filters: Filter[]
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 const metrics: Array<{ key: VitalMetricName; name: string; short: string }> = [
@@ -175,7 +177,7 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
   )
 }
 
-export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
+export function VitalsPage({ siteId, dateRange, filters, toolbar }: VitalsPageProps) {
   const [dimension, setDimension] = useState<VitalsDimension>('page')
   const result = useVitals({ siteId, dateRange, filters, dimension })
   const totalSamples = result.data ? metrics.reduce((sum, metric) => sum + result.data.overall[metric.key].samples, 0) : 0
@@ -183,7 +185,7 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
 
   return (
     <PageContainer>
-      <PageHeader title="Web Vitals" description="Real-user loading, stability, and responsiveness at the 75th percentile." />
+      <PageHeader title="Web Vitals" description="Real-user loading, stability, and responsiveness at the 75th percentile." actions={toolbar} />
       {result.isPending ? <LoadingState /> : result.isError ? (
         <Empty role="alert"><EmptyHeader><EmptyTitle>Web Vitals could not be loaded</EmptyTitle><EmptyDescription>{result.error.detail ?? 'Try again in a moment.'}</EmptyDescription></EmptyHeader></Empty>
       ) : totalSamples === 0 ? (

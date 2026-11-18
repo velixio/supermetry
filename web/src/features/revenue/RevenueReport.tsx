@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { PageContainer } from '@/components/PageContainer'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageHeader } from '@/components/PageHeader'
@@ -19,6 +20,8 @@ type RevenueReportProps = {
   filters: Filter[]
   compare: Compare
   includeImported: boolean
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 type BreakdownDimension = 'source' | 'channel' | 'utm_campaign'
@@ -145,18 +148,21 @@ export function RevenueReport(props: RevenueReportProps) {
   const trendLimited = trend.data?.meta.event_attribution?.coverage === 'available_only' || trend.data?.comparison?.event_attribution?.coverage === 'available_only'
 
   if (trend.isPending && !trend.data) {
-    return <section className="rounded-xl border bg-card p-5" role="status">Loading revenue report…</section>
+    return <PageContainer>
+      <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
+      <section className="rounded-xl border bg-card p-5" role="status">Loading revenue report…</section>
+    </PageContainer>
   }
 
   if (trend.isError) {
     return <PageContainer>
-      <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} />
+      <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
       <Card><ErrorState detail={trend.error?.detail} onRetry={() => void trend.refetch()} /></Card>
     </PageContainer>
   }
 
   return <PageContainer>
-    <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} />
+    <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
     {trendLimited ? <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">Available attributed revenue only. The selected attribution filters exclude legacy closed events without event-time attribution from the headline and trend.</p> : null}
     {trend.data && trend.data.rows.length === 0 && props.filters.length === 0 ? <FeatureEmptyState kind="revenue" /> : <>
     <div className="grid gap-3 sm:grid-cols-2">

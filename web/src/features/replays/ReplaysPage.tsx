@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { BookmarkIcon } from 'lucide-react'
 
@@ -85,7 +85,8 @@ function ReplayCard({ replay, org, site, saving, onReplayChange, onSavedChange }
   )
 }
 
-function ReplaysPageContent({ siteId, org, site, from, to, cursor, page, replayId, filters, layout, onFirst, onPrevious, onNext, onFiltersChange, onLayoutChange, onReplayChange }: {
+function ReplaysPageContent({ siteId, org, site, from, to, cursor, page, replayId, filters, layout, onFirst, onPrevious, onNext, onFiltersChange, onLayoutChange, onReplayChange, toolbar }: {
+  toolbar?: ReactNode
   siteId: number; org: string; site: string; from: string; to: string; cursor?: string; page: number; replayId?: string
   filters: ReplayFilters; layout: ReplayLayout
   onFirst: () => void; onPrevious: () => void; onNext: (cursor: string) => void
@@ -117,7 +118,7 @@ function ReplaysPageContent({ siteId, org, site, from, to, cursor, page, replayI
 
   return (
     <PageContainer>
-      <PageHeader title={en.replays.title} description={en.replays.description} />
+      <PageHeader title={en.replays.title} description={en.replays.description} actions={toolbar} />
       <section aria-label={en.replays.filters} className="flex flex-col gap-3 rounded-xl border bg-card p-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <Field className="min-w-0 flex-1"><FieldLabel htmlFor="replay-search">{en.replays.search}</FieldLabel><Input className="max-sm:h-11" id="replay-search" maxLength={200} role="searchbox" value={search} placeholder={en.replays.searchPlaceholder} onChange={(event) => setSearch(event.currentTarget.value)} /></Field>

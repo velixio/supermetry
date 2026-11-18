@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useCapability } from '@/lib/authorization'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageContainer } from '@/components/PageContainer'
@@ -21,9 +22,11 @@ type RetentionPageProps = {
   app?: boolean
   onIntervalChange: (interval: RetentionInterval) => void
   onIdentityChange: (identity: RetentionIdentity) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
-function RetentionContent({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange, app = false }: RetentionPageProps) {
+function RetentionContent({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange, app = false, toolbar }: RetentionPageProps) {
   const report = useRetentionReport(siteId, dateRange, filters, interval, identity)
 
   return (
@@ -37,6 +40,7 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
         }
         actions={
           <>
+            {toolbar}
             {profilesEnabled ? (
               <Field className="w-44">
                 <FieldLabel htmlFor="retention-identity">Identify visitors by</FieldLabel>

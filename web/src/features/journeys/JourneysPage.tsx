@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { PageContainer } from '@/components/PageContainer'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageHeader } from '@/components/PageHeader'
@@ -23,6 +24,8 @@ type JourneysPageProps = {
   steps: number
   app?: boolean
   onControlsChange: (value: { direction: JourneyDirection; path: string; steps: number }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 export function JourneysPage({
@@ -34,6 +37,7 @@ export function JourneysPage({
   steps,
   app = false,
   onControlsChange,
+  toolbar,
 }: JourneysPageProps) {
   const pages = useStats({
     siteId,
@@ -51,7 +55,7 @@ export function JourneysPage({
 
   return (
     <PageContainer>
-      <PageHeader title={t.title} description={app ? 'Follow the screens installs viewed in sequence. Repeated consecutive screen views are collapsed.' : t.description} />
+      <PageHeader title={t.title} description={app ? 'Follow the screens installs viewed in sequence. Repeated consecutive screen views are collapsed.' : t.description} actions={toolbar} />
       <JourneyControls
         direction={direction}
         path={path}

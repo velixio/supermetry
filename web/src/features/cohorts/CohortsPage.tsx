@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { CopyIcon, FilterIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -40,6 +40,8 @@ type CohortsPageProps = {
   dateRange: { from: string; to: string }
   // policy is why cohorts cannot run, or undefined when they can.
   policy?: 'anonymous' | 'profiles_disabled'
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 type Builder = { id?: number; draft: DraftCohort }
@@ -281,7 +283,7 @@ function CohortsTab({
   )
 }
 
-export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, policy }: CohortsPageProps) {
+export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, policy, toolbar }: CohortsPageProps) {
   const [tab, setTab] = useState<'cohorts' | 'power'>('cohorts')
   const [seed, setSeed] = useState<DraftCohort>()
 
@@ -298,7 +300,7 @@ export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, pol
 
   return (
     <PageContainer>
-      <PageHeader title={t.title} />
+      <PageHeader title={t.title} actions={toolbar} />
       <Tabs value={tab} onValueChange={(value) => { setSeed(undefined); setTab(value as 'cohorts' | 'power') }}>
         <TabsList aria-label={t.title}>
           <TabsTrigger className="h-9 px-4 md:h-7" value="cohorts">{t.tabCohorts}</TabsTrigger>

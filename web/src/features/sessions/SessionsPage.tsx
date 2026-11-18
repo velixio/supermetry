@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useCapability } from '@/lib/authorization'
 import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageContainer } from '@/components/PageContainer'
@@ -137,6 +138,7 @@ export function SessionsPage({
   site,
   replayId,
   onReplayChange,
+  toolbar,
 }: {
   siteId: number
   dateRange: { from: string; to: string }
@@ -153,6 +155,8 @@ export function SessionsPage({
   site?: string
   replayId?: string
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }) {
   const canReplay = useCapability('replay.read')
   const canReadProfiles = useCapability('profiles.read')
@@ -176,7 +180,7 @@ export function SessionsPage({
 
   return (
     <PageContainer>
-      <PageHeader title="Sessions" description="Inspect anonymous visits without linking people across days." />
+      <PageHeader title="Sessions" description="Inspect anonymous visits without linking people across days." actions={toolbar} />
       {sessions.isError ? (
         <ErrorState level="page" detail={sessions.error?.detail} onRetry={() => void sessions.refetch()} />
       ) : sessions.isPending ? (
