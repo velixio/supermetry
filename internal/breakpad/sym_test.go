@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -255,6 +256,10 @@ func TestBuildLargeBoundedHeap(t *testing.T) {
 			}
 		}
 	}()
+	// HeapAlloc includes garbage not yet collected, so with the default GC
+	// target the peak depends on GC timing. A lower target keeps the sample
+	// close to the live heap the bound is about.
+	defer debug.SetGCPercent(debug.SetGCPercent(25))
 	runtime.GC()
 	f, err := os.CreateTemp(t.TempDir(), "out")
 	if err != nil {
