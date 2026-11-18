@@ -95,6 +95,12 @@ type AppNotification struct {
 	Events     int64   `json:"events,omitempty"`
 	Installs   int64   `json:"installs,omitempty"`
 	Baseline   float64 `json:"baseline,omitempty"`
+
+	// Cron monitor alerts: the monitor's slug and environment, and the check-in
+	// status that opened the failure (error, missed or timeout).
+	MonitorSlug        string `json:"monitor_slug,omitempty"`
+	MonitorEnvironment string `json:"monitor_environment,omitempty"`
+	MonitorStatus      string `json:"monitor_status,omitempty"`
 }
 
 // AppSource reads the candidates the app alerts evaluate.

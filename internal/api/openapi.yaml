@@ -3133,6 +3133,60 @@ paths:
       responses:
         '200': { description: The stored rules, content: { application/json: { schema: { $ref: '#/components/schemas/AppRules' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+  /api/private/sites/{site}/app/monitors:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppMonitors
+      tags: [Apps]
+      summary: The cron monitors of an app project
+      description: |
+        Monitors are created by the first Sentry `check_in` that carries a `monitor_config` (a crontab or interval
+        schedule), keyed by slug and environment. `status` is the monitor's state after the failure and recovery
+        thresholds; `next_expected_at` is the next slot a check-in is due.
+      responses:
+        '200': { description: Monitors, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitorList' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/monitors/{monitor}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: monitor, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    patch:
+      operationId: updateAppMonitor
+      tags: [Apps]
+      summary: Disable, enable or tune a cron monitor
+      description: Owner, admin or editor only. Re-enabling restarts the monitor as ok with the next slot computed from now.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitorPatch' } } } }
+      responses:
+        '200': { description: The monitor, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitor' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteAppMonitor
+      tags: [Apps]
+      summary: Delete a cron monitor and its check-ins
+      description: Owner, admin or editor only. A later check-in that carries a `monitor_config` creates the monitor again.
+      responses:
+        '204': { description: Deleted. }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/monitors/{monitor}/checkins:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: monitor, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listAppMonitorCheckins
+      tags: [Apps]
+      summary: The newest check-ins of a cron monitor
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: Check-ins, newest first, content: { application/json: { schema: { $ref: '#/components/schemas/AppMonitorCheckins' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/events/{event_id}/attachments/{idx}:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -5031,6 +5085,54 @@ components:
         span_retention_days: { type: integer, minimum: 0, maximum: 14, description: "Raw span retention in days. 0 means the default of 14." }
         electron_symbols: { type: boolean, nullable: true, description: "Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on." }
         filter_localhost_default: { type: boolean, readOnly: true, description: "The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update." }
+    AppMonitor:
+      type: object
+      required: [id, slug, environment, schedule_type, schedule, timezone, checkin_margin_minutes, max_runtime_minutes, failure_threshold, recovery_threshold, status, next_expected_at, last_checkin_at]
+      additionalProperties: false
+      properties:
+        id: { type: integer, format: int64 }
+        slug: { type: string }
+        environment: { type: string }
+        schedule_type: { type: string, enum: [crontab, interval] }
+        schedule: { type: string, description: 'A 5-field cron expression, or "N unit" for an interval (unit: minute, hour, day, week, month, year).' }
+        timezone: { type: string }
+        checkin_margin_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        max_runtime_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        failure_threshold: { type: integer, minimum: 1 }
+        recovery_threshold: { type: integer, minimum: 1 }
+        status: { type: string, enum: [ok, missed, error, timeout, disabled] }
+        next_expected_at: { type: string, format: date-time, nullable: true }
+        last_checkin_at: { type: string, format: date-time, nullable: true }
+    AppMonitorList:
+      type: object
+      required: [monitors]
+      additionalProperties: false
+      properties:
+        monitors: { type: array, items: { $ref: '#/components/schemas/AppMonitor' } }
+    AppMonitorPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        disabled: { type: boolean }
+        checkin_margin_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        max_runtime_minutes: { type: integer, minimum: 1, maximum: 1440 }
+    AppMonitorCheckin:
+      type: object
+      required: [checkin_id, timestamp, status, expected_at, duration_ms, release]
+      additionalProperties: false
+      properties:
+        checkin_id: { type: string }
+        timestamp: { type: string, format: date-time }
+        status: { type: string, enum: [in_progress, ok, error, missed, timeout] }
+        expected_at: { type: string, format: date-time, nullable: true }
+        duration_ms: { type: integer, format: int64, nullable: true }
+        release: { type: string }
+    AppMonitorCheckins:
+      type: object
+      required: [checkins]
+      additionalProperties: false
+      properties:
+        checkins: { type: array, items: { $ref: '#/components/schemas/AppMonitorCheckin' } }
     AppRules:
       type: object
       required: [ownership, grouping]

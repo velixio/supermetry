@@ -31,6 +31,7 @@ import (
 	"supermetry/internal/appdebug"
 	"supermetry/internal/appingest"
 	"supermetry/internal/appissues"
+	"supermetry/internal/appmonitors"
 	"supermetry/internal/appproduct"
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
@@ -582,6 +583,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var symbolicator *sentryingest.Symbolicator
 	var symbolMisses *appdebug.MissRecorder
 	var appSessions *appsessions.Writer
+	var appCheckins *appmonitors.Writer
+	appMonitorStore := appmonitors.NewStore(pool, settings.clock.Now)
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
@@ -597,6 +600,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget).WithLogs(logWriter, obsQuota)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
 		sentryHandler.WithSessions(appSessions).WithProductSessions(appProduct)
+		appCheckins = appmonitors.NewWriter(appMonitorStore, 0, sentryHandler.Stats())
+		sentryHandler.WithCheckIns(appCheckins)
 		sentryIngest = sentryHandler
 		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now).
 			WithMetrics(metricWriter, obsQuota, obsmetrics.HealthStats{}).
@@ -760,7 +765,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	issueNotifier := appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now)
 	ruleEvaluator.WithActions(appissues.New(pool, settings.clock.Now), issueNotifier)
 	ruleEvaluator.SetMetricSource(alerts.NewMetricStore(pool, alerts.NewPerfStore(pool), registry))
-	jobs = append(jobs, ruleEvaluator.Job())
+	ruleEvaluator.WithMonitors(appMonitorStore)
+	jobs = append(jobs, ruleEvaluator.Job(), appmonitors.Job(appMonitorStore))
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
 		issueNotifier.Job())
@@ -879,6 +885,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// Session updates are queued by the handler too; flush them first.
 	if appSessions != nil {
 		appSessions.Close()
+	}
+	if appCheckins != nil {
+		appCheckins.Close()
 	}
 	// Stop the span writer: it drains on cancel, before the app writer.
 	cancelSpanWriter()

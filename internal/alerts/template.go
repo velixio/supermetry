@@ -135,6 +135,8 @@ func templateValues(kind ChannelKind, notification Notification) map[string]stri
 		"app_name": escape(app.AppName), "issue_title": escape(app.IssueTitle), "issue_kind": escape(app.IssueKind),
 		"release": escape(app.Release), "events": strconv.FormatInt(app.Events, 10), "installs": strconv.FormatInt(app.Installs, 10),
 		"crash_free": crashFree, "metric": escape(app.Metric), "baseline": fmt.Sprintf("%.2f", app.Baseline), "issue_url": escape(app.IssueURL),
+		"monitor_slug": escape(app.MonitorSlug), "monitor_status": escape(app.MonitorStatus),
+		"monitor_environment": escape(app.MonitorEnvironment),
 	}
 	rule := RuleNotification{}
 	if notification.Rule != nil {

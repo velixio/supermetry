@@ -706,6 +706,78 @@ func (e AppIssueWebhooksKinds) Valid() bool {
 	}
 }
 
+// Defines values for AppMonitorScheduleType.
+const (
+	Crontab  AppMonitorScheduleType = "crontab"
+	Interval AppMonitorScheduleType = "interval"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorScheduleType enum.
+func (e AppMonitorScheduleType) Valid() bool {
+	switch e {
+	case Crontab:
+		return true
+	case Interval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppMonitorStatus.
+const (
+	AppMonitorStatusDisabled AppMonitorStatus = "disabled"
+	AppMonitorStatusError    AppMonitorStatus = "error"
+	AppMonitorStatusMissed   AppMonitorStatus = "missed"
+	AppMonitorStatusOk       AppMonitorStatus = "ok"
+	AppMonitorStatusTimeout  AppMonitorStatus = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorStatus enum.
+func (e AppMonitorStatus) Valid() bool {
+	switch e {
+	case AppMonitorStatusDisabled:
+		return true
+	case AppMonitorStatusError:
+		return true
+	case AppMonitorStatusMissed:
+		return true
+	case AppMonitorStatusOk:
+		return true
+	case AppMonitorStatusTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AppMonitorCheckinStatus.
+const (
+	AppMonitorCheckinStatusError      AppMonitorCheckinStatus = "error"
+	AppMonitorCheckinStatusInProgress AppMonitorCheckinStatus = "in_progress"
+	AppMonitorCheckinStatusMissed     AppMonitorCheckinStatus = "missed"
+	AppMonitorCheckinStatusOk         AppMonitorCheckinStatus = "ok"
+	AppMonitorCheckinStatusTimeout    AppMonitorCheckinStatus = "timeout"
+)
+
+// Valid indicates whether the value is a known member of the AppMonitorCheckinStatus enum.
+func (e AppMonitorCheckinStatus) Valid() bool {
+	switch e {
+	case AppMonitorCheckinStatusError:
+		return true
+	case AppMonitorCheckinStatusInProgress:
+		return true
+	case AppMonitorCheckinStatusMissed:
+		return true
+	case AppMonitorCheckinStatusOk:
+		return true
+	case AppMonitorCheckinStatusTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppReleaseDetailStatus.
 const (
 	AppReleaseDetailStatusArchived AppReleaseDetailStatus = "archived"
@@ -3388,6 +3460,61 @@ type AppMergedIssue struct {
 	Kind     string    `json:"kind"`
 	LastSeen time.Time `json:"last_seen"`
 	Title    string    `json:"title"`
+}
+
+// AppMonitor defines model for AppMonitor.
+type AppMonitor struct {
+	CheckinMarginMinutes int       `json:"checkin_margin_minutes"`
+	Environment          string    `json:"environment"`
+	FailureThreshold     int       `json:"failure_threshold"`
+	Id                   int64     `json:"id"`
+	LastCheckinAt        time.Time `json:"last_checkin_at"`
+	MaxRuntimeMinutes    int       `json:"max_runtime_minutes"`
+	NextExpectedAt       time.Time `json:"next_expected_at"`
+	RecoveryThreshold    int       `json:"recovery_threshold"`
+
+	// Schedule A 5-field cron expression, or "N unit" for an interval (unit: minute, hour, day, week, month, year).
+	Schedule     string                 `json:"schedule"`
+	ScheduleType AppMonitorScheduleType `json:"schedule_type"`
+	Slug         string                 `json:"slug"`
+	Status       AppMonitorStatus       `json:"status"`
+	Timezone     string                 `json:"timezone"`
+}
+
+// AppMonitorScheduleType defines model for AppMonitor.ScheduleType.
+type AppMonitorScheduleType string
+
+// AppMonitorStatus defines model for AppMonitor.Status.
+type AppMonitorStatus string
+
+// AppMonitorCheckin defines model for AppMonitorCheckin.
+type AppMonitorCheckin struct {
+	CheckinId  string                  `json:"checkin_id"`
+	DurationMs int64                   `json:"duration_ms"`
+	ExpectedAt time.Time               `json:"expected_at"`
+	Release    string                  `json:"release"`
+	Status     AppMonitorCheckinStatus `json:"status"`
+	Timestamp  time.Time               `json:"timestamp"`
+}
+
+// AppMonitorCheckinStatus defines model for AppMonitorCheckin.Status.
+type AppMonitorCheckinStatus string
+
+// AppMonitorCheckins defines model for AppMonitorCheckins.
+type AppMonitorCheckins struct {
+	Checkins []AppMonitorCheckin `json:"checkins"`
+}
+
+// AppMonitorList defines model for AppMonitorList.
+type AppMonitorList struct {
+	Monitors []AppMonitor `json:"monitors"`
+}
+
+// AppMonitorPatch defines model for AppMonitorPatch.
+type AppMonitorPatch struct {
+	CheckinMarginMinutes *int  `json:"checkin_margin_minutes,omitempty"`
+	Disabled             *bool `json:"disabled,omitempty"`
+	MaxRuntimeMinutes    *int  `json:"max_runtime_minutes,omitempty"`
 }
 
 // AppNetworkFailures defines model for AppNetworkFailures.
@@ -6250,6 +6377,11 @@ type ListAppIssueFeedbackParams struct {
 	Before *time.Time `form:"before,omitempty" json:"before,omitempty"`
 }
 
+// ListAppMonitorCheckinsParams defines parameters for ListAppMonitorCheckins.
+type ListAppMonitorCheckinsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // GetAppOverviewParams defines parameters for GetAppOverview.
 type GetAppOverviewParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
@@ -6892,6 +7024,9 @@ type MergeAppIssuesJSONRequestBody = AppIssueMergeInput
 
 // UnmergeAppIssueJSONRequestBody defines body for UnmergeAppIssue for application/json ContentType.
 type UnmergeAppIssueJSONRequestBody = AppIssueUnmergeInput
+
+// UpdateAppMonitorJSONRequestBody defines body for UpdateAppMonitor for application/json ContentType.
+type UpdateAppMonitorJSONRequestBody = AppMonitorPatch
 
 // CreateAppFeatureSetJSONRequestBody defines body for CreateAppFeatureSet for application/json ContentType.
 type CreateAppFeatureSetJSONRequestBody = AppFeatureSetInput
@@ -7839,6 +7974,18 @@ type ServerInterface interface {
 	// UnmergeAppIssue Split merged issues back out by fingerprint hash
 	// (POST /api/private/sites/{site}/app/issues/{issue}/unmerge)
 	UnmergeAppIssue(w http.ResponseWriter, r *http.Request, site int32, issue int64)
+	// ListAppMonitors The cron monitors of an app project
+	// (GET /api/private/sites/{site}/app/monitors)
+	ListAppMonitors(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppMonitor Delete a cron monitor and its check-ins
+	// (DELETE /api/private/sites/{site}/app/monitors/{monitor})
+	DeleteAppMonitor(w http.ResponseWriter, r *http.Request, site int32, monitor int64)
+	// UpdateAppMonitor Disable, enable or tune a cron monitor
+	// (PATCH /api/private/sites/{site}/app/monitors/{monitor})
+	UpdateAppMonitor(w http.ResponseWriter, r *http.Request, site int32, monitor int64)
+	// ListAppMonitorCheckins The newest check-ins of a cron monitor
+	// (GET /api/private/sites/{site}/app/monitors/{monitor}/checkins)
+	ListAppMonitorCheckins(w http.ResponseWriter, r *http.Request, site int32, monitor int64, params ListAppMonitorCheckinsParams)
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
@@ -12539,6 +12686,153 @@ func (siw *ServerInterfaceWrapper) UnmergeAppIssue(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UnmergeAppIssue(w, r, site, issue)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppMonitors operation middleware
+func (siw *ServerInterfaceWrapper) ListAppMonitors(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppMonitors(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppMonitor operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppMonitor(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppMonitor(w, r, site, monitor)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppMonitor operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppMonitor(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppMonitor(w, r, site, monitor)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppMonitorCheckins operation middleware
+func (siw *ServerInterfaceWrapper) ListAppMonitorCheckins(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "monitor" -------------
+	var monitor int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "monitor", r.PathValue("monitor"), &monitor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "monitor", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAppMonitorCheckinsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppMonitorCheckins(w, r, site, monitor, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18855,6 +19149,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}", wrapper.GetAppEvent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.GetAppRules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/rules", wrapper.ReplaceAppRules)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors", wrapper.ListAppMonitors)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}", wrapper.DeleteAppMonitor)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}", wrapper.UpdateAppMonitor)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/monitors/{monitor}/checkins", wrapper.ListAppMonitorCheckins)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}", wrapper.GetAppEventAttachment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.GetAppIssue)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}", wrapper.UpdateAppIssue)

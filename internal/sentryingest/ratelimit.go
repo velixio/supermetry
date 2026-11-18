@@ -13,10 +13,10 @@ const DefaultSpikePerMinute = 600
 const (
 	// rejectUnsupported is sent on every 2xx so SDKs stop sending categories
 	// that are not stored. Feedback and user reports are stored.
-	rejectUnsupported = "3600:transaction;span;profile;profile_chunk;replay;log;trace_metric;check_in:project:not_supported"
+	rejectUnsupported = "3600:transaction;span;profile;profile_chunk;replay;log;trace_metric:project:not_supported"
 	// perfUnsupported is sent instead of rejectUnsupported for projects with
 	// performance on: transactions and spans are accepted.
-	perfUnsupported = "3600:profile;profile_chunk;replay;log;trace_metric;check_in:project:not_supported"
+	perfUnsupported = "3600:profile;profile_chunk;replay;log;trace_metric:project:not_supported"
 	// spanLimits accompanies a span or transaction that was over the project's
 	// span budget.
 	spanLimits = "60:transaction;span:project:rate_limit"
