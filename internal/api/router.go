@@ -164,6 +164,7 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.AppQuery != nil {
 		mcpDeps.AppHealth = deps.AppQuery
+		mcpDeps.AppProduct = deps.AppQuery
 	}
 	if deps.AppIssues != nil {
 		mcpDeps.AppIssues = deps.AppIssues
@@ -359,6 +360,11 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"PATCH " + publicPrefix + "/sites/{site}",
 		"DELETE " + publicPrefix + "/sites/{site}",
 		"GET " + publicPrefix + "/sites/{site}/goals",
+		"GET " + publicPrefix + "/sites/{site}/app/product/active-users",
+		"GET " + publicPrefix + "/sites/{site}/app/product/adoption",
+		"GET " + publicPrefix + "/sites/{site}/app/product/engagement",
+		"GET " + publicPrefix + "/sites/{site}/app/product/features",
+		"GET " + publicPrefix + "/sites/{site}/app/product/features/{id}/adoption",
 		"POST " + publicPrefix + "/sites/{site}/goals",
 		"PATCH " + publicPrefix + "/goals/{goal}",
 		"DELETE " + publicPrefix + "/goals/{goal}",
@@ -584,6 +590,13 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"DELETE " + privatePrefix + "/sites/{site}/app/dsn-keys/{prefix}",
 		"POST " + privatePrefix + "/sites/{site}/app/users/erase",
 		"GET " + privatePrefix + "/sites/{site}/app/users/erasures/{erasure}",
+		"GET " + privatePrefix + "/sites/{site}/app/product/active-users",
+		"GET " + privatePrefix + "/sites/{site}/app/product/adoption",
+		"GET " + privatePrefix + "/sites/{site}/app/product/engagement",
+		"GET " + privatePrefix + "/sites/{site}/app/product/features",
+		"POST " + privatePrefix + "/sites/{site}/app/product/features",
+		"DELETE " + privatePrefix + "/sites/{site}/app/product/features/{id}",
+		"GET " + privatePrefix + "/sites/{site}/app/product/features/{id}/adoption",
 		"GET " + privatePrefix + "/sites/{site}/pixels",
 		"POST " + privatePrefix + "/sites/{site}/pixels",
 		"GET " + privatePrefix + "/sites/{site}/pixels/stats",

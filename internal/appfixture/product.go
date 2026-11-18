@@ -84,6 +84,17 @@ values(7,1,'appprod00001','App',$1,90,'app')`, zone); err != nil {
 	return &Product{Pool: pool, SiteID: 7, Loc: loc, Now: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC), sessions: map[int64]*productSession{}}
 }
 
+// AttachProduct returns a Product that writes into an existing migrated
+// database and app site (id siteID, retention class 90, time zone zone); the
+// caller owns the site row and its partitions. Now is the dataset clock.
+func AttachProduct(pool *pgxpool.Pool, siteID int32, zone string) (*Product, error) {
+	loc, err := time.LoadLocation(zone)
+	if err != nil {
+		return nil, err
+	}
+	return &Product{Pool: pool, SiteID: siteID, Loc: loc, Now: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC), sessions: map[int64]*productSession{}}, nil
+}
+
 // Visitor is the install's visitor id, as the product adapter derives it.
 func (p *Product) Visitor(install string) int64 {
 	return appproduct.VisitorID(ProductSecret, install)

@@ -22,24 +22,24 @@ var ErrDuplicate = errors.New("already exists")
 
 // FeatureSet is a named group of product event names counted as one feature.
 type FeatureSet struct {
-	ID         int64
-	Name       string
-	EventNames []string
-	CreatedAt  time.Time
+	ID         int64     `json:"id"`
+	Name       string    `json:"name"`
+	EventNames []string  `json:"event_names"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // DayCount is a count for one local day.
 type DayCount struct {
-	Day   time.Time
-	Count int64
+	Day   time.Time `json:"day"`
+	Count int64     `json:"count"`
 }
 
 // FeatureAdoption is how many of the active installs used a feature set.
 type FeatureAdoption struct {
-	Users       int64      // distinct installs with any event of the set
-	ActiveUsers int64      // distinct installs with any product activity
-	Share       *float64   // Users / ActiveUsers; nil without active installs
-	Series      []DayCount // distinct installs using the set per local day
+	Users       int64      `json:"users"`        // distinct installs with any event of the set
+	ActiveUsers int64      `json:"active_users"` // distinct installs with any product activity
+	Share       *float64   `json:"share"`        // Users / ActiveUsers; nil without active installs
+	Series      []DayCount `json:"series"`       // distinct installs using the set per local day
 }
 
 func validFeatureSet(name string, events []string) (string, []string, error) {
