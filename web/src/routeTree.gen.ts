@@ -73,6 +73,8 @@ import { Route as AppOrgSiteIssuesIssueRouteImport } from './routes/app.$org.$si
 import { Route as AppOrgSiteLinksIndexRouteImport } from './routes/app.$org.$site.links.index'
 import { Route as AppOrgSiteLinksIdRouteImport } from './routes/app.$org.$site.links.$id'
 import { Route as AppOrgSiteLinksPixelRouteImport } from './routes/app.$org.$site.links.pixel'
+import { Route as AppOrgSitePerformanceIndexRouteImport } from './routes/app.$org.$site.performance.index'
+import { Route as AppOrgSitePerformanceTransactionRouteImport } from './routes/app.$org.$site.performance.$transaction'
 import { Route as AppOrgSiteProfilesIndexRouteImport } from './routes/app.$org.$site.profiles.index'
 import { Route as AppOrgSiteProfilesIdRouteImport } from './routes/app.$org.$site.profiles.$id'
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
@@ -91,6 +93,7 @@ import { Route as AppOrgSiteSettingsReportsRouteImport } from './routes/app.$org
 import { Route as AppOrgSiteSettingsSharesRouteImport } from './routes/app.$org.$site.settings.shares'
 import { Route as AppOrgSiteSettingsSymbolsRouteImport } from './routes/app.$org.$site.settings.symbols'
 import { Route as AppOrgSiteSettingsTrackingRouteImport } from './routes/app.$org.$site.settings.tracking'
+import { Route as AppOrgSiteTracesTraceRouteImport } from './routes/app.$org.$site.traces.$trace'
 import { Route as AppOrgGithubStarsOwnerNameRouteImport } from './routes/app.$org.github-stars.$owner.$name'
 import { Route as AppOrgSiteLinksPixelIdRouteImport } from './routes/app.$org.$site.links.pixel_.$id'
 import { Route as AppOrgSiteIssuesIssueEventsEventRouteImport } from './routes/app.$org.$site.issues_.$issue.events.$event'
@@ -418,6 +421,18 @@ const AppOrgSiteLinksPixelRoute = AppOrgSiteLinksPixelRouteImport.update({
   path: '/$site/links/pixel',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSitePerformanceIndexRoute =
+  AppOrgSitePerformanceIndexRouteImport.update({
+    id: '/$site/performance/',
+    path: '/$site/performance/',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
+const AppOrgSitePerformanceTransactionRoute =
+  AppOrgSitePerformanceTransactionRouteImport.update({
+    id: '/$site/performance/$transaction',
+    path: '/$site/performance/$transaction',
+    getParentRoute: () => AppOrgRoute,
+  } as any)
 const AppOrgSiteProfilesIndexRoute = AppOrgSiteProfilesIndexRouteImport.update({
   id: '/$site/profiles/',
   path: '/$site/profiles/',
@@ -520,6 +535,11 @@ const AppOrgSiteSettingsTrackingRoute =
     path: '/tracking',
     getParentRoute: () => AppOrgSiteSettingsRoute,
   } as any)
+const AppOrgSiteTracesTraceRoute = AppOrgSiteTracesTraceRouteImport.update({
+  id: '/$site/traces/$trace',
+  path: '/$site/traces/$trace',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgGithubStarsOwnerNameRoute =
   AppOrgGithubStarsOwnerNameRouteImport.update({
     id: '/$owner/$name',
@@ -600,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
@@ -616,10 +637,12 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/traces/$trace': typeof AppOrgSiteTracesTraceRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/issues/': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
+  '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
@@ -684,6 +707,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
@@ -700,10 +724,12 @@ export interface FileRoutesByTo {
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/traces/$trace': typeof AppOrgSiteTracesTraceRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/issues': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links': typeof AppOrgSiteLinksIndexRoute
+  '/app/$org/$site/performance': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
@@ -772,6 +798,7 @@ export interface FileRoutesById {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
   '/app/$org/$site/replays/$id': typeof AppOrgSiteReplaysIdRoute
   '/app/$org/$site/settings/alerts': typeof AppOrgSiteSettingsAlertsRoute
@@ -788,10 +815,12 @@ export interface FileRoutesById {
   '/app/$org/$site/settings/shares': typeof AppOrgSiteSettingsSharesRoute
   '/app/$org/$site/settings/symbols': typeof AppOrgSiteSettingsSymbolsRoute
   '/app/$org/$site/settings/tracking': typeof AppOrgSiteSettingsTrackingRoute
+  '/app/$org/$site/traces/$trace': typeof AppOrgSiteTracesTraceRoute
   '/app/$org/github-stars/$owner/$name': typeof AppOrgGithubStarsOwnerNameRoute
   '/app/$org/$site/funnels/': typeof AppOrgSiteFunnelsIndexRoute
   '/app/$org/$site/issues/': typeof AppOrgSiteIssuesIndexRoute
   '/app/$org/$site/links/': typeof AppOrgSiteLinksIndexRoute
+  '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
   '/app/$org/$site/links/pixel_/$id': typeof AppOrgSiteLinksPixelIdRoute
@@ -861,6 +890,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
@@ -877,10 +907,12 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/traces/$trace'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
     | '/app/$org/$site/issues/'
     | '/app/$org/$site/links/'
+    | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
     | '/app/$org/$site/links/pixel/$id'
@@ -945,6 +977,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
@@ -961,10 +994,12 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/traces/$trace'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels'
     | '/app/$org/$site/issues'
     | '/app/$org/$site/links'
+    | '/app/$org/$site/performance'
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
     | '/app/$org/$site/links/pixel/$id'
@@ -1032,6 +1067,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
     | '/app/$org/$site/replays/$id'
     | '/app/$org/$site/settings/alerts'
@@ -1048,10 +1084,12 @@ export interface FileRouteTypes {
     | '/app/$org/$site/settings/shares'
     | '/app/$org/$site/settings/symbols'
     | '/app/$org/$site/settings/tracking'
+    | '/app/$org/$site/traces/$trace'
     | '/app/$org/github-stars/$owner/$name'
     | '/app/$org/$site/funnels/'
     | '/app/$org/$site/issues/'
     | '/app/$org/$site/links/'
+    | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
     | '/app/$org/$site/links/pixel_/$id'
@@ -1521,6 +1559,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteLinksPixelRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/performance/': {
+      id: '/app/$org/$site/performance/'
+      path: '/$site/performance'
+      fullPath: '/app/$org/$site/performance/'
+      preLoaderRoute: typeof AppOrgSitePerformanceIndexRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
+    '/app/$org/$site/performance/$transaction': {
+      id: '/app/$org/$site/performance/$transaction'
+      path: '/$site/performance/$transaction'
+      fullPath: '/app/$org/$site/performance/$transaction'
+      preLoaderRoute: typeof AppOrgSitePerformanceTransactionRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/profiles/': {
       id: '/app/$org/$site/profiles/'
       path: '/$site/profiles'
@@ -1646,6 +1698,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/$org/$site/settings/tracking'
       preLoaderRoute: typeof AppOrgSiteSettingsTrackingRouteImport
       parentRoute: typeof AppOrgSiteSettingsRoute
+    }
+    '/app/$org/$site/traces/$trace': {
+      id: '/app/$org/$site/traces/$trace'
+      path: '/$site/traces/$trace'
+      fullPath: '/app/$org/$site/traces/$trace'
+      preLoaderRoute: typeof AppOrgSiteTracesTraceRouteImport
+      parentRoute: typeof AppOrgRoute
     }
     '/app/$org/github-stars/$owner/$name': {
       id: '/app/$org/github-stars/$owner/$name'
@@ -1773,11 +1832,14 @@ interface AppOrgRouteChildren {
   AppOrgSiteIssuesIssueRoute: typeof AppOrgSiteIssuesIssueRoute
   AppOrgSiteLinksIdRoute: typeof AppOrgSiteLinksIdRoute
   AppOrgSiteLinksPixelRoute: typeof AppOrgSiteLinksPixelRoute
+  AppOrgSitePerformanceTransactionRoute: typeof AppOrgSitePerformanceTransactionRoute
   AppOrgSiteProfilesIdRoute: typeof AppOrgSiteProfilesIdRoute
   AppOrgSiteReplaysIdRoute: typeof AppOrgSiteReplaysIdRoute
+  AppOrgSiteTracesTraceRoute: typeof AppOrgSiteTracesTraceRoute
   AppOrgSiteFunnelsIndexRoute: typeof AppOrgSiteFunnelsIndexRoute
   AppOrgSiteIssuesIndexRoute: typeof AppOrgSiteIssuesIndexRoute
   AppOrgSiteLinksIndexRoute: typeof AppOrgSiteLinksIndexRoute
+  AppOrgSitePerformanceIndexRoute: typeof AppOrgSitePerformanceIndexRoute
   AppOrgSiteProfilesIndexRoute: typeof AppOrgSiteProfilesIndexRoute
   AppOrgSiteReplaysIndexRoute: typeof AppOrgSiteReplaysIndexRoute
   AppOrgSiteLinksPixelIdRoute: typeof AppOrgSiteLinksPixelIdRoute
@@ -1809,11 +1871,14 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteIssuesIssueRoute: AppOrgSiteIssuesIssueRoute,
   AppOrgSiteLinksIdRoute: AppOrgSiteLinksIdRoute,
   AppOrgSiteLinksPixelRoute: AppOrgSiteLinksPixelRoute,
+  AppOrgSitePerformanceTransactionRoute: AppOrgSitePerformanceTransactionRoute,
   AppOrgSiteProfilesIdRoute: AppOrgSiteProfilesIdRoute,
   AppOrgSiteReplaysIdRoute: AppOrgSiteReplaysIdRoute,
+  AppOrgSiteTracesTraceRoute: AppOrgSiteTracesTraceRoute,
   AppOrgSiteFunnelsIndexRoute: AppOrgSiteFunnelsIndexRoute,
   AppOrgSiteIssuesIndexRoute: AppOrgSiteIssuesIndexRoute,
   AppOrgSiteLinksIndexRoute: AppOrgSiteLinksIndexRoute,
+  AppOrgSitePerformanceIndexRoute: AppOrgSitePerformanceIndexRoute,
   AppOrgSiteProfilesIndexRoute: AppOrgSiteProfilesIndexRoute,
   AppOrgSiteReplaysIndexRoute: AppOrgSiteReplaysIndexRoute,
   AppOrgSiteLinksPixelIdRoute: AppOrgSiteLinksPixelIdRoute,
