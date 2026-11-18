@@ -34,6 +34,7 @@ import (
 	"supermetry/internal/appquery"
 	"supermetry/internal/approllup"
 	"supermetry/internal/appsessions"
+	"supermetry/internal/breakpad"
 	"supermetry/internal/clientip"
 	"supermetry/internal/closer"
 	"supermetry/internal/config"
@@ -514,7 +515,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	nativeCache := sentryapi.CacheBuilder{Version: symcache.Version, Build: symcache.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
 		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20,
-		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}, "elf": nativeCache, "macho": nativeCache}})
+		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}, "breakpad": {Version: 1, Build: breakpad.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}, "elf": nativeCache, "macho": nativeCache}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
