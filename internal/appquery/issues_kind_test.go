@@ -7,6 +7,7 @@ import (
 
 	"supermetry/internal/appfixture"
 	"supermetry/internal/appquery"
+	"supermetry/internal/appquery/search"
 )
 
 // Terminations are crash issues whose events carry an exit reason; the list
@@ -54,6 +55,16 @@ values($1,$2,'crash',$3,$4,'open','1.10.0','1.10.0',$5,$5,1) returning id`, e.f.
 	}
 	if kinds["OutOfMemoryError"] != "oom" || kinds["WatchdogTermination"] != "watchdog" || kinds["SegFault"] != "crash" {
 		t.Fatalf("displayed kinds = %v", kinds)
+	}
+	for in, want := range map[string]string{"kind:oom": "OutOfMemoryError in a.go f", "kind:watchdog": "WatchdogTermination in a.go f"} {
+		q, err := search.Parse(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := e.q.Issues(ctx, e.scope, appquery.IssueQuery{Filter: full(), Search: &q})
+		if err != nil || !reflect.DeepEqual(titles(out.Issues), []string{want}) {
+			t.Fatalf("%s = %v %v", in, titles(out.Issues), err)
+		}
 	}
 	ids, err := e.q.MatchIssues(ctx, e.scope, appquery.IssueQuery{Filter: full(), Kind: "oom"}, 10)
 	if err != nil || len(ids) != 1 || ids[0] != e.f.Issues["fp-oom"] {
