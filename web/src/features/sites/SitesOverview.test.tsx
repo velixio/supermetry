@@ -79,6 +79,38 @@ describe('sites overview', () => {
     expect(screen.getByText('Receiving')).toBeVisible()
   })
 
+  it('shows the typed highlights as one muted line and in the card name, with quiet as a warning', async () => {
+    const highlights = [
+      { kind: 'quiet', hours: 26 },
+      { kind: 'new_issues', count: 1 },
+      { kind: 'visitors_change', percent: -12.4 },
+    ] as const
+    privateRequest.mockResolvedValue({ data: [{ ...site, highlights }] })
+    renderOverview()
+
+    const line = await screen.findByTestId('project-highlights')
+    expect(line).toHaveTextContent('No events for 26 hours · 1 new issue · Visitors down 12.4%')
+    expect(line).toHaveClass('text-sm', 'text-muted-foreground')
+    expect(screen.getByText('No events for 26 hours')).toHaveClass('text-warning')
+    expect(screen.getByText('1 new issue')).not.toHaveClass('text-warning')
+    expect(screen.getByRole('link', { name: /Docs.*3 live.*No events for 26 hours · 1 new issue · Visitors down/i })).toBeVisible()
+  })
+
+  it('words every highlight kind and shows the line in the table view', async () => {
+    privateRequest.mockResolvedValue({ data: [{ ...site, highlights: [{ kind: 'top_source', name: 'google.com', share: 0.41 }, { kind: 'crash_free_drop', points: 1.4 }] }, { ...site, id: 8, name: 'Calm', highlights: [{ kind: 'steady' }] }] })
+    renderOverview({ view: 'table' })
+
+    const lines = await screen.findAllByTestId('project-highlights')
+    expect(lines.map((line) => line.textContent)).toEqual(['Most visitors came from google.com · Crash-free users down 1.4 points', 'Steady: no big changes'])
+  })
+
+  it('renders no line for a project without highlights', async () => {
+    privateRequest.mockResolvedValue({ data: [site] })
+    renderOverview()
+    await screen.findByRole('link', { name: /Docs/ })
+    expect(screen.queryByTestId('project-highlights')).toBeNull()
+  })
+
   it('links to the readable slug and still uses the public id when a site has none', async () => {
     privateRequest.mockResolvedValue({ data: [{ ...site, slug: 'docs-example-com' }, { ...site, id: 8, public_id: 'shop-public', name: 'Shop' }] })
     renderOverview()

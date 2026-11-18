@@ -338,6 +338,16 @@ export const en = {
   sitesOverview: {
     title: 'Projects',
     description: 'Traffic and installation health across every project you can access.',
+    // The status line under each project name: typed facts from the server, worded here.
+    highlights: {
+      quiet: 'No events for {hours, plural, one {# hour} other {# hours}}',
+      newIssues: '{count, plural, one {# new issue} other {# new issues}}',
+      crashFreeDrop: 'Crash-free users down {points} points',
+      visitorsUp: 'Visitors up {percent}',
+      visitorsDown: 'Visitors down {percent}',
+      topSource: 'Most visitors came from {name}',
+      steady: 'Steady: no big changes',
+    },
   },
 
   // F06 notification history and templates.

@@ -340,6 +340,15 @@ const messages: MessageTree = {
   sitesOverview: {
     title: 'Proyectos',
     description: 'Tráfico y estado de la instalación de todos los proyectos a los que tienes acceso.',
+    highlights: {
+      quiet: 'Sin eventos desde hace {hours, plural, one {# hora} other {# horas}}',
+      newIssues: '{count, plural, one {# incidencia nueva} other {# incidencias nuevas}}',
+      crashFreeDrop: 'Usuarios sin fallos: {points} puntos menos',
+      visitorsUp: 'Los visitantes suben un {percent}',
+      visitorsDown: 'Los visitantes bajan un {percent}',
+      topSource: 'La mayoría de los visitantes llegó desde {name}',
+      steady: 'Estable: sin grandes cambios',
+    },
   },
 
   // F06 notification history and templates.
