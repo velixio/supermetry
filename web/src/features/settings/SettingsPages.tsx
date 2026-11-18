@@ -621,7 +621,7 @@ export function SharesPage({
 			  <FieldDescription>Choose exactly what visitors can query and see.</FieldDescription>
 			  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
 				{shareSectionOptions.map((section) => (
-				  <label className="flex min-h-11 items-center gap-2 rounded-md border px-3 text-sm" key={section.value}>
+				  <label className="flex max-sm:min-h-11 items-center gap-2 rounded-md border px-3 text-sm" key={section.value}>
 					<Checkbox
 					  checked={sections.includes(section.value)}
 					  onCheckedChange={(checked) => setSections((current) => checked
@@ -637,7 +637,7 @@ export function SharesPage({
 			  <Field>
 				<FieldLabel htmlFor="share-theme">Theme</FieldLabel>
 				<Select value={theme} onValueChange={(value) => setTheme(value as ShareConfig["theme"])}>
-				  <SelectTrigger id="share-theme" className="h-11"><SelectValue /></SelectTrigger>
+				  <SelectTrigger id="share-theme" className="max-sm:h-11"><SelectValue /></SelectTrigger>
 				  <SelectContent><SelectGroup>
 					<SelectItem value="system">System</SelectItem>
 					<SelectItem value="light">Light</SelectItem>
@@ -648,7 +648,7 @@ export function SharesPage({
 			  <Field>
 				<FieldLabel htmlFor="share-date-mode">Date range</FieldLabel>
 				<Select value={dateMode} onValueChange={(value) => setDateMode(value as "rolling" | "fixed")}>
-				  <SelectTrigger id="share-date-mode" className="h-11"><SelectValue /></SelectTrigger>
+				  <SelectTrigger id="share-date-mode" className="max-sm:h-11"><SelectValue /></SelectTrigger>
 				  <SelectContent><SelectGroup>
 					<SelectItem value="rolling">Rolling</SelectItem>
 					<SelectItem value="fixed">Fixed</SelectItem>
@@ -659,28 +659,28 @@ export function SharesPage({
 			{dateMode === "rolling" ? (
 			  <Field>
 				<FieldLabel htmlFor="share-days">Rolling days</FieldLabel>
-				<Input id="share-days" className="h-11" type="number" min={1} max={366} value={rollingDays} onChange={(event) => setRollingDays(Number(event.target.value))} />
+				<Input id="share-days" className="max-sm:h-11" type="number" min={1} max={366} value={rollingDays} onChange={(event) => setRollingDays(Number(event.target.value))} />
 			  </Field>
 			) : (
 			  <div className="grid gap-4 sm:grid-cols-2">
-				<Field><FieldLabel htmlFor="share-from">From</FieldLabel><Input id="share-from" className="h-11" type="date" required value={fixedFrom} onChange={(event) => setFixedFrom(event.target.value)} /></Field>
-				<Field><FieldLabel htmlFor="share-to">To</FieldLabel><Input id="share-to" className="h-11" type="date" required value={fixedTo} onChange={(event) => setFixedTo(event.target.value)} /></Field>
+				<Field><FieldLabel htmlFor="share-from">From</FieldLabel><Input id="share-from" className="max-sm:h-11" type="date" required value={fixedFrom} onChange={(event) => setFixedFrom(event.target.value)} /></Field>
+				<Field><FieldLabel htmlFor="share-to">To</FieldLabel><Input id="share-to" className="max-sm:h-11" type="date" required value={fixedTo} onChange={(event) => setFixedTo(event.target.value)} /></Field>
 			  </div>
 			)}
 			<Field>
 			  <FieldLabel htmlFor="share-max-days">Maximum range (days)</FieldLabel>
-			  <Input id="share-max-days" className="h-11" type="number" min={1} max={366} value={maxDays} onChange={(event) => setMaxDays(Number(event.target.value))} />
+			  <Input id="share-max-days" className="max-sm:h-11" type="number" min={1} max={366} value={maxDays} onChange={(event) => setMaxDays(Number(event.target.value))} />
 			  <FieldDescription>The server rejects any range wider than this limit.</FieldDescription>
 			</Field>
 			<Field>
 			  <FieldLabel htmlFor="share-country">Locked country</FieldLabel>
-			  <Input id="share-country" className="h-11" maxLength={2} disabled={segmentId !== null} placeholder="Optional, for example IN" value={country} onChange={(event) => setCountry(event.target.value)} />
+			  <Input id="share-country" className="max-sm:h-11" maxLength={2} disabled={segmentId !== null} placeholder="Optional, for example IN" value={country} onChange={(event) => setCountry(event.target.value)} />
 			  <FieldDescription>Visitors cannot remove or replace this filter.</FieldDescription>
 			</Field>
 			<Field>
 			  <FieldLabel htmlFor="share-segment">Saved segment</FieldLabel>
 			  <Select value={segmentId === null ? "none" : String(segmentId)} onValueChange={(value) => { setSegmentId(value === "none" ? null : Number(value)); if (value !== "none") setCountry(""); }}>
-				<SelectTrigger id="share-segment" className="h-11"><SelectValue /></SelectTrigger>
+				<SelectTrigger id="share-segment" className="max-sm:h-11"><SelectValue /></SelectTrigger>
 				<SelectContent><SelectGroup>
 				  <SelectItem value="none">No saved segment</SelectItem>
 				  {(Array.isArray(segments.data) ? segments.data : []).map((segment) => <SelectItem value={String(segment.id)} key={segment.id}>{segment.name}</SelectItem>)}
@@ -689,7 +689,7 @@ export function SharesPage({
 			  <FieldDescription>The segment is snapshotted when the link is created.</FieldDescription>
 			</Field>
 			<Field className="rounded-lg border p-4">
-			  <div className="flex min-h-11 items-center justify-between gap-4">
+			  <div className="flex max-sm:min-h-11 items-center justify-between gap-4">
 				<div><FieldLabel htmlFor="share-embed">Allow embedding</FieldLabel><FieldDescription>Opt in to framing this dashboard.</FieldDescription></div>
 				<Switch id="share-embed" aria-label="Allow embedding" checked={embedding} onCheckedChange={setEmbedding} />
 			  </div>

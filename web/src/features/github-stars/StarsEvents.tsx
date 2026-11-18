@@ -58,7 +58,7 @@ export function StarsEvents({ repoId }: { repoId: number }) {
                   <TableCell>{formatDate(row.occurred_at)}</TableCell>
                   <TableCell>{row.source}</TableCell>
                   {canManage ? <TableCell className="text-right">
-                    <Button type="button" variant="ghost" size="sm" className="min-h-11" aria-label={en.githubStars.eraseRow(row.login)} onClick={() => ask(row.login)}>{en.githubStars.erase}</Button>
+                    <Button type="button" variant="ghost" size="sm" className="max-sm:min-h-11" aria-label={en.githubStars.eraseRow(row.login)} onClick={() => ask(row.login)}>{en.githubStars.erase}</Button>
                   </TableCell> : null}
                 </TableRow>
               ))}
@@ -67,7 +67,7 @@ export function StarsEvents({ repoId }: { repoId: number }) {
         </div>
       ) : null}
       {events.hasNextPage ? (
-        <Button type="button" variant="outline" className="min-h-11 self-start" disabled={events.isFetchingNextPage} onClick={() => void events.fetchNextPage()}>
+        <Button type="button" variant="outline" className="max-sm:min-h-11 self-start" disabled={events.isFetchingNextPage} onClick={() => void events.fetchNextPage()}>
           {events.isFetchingNextPage ? en.githubStars.loadingMore : en.githubStars.loadMore}
         </Button>
       ) : null}
@@ -78,9 +78,9 @@ export function StarsEvents({ repoId }: { repoId: number }) {
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex min-w-0 flex-1 basis-48 flex-col gap-1 text-sm font-medium">
             {en.githubStars.eraseLogin}
-            <Input className="min-h-11" value={login} maxLength={39} autoComplete="off" onChange={(event) => setLogin(event.target.value)} />
+            <Input className="max-sm:min-h-11" value={login} maxLength={39} autoComplete="off" onChange={(event) => setLogin(event.target.value)} />
           </label>
-          <Button type="submit" variant="destructive" className="min-h-11" disabled={!validLogin}>{en.githubStars.erase}</Button>
+          <Button type="submit" variant="destructive" className="max-sm:min-h-11" disabled={!validLogin}>{en.githubStars.erase}</Button>
         </div>
         {done !== null ? <p role="status" className="text-sm">{en.githubStars.erased(done)}</p> : null}
       </form> : null}

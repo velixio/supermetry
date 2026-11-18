@@ -12,7 +12,7 @@ export function ManagedNotice() {
       <section aria-labelledby="managed-notice-title" className="flex flex-col items-start gap-4 py-8">
         <PageHeader titleId="managed-notice-title" title={en.admin.managedTitle} />
         <p className="text-sm text-muted-foreground">{en.admin.managedBody}</p>
-        <Button asChild variant="outline" className="min-h-11"><Link to="/app">{en.admin.managedBack}</Link></Button>
+        <Button asChild variant="outline" className="max-sm:min-h-11"><Link to="/app">{en.admin.managedBack}</Link></Button>
       </section>
     </PageContainer>
   )

@@ -75,7 +75,7 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
   const firstEventMissing = items.find((item) => item.id === 'firstEvent')?.done === false
 
   return (
-    <section aria-labelledby="getting-started-title" className="flex flex-col gap-3 rounded-xl border bg-card p-4 text-card-foreground">
+    <section aria-labelledby="getting-started-title" className="flex flex-col gap-3 rounded-xl border bg-card p-4 text-card-foreground shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h2 id="getting-started-title" className="text-base font-semibold">{text.title}</h2>
@@ -100,12 +100,12 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
         {items.map((item) => {
           const copy = text.items[item.id]
           return (
-            <li key={item.id} className="flex flex-wrap items-center gap-3 py-2.5">
+            <li key={item.id} className="flex flex-wrap items-center gap-3 py-2">
               {item.done
-                ? <CheckCircle2Icon aria-hidden="true" className="size-5 shrink-0 text-success" />
-                : <CircleIcon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />}
+                ? <CheckCircle2Icon aria-hidden="true" className="size-4 shrink-0 text-success" />
+                : <CircleIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
               <div className="flex min-w-0 flex-1 flex-col">
-                <span className={item.done ? 'text-sm font-medium text-muted-foreground line-through' : 'text-sm font-medium'}>
+                <span className={item.done ? 'text-sm font-medium text-muted-foreground' : 'text-sm font-medium'}>
                   {copy.title}
                   <span className="sr-only"> ({item.done ? text.done : text.todo})</span>
                 </span>

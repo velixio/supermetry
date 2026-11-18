@@ -33,7 +33,7 @@ type Props = {
   to: string
 }
 
-const selectClass = 'min-h-11 w-full rounded-lg border border-input bg-background px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm'
+const selectClass = 'max-sm:min-h-11 w-full rounded-lg border border-input bg-background px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm'
 
 function money(currency: string): Intl.NumberFormat {
   return new Intl.NumberFormat(activeLocale(), { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -96,7 +96,7 @@ function Customers({ siteId, orgId, currency, timezone, from, to }: Props) {
     <CardContent className="space-y-3">
       {status === 403 || status === 400 || status === 404 || status === 409 ? null : <div className="max-w-sm">
         <label className="mb-1 block text-sm font-medium" htmlFor={searchId}>{t.customersSearch}</label>
-        <Input id={searchId} className="min-h-11" type="search" maxLength={100} value={search} placeholder={t.customersSearchPlaceholder} onChange={(event) => setSearch(event.target.value)} />
+        <Input id={searchId} className="max-sm:min-h-11" type="search" maxLength={100} value={search} placeholder={t.customersSearchPlaceholder} onChange={(event) => setSearch(event.target.value)} />
       </div>}
       {body}
     </CardContent>
@@ -199,12 +199,12 @@ export function RevenueBreakdown(props: Props) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium" htmlFor={ids.lookback}>{t.lookback}</label>
-            <Input id={ids.lookback} className="min-h-11" type="number" inputMode="numeric" min={1} max={90} step={1} value={lookbackText}
+            <Input id={ids.lookback} className="max-sm:min-h-11" type="number" inputMode="numeric" min={1} max={90} step={1} value={lookbackText}
               disabled={attribution === 'event'} aria-invalid={!lookbackValid} aria-describedby={ids.hint} onChange={(event) => setLookbackText(event.target.value)} />
             <p className={`mt-1 text-xs ${lookbackValid ? 'text-muted-foreground' : 'text-destructive'}`} id={ids.hint}>{t.lookbackHint}</p>
           </div>
           <div>
-            <Button type="button" variant="outline" className="min-h-11 w-full" disabled={exportState === 'busy' || !data} onClick={() => void exportCsv()}>
+            <Button type="button" variant="outline" className="max-sm:min-h-11 w-full" disabled={exportState === 'busy' || !data} onClick={() => void exportCsv()}>
               {exportState === 'busy' ? t.exporting : t.exportCsv}
             </Button>
           </div>

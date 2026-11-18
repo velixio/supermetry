@@ -68,7 +68,7 @@ function SessionsRoute() {
           search={search}
           onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
         />
-      {canReplay ? <Field className="min-h-11 sm:min-h-9" orientation="horizontal">
+      {canReplay ? <Field className="max-sm:min-h-11" orientation="horizontal">
         <Checkbox id="sessions-has-replay" checked={search.has_replay ?? false} onCheckedChange={(checked) => void navigate({ search: firstPage({ ...search, has_replay: checked === true }) })} />
         <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
       </Field> : null}

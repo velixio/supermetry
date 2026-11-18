@@ -57,7 +57,7 @@ afterEach(() => {
 // The one shell: a 44px sticky header, the sidebar, and exactly one main landmark.
 async function expectShell() {
   const header = await screen.findByRole('banner', { name: 'Application header' })
-  expect(header).toHaveClass('sticky', 'top-0', 'h-11')
+  expect(header).toHaveClass('sticky', 'top-0', 'h-12')
   expect(document.querySelectorAll('main')).toHaveLength(1)
   expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('id', 'main-content')
   return { header, sidebar: screen.getByRole('complementary', { name: 'Application sidebar' }) }

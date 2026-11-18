@@ -169,7 +169,7 @@ function CohortsTab({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{t.description}</p>
         {canEdit && !builder ? (
-          <Button className="h-11 md:h-8" type="button" onClick={() => open({ draft: blankDraft() })}>
+          <Button className="max-md:h-11" type="button" onClick={() => open({ draft: blankDraft() })}>
             <PlusIcon data-icon="inline-start" />
             {t.newCohort}
           </Button>
@@ -187,12 +187,12 @@ function CohortsTab({
             </ul>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button className="h-11 md:h-8" type="button" variant="outline" onClick={preview}>
+            <Button className="max-md:h-11" type="button" variant="outline" onClick={preview}>
               <PlayIcon data-icon="inline-start" />
               {t.previewSize}
             </Button>
-            <Button className="h-11 md:h-8" disabled={save.isPending} type="submit">{save.isPending ? t.saving : t.save}</Button>
-            <Button className="h-11 md:h-8" type="button" variant="ghost" onClick={() => { setBuilder(undefined); setProblems([]) }}>{t.cancel}</Button>
+            <Button className="max-md:h-11" disabled={save.isPending} type="submit">{save.isPending ? t.saving : t.save}</Button>
+            <Button className="max-md:h-11" type="button" variant="ghost" onClick={() => { setBuilder(undefined); setProblems([]) }}>{t.cancel}</Button>
           </div>
         </form>
       ) : null}
@@ -227,11 +227,11 @@ function CohortsTab({
                   <TableCell className="max-w-md whitespace-normal text-sm text-muted-foreground">{describeDefinition(cohort.definition)}</TableCell>
                   <TableCell className="max-w-48 sm:max-w-none">
                     <div className="flex flex-wrap gap-1">
-                      <Button aria-label={t.actionEvaluate(cohort.name)} className="h-11 md:h-8" type="button" variant="outline" onClick={() => setSubject({ value: { kind: 'saved', id: cohort.id }, title: cohort.name })}>
+                      <Button aria-label={t.actionEvaluate(cohort.name)} className="max-md:h-11" type="button" variant="outline" onClick={() => setSubject({ value: { kind: 'saved', id: cohort.id }, title: cohort.name })}>
                         <PlayIcon data-icon="inline-start" />
                         {t.evaluate}
                       </Button>
-                      <Button asChild aria-label={t.actionFilter(cohort.name)} className="h-11 md:h-8" variant="outline">
+                      <Button asChild aria-label={t.actionFilter(cohort.name)} className="max-md:h-11" variant="outline">
                         <Link
                           params={{ org: orgSlug, site: siteSlug }}
                           search={{ period: '30d', compare: 'off', f: serializeFilters([{ dimension: 'cohort', operator: 'is', values: [String(cohort.id)] }]), metric: 'visitors', include_imported: false }}
@@ -242,13 +242,13 @@ function CohortsTab({
                         </Link>
                       </Button>
                       {canEdit ? <>
-                        <Button aria-label={t.actionEdit(cohort.name)} className="size-11 md:size-8" size="icon" type="button" variant="ghost" onClick={() => open({ id: cohort.id, draft: draftFromDefinition(cohort.name, cohort.definition) })}>
+                        <Button aria-label={t.actionEdit(cohort.name)} className="max-md:size-11" size="icon" type="button" variant="ghost" onClick={() => open({ id: cohort.id, draft: draftFromDefinition(cohort.name, cohort.definition) })}>
                           <PencilIcon />
                         </Button>
-                        <Button aria-label={t.actionDuplicate(cohort.name)} className="size-11 md:size-8" disabled={duplicate.isPending} size="icon" type="button" variant="ghost" onClick={() => duplicate.mutate(cohort.id)}>
+                        <Button aria-label={t.actionDuplicate(cohort.name)} className="max-md:size-11" disabled={duplicate.isPending} size="icon" type="button" variant="ghost" onClick={() => duplicate.mutate(cohort.id)}>
                           <CopyIcon />
                         </Button>
-                        <Button aria-label={t.actionDelete(cohort.name)} className="size-11 md:size-8" size="icon" type="button" variant="ghost" onClick={() => setDeleting(cohort)}>
+                        <Button aria-label={t.actionDelete(cohort.name)} className="max-md:size-11" size="icon" type="button" variant="ghost" onClick={() => setDeleting(cohort)}>
                           <Trash2Icon />
                         </Button>
                       </> : null}

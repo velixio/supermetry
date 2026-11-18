@@ -24,11 +24,11 @@ function RetentionCell({ site, policy, onSaved }: { site: AdminSite; policy: Ret
     <div className="flex min-w-48 flex-col gap-1">
       <div className="flex items-center gap-2">
         <label htmlFor={id} className="sr-only">{uiFlows.admin.retentionFor(site.name)}</label>
-        <select id={id} className={`${nativeSelectClass} min-h-11 w-auto`} value={value} disabled={save.isPending} onChange={(event) => { save.reset(); setValue(Number(event.target.value)) }}>
+        <select id={id} className={`${nativeSelectClass} max-sm:min-h-11 w-auto`} value={value} disabled={save.isPending} onChange={(event) => { save.reset(); setValue(Number(event.target.value)) }}>
           {retentionOptions(policy, site.retention_days).map((days) => <option key={days} value={days}>{retentionLabel(days)}</option>)}
         </select>
         {value !== site.retention_days ? (
-          <Button type="button" size="sm" className="min-h-11" disabled={save.isPending}
+          <Button type="button" size="sm" className="max-sm:min-h-11" disabled={save.isPending}
             aria-label={`${uiFlows.admin.saveRetention}: ${uiFlows.admin.retentionFor(site.name)}`}
             onClick={() => (lowersRetention(site.retention_days, value) ? setConfirming(true) : submit())}>
             {save.isPending ? uiFlows.common.saving : uiFlows.admin.saveRetention}

@@ -36,7 +36,7 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
 
   return (
     <PageContainer width="narrow">
-      <Button asChild className="min-h-11 self-start" variant="ghost">
+      <Button asChild className="max-sm:min-h-11 self-start" variant="ghost">
         <Link params={{ org, site: siteSlug }} to="/app/$org/$site/links">
           <ArrowLeftIcon data-icon="inline-start" />
           {t.back}
@@ -68,7 +68,7 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
           <Label htmlFor="link-period">{t.period}</Label>
           <select
             id="link-period"
-            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
+            className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
             value={period}
             onChange={(event) => setPeriod(event.target.value as Period)}
           >
@@ -91,7 +91,7 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
       {stats.isError ? (
         <div className="flex items-center gap-3 text-sm" role="alert">
           {stats.error.message}
-          <Button className="min-h-11" variant="outline" onClick={() => void stats.refetch()}>{t.retry}</Button>
+          <Button className="max-sm:min-h-11" variant="outline" onClick={() => void stats.refetch()}>{t.retry}</Button>
         </div>
       ) : null}
       {stats.data ? (

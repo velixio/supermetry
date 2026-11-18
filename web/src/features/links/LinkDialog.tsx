@@ -114,12 +114,12 @@ function LinkForm({ link, error, pending, onClose, onSave }: Omit<Props, 'link'>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="link-name">{t.fields.name}</FieldLabel>
-              <Input id="link-name" className="min-h-11" maxLength={120} required value={form.name} onChange={set('name')} />
+              <Input id="link-name" className="max-sm:min-h-11" maxLength={120} required value={form.name} onChange={set('name')} />
             </Field>
             <Field>
               <FieldLabel htmlFor="link-destination">{t.fields.destination}</FieldLabel>
               <Input
-                id="link-destination" className="min-h-11" inputMode="url" maxLength={2048} placeholder="https://supermetry.com/landing"
+                id="link-destination" className="max-sm:min-h-11" inputMode="url" maxLength={2048} placeholder="https://supermetry.com/landing"
                 required type="url" value={form.destination} onChange={set('destination')}
               />
               <FieldDescription>{t.fields.destinationHint}</FieldDescription>
@@ -127,7 +127,7 @@ function LinkForm({ link, error, pending, onClose, onSave }: Omit<Props, 'link'>
             <Field>
               <FieldLabel htmlFor="link-slug">{t.fields.slug}</FieldLabel>
               <Input
-                id="link-slug" autoCapitalize="none" autoComplete="off" className="min-h-11 font-mono" maxLength={64} pattern="[A-Za-z0-9][A-Za-z0-9_\-]{1,63}"
+                id="link-slug" autoCapitalize="none" autoComplete="off" className="max-sm:min-h-11 font-mono" maxLength={64} pattern="[A-Za-z0-9][A-Za-z0-9_\-]{1,63}"
                 spellCheck={false} value={form.slug} onChange={set('slug')}
               />
               <FieldDescription>{t.fields.slugHint}</FieldDescription>
@@ -139,7 +139,7 @@ function LinkForm({ link, error, pending, onClose, onSave }: Omit<Props, 'link'>
                 {utmFields.map(([key, label]) => (
                   <Field key={key}>
                     <FieldLabel htmlFor={`link-${key}`}>{label}</FieldLabel>
-                    <Input id={`link-${key}`} className="min-h-11" maxLength={120} value={form[key]} onChange={set(key)} />
+                    <Input id={`link-${key}`} className="max-sm:min-h-11" maxLength={120} value={form[key]} onChange={set(key)} />
                   </Field>
                 ))}
               </div>
@@ -147,13 +147,13 @@ function LinkForm({ link, error, pending, onClose, onSave }: Omit<Props, 'link'>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="link-expires">{t.fields.expires}</FieldLabel>
-                <Input id="link-expires" className="min-h-11" type="datetime-local" value={form.expires} onChange={set('expires')} />
+                <Input id="link-expires" className="max-sm:min-h-11" type="datetime-local" value={form.expires} onChange={set('expires')} />
                 <FieldDescription>{t.fields.expiresHint}</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="link-limit">{t.fields.clickLimit}</FieldLabel>
                 <Input
-                  id="link-limit" className="min-h-11" inputMode="numeric" max={1000000000} min={1} step={1} type="number"
+                  id="link-limit" className="max-sm:min-h-11" inputMode="numeric" max={1000000000} min={1} step={1} type="number"
                   value={form.clickLimit} onChange={set('clickLimit')}
                 />
                 <FieldDescription>{t.fields.clickLimitHint}</FieldDescription>
@@ -169,8 +169,8 @@ function LinkForm({ link, error, pending, onClose, onSave }: Omit<Props, 'link'>
           </FieldGroup>
           <FieldError>{error?.message}</FieldError>
           <DialogFooter>
-            <Button className="min-h-11" type="button" variant="outline" onClick={onClose}>{t.cancel}</Button>
-            <Button className="min-h-11" type="submit" disabled={pending}>{pending ? t.saving : t.save}</Button>
+            <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={onClose}>{t.cancel}</Button>
+            <Button className="max-sm:min-h-11" type="submit" disabled={pending}>{pending ? t.saving : t.save}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

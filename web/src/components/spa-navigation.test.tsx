@@ -343,7 +343,7 @@ describe('sidebar groups, pinning and scope', () => {
     renderSidebar('/app/acme/settings')
     const trigger = await screen.findByRole('button', { name: /Organization: Acme/ })
     expect(trigger.querySelector('[data-scope="org"]')).not.toBeNull()
-    expect(within(trigger).getByTestId('switcher-site-dimmed')).toHaveClass('opacity-60')
+    expect(within(trigger).getByTestId('switcher-site-dimmed')).toHaveClass('text-muted-foreground')
     cleanup()
     renderSidebar('/app/acme/docs-public')
     const siteTrigger = await screen.findByRole('button', { name: /Docs\s*Acme/ })
@@ -413,7 +413,7 @@ describe('icon rail', () => {
 
   it('fits the site switcher icon inside the 32px rail button', async () => {
     renderSidebar('/app/acme/docs-public/realtime', { defaultOpen: false })
-    expect(await screen.findByRole('button', { name: /Docs\s*Acme/ })).toHaveClass('group-data-[collapsible=icon]:p-1.5!')
+    expect(await screen.findByRole('button', { name: /Docs\s*Acme/ })).toHaveClass('group-data-[collapsible=icon]:p-0!')
   })
 
   it('toggles with Ctrl or Cmd+B and records the state in the sidebar_state cookie', async () => {

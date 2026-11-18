@@ -55,7 +55,7 @@ export function SettingsNav({ org, current, showReplay = false, canManage = true
         <label htmlFor="settings-section" className="sr-only">{t.mobileLabel}</label>
         <select
           id="settings-section"
-          className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+          className="max-sm:h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
           value={selected}
           onChange={(event) => void navigate({ to: event.target.value })}
         >

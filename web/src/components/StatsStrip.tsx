@@ -187,11 +187,11 @@ export function StatsStrip({
     const valueText = current.isLoading ? '\u2014' : metricValue(metric, value)
     const delta = comparison.data && current.data ? deltaValue(value, comparison.data.totals[metric] ?? 0) : undefined
     const isSelected = selected === metric
-    const className = 'flex h-auto min-w-0 flex-col items-start gap-1.5 rounded-xl border bg-card px-4 py-3.5 text-left shadow-xs'
+    const className = 'flex h-full min-w-0 flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left text-card-foreground shadow-sm'
     const content = (
       <>
-        <span className="w-full truncate text-xs font-normal text-muted-foreground">{metricLabel(metric)}</span>
-        <span className="text-xl font-semibold leading-none tracking-tight tabular-nums">{valueText}</span>
+        <span className="w-full truncate text-sm text-muted-foreground">{metricLabel(metric)}</span>
+        <span className="text-2xl font-semibold leading-none tabular-nums">{valueText}</span>
         {comparison.isLoading ? <span className="h-4" aria-hidden="true" /> : <Delta metric={metric} value={delta} reference={referenceText} />}
       </>
     )
@@ -203,7 +203,7 @@ export function StatsStrip({
         key={metric}
         aria-label={cardAriaLabel(metric, valueText, delta, referenceText)}
         aria-pressed={isSelected}
-        className={`${className} outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring aria-pressed:border-selected-edge aria-pressed:bg-muted/40 aria-pressed:ring-1 aria-pressed:ring-selected-edge`}
+        className={`${className} outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:border-foreground/30 aria-pressed:bg-muted/50`}
         data-priority={primary ? 'primary' : 'secondary'}
         type="button"
         onClick={() => onSelectMetric(metric)}

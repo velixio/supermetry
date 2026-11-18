@@ -39,7 +39,7 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew, n
   return (
     <div className="flex flex-wrap items-center gap-2">
       {currentId !== undefined ? (
-        <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={() => onEdit(currentId)}>
+        <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={() => onEdit(currentId)}>
           <PencilIcon />{t.edit}
         </Button>
       ) : null}
@@ -53,7 +53,7 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew, n
             <Field>
               <FieldLabel htmlFor="dash-new-template">{t.templateLabel}</FieldLabel>
               <Select value={template} onValueChange={(value) => setTemplate(value as TemplateKey)}>
-                <SelectTrigger className="min-h-11 w-full sm:min-h-9" id="dash-new-template"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id="dash-new-template"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     {templateKeys.map((key) => <SelectItem key={key} value={key}>{t.templates[key]}</SelectItem>)}
@@ -63,8 +63,8 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew, n
               <FieldDescription>{t.templateNotes[template]}</FieldDescription>
             </Field>
             <DialogFooter className="gap-2">
-              <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={() => setOpen(false)}>{t.cancel}</Button>
-              <Button className="min-h-11 sm:min-h-9" type="submit">{t.start}</Button>
+              <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={() => setOpen(false)}>{t.cancel}</Button>
+              <Button className="max-sm:min-h-11" type="submit">{t.start}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

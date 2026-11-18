@@ -8,6 +8,7 @@ import {
   ChartNoAxesCombinedIcon,
   CircleDollarSignIcon,
   ChevronDownIcon,
+  ChevronsUpDownIcon,
   CircleGaugeIcon,
   CodeXmlIcon,
   MonitorSmartphoneIcon,
@@ -506,7 +507,7 @@ export function SupermetrySidebar({
             <button
               aria-controls={contentId}
               aria-expanded={open}
-              className="flex h-full w-full items-center justify-between rounded-md px-2 text-left outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              className="flex h-full w-full items-center justify-between rounded-md text-left outline-hidden focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50"
               onClick={() => setGroupOpen(key, !open)}
               tabIndex={rail ? -1 : undefined}
               type="button"
@@ -535,12 +536,12 @@ export function SupermetrySidebar({
         <SidebarBrandLink onClick={closeMobile} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="h-auto py-1.5 group-data-[collapsible=icon]:p-1.5!" tooltip={switcherTooltip}>
-              {orgScope ? <Building2Icon aria-hidden="true" /> : site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} /> : null}
+            <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" tooltip={switcherTooltip}>
+              {orgScope ? <Building2Icon aria-hidden="true" /> : site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={24} /> : null}
               {orgScope ? (
                 <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="org">
                   <span className="truncate">{ui.sidebar.organizationScope}: {membership.org.name}</span>
-                  {site ? <span className="truncate text-xs text-muted-foreground opacity-60" data-testid="switcher-site-dimmed">{site.name}</span> : null}
+                  {site ? <span className="truncate text-xs text-muted-foreground" data-testid="switcher-site-dimmed">{site.name}</span> : null}
                 </span>
               ) : (
                 <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="site">
@@ -548,6 +549,7 @@ export function SupermetrySidebar({
                   <span className="truncate text-xs text-muted-foreground">{membership.org.name}</span>
                 </span>
               )}
+              <ChevronsUpDownIcon aria-hidden="true" className="ml-auto group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-56">
@@ -560,7 +562,7 @@ export function SupermetrySidebar({
                     search={siteSwitchTarget(current, membership, item).search as never}
                     onClick={closeMobile}
                   >
-                    <SiteIcon iconUrl={item.icon_url} name={item.name} size={20} />
+                    <SiteIcon iconUrl={item.icon_url} name={item.name} size={24} />
                     <span className="min-w-0 flex-1 truncate">{item.name}</span>
                     {item.is_demo ? <Badge variant="secondary">{ui.sidebar.demo}</Badge> : null}
                   </Link>

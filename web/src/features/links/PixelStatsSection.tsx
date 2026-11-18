@@ -60,7 +60,7 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
             <Label htmlFor="pixel-group">{t.groupBy}</Label>
             <select
               id="pixel-group"
-              className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
+              className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
               value={granularity}
               onChange={(event) => chooseGranularity(event.target.value as ChartGranularity)}
             >
@@ -74,7 +74,7 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
             <Label htmlFor="pixel-period">{t.period}</Label>
             <select
               id="pixel-period"
-              className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
+              className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
               value={period}
               onChange={(event) => choosePeriod(event.target.value as Period)}
             >
@@ -87,7 +87,7 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
       {stats.isError ? (
         <div className="flex items-center gap-3 text-sm" role="alert">
           {stats.error.message}
-          <Button className="min-h-11" variant="outline" onClick={() => void stats.refetch()}>{t.retry}</Button>
+          <Button className="max-sm:min-h-11" variant="outline" onClick={() => void stats.refetch()}>{t.retry}</Button>
         </div>
       ) : null}
       {stats.data ? (

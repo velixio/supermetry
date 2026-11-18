@@ -22,7 +22,7 @@ export function StorageUsage({ name, storage }: { name: string; storage?: Storag
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="-mx-2 min-h-11 px-2" aria-label={uiFlows.admin.storageDetails(name, total)}>
+        <Button type="button" variant="ghost" size="sm" className="-mx-2 max-sm:min-h-11 px-2" aria-label={uiFlows.admin.storageDetails(name, total)}>
           <span className="tabular-nums">{total}</span>
         </Button>
       </PopoverTrigger>

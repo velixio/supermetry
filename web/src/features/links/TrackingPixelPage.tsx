@@ -44,7 +44,7 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
 
   return (
     <PageContainer width="narrow">
-      <Button asChild className="min-h-11 self-start" variant="ghost">
+      <Button asChild className="max-sm:min-h-11 self-start" variant="ghost">
         <Link params={{ org, site: siteSlug }} to="/app/$org/$site/links/pixel">
           <ArrowLeftIcon data-icon="inline-start" />
           {t.pixelBack}
@@ -58,11 +58,11 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
             description={<Badge variant="secondary"><code>{pixel.data.tag}</code></Badge>}
             actions={canManage ? (
               <>
-                <Button className="min-h-11" variant="outline" onClick={() => { save.reset(); setEditing(true) }}>
+                <Button className="max-sm:min-h-11" variant="outline" onClick={() => { save.reset(); setEditing(true) }}>
                   <PencilIcon data-icon="inline-start" />
                   {t.pixelRename}
                 </Button>
-                <Button className="min-h-11" variant="outline" onClick={() => setDeleting(true)}>
+                <Button className="max-sm:min-h-11" variant="outline" onClick={() => setDeleting(true)}>
                   <Trash2Icon data-icon="inline-start" />
                   {t.pixelDelete}
                 </Button>
@@ -72,8 +72,8 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
 
           <Tabs defaultValue="stats">
             <TabsList aria-label={t.pixelTabsLabel} className="h-auto">
-              <TabsTrigger className="min-h-11 px-4" value="stats">{t.pixelTabStats}</TabsTrigger>
-              <TabsTrigger className="min-h-11 px-4" value="install">{t.pixelTabInstall}</TabsTrigger>
+              <TabsTrigger className="max-sm:min-h-11 px-4" value="stats">{t.pixelTabStats}</TabsTrigger>
+              <TabsTrigger className="max-sm:min-h-11 px-4" value="install">{t.pixelTabInstall}</TabsTrigger>
             </TabsList>
             <TabsContent className="flex flex-col gap-6" value="stats">
               <PixelStatsSection siteId={siteId} tag={pixel.data.tag} timezone={timezone} />
@@ -139,9 +139,9 @@ export function TrackingPixelPage({ org, siteSlug, siteId, pixelId, timezone, ca
             <AlertDialogDescription>{t.pixelConfirmDelete}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel className="max-sm:min-h-11">{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
-              className="min-h-11"
+              className="max-sm:min-h-11"
               disabled={remove.isPending}
               variant="destructive"
               onClick={() => {

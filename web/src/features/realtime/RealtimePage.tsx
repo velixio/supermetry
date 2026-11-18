@@ -287,9 +287,9 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
               type="single"
               value={chartInterval}
             >
-              <ToggleGroupItem aria-label="Minute" className="h-11 px-3" value="minute">Minute</ToggleGroupItem>
-              <ToggleGroupItem aria-label="Hour" className="h-11 px-3" value="hour">Hour</ToggleGroupItem>
-              <ToggleGroupItem aria-label="Day" className="h-11 px-3" value="day">Day</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Minute" className="max-sm:h-11 px-3" value="minute">Minute</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Hour" className="max-sm:h-11 px-3" value="hour">Hour</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Day" className="max-sm:h-11 px-3" value="day">Day</ToggleGroupItem>
             </ToggleGroup>
           </CardHeader>
           <CardContent>

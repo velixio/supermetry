@@ -60,7 +60,7 @@ export function StarsTrending({ repoId }: { repoId: number }) {
         ) : !data ? <Skeleton aria-label={t.loading} className="h-16 w-full" /> : (
           <>
             {canManage ? (
-              <label htmlFor="trending-enabled" className="flex min-h-11 w-fit items-center gap-2 pr-2 text-sm">
+              <label htmlFor="trending-enabled" className="flex max-sm:min-h-11 w-fit items-center gap-2 pr-2 text-sm">
                 <Switch id="trending-enabled" checked={data.enabled} disabled={setEnabled.isPending}
                   onCheckedChange={(enabled) => setEnabled.mutate(enabled)} />
                 {t.enable}

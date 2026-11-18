@@ -78,7 +78,7 @@ export function SearchConsoleReport({ siteId, orgId }: { siteId: number; orgId: 
             <button
               aria-pressed={dimension === value}
               className={cn(
-                'min-h-11 rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring',
+                'max-sm:min-h-11 rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring',
                 dimension === value ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
               key={value}
@@ -92,7 +92,7 @@ export function SearchConsoleReport({ siteId, orgId }: { siteId: number; orgId: 
         <label className="flex flex-col gap-1 text-sm font-medium" htmlFor={`${ids}-range`}>
           {t.range}
           <select
-            className="min-h-11 rounded-lg border border-input bg-background px-2.5 text-sm font-normal"
+            className="max-sm:min-h-11 rounded-lg border border-input bg-background px-2.5 text-sm font-normal"
             id={`${ids}-range`}
             onChange={(event) => setDays(Number(event.target.value))}
             value={days}
@@ -103,7 +103,7 @@ export function SearchConsoleReport({ siteId, orgId }: { siteId: number; orgId: 
         <label className="flex min-w-48 flex-1 flex-col gap-1 text-sm font-medium" htmlFor={`${ids}-filter`}>
           {t.search}
           <Input
-            className="min-h-11"
+            className="max-sm:min-h-11"
             id={`${ids}-filter`}
             onChange={(event) => setFilter(event.target.value)}
             placeholder={t.searchPlaceholder}
@@ -154,7 +154,7 @@ export function SearchConsoleReport({ siteId, orgId }: { siteId: number; orgId: 
                         >
                           <button
                             aria-label={active ? t.sortBy(column.label, label) : undefined}
-                            className="inline-flex min-h-11 items-center gap-1 px-1 font-medium focus-visible:outline-2 focus-visible:outline-ring"
+                            className="inline-flex max-sm:min-h-11 items-center gap-1 px-1 font-medium focus-visible:outline-2 focus-visible:outline-ring"
                             onClick={() => toggleSort(column.key)}
                             type="button"
                           >

@@ -30,7 +30,7 @@ export function PixelPage({ org, siteSlug, siteId, canManage }: Props) {
         title={t.title}
         description={t.pixelDescription}
         actions={canManage ? (
-          <Button className="min-h-11" onClick={() => { save.reset(); setCreating(true) }}>
+          <Button className="max-sm:min-h-11" onClick={() => { save.reset(); setCreating(true) }}>
             <PlusIcon data-icon="inline-start" />
             {t.pixelCreate}
           </Button>
@@ -43,7 +43,7 @@ export function PixelPage({ org, siteSlug, siteId, canManage }: Props) {
       {pixels.isError ? (
         <div className="flex items-center gap-3 text-sm" role="alert">
           {t.pixelLoadError}
-          <Button className="min-h-11" variant="outline" onClick={() => void pixels.refetch()}>{t.retry}</Button>
+          <Button className="max-sm:min-h-11" variant="outline" onClick={() => void pixels.refetch()}>{t.retry}</Button>
         </div>
       ) : null}
       {pixels.data?.length === 0 ? (
@@ -75,7 +75,7 @@ export function PixelPage({ org, siteSlug, siteId, canManage }: Props) {
                 </dl>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button asChild className="min-h-11" variant="outline">
+                <Button asChild className="max-sm:min-h-11" variant="outline">
                   <Link
                     aria-label={t.pixelOpenLabel.replace('{name}', pixel.name)}
                     params={{ org, site: siteSlug, id: String(pixel.id) }}

@@ -14,7 +14,7 @@ export function ResponsiveFilters({ children, className }: { children: ReactNode
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button className="min-h-11" type="button" variant="outline"><ListFilterIcon data-icon="inline-start" />{en.polish.filters}</Button>
+        <Button className="max-sm:min-h-11" type="button" variant="outline"><ListFilterIcon data-icon="inline-start" />{en.polish.filters}</Button>
       </SheetTrigger>
       <SheetContent className="w-[min(23rem,100vw)] overflow-y-auto" side="right">
         <SheetHeader>

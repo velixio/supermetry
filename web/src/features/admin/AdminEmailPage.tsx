@@ -83,7 +83,7 @@ function SettingsForm({ settings }: { settings: AdminEmailSettings }) {
         </label>
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm font-medium">
           {en.admin.emailTls}
-          <select className="h-11 rounded-lg border border-input bg-background px-3" value={tls} onChange={(event) => setTls(event.target.value as AdminEmailSettings['tls'])}>
+          <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" value={tls} onChange={(event) => setTls(event.target.value as AdminEmailSettings['tls'])}>
             {tlsOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
@@ -106,14 +106,14 @@ function SettingsForm({ settings }: { settings: AdminEmailSettings }) {
         <Input value={helo} maxLength={253} autoComplete="off" onChange={(event) => setHelo(event.target.value)} />
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" className="min-h-11" disabled={save.isPending}>{en.admin.emailSave}</Button>
+        <Button type="submit" className="max-sm:min-h-11" disabled={save.isPending}>{en.admin.emailSave}</Button>
         {settings.password_set ? (
-          <Button type="button" variant="outline" className="min-h-11" disabled={save.isPending} onClick={() => save.mutate({ ...body({ clear_password: true }), password: '' })}>
+          <Button type="button" variant="outline" className="max-sm:min-h-11" disabled={save.isPending} onClick={() => save.mutate({ ...body({ clear_password: true }), password: '' })}>
             {en.admin.emailClearPassword}
           </Button>
         ) : null}
         {settings.source === 'database' ? (
-          <Button type="button" variant="outline" className="min-h-11" disabled={remove.isPending} onClick={() => remove.mutate()}>{en.admin.emailRemove}</Button>
+          <Button type="button" variant="outline" className="max-sm:min-h-11" disabled={remove.isPending} onClick={() => remove.mutate()}>{en.admin.emailRemove}</Button>
         ) : null}
         {save.isSuccess ? <span role="status" className="text-sm text-muted-foreground">{en.admin.saved}</span> : null}
       </div>
@@ -136,7 +136,7 @@ function TestForm() {
         <Input type="email" value={to} maxLength={320} placeholder={en.admin.emailTestPlaceholder} onChange={(event) => setTo(event.target.value)} />
       </label>
       <div>
-        <Button type="submit" className="min-h-11" disabled={test.isPending}>{test.isPending ? en.admin.emailTestSending : en.admin.emailTestSend}</Button>
+        <Button type="submit" className="max-sm:min-h-11" disabled={test.isPending}>{test.isPending ? en.admin.emailTestSending : en.admin.emailTestSend}</Button>
       </div>
       <ErrorLine error={test.error} />
       {test.data?.ok ? (

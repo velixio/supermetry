@@ -77,7 +77,7 @@ function SessionCard({
           <CardTitle>
             <Button
               aria-label={`View session ${session.id}`}
-              className="min-h-11 justify-start px-0 text-left whitespace-normal"
+              className="max-sm:min-h-11 justify-start px-0 text-left whitespace-normal"
               variant="link"
               onClick={() => onSelect(session.id)}
             >
@@ -86,7 +86,7 @@ function SessionCard({
           </CardTitle>
           {canReplay && org && site ? (
             onReplayChange && hasReplay ? (
-              <Button aria-label="Play replay" className="size-11" size="icon" type="button" variant="ghost" onClick={() => onReplayChange(session.id)}>
+              <Button aria-label="Play replay" className="max-sm:size-11" size="icon" type="button" variant="ghost" onClick={() => onReplayChange(session.id)}>
                 <PlayIcon />
               </Button>
             ) : (

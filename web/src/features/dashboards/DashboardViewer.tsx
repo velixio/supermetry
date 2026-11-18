@@ -48,7 +48,7 @@ export function DashboardViewer(props: DashboardViewerProps) {
       <section className="flex flex-col items-start gap-3 rounded-xl border bg-card p-5" role="status">
         <h2 className="font-medium">{t.missingTitle}</h2>
         <p className="text-sm text-muted-foreground">{t.missingBody}</p>
-        <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={props.onOpenStandard}>{t.openStandard}</Button>
+        <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={props.onOpenStandard}>{t.openStandard}</Button>
       </section>
     )
   }

@@ -31,7 +31,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     })
   }
   return (
-    <Button type="button" variant="outline" className="min-h-11 shrink-0" aria-label={label} onClick={copy}>
+    <Button type="button" variant="outline" className="max-sm:min-h-11 shrink-0" aria-label={label} onClick={copy}>
       {copied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
       <span aria-live="polite">{copied ? t.copied : t.copy}</span>
     </Button>
@@ -64,7 +64,7 @@ export function RevealPanel({ reveal, onDismiss }: { reveal: Reveal; onDismiss: 
           {[t.setup1, t.setup2, t.setup3, t.setup4, t.setup5].map((step) => <li key={step}>{step}</li>)}
         </ol>
       </div>
-      <Button type="button" className="min-h-11 self-start" onClick={onDismiss}>{t.revealDismiss}</Button>
+      <Button type="button" className="max-sm:min-h-11 self-start" onClick={onDismiss}>{t.revealDismiss}</Button>
     </section>
   )
 }
@@ -96,26 +96,26 @@ export function AddRepoDialog({ open, onOpenChange, onCreated }: { open: boolean
           </DialogHeader>
           <label className="flex flex-col gap-1 text-sm font-medium">
             {t.repoName}
-            <Input className="min-h-11" value={repo} required maxLength={140} placeholder="owner/name" autoComplete="off" onChange={(event) => setRepo(event.target.value)} />
+            <Input className="max-sm:min-h-11" value={repo} required maxLength={140} placeholder="owner/name" autoComplete="off" onChange={(event) => setRepo(event.target.value)} />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium">
             {t.repoToken}
-            <Input className="min-h-11" type="password" value={token} autoComplete="off" onChange={(event) => setToken(event.target.value)} />
+            <Input className="max-sm:min-h-11" type="password" value={token} autoComplete="off" onChange={(event) => setToken(event.target.value)} />
             <span className="text-xs font-normal text-muted-foreground">{t.repoTokenHint}</span>
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium">
             {t.repoTimeZone}
-            <Input className="min-h-11" value={zone} required maxLength={64} onChange={(event) => setZone(event.target.value)} />
+            <Input className="max-sm:min-h-11" value={zone} required maxLength={64} onChange={(event) => setZone(event.target.value)} />
             <span className="text-xs font-normal text-muted-foreground">{t.repoTimeZoneHint}</span>
           </label>
-          <label className="flex min-h-11 items-start gap-2 text-sm">
+          <label className="flex max-sm:min-h-11 items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1 size-5" checked={publicCounter} onChange={(event) => setPublicCounter(event.target.checked)} />
             <span className="flex flex-col"><span className="font-medium">{t.publicCounter}</span><span className="text-xs text-muted-foreground">{t.publicCounterHint}</span></span>
           </label>
           <ErrorLine error={add.error} />
           <DialogFooter>
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => close(false)}>{t.cancel}</Button>
-            <Button type="submit" className="min-h-11" disabled={add.isPending || !repo.trim()}>{add.isPending ? t.adding : t.addRepo}</Button>
+            <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => close(false)}>{t.cancel}</Button>
+            <Button type="submit" className="max-sm:min-h-11" disabled={add.isPending || !repo.trim()}>{add.isPending ? t.adding : t.addRepo}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -146,27 +146,27 @@ function SettingsDialog({ repo, open, onOpenChange }: { repo: StarsRepo; open: b
           </DialogHeader>
           <label className="flex flex-col gap-1 text-sm font-medium">
             {t.repoTimeZone}
-            <Input className="min-h-11" value={zone} required maxLength={64} onChange={(event) => setZone(event.target.value)} />
+            <Input className="max-sm:min-h-11" value={zone} required maxLength={64} onChange={(event) => setZone(event.target.value)} />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium">
             {t.repoToken}
-            <Input className="min-h-11" type="password" value={token} disabled={clear} autoComplete="off" onChange={(event) => setToken(event.target.value)} />
+            <Input className="max-sm:min-h-11" type="password" value={token} disabled={clear} autoComplete="off" onChange={(event) => setToken(event.target.value)} />
             <span className="text-xs font-normal text-muted-foreground">{repo.has_token ? t.tokenStored : t.repoTokenHint}</span>
           </label>
           {repo.has_token ? (
-            <label className="flex min-h-11 items-center gap-2 text-sm">
+            <label className="flex max-sm:min-h-11 items-center gap-2 text-sm">
               <input type="checkbox" className="size-5" checked={clear} onChange={(event) => setClear(event.target.checked)} />
               {t.clearToken}
             </label>
           ) : null}
-          <label className="flex min-h-11 items-start gap-2 text-sm">
+          <label className="flex max-sm:min-h-11 items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1 size-5" checked={publicCounter} onChange={(event) => setPublicCounter(event.target.checked)} />
             <span className="flex flex-col"><span className="font-medium">{t.publicCounter}</span><span className="text-xs text-muted-foreground">{t.publicCounterHint}</span></span>
           </label>
           <ErrorLine error={update.error} />
           <DialogFooter>
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => onOpenChange(false)}>{t.cancel}</Button>
-            <Button type="submit" className="min-h-11" disabled={update.isPending}>{update.isPending ? t.saving : t.save}</Button>
+            <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => onOpenChange(false)}>{t.cancel}</Button>
+            <Button type="submit" className="max-sm:min-h-11" disabled={update.isPending}>{update.isPending ? t.saving : t.save}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -193,8 +193,8 @@ function RemoveDialog({ repo, open, onOpenChange, onRemoved }: { repo: StarsRepo
             </DialogHeader>
             <ErrorLine error={remove.error} />
             <DialogFooter>
-              <Button type="button" variant="outline" className="min-h-11" disabled={remove.isPending} onClick={() => setConfirmData(false)}>{t.back}</Button>
-              <Button type="button" variant="destructive" className="min-h-11" disabled={remove.isPending} onClick={() => run(true)}>{remove.isPending ? t.removing : t.removeDataConfirm}</Button>
+              <Button type="button" variant="outline" className="max-sm:min-h-11" disabled={remove.isPending} onClick={() => setConfirmData(false)}>{t.back}</Button>
+              <Button type="button" variant="destructive" className="max-sm:min-h-11" disabled={remove.isPending} onClick={() => run(true)}>{remove.isPending ? t.removing : t.removeDataConfirm}</Button>
             </DialogFooter>
           </>
         ) : (
@@ -205,12 +205,12 @@ function RemoveDialog({ repo, open, onOpenChange, onRemoved }: { repo: StarsRepo
             </DialogHeader>
             <ErrorLine error={remove.error} />
             <div className="flex flex-col gap-2">
-              <Button type="button" className="min-h-11 justify-start" disabled={remove.isPending || !repo.enabled} onClick={() => run(false)}>{t.disableKeep}</Button>
+              <Button type="button" className="max-sm:min-h-11 justify-start" disabled={remove.isPending || !repo.enabled} onClick={() => run(false)}>{t.disableKeep}</Button>
               <p className="text-xs text-muted-foreground">{t.disableKeepHint}</p>
-              <Button type="button" variant="destructive" className="min-h-11 justify-start" disabled={remove.isPending} onClick={() => setConfirmData(true)}>{t.removeData}</Button>
+              <Button type="button" variant="destructive" className="max-sm:min-h-11 justify-start" disabled={remove.isPending} onClick={() => setConfirmData(true)}>{t.removeData}</Button>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" className="min-h-11" onClick={() => close(false)}>{t.cancel}</Button>
+              <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => close(false)}>{t.cancel}</Button>
             </DialogFooter>
           </>
         )}
@@ -270,15 +270,15 @@ export function RepoPanel({ repo, onReveal, onRemoved }: { repo: StarsRepo; onRe
       {repo.last_error ? <p role="alert" className="text-sm text-destructive">{t.lastError}: {repo.last_error}</p> : null}
       {canManage ? (
       <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor={switchId} className="flex min-h-11 items-center gap-2 pr-2 text-sm">
+        <label htmlFor={switchId} className="flex max-sm:min-h-11 items-center gap-2 pr-2 text-sm">
           <Switch id={switchId} checked={repo.enabled} disabled={update.isPending}
             onCheckedChange={(enabled) => update.mutate({ id: repo.id, patch: { enabled } })} />
           {t.enabled}
         </label>
-        <Button type="button" variant="outline" className="min-h-11" disabled={sync.isPending || !repo.enabled} onClick={() => sync.mutate(repo.id)}>{sync.isPending ? t.syncing : t.syncNow}</Button>
-        <Button type="button" variant="outline" className="min-h-11" onClick={() => setDialog('settings')}>{t.settings}</Button>
-        <Button type="button" variant="outline" className="min-h-11" onClick={() => setDialog('rotate')}>{t.rotate}</Button>
-        <Button type="button" variant="outline" className="min-h-11" onClick={() => setDialog('remove')}>{t.remove}</Button>
+        <Button type="button" variant="outline" className="max-sm:min-h-11" disabled={sync.isPending || !repo.enabled} onClick={() => sync.mutate(repo.id)}>{sync.isPending ? t.syncing : t.syncNow}</Button>
+        <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => setDialog('settings')}>{t.settings}</Button>
+        <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => setDialog('rotate')}>{t.rotate}</Button>
+        <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => setDialog('remove')}>{t.remove}</Button>
       </div>
       ) : <p className="text-xs text-muted-foreground">{t.viewOnly}</p>}
       {sync.isSuccess ? <p role="status" className="text-sm">{t.syncStarted}</p> : null}

@@ -77,8 +77,8 @@ function UnsavedGuard({ active, bypass }: { active: boolean; bypass: { current: 
           <AlertDialogDescription>{t.guardBody}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="min-h-11 sm:min-h-9" onClick={() => blocker.reset?.()}>{t.guardStay}</AlertDialogCancel>
-          <AlertDialogAction className="min-h-11 sm:min-h-9" variant="destructive" onClick={() => blocker.proceed?.()}>{t.guardLeave}</AlertDialogAction>
+          <AlertDialogCancel className="max-sm:min-h-11" onClick={() => blocker.reset?.()}>{t.guardStay}</AlertDialogCancel>
+          <AlertDialogAction className="max-sm:min-h-11" variant="destructive" onClick={() => blocker.proceed?.()}>{t.guardLeave}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -108,7 +108,7 @@ export function DashboardEditor(props: DashboardEditorProps) {
       return (
         <section className="flex flex-col items-start gap-3 rounded-xl border bg-card p-5" role="status">
           <p className="text-sm">{t.gone}</p>
-          <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={props.onExit}>{t.done}</Button>
+          <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={props.onExit}>{t.done}</Button>
         </section>
       )
     }
@@ -324,7 +324,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
     return (
       <section className="flex flex-col items-start gap-3 rounded-xl border bg-card p-5" role="status">
         <p className="text-sm">{t.gone}</p>
-        <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={() => { bypass.current = true; onDeleted() }}>{t.done}</Button>
+        <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={() => { bypass.current = true; onDeleted() }}>{t.done}</Button>
       </section>
     )
   }
@@ -346,7 +346,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
           <Input
             aria-describedby={nameError ? 'dash-edit-name-error' : undefined}
             aria-invalid={nameError ? true : undefined}
-            className="min-h-11 sm:min-h-9"
+            className="max-sm:min-h-11"
             id="dash-edit-name"
             maxLength={120}
             value={draft.name}
@@ -355,10 +355,10 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
           {nameError ? <FieldError id="dash-edit-name-error">{nameError}</FieldError> : null}
         </Field>
         <div className="flex flex-wrap items-center gap-2">
-          <Button className="min-h-11 sm:min-h-9" disabled={busy || conflict || (current.id !== undefined && !dirty)} type="button" onClick={() => void submit()}>
+          <Button className="max-sm:min-h-11" disabled={busy || conflict || (current.id !== undefined && !dirty)} type="button" onClick={() => void submit()}>
             {saving ? t.saving : current.id === undefined ? t.create : t.save}
           </Button>
-          <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={onExit}>
+          <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={onExit}>
             {dirty ? t.discard : t.done}
           </Button>
         </div>
@@ -369,8 +369,8 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
           <h2 className="font-medium">{t.conflictTitle}</h2>
           <p className="text-sm text-muted-foreground">{t.conflictBody}</p>
           <div className="flex flex-wrap gap-2">
-            <Button className="min-h-11 sm:min-h-9" type="button" onClick={() => void reload()}>{t.conflictReload}</Button>
-            <Button className="min-h-11 sm:min-h-9" disabled={busy} type="button" variant="outline" onClick={() => void saveCopy()}>{t.conflictCopy}</Button>
+            <Button className="max-sm:min-h-11" type="button" onClick={() => void reload()}>{t.conflictReload}</Button>
+            <Button className="max-sm:min-h-11" disabled={busy} type="button" variant="outline" onClick={() => void saveCopy()}>{t.conflictCopy}</Button>
           </div>
         </section>
       ) : null}
@@ -399,7 +399,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
             <h2 className="text-sm font-medium" id="dash-edit-widgets">{t.widgets}</h2>
             <p className="text-xs text-muted-foreground">{t.count(widgets.length, limits.maxWidgets)}</p>
           </div>
-          <Button className="min-h-11 sm:min-h-9" disabled={full} type="button" onClick={openAdd}>
+          <Button className="max-sm:min-h-11" disabled={full} type="button" onClick={openAdd}>
             <PlusIcon />{t.add}
           </Button>
         </div>
@@ -431,11 +431,11 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
         <section aria-labelledby="dash-edit-manage" className="flex flex-col gap-3 rounded-xl border bg-card p-4">
           <h2 className="text-sm font-medium" id="dash-edit-manage">{t.manage}</h2>
           <div className="flex flex-wrap items-center gap-2">
-            <Button aria-describedby={dirty ? 'dash-edit-save-first' : undefined} className="min-h-11 sm:min-h-9" disabled={busy || dirty} type="button" variant="outline" onClick={() => void doDuplicate()}>{t.duplicate}</Button>
-            <Button aria-pressed={saved?.is_default ?? false} className="min-h-11 sm:min-h-9" disabled={busy} type="button" variant="outline" onClick={() => void toggleDefault()}>
+            <Button aria-describedby={dirty ? 'dash-edit-save-first' : undefined} className="max-sm:min-h-11" disabled={busy || dirty} type="button" variant="outline" onClick={() => void doDuplicate()}>{t.duplicate}</Button>
+            <Button aria-pressed={saved?.is_default ?? false} className="max-sm:min-h-11" disabled={busy} type="button" variant="outline" onClick={() => void toggleDefault()}>
               {saved?.is_default ? t.clearDefault : t.makeDefault}
             </Button>
-            <Button className="min-h-11 sm:min-h-9" disabled={busy} type="button" variant="destructive" onClick={() => setConfirmDelete(true)}>{t.delete}</Button>
+            <Button className="max-sm:min-h-11" disabled={busy} type="button" variant="destructive" onClick={() => setConfirmDelete(true)}>{t.delete}</Button>
           </div>
           {dirty ? <p className="text-xs text-muted-foreground" id="dash-edit-save-first">{t.saveFirst}</p> : null}
           {saved?.is_default ? <p className="text-xs text-muted-foreground">{t.isDefault}</p> : null}
@@ -473,8 +473,8 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
             <AlertDialogDescription>{t.deleteBody}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11 sm:min-h-9">{t.deleteKeep}</AlertDialogCancel>
-            <AlertDialogAction className="min-h-11 sm:min-h-9" variant="destructive" onClick={(event) => { event.preventDefault(); void doDelete() }}>{t.deleteConfirm}</AlertDialogAction>
+            <AlertDialogCancel className="max-sm:min-h-11">{t.deleteKeep}</AlertDialogCancel>
+            <AlertDialogAction className="max-sm:min-h-11" variant="destructive" onClick={(event) => { event.preventDefault(); void doDelete() }}>{t.deleteConfirm}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

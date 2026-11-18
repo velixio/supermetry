@@ -38,7 +38,7 @@ function AdminLayout() {
     <PageContainer width="narrow">
       <nav aria-label={en.admin.nav} className="flex flex-wrap gap-1 border-b pb-3">
         {sections.map(([to, label]) => (
-          <Link key={to} to={to} className="inline-flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-muted" activeProps={{ className: 'bg-muted font-medium', 'aria-current': 'page' }}>{label}</Link>
+          <Link key={to} to={to} className="inline-flex max-sm:min-h-11 items-center rounded-md px-3 text-sm hover:bg-muted" activeProps={{ className: 'bg-muted font-medium', 'aria-current': 'page' }}>{label}</Link>
         ))}
       </nav>
       <Outlet />

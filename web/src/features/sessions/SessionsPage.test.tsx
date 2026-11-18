@@ -106,8 +106,8 @@ describe('SessionsPage', () => {
 
     const timelineButton = within(card).getByRole('button', { name: 'View session 301' })
     const replayButton = within(card).getByRole('button', { name: 'Play replay' })
-    expect(timelineButton).toHaveClass('min-h-11')
-    expect(replayButton).toHaveClass('size-11')
+    expect(timelineButton).toHaveClass('max-sm:min-h-11')
+    expect(replayButton).toHaveClass('max-sm:size-11')
     fireEvent.click(timelineButton)
     fireEvent.click(replayButton)
     expect(onSelect).toHaveBeenCalledWith('301')

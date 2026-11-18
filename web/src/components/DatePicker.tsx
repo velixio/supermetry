@@ -97,7 +97,7 @@ export function DatePicker({ search, dateRange, labels, onChange }: DatePickerPr
     <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
       <Popover>
         <PopoverTrigger asChild>
-          <Button aria-label={`${en.polish.chooseRange}: ${rangeLabel(search, labels, dateRange)}`} className="min-h-11 justify-start" type="button" variant="outline">
+          <Button aria-label={`${en.polish.chooseRange}: ${rangeLabel(search, labels, dateRange)}`} className="max-sm:min-h-11 justify-start" type="button" variant="outline">
             <CalendarDaysIcon data-icon="inline-start" />
             {rangeLabel(search, labels, dateRange)}
           </Button>
@@ -109,14 +109,14 @@ export function DatePicker({ search, dateRange, labels, onChange }: DatePickerPr
               <p className="text-sm text-muted-foreground">{en.polish.chooseRangeDescription}</p>
             </div>
             <Select value={search.period} onValueChange={(value) => onChange({ ...search, period: value as Period })}>
-              <SelectTrigger aria-label={en.polish.preset} className="min-h-11 w-full"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={en.polish.preset} className="max-sm:min-h-11 w-full"><SelectValue /></SelectTrigger>
               <SelectContent><SelectGroup>{periodValues.map((period) => <SelectItem key={period} value={period}>{labels.periods[period]}</SelectItem>)}</SelectGroup></SelectContent>
             </Select>
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <Button aria-label={en.polish.previousMonth} className="size-11" size="icon" type="button" variant="ghost" onClick={() => setMonth(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)))}><ChevronLeftIcon /></Button>
+                <Button aria-label={en.polish.previousMonth} className="max-sm:size-11" size="icon" type="button" variant="ghost" onClick={() => setMonth(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)))}><ChevronLeftIcon /></Button>
                 <p aria-live="polite" className="text-sm font-medium">{monthName}</p>
-                <Button aria-label={en.polish.nextMonth} className="size-11" size="icon" type="button" variant="ghost" onClick={() => setMonth(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)))}><ChevronRightIcon /></Button>
+                <Button aria-label={en.polish.nextMonth} className="max-sm:size-11" size="icon" type="button" variant="ghost" onClick={() => setMonth(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)))}><ChevronRightIcon /></Button>
               </div>
               <div aria-label={monthName} className="grid grid-cols-7" role="grid">
                 {weekdayNames().map((weekday) => <span key={weekday} className="py-1 text-center text-xs text-muted-foreground" role="columnheader">{weekday}</span>)}
@@ -129,7 +129,7 @@ export function DatePicker({ search, dateRange, labels, onChange }: DatePickerPr
                     key={value}
                     aria-label={`Choose ${fullDay.format(day)}`}
                     aria-pressed={endpoint}
-                    className={cn('size-11 p-0 tabular-nums', outside ? 'text-muted-foreground opacity-50' : null, inRange ? 'bg-muted' : null)}
+                    className={cn('max-sm:size-11 p-0 tabular-nums', outside ? 'text-muted-foreground opacity-50' : null, inRange ? 'bg-muted' : null)}
                     size="icon"
                     type="button"
                     variant={endpoint ? 'default' : 'ghost'}
@@ -142,7 +142,7 @@ export function DatePicker({ search, dateRange, labels, onChange }: DatePickerPr
         </PopoverContent>
       </Popover>
       <Select value={search.compare} onValueChange={(value) => onChange({ ...search, compare: value as Compare })}>
-        <SelectTrigger aria-label={labels.compare} className="min-h-11 min-w-44 flex-1 sm:flex-none" data-testid="compare-control">
+        <SelectTrigger aria-label={labels.compare} className="max-sm:min-h-11 min-w-44 flex-1 sm:flex-none" data-testid="compare-control">
           <SelectValue>{`${labels.compare}: ${labels.comparisons[search.compare]}`}</SelectValue>
         </SelectTrigger>
         <SelectContent><SelectGroup>{compareValues.map((compare) => <SelectItem key={compare} value={compare}>{labels.comparisons[compare]}</SelectItem>)}</SelectGroup></SelectContent>

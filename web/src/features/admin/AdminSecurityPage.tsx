@@ -35,7 +35,7 @@ function PolicyForm() {
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-1 text-sm font-medium">{en.admin.policyScope}</legend>
         {scopes.map((item) => (
-          <label key={item.value} className="flex min-h-11 items-center gap-3 text-sm">
+          <label key={item.value} className="flex max-sm:min-h-11 items-center gap-3 text-sm">
             <input type="radio" name="two-factor-scope" className="size-5" value={item.value} checked={scope === item.value} onChange={() => setScope(item.value)} />
             {item.label}
           </label>
@@ -47,7 +47,7 @@ function PolicyForm() {
       </label>
       <p className="text-sm text-muted-foreground">{en.admin.policyHelp}</p>
       <div className="flex items-center gap-3">
-        <Button type="submit" className="min-h-11" disabled={save.isPending || policy.isPending}>{en.admin.savePolicy}</Button>
+        <Button type="submit" className="max-sm:min-h-11" disabled={save.isPending || policy.isPending}>{en.admin.savePolicy}</Button>
         {save.isSuccess ? <span role="status" className="text-sm text-muted-foreground">{en.admin.saved}</span> : null}
       </div>
     </form>
@@ -72,7 +72,7 @@ function ExemptionForm() {
       <ErrorLine error={grant.error ?? remove.error} />
       <label className="flex flex-col gap-1 text-sm font-medium">
         {en.admin.exemptionUser}
-        <select className="h-11 rounded-lg border border-input bg-background px-3" value={userId} onChange={(event) => setUserId(event.target.value)}>
+        <select className="max-sm:h-11 rounded-lg border border-input bg-background px-3" value={userId} onChange={(event) => setUserId(event.target.value)}>
           <option value="">Choose a user</option>
           {users.data?.data.map((user) => <option key={user.id} value={user.id}>{user.email}</option>)}
         </select>
@@ -86,8 +86,8 @@ function ExemptionForm() {
         <Input type="datetime-local" value={expires} onChange={(event) => setExpires(event.target.value)} />
       </label>
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" className="min-h-11" disabled={!userId || !reason.trim() || grant.isPending}>{en.admin.grantExemption}</Button>
-        <Button type="button" variant="outline" className="min-h-11" disabled={!userId || remove.isPending} onClick={() => remove.mutate(Number(userId))}>{en.admin.removeExemption}</Button>
+        <Button type="submit" className="max-sm:min-h-11" disabled={!userId || !reason.trim() || grant.isPending}>{en.admin.grantExemption}</Button>
+        <Button type="button" variant="outline" className="max-sm:min-h-11" disabled={!userId || remove.isPending} onClick={() => remove.mutate(Number(userId))}>{en.admin.removeExemption}</Button>
         {grant.isSuccess || remove.isSuccess ? <span role="status" className="text-sm text-muted-foreground">{en.admin.saved}</span> : null}
       </div>
     </form>
