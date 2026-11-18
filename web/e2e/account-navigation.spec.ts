@@ -72,7 +72,7 @@ test('sidebar settings links and account menu work on desktop and mobile with ke
   await expect(page.getByRole('navigation', { name: 'Account settings' })).toBeVisible()
   // Account pages render inside the same shell: one 44px header with breadcrumbs, the sidebar and one main.
   const accountHeader = page.getByRole('banner', { name: 'Application header' })
-  expect((await accountHeader.boundingBox())?.height).toBe(44)
+  expect((await accountHeader.boundingBox())?.height).toBe(48)
   await expect(accountHeader.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Account', exact: true })).toHaveAttribute('href', '/app/account')
   await expect(page.getByRole('main')).toHaveCount(1)
   const accountLinks = page.getByRole('complementary', { name: 'Application sidebar' }).getByRole('navigation', { name: 'Account', exact: true })

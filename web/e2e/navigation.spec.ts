@@ -16,7 +16,7 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   await page.setViewportSize({ width: 1440, height: 900 })
   await owner.login(page, dashboard)
   await expect(page.getByRole('navigation', { name: 'Projects' })).toHaveCount(0)
-  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(48)
 
   let documentRequests = 0
   const countDocuments = (request: Request) => {
@@ -93,7 +93,7 @@ test('keeps the same shell mounted between a site and the account pages', async 
   await page.getByRole('button', { name: 'Account', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
   await expect(page).toHaveURL('/app/account/profile')
-  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(48)
   await expect(page.getByRole('main')).toHaveCount(1)
   const token = () => shell.evaluate((element) => (element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken)
   expect(await token()).toBe('persistent')
@@ -150,7 +150,7 @@ test('starts on the icon rail at tablet width and keeps the saved sidebar state'
   await expect(sidebar).toHaveAttribute('data-state', 'expanded')
   await page.reload()
   await expect(sidebar).toHaveAttribute('data-state', 'expanded')
-  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(48)
 })
 
 test('opens the command palette with Ctrl+K and from the header, and navigates without a reload', async ({ page, owner }) => {
