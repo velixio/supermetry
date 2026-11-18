@@ -57,20 +57,20 @@ func TestStoreListAndDelete(t *testing.T) {
 	}
 
 	// Another organization's file is invisible, so it cannot be deleted.
-	if err := st.Delete(ctx, 1, 1, 3); !errors.Is(err, ErrNotFound) {
+	if err := st.Delete(ctx, 1, 1, 3, false); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("cross-org delete err = %v", err)
 	}
 	// Project 1's row goes; project 2's row still uses the upload and the cache.
-	if err := st.Delete(ctx, 1, 1, 1); err != nil {
+	if err := st.Delete(ctx, 1, 1, 1, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := blobs.Open(ctx, "difcache/1/a"); err != nil {
 		t.Fatalf("shared cache blob deleted early: %v", err)
 	}
-	if err := st.Delete(ctx, 1, 1, 2); !errors.Is(err, ErrNotFound) {
+	if err := st.Delete(ctx, 1, 1, 2, false); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("a row of another project err = %v", err)
 	}
-	if err := st.Delete(ctx, 1, 2, 2); err != nil {
+	if err := st.Delete(ctx, 1, 2, 2, false); err != nil {
 		t.Fatal(err)
 	}
 	for _, k := range []string{"difcache/1/a", "difs/1/" + rep("1")} {

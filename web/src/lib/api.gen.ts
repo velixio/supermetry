@@ -2813,7 +2813,7 @@ export interface paths {
         post?: never;
         /**
          * Delete one debug file
-         * @description Removes the file; its upload and stored blobs go when no other row uses them. Owner, admin or editor only. Events already symbolicated are not changed.
+         * @description Removes the file; its upload and stored blobs go when no other row uses them. Owner, admin or editor only, and only for the project's own files; an organization-wide file (shared by every project) is removed by an organization owner or admin, anyone else gets 404. Events already symbolicated are not changed.
          */
         delete: operations["deleteAppDebugFile"];
         options?: never;

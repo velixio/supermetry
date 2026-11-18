@@ -109,10 +109,13 @@ order by last_seen desc, debug_id limit $2`, siteID, maxMissing)
 	return out, mrows.Err()
 }
 
-// Delete removes one debug file row the project can see. When no other row
-// refers to its upload the upload and its raw blob go too; a cache blob goes
-// when no other row uses it. ErrNotFound means no such file for the project.
-func (s *Store) Delete(ctx context.Context, orgID int64, siteID int32, id int64) error {
+// Delete removes one debug file row of the project. An organization-wide row
+// (no project) is shared by every project of the organization, so it goes only
+// when allowOrgWide is set, which the caller grants after an organization-level
+// permission check. When no other row refers to its upload the upload and its
+// raw blob go too; a cache blob goes when no other row uses it. ErrNotFound
+// means no such file the caller may delete.
+func (s *Store) Delete(ctx context.Context, orgID int64, siteID int32, id int64, allowOrgWide bool) error {
 	var uploadID int64
 	var cacheKey *string
 	var checksum string
@@ -120,8 +123,8 @@ func (s *Store) Delete(ctx context.Context, orgID int64, siteID int32, id int64)
 	var cacheShared bool
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
-delete from app_debug_files f where f.id = $1 and f.org_id = $2 and (f.site_id = $3 or f.site_id is null)
-returning f.upload_id, f.cache_key`, id, orgID, siteID).Scan(&uploadID, &cacheKey)
+delete from app_debug_files f where f.id = $1 and f.org_id = $2 and (f.site_id = $3 or ($4 and f.site_id is null))
+returning f.upload_id, f.cache_key`, id, orgID, siteID, allowOrgWide).Scan(&uploadID, &cacheKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}

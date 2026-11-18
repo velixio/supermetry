@@ -65,7 +65,7 @@ func (h *handler) deleteAppDebugFile(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusNotFound, "Not found", "no such debug file")
 		return
 	}
-	if err := h.appDebugStore().Delete(r.Context(), site.OrgID, site.ID, id); err != nil {
+	if err := h.appDebugStore().Delete(r.Context(), site.OrgID, site.ID, id, authz.Can(principal, authz.ActionOrgUpdate, 0)); err != nil {
 		if errors.Is(err, appdebug.ErrNotFound) {
 			writeProblem(w, http.StatusNotFound, "Not found", "no such debug file")
 			return
