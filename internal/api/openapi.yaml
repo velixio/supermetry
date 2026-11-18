@@ -3412,6 +3412,43 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/releases/compare:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: a, in: query, required: true, schema: { type: string, maxLength: 64 } }
+      - { name: b, in: query, required: true, schema: { type: string, maxLength: 64 } }
+    get:
+      operationId: compareAppReleases
+      tags: [Apps]
+      summary: Two releases side by side
+      description: Both releases over the same range. The delta is B minus A; a rate delta is null when either side has no rate. only_in_b lists issues with events in B and none in A.
+      responses:
+        '200': { description: Comparison, content: { application/json: { schema: { $ref: '#/components/schemas/AppReleaseComparison' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/releases/{release}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: release, in: path, required: true, schema: { type: string, maxLength: 64 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppRelease
+      tags: [Apps]
+      summary: One release with its rollout, deploys and issues
+      description: Works for a release that exists only in events (no release API row; created is null and status is open). 404 when the release has neither a row visible to the project nor any data in retention.
+      responses:
+        '200': { description: Release, content: { application/json: { schema: { $ref: '#/components/schemas/AppReleaseDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/deploys:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -6228,32 +6265,103 @@ components:
               name: { type: string }
               url: { type: string }
               at: { type: string, format: date-time }
+    AppReleaseRow:
+      type: object
+      required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, adoption, handled_errors, unhandled_errors, health_source, new_issues, regressed_issues]
+      properties:
+        release: { type: string }
+        first_seen: { type: string, format: date-time }
+        last_seen: { type: string, format: date-time }
+        installs: { type: integer, format: int64 }
+        crash_free_users: { $ref: '#/components/schemas/AppRate' }
+        crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+        sessions: { type: integer, format: int64 }
+        users: { type: integer, format: int64 }
+        abnormal_sessions: { type: integer, format: int64 }
+        errored_sessions: { type: integer, format: int64 }
+        adoption: { $ref: '#/components/schemas/AppRate' }
+        handled_errors: { type: integer, format: int64 }
+        unhandled_errors: { type: integer, format: int64 }
+        health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
+        new_issues: { type: integer, format: int64 }
+        regressed_issues: { type: integer, format: int64 }
     AppReleases:
       type: object
       required: [releases]
       properties:
         releases:
           type: array
-          items:
-            type: object
-            required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, adoption, handled_errors, unhandled_errors, health_source, new_issues, regressed_issues]
-            properties:
-              release: { type: string }
-              first_seen: { type: string, format: date-time }
-              last_seen: { type: string, format: date-time }
-              installs: { type: integer, format: int64 }
-              crash_free_users: { $ref: '#/components/schemas/AppRate' }
-              crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
-              sessions: { type: integer, format: int64 }
-              users: { type: integer, format: int64 }
-              abnormal_sessions: { type: integer, format: int64 }
-              errored_sessions: { type: integer, format: int64 }
-              adoption: { $ref: '#/components/schemas/AppRate' }
-              handled_errors: { type: integer, format: int64 }
-              unhandled_errors: { type: integer, format: int64 }
-              health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
-              new_issues: { type: integer, format: int64 }
-              regressed_issues: { type: integer, format: int64 }
+          items: { $ref: '#/components/schemas/AppReleaseRow' }
+    AppReleaseIssue:
+      type: object
+      required: [id, title, events]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        events: { type: integer, format: int64 }
+    AppRolloutPoint:
+      type: object
+      required: [day, sessions, adoption, crash_free_sessions, crash_free_users]
+      properties:
+        day: { type: string, format: date }
+        sessions: { type: integer, format: int64 }
+        adoption: { $ref: '#/components/schemas/AppRate' }
+        crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+        crash_free_users: { $ref: '#/components/schemas/AppRate' }
+    AppReleaseDetail:
+      type: object
+      required: [release, first_seen, last_seen, created, status, ref, health, rollout, deploys, new_issues, regressed_issues, commit_count, health_source]
+      properties:
+        release: { type: string }
+        first_seen: { type: string, format: date-time, nullable: true }
+        last_seen: { type: string, format: date-time, nullable: true }
+        created: { type: string, format: date-time, nullable: true, description: Null for a release known only from events. }
+        status: { type: string, enum: [open, archived] }
+        ref: { type: string }
+        health: { $ref: '#/components/schemas/AppReleaseRow' }
+        rollout:
+          type: array
+          description: One point per day the release had sessions; adoption is its share of the project's sessions that day.
+          items: { $ref: '#/components/schemas/AppRolloutPoint' }
+        deploys:
+          type: array
+          items: { $ref: '#/components/schemas/AppDeploy' }
+        new_issues:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AppReleaseIssue' }
+        regressed_issues:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AppReleaseIssue' }
+        commit_count: { type: integer }
+        health_source: { type: string, description: "sessions or events" }
+    AppReleaseComparison:
+      type: object
+      required: [a, b, delta, only_in_b]
+      properties:
+        a: { $ref: '#/components/schemas/AppReleaseDetail' }
+        b: { $ref: '#/components/schemas/AppReleaseDetail' }
+        delta:
+          type: object
+          required: [crash_free_sessions, crash_free_users, new_issues]
+          properties:
+            crash_free_sessions: { type: number, format: double, nullable: true }
+            crash_free_users: { type: number, format: double, nullable: true }
+            new_issues: { type: integer, format: int64 }
+        only_in_b:
+          type: array
+          items: { $ref: '#/components/schemas/AppReleaseIssue' }
+    AppDeploy:
+      type: object
+      required: [id, release, environment, name, url, at]
+      properties:
+        id: { type: integer, format: int64 }
+        release: { type: string }
+        environment: { type: string }
+        name: { type: string }
+        url: { type: string }
+        at: { type: string, format: date-time }
     AppLink:
       type: object
       required: [app_site_id]
