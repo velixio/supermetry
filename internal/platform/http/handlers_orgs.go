@@ -25,6 +25,9 @@ func (h *handler) createAPIKey(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot manage API keys")
 		return
 	}
+	if !h.requireRecentAuth(w, r, principal) {
+		return
+	}
 	var request CreateAPIKeyRequest
 	if !decodeJSON(w, r, &request) {
 		return

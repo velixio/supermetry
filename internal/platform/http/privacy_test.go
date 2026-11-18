@@ -39,7 +39,7 @@ func TestReplayPolicyRejectsEscalationAllowsTightening(t *testing.T) {
 
 func TestAnonymousRejectsForgedProfileOptIn(t *testing.T) {
 	owner := authz.Principal{UserID: 1, OrgID: 7, Role: authz.RoleOwner}
-	route := New(Deps{Authenticator: importTestAuth{owner}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
+	route := New(Deps{StepUp: freshStepUp{}, Authenticator: importTestAuth{owner}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
 	request := httptest.NewRequest(http.MethodPatch, "/api/private/sites/1", strings.NewReader(`{"profiles_enabled":true}`))
 	request.Header.Set("X-CSRF-Token", "csrf")
 	request.AddCookie(&http.Cookie{Name: "supermetry_csrf", Value: "csrf"})
@@ -51,7 +51,7 @@ func TestAnonymousRejectsForgedProfileOptIn(t *testing.T) {
 }
 
 func TestTrackingPolicyKeepsConfiguredAndEffectiveDistinct(t *testing.T) {
-	h := handler{deps: Deps{TrackingMode: privacy.Anonymous}}
+	h := handler{deps: Deps{StepUp: freshStepUp{}, TrackingMode: privacy.Anonymous}}
 	result := h.trackingPolicy(true)
 	if !result.ConfiguredProfilesEnabled || result.EffectiveMode != "anonymous" || len(result.Restrictions) != 1 || result.Restrictions[0] != "instance_anonymous" {
 		t.Fatalf("policy=%+v", result)
@@ -60,7 +60,7 @@ func TestTrackingPolicyKeepsConfiguredAndEffectiveDistinct(t *testing.T) {
 
 func TestAnonymousBlocksImportsAndExportsBeforeStorage(t *testing.T) {
 	owner := authz.Principal{UserID: 1, OrgID: 7, Role: authz.RoleOwner}
-	route := New(Deps{Authenticator: importTestAuth{owner}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
+	route := New(Deps{StepUp: freshStepUp{}, Authenticator: importTestAuth{owner}, Sites: importTestSites{1: {ID: 1, OrgID: 7}}})
 	for _, tc := range []struct{ name, method, path string }{
 		{"import", http.MethodPost, "/api/private/sites/1/imports"},
 		{"export", http.MethodGet, "/api/private/sites/1/export"},
@@ -90,7 +90,7 @@ func (s privacyTestSites) All() []coresites.Site {
 
 func TestSiteResponseReportsConfiguredAndEffectivePrivacy(t *testing.T) {
 	owner := authz.Principal{UserID: 1, OrgID: 7, Role: authz.RoleOwner}
-	route := New(Deps{Authenticator: importTestAuth{owner}, Sites: privacyTestSites{importTestSites{1: {ID: 1, OrgID: 7, ProfilesEnabled: true}}}})
+	route := New(Deps{StepUp: freshStepUp{}, Authenticator: importTestAuth{owner}, Sites: privacyTestSites{importTestSites{1: {ID: 1, OrgID: 7, ProfilesEnabled: true}}}})
 	for _, path := range []string{"/api/private/sites/1", "/api/private/sites"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		response := httptest.NewRecorder()

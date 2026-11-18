@@ -4271,7 +4271,7 @@ paths:
     post:
       operationId: createApiKey
       summary: Create a narrower API key
-      description: Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated.
+      description: Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated. Without an expiry field the key expires after 90 days (clamped to the caller key's own expiry); send never_expires only to create a key that does not expire.
       requestBody:
         required: true
         content:
@@ -4298,6 +4298,52 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/public/v1/api-keys/{key_id}/roll:
+    parameters:
+      - name: key_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    post:
+      operationId: rollApiKey
+      summary: Roll an API key
+      description: >-
+        Requires keys:manage. Creates a successor with the same name, scopes, site access and expiry policy,
+        and lets the old key keep working for grace_hours (default 24). The caller needs authority over the
+        key being rolled: a key cannot roll a key with broader scopes or sites, nor a keys:manage key.
+        The successor never outlives the caller key.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollAPIKeyRequest'
+      responses:
+        '201':
+          description: Successor created; its secret is returned only in this response.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolledAPIKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -6542,7 +6588,7 @@ components:
     APIKey:
       type: object
       additionalProperties: false
-      required: [id, name, scopes, site_ids, created_at, expires_at, last_used_at, revoked]
+      required: [id, name, scopes, site_ids, created_at, expires_at, last_used_at, last_used_country, last_used_client, revoked, never_expires, expiring_soon]
       properties:
         id: { type: integer, format: int64 }
         name: { type: string }
@@ -6556,7 +6602,16 @@ components:
         created_at: { type: string, format: date-time }
         expires_at: { type: [string, 'null'], format: date-time }
         last_used_at: { type: [string, 'null'], format: date-time }
+        last_used_country:
+          type: [string, 'null']
+          description: Two-letter country of the last request, from the local GeoIP database. The IP address is never stored.
+        last_used_client:
+          type: [string, 'null']
+          enum: [mcp, curl, sdk-js, sdk-python, browser, other, null]
+          description: Coarse client family of the last request. The raw User-Agent is never stored.
         revoked: { type: boolean }
+        never_expires: { type: boolean, description: True when expires_at is null. }
+        expiring_soon: { type: boolean, description: True for a live key that expires within 14 days. }
     APIKeyList:
       type: object
       additionalProperties: false
@@ -6578,16 +6633,46 @@ components:
         site_ids:
           type: array
           items: { type: integer, format: int32 }
-        expires_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time, description: Explicit expiry. Choose at most one of expires_at, expires_in_days and never_expires. }
+        expires_in_days:
+          type: integer
+          minimum: 1
+          maximum: 3650
+          description: Expire this many days from now.
+        never_expires:
+          type: boolean
+          description: Create a key without an expiry. When none of the three expiry fields is sent, the key expires after 90 days.
     CreatedAPIKey:
       type: object
       additionalProperties: false
-      required: [id, key]
+      required: [id, key, expires_at]
       properties:
         id: { type: integer, format: int64 }
         key:
           type: string
           description: The secret value. It is shown once and cannot be retrieved later.
+        expires_at: { type: [string, 'null'], format: date-time }
+    RollAPIKeyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        grace_hours:
+          type: integer
+          enum: [0, 1, 24, 168]
+          default: 24
+          description: How long the old key keeps working after the roll. 0 ends it immediately.
+    RolledAPIKey:
+      type: object
+      additionalProperties: false
+      required: [id, key, expires_at, old_key_id, old_key_expires_at]
+      properties:
+        id: { type: integer, format: int64 }
+        key:
+          type: string
+          description: The successor's secret. It is shown once and cannot be retrieved later.
+        expires_at: { type: [string, 'null'], format: date-time }
+        old_key_id: { type: integer, format: int64 }
+        old_key_expires_at: { type: string, format: date-time }
     MCPMessage:
       oneOf:
         - $ref: '#/components/schemas/MCPRequest'

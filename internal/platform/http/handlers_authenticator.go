@@ -45,7 +45,7 @@ func (a *ServiceAuthenticator) Authenticate(r *http.Request) (authz.Principal, b
 		if !ok || !strings.EqualFold(scheme, "Bearer") || credential == "" {
 			return authz.Principal{}, false
 		}
-		return a.keys.Verify(r.Context(), credential)
+		return a.keys.VerifyRequest(r, credential)
 	}
 	if !strings.HasPrefix(r.URL.Path, "/api/private/") || a == nil || a.auth == nil || a.orgs == nil {
 		return authz.Principal{}, false
@@ -130,7 +130,7 @@ func accountRequest(r *http.Request) bool {
 		"GET /api/private/me/orgs/deleted", "GET /api/private/me/app-notifications",
 		"GET /api/private/me/ip", "HEAD /api/private/me/ip", "GET /api/private/me/sessions", "HEAD /api/private/me/sessions", "DELETE /api/private/me/sessions",
 		"POST /api/private/me/email", "POST /api/private/me/password", "POST /api/private/me/totp", "PATCH /api/private/me/totp", "DELETE /api/private/me/totp", "POST /api/private/me/totp/recovery-codes",
-		"GET /api/private/orgs", "HEAD /api/private/orgs", "POST /api/private/orgs", "POST /api/private/auth/logout",
+		"GET /api/private/orgs", "HEAD /api/private/orgs", "POST /api/private/orgs", "POST /api/private/auth/logout", "POST /api/private/auth/reauth",
 		"GET /api/private/auth/email-change/confirm", "HEAD /api/private/auth/email-change/confirm", "POST /api/private/auth/email-change/confirm":
 		return true
 	}
@@ -163,7 +163,7 @@ func impersonationBlocked(r *http.Request) bool {
 	case "DELETE /api/private/me",
 		"POST /api/private/me/email", "POST /api/private/me/password",
 		"POST /api/private/me/totp", "PATCH /api/private/me/totp", "DELETE /api/private/me/totp", "POST /api/private/me/totp/recovery-codes",
-		"DELETE /api/private/me/sessions",
+		"DELETE /api/private/me/sessions", "POST /api/private/auth/reauth",
 		"GET /api/private/auth/email-change/confirm", "HEAD /api/private/auth/email-change/confirm", "POST /api/private/auth/email-change/confirm":
 		return true
 	}
@@ -180,6 +180,8 @@ func impersonationBlocked(r *http.Request) bool {
 		}
 		switch {
 		case r.Method == http.MethodPost && (suffix == "api-keys" || suffix == "invitations" || suffix == "channels"):
+			return true
+		case r.Method == http.MethodPost && strings.HasPrefix(suffix, "api-keys/") && strings.HasSuffix(suffix, "/roll"):
 			return true
 		case r.Method == http.MethodPatch && strings.HasPrefix(suffix, "members/"):
 			return true
