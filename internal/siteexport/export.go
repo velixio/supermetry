@@ -21,6 +21,17 @@ import (
 type Exporter struct {
 	trackingMode privacy.Mode
 	pool         *pgxpool.Pool
+	now          func() time.Time
+}
+
+// SetClock replaces the clock that applies log retention; tests only.
+func (e *Exporter) SetClock(now func() time.Time) { e.now = now }
+
+func (e *Exporter) clock() time.Time {
+	if e.now != nil {
+		return e.now()
+	}
+	return time.Now()
 }
 
 func New(pool *pgxpool.Pool) *Exporter { return &Exporter{pool: pool} }
