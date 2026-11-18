@@ -330,6 +330,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	webhookClient := alerts.NewWebhookClient(alerts.WebhookOptions{AllowPrivate: cfg.AllowPrivateWebhooks})
 	telegramClient := alerts.NewTelegramClient(alerts.TelegramOptions{})
 	alertDispatcher := alerts.NewDispatcher(sender, webhookClient, telegramClient)
+	alertDispatcher.SetPagerDuty("", cfg.BaseURL)
 	alertService := alerts.New(platformStore, alertBox, alertDispatcher)
 	alertMetrics := alerts.NewEngineSource(engine, definitionService)
 	alertEvaluator := alerts.NewEvaluator(alertService, alertMetrics, registry, sessions, alertDispatcher, settings.clock.Now,
@@ -771,7 +772,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, ruleEvaluator.Job(), appmonitors.Job(appMonitorStore))
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
-		issueNotifier.Job())
+		issueNotifier.Job(),
+		appissues.NewDigester(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
 	jobRunner := scheduler.New(pool, nil, jobs...)
 	schedulerDone := make(chan error, 1)
 	go func() { schedulerDone <- jobRunner.Run(schedulerCtx) }()

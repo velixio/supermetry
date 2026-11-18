@@ -57,6 +57,16 @@ type Dispatcher struct {
 	mailer   mail.Sender
 	webhooks *WebhookClient
 	telegram TelegramSender
+	// pagerDutyURL and baseURL are set by SetPagerDuty; the zero values mean
+	// the public Events API endpoint and no absolute links.
+	pagerDutyURL string
+	baseURL      string
+}
+
+// SetPagerDuty overrides the Events API endpoint (tests) and sets the public
+// base URL used to make issue links in PagerDuty events absolute.
+func (d *Dispatcher) SetPagerDuty(endpoint, baseURL string) {
+	d.pagerDutyURL, d.baseURL = endpoint, baseURL
 }
 
 func NewDispatcher(mailer mail.Sender, webhooks *WebhookClient, telegram TelegramSender) *Dispatcher {
@@ -95,6 +105,19 @@ func (d *Dispatcher) Deliver(ctx context.Context, channel DeliveryChannel, notif
 			return errors.New("Telegram delivery is unavailable")
 		}
 		return d.telegram.SendMessage(ctx, channel.BotToken, channel.ChatID, message.Body)
+	case ChannelPagerDuty:
+		if d.webhooks == nil {
+			return errors.New("PagerDuty delivery is unavailable")
+		}
+		body, err := BuildPagerDutyEvent(channel.RoutingKey, notification, message.Body, d.baseURL)
+		if err != nil {
+			return errors.New("encode PagerDuty event")
+		}
+		endpoint := d.pagerDutyURL
+		if endpoint == "" {
+			endpoint = PagerDutyEnqueueURL
+		}
+		return d.webhooks.SendPagerDuty(ctx, endpoint, body)
 	default:
 		return fmt.Errorf("unknown channel kind %q", channel.Kind)
 	}

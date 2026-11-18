@@ -50,6 +50,7 @@ type storedChannelConfig struct {
 	Secret     string   `json:"secret,omitempty"`
 	BotToken   string   `json:"bot_token,omitempty"`
 	ChatID     string   `json:"chat_id,omitempty"`
+	RoutingKey string   `json:"routing_key,omitempty"`
 }
 
 func (s *Service) ListChannels(ctx context.Context, principal authz.Principal) ([]Channel, error) {
@@ -175,7 +176,23 @@ func (s *Service) TestChannel(ctx context.Context, principal authz.Principal, id
 		return err
 	}
 	now := s.now()
-	if err := s.deliverer.Deliver(ctx, channel, Notification{Kind: AlertTrafficSpike, FiredAt: now}); err != nil {
+	test := Notification{Kind: AlertTrafficSpike, FiredAt: now}
+	if channel.Kind == ChannelPagerDuty {
+		// A test page is resolved straight away so it never leaves an open
+		// incident on call.
+		test = Notification{Kind: AlertRule, FiredAt: now, Rule: &RuleNotification{
+			Name: "Supermetry test notification", TriggerType: TriggerMetric, Status: ruleStatusFiring, Key: "test-" + strconv.FormatInt(now.Unix(), 10),
+		}}
+	}
+	err = s.deliverer.Deliver(ctx, channel, test)
+	if err == nil && channel.Kind == ChannelPagerDuty {
+		resolve := test
+		rule := *test.Rule
+		rule.Status = ruleStatusResolve
+		resolve.Rule = &rule
+		_ = s.deliverer.Deliver(ctx, channel, resolve)
+	}
+	if err != nil {
 		_ = s.store.Tx(ctx, func(tx pgx.Tx) error {
 			return audit.Write(ctx, tx, principal, "notification_channel.tested", "notification_channel", id, map[string]any{"status": "failed"})
 		})
@@ -463,6 +480,21 @@ func (s *Service) encodeChannel(input ChannelInput, existing *storedChannelConfi
 		} else {
 			return nil, ErrInvalid
 		}
+	case ChannelPagerDuty:
+		if len(input.Recipients) != 0 || input.URL != "" || input.Secret != "" || input.BotToken != "" || input.ChatID != "" {
+			return nil, ErrInvalid
+		}
+		switch {
+		case input.RoutingKey != "":
+			if !ValidPagerDutyRoutingKey(input.RoutingKey) {
+				return nil, ErrInvalid
+			}
+			config.RoutingKey = base64.StdEncoding.EncodeToString(s.box.Seal([]byte(input.RoutingKey)))
+		case existing != nil && existing.RoutingKey != "":
+			config.RoutingKey = existing.RoutingKey
+		default:
+			return nil, ErrInvalid
+		}
 	default:
 		return nil, ErrInvalid
 	}
@@ -487,7 +519,7 @@ func scanChannel(row rowScanner) (Channel, error) {
 	}
 	channel.Config = ChannelConfig{
 		Recipients: append([]string(nil), config.Recipients...), ChatID: config.ChatID,
-		Configured: len(config.Recipients) > 0 || config.URL != "" || (config.BotToken != "" && config.ChatID != ""),
+		Configured: len(config.Recipients) > 0 || config.URL != "" || (config.BotToken != "" && config.ChatID != "") || config.RoutingKey != "",
 	}
 	return channel, nil
 }
@@ -571,6 +603,12 @@ func (s *Service) scanDeliveryChannel(row rowScanner) (DeliveryChannel, error) {
 		}
 	}
 	channel.ChatID = config.ChatID
+	if config.RoutingKey != "" {
+		channel.RoutingKey, err = s.openConfig(config.RoutingKey)
+		if err != nil {
+			return DeliveryChannel{}, err
+		}
+	}
 	if config.BotToken != "" {
 		channel.BotToken, err = s.openConfig(config.BotToken)
 		if err != nil {

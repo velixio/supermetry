@@ -178,7 +178,7 @@ func containsUnsafeControl(value string) bool {
 
 func validChannelKind(kind ChannelKind) bool {
 	switch kind {
-	case ChannelEmail, ChannelWebhook, ChannelSlack, ChannelDiscord, ChannelTelegram:
+	case ChannelEmail, ChannelWebhook, ChannelSlack, ChannelDiscord, ChannelTelegram, ChannelPagerDuty:
 		return true
 	default:
 		return false
@@ -187,7 +187,7 @@ func validChannelKind(kind ChannelKind) bool {
 
 func scrubDeliveryError(channel DeliveryChannel, raw string) string {
 	clean := raw
-	for _, secret := range []string{channel.URL, channel.Secret, channel.BotToken} {
+	for _, secret := range []string{channel.URL, channel.Secret, channel.BotToken, channel.RoutingKey} {
 		if secret != "" {
 			clean = strings.ReplaceAll(clean, secret, "[redacted]")
 		}

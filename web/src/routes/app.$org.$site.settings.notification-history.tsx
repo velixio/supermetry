@@ -7,7 +7,7 @@ import { useSite } from '@/features/settings/routeContext'
 export const Route = createFileRoute('/app/$org/$site/settings/notification-history')({
   validateSearch: (search: Record<string, unknown>): HistoryFilters => ({
     status: ['pending', 'succeeded', 'failed'].includes(String(search.status)) ? String(search.status) as DeliveryStatus : undefined,
-    channel: ['email', 'slack', 'discord', 'telegram', 'webhook'].includes(String(search.channel)) ? String(search.channel) : undefined,
+    channel: ['email', 'slack', 'discord', 'telegram', 'pagerduty', 'webhook'].includes(String(search.channel)) ? String(search.channel) : undefined,
     alertId: Number(search.alertId) > 0 ? Number(search.alertId) : undefined,
   }),
   component: NotificationHistoryRoute,

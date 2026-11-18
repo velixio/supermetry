@@ -858,7 +858,7 @@ paths:
       tags: [Apps]
       security: [{ cookieAuth: [] }]
       summary: The signed-in user's issue notification switches for every app project they can read
-      description: Defaults apply until saved. Assigned and regressed are on by default, resolved is off.
+      description: Defaults apply until saved. Assigned and regressed are on by default; resolved and the weekly digest are off.
       responses:
         '200': { description: Projects with switches, content: { application/json: { schema: { type: object, required: [sites], properties: { sites: { type: array, items: { $ref: '#/components/schemas/AppNotificationPrefsSite' } } } } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -5483,7 +5483,7 @@ components:
         rows: { type: array, items: { $ref: '#/components/schemas/SearchConsoleTopRow' } }
     NotificationChannelKind:
       type: string
-      enum: [email, webhook, slack, discord, telegram, none]
+      enum: [email, webhook, slack, discord, telegram, pagerduty, none]
     DeliveryStatus:
       type: string
       description: suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
@@ -6827,9 +6827,10 @@ components:
         assigned: { type: boolean, description: An issue was assigned to me. }
         resolved: { type: boolean, description: An issue assigned to me was resolved by someone else. }
         regressed: { type: boolean, description: An issue assigned to me regressed. }
+        weekly_digest: { type: boolean, description: 'Mail the weekly digest on Monday 09:00 in the project time zone. Optional when saving: absent keeps the current value. Always present in responses.' }
     AppNotificationPrefsSite:
       type: object
-      required: [site_id, site_name, site_slug, org_slug, org_name, assigned, resolved, regressed]
+      required: [site_id, site_name, site_slug, org_slug, org_name, assigned, resolved, regressed, weekly_digest]
       properties:
         site_id: { type: integer, format: int32 }
         site_name: { type: string }
@@ -6839,6 +6840,7 @@ components:
         assigned: { type: boolean }
         resolved: { type: boolean }
         regressed: { type: boolean }
+        weekly_digest: { type: boolean }
     AppIssueChange:
       type: object
       additionalProperties: false
