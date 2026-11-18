@@ -186,6 +186,22 @@ order by c.day,c.reason,c.category`
 		return err
 	}
 
+	// Active installs per day: counts only, never install ids or their hashes.
+	active := `
+select g.day::text,
+ (select count(*) from app_active_day a where a.site_id=$1 and a.day=g.day),
+ (select count(distinct a.visitor_id) from app_active_day a where a.site_id=$1 and a.day between g.day-6 and g.day),
+ (select count(distinct a.visitor_id) from app_active_day a where a.site_id=$1 and a.day between g.day-29 and g.day),
+ (select count(*) from app_active_day a where a.site_id=$1 and a.day=g.day
+    and not exists (select 1 from app_active_day p where p.site_id=$1 and p.visitor_id=a.visitor_id and p.day<a.day))
+from (select d::date as day from generate_series($2::date,$3::date,interval '1 day') d) g
+where exists (select 1 from app_active_day a where a.site_id=$1 and a.day=g.day)
+order by g.day`
+	if err := e.writeRows(ctx, archive, "app_active_users.csv",
+		[]string{"day", "dau", "wau", "mau", "new_installs"}, active, siteID, f, t); err != nil {
+		return err
+	}
+
 	// Metadata only: never blob keys, file URLs or contents.
 	artifacts := `
 select b.id,b.release,b.dist,b.state,

@@ -3307,20 +3307,26 @@ type AppSettings struct {
 
 // AppUserErase defines model for AppUserErase.
 type AppUserErase struct {
+	// InstallId Optional. The install id of the same person's device: also deletes the install's daily activity rows now and queues the erasure of its profile. Matched by keyed hash; never stored.
+	InstallId *string `json:"install_id,omitempty"`
+
 	// UserId The user id the app's SDK reports.
 	UserId string `json:"user_id"`
 }
 
 // AppUserErasure defines model for AppUserErasure.
 type AppUserErasure struct {
-	Attempts         int                  `json:"attempts"`
-	BodiesDeleted    int64                `json:"bodies_deleted"`
-	CompletedAt      time.Time            `json:"completed_at"`
-	CreatedAt        time.Time            `json:"created_at"`
-	EventsAnonymized int64                `json:"events_anonymized"`
-	Id               int64                `json:"id"`
-	LastError        string               `json:"last_error"`
-	Status           AppUserErasureStatus `json:"status"`
+	Attempts         int       `json:"attempts"`
+	BodiesDeleted    int64     `json:"bodies_deleted"`
+	CompletedAt      time.Time `json:"completed_at"`
+	CreatedAt        time.Time `json:"created_at"`
+	EventsAnonymized int64     `json:"events_anonymized"`
+	Id               int64     `json:"id"`
+
+	// InstallActiveDaysDeleted Present on the 202 response when install_id was sent.
+	InstallActiveDaysDeleted *int64               `json:"install_active_days_deleted,omitempty"`
+	LastError                string               `json:"last_error"`
+	Status                   AppUserErasureStatus `json:"status"`
 
 	// StatusUrl Present on the 202 response.
 	StatusUrl *string `json:"status_url,omitempty"`

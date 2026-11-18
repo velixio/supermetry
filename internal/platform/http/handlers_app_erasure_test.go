@@ -11,9 +11,45 @@ import (
 	"testing"
 	"time"
 
+	"supermetry/internal/appproduct"
 	"supermetry/internal/db"
 	"supermetry/internal/profileerasure"
 )
+
+func TestEraseAppUserWithInstallDeletesActiveDays(t *testing.T) {
+	f := newAppKeyFixture(t)
+	ctx := context.Background()
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	if _, err := f.pool.Exec(ctx, `insert into app_hash_secrets(site_id,secret) values ($1,$2)`, f.siteID, secret); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EnsureAppActiveDayPartitions(ctx, f.pool, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	for _, install := range []string{"mine", "theirs"} {
+		for _, day := range []string{"2026-10-10", "2026-10-11"} {
+			if _, err := f.pool.Exec(ctx, `insert into app_active_day(site_id,day,visitor_id,events,screens,sessions,engagement_ms) values($1,$2,$3,0,1,1,0)`,
+				f.siteID, day, appproduct.VisitorID(secret, install)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	path := fmt.Sprintf("/api/private/sites/%d/app/users/erase", f.siteID)
+	res := f.request(t, "owner", http.MethodPost, path, `{"user_id":"alice","install_id":"mine"}`)
+	if res.Code != http.StatusAccepted || !strings.Contains(res.Body.String(), `"install_active_days_deleted":2`) {
+		t.Fatalf("erase = %d %s", res.Code, res.Body)
+	}
+	var left int
+	if err := f.pool.QueryRow(ctx, `select count(*) from app_active_day where visitor_id = $1`, appproduct.VisitorID(secret, "theirs")).Scan(&left); err != nil || left != 2 {
+		t.Fatalf("other install rows = %d %v", left, err)
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from app_active_day where visitor_id = $1`, appproduct.VisitorID(secret, "mine")).Scan(&left); err != nil || left != 0 {
+		t.Fatalf("erased install rows = %d %v", left, err)
+	}
+	if res := f.request(t, "viewer", http.MethodPost, path, `{"user_id":"alice","install_id":"theirs"}`); res.Code != http.StatusForbidden {
+		t.Fatalf("viewer = %d", res.Code)
+	}
+}
 
 func TestEraseAppUser(t *testing.T) {
 	f := newAppKeyFixture(t)

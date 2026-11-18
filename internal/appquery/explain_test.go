@@ -8,6 +8,48 @@ import (
 	"supermetry/internal/appfixture"
 )
 
+// TestActiveDayReadsUseIndexes seeds 20,000 installs over 30 days and
+// checks the MAU window read is an index scan (the new-install anti-join may hash).
+// Run with -v to see the plans.
+func TestActiveDayReadsUseIndexes(t *testing.T) {
+	p := appfixture.NewProduct(t, "UTC")
+	ctx := context.Background()
+	if _, err := p.Pool.Exec(ctx, `
+insert into app_active_day(site_id,day,visitor_id,events,screens,sessions,engagement_ms)
+select 7, date '2026-09-10' + d, v, 0, 1, 1, 0
+from generate_series(0, 29) d, generate_series(1, 20000) v
+where (v + d) % 3 <> 0`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Pool.Exec(ctx, `analyze app_active_day`); err != nil {
+		t.Fatal(err)
+	}
+	for name, query := range map[string]string{
+		"mau window": `select count(distinct visitor_id) from app_active_day where site_id = 7 and day >= '2026-09-10' and day <= '2026-10-09'`,
+		"new install lookup": `select count(*) from app_active_day a where a.site_id = 7 and a.day = '2026-10-01'
+and not exists (select 1 from app_active_day p where p.site_id = 7 and p.visitor_id = a.visitor_id and p.day < a.day)`,
+	} {
+		rows, err := p.Pool.Query(ctx, `explain (analyze, buffers, costs off) `+query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var plan []string
+		for rows.Next() {
+			var line string
+			if err := rows.Scan(&line); err != nil {
+				t.Fatal(err)
+			}
+			plan = append(plan, line)
+		}
+		rows.Close()
+		text := strings.Join(plan, "\n")
+		t.Logf("%s:\n%s", name, text)
+		if name == "mau window" && !strings.Contains(text, "Index") {
+			t.Fatalf("%s uses no index:\n%s", name, text)
+		}
+	}
+}
+
 // TestOverviewReadUsesTheSiteTimeIndex seeds a second app and a few tens of
 // thousands of rows, then checks the overview's raw scan is served by
 // the site/time index on the one pruned partition. Run with -v to see the plan.

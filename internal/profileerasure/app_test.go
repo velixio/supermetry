@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/appproduct"
 	"supermetry/internal/db"
 	"supermetry/internal/testpg"
 )
@@ -127,6 +128,59 @@ func (f appFixture) counts(t *testing.T) (bodies, hashed int) {
 		t.Fatal(err)
 	}
 	return
+}
+
+func TestEraseAppInstallRemovesExactlyThatInstall(t *testing.T) {
+	f := newAppFixture(t)
+	ctx := context.Background()
+	if err := db.EnsureAppActiveDayPartitions(ctx, f.pool, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	mine, other := appproduct.VisitorID(appTestSecret, "install-1"), appproduct.VisitorID(appTestSecret, "install-2")
+	for _, row := range []struct {
+		site    int
+		day     string
+		visitor int64
+	}{{7, "2026-11-16", mine}, {7, "2026-11-17", mine}, {7, "2026-11-17", other}, {8, "2026-11-17", mine}} {
+		if _, err := f.pool.Exec(ctx, `insert into app_active_day(site_id,day,visitor_id,events,screens,sessions,engagement_ms) values($1,$2,$3,0,1,1,0)`,
+			row.site, row.day, row.visitor); err != nil {
+			t.Fatal(err)
+		}
+	}
+	external := appproduct.ProfileExternalID(appTestSecret, "install-1")
+	if _, err := f.pool.Exec(ctx, `insert into profiles(site_id,external_id,first_seen_at,last_seen_at) values (7,$1,now(),now())`, external); err != nil {
+		t.Fatal(err)
+	}
+	var rows int64
+	err := pgx.BeginFunc(ctx, f.pool, func(tx pgx.Tx) error {
+		var err error
+		rows, err = EraseAppInstall(ctx, tx, New(f.pool), 7, "install-1", appTestSecret, RequestedByUser(5))
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows != 2 {
+		t.Fatalf("rows deleted = %d, want 2", rows)
+	}
+	var left, requests int
+	if err := f.pool.QueryRow(ctx, `select count(*), (select count(*) from profile_erasure_requests where site_id = 7) from app_active_day`).Scan(&left, &requests); err != nil {
+		t.Fatal(err)
+	}
+	if left != 2 || requests != 1 {
+		t.Fatalf("rows left = %d (want 2: other install, other site), profile erasures = %d (want 1)", left, requests)
+	}
+	// An install without a profile only loses its active days.
+	err = pgx.BeginFunc(ctx, f.pool, func(tx pgx.Tx) error {
+		_, err := EraseAppInstall(ctx, tx, New(f.pool), 7, "install-2", appTestSecret, RequestedByUser(5))
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.pool.QueryRow(ctx, `select count(*) from profile_erasure_requests`).Scan(&requests); err != nil || requests != 1 {
+		t.Fatalf("profile erasures = %d %v", requests, err)
+	}
 }
 
 func TestAppWorkerErasesBodiesAndHashAndAuditsCountsOnly(t *testing.T) {

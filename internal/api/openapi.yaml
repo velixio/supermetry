@@ -4677,6 +4677,7 @@ components:
       additionalProperties: false
       properties:
         user_id: { type: string, minLength: 1, maxLength: 512, description: The user id the app's SDK reports. }
+        install_id: { type: string, maxLength: 512, description: 'Optional. The install id of the same person''s device: also deletes the install''s daily activity rows now and queues the erasure of its profile. Matched by keyed hash; never stored.' }
     AppUserErasure:
       type: object
       required: [id, status, bodies_deleted, events_anonymized, attempts, last_error, created_at, completed_at]
@@ -4684,6 +4685,7 @@ components:
         id: { type: integer, format: int64 }
         status: { type: string, enum: [pending, running, done, failed] }
         status_url: { type: string, description: Present on the 202 response. }
+        install_active_days_deleted: { type: integer, format: int64, description: Present on the 202 response when install_id was sent. }
         bodies_deleted: { type: integer, format: int64 }
         events_anonymized: { type: integer, format: int64 }
         attempts: { type: integer }

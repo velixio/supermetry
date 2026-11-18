@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"supermetry/internal/db"
 	"supermetry/internal/privacy"
 	"supermetry/internal/siteexport"
@@ -85,6 +87,12 @@ insert into app_debug_files(id,upload_id,org_id,site_id,debug_id,code_id,kind,ar
 
 func newAppExport(t *testing.T) (*siteexport.Exporter, context.Context) {
 	t.Helper()
+	e, ctx, _ := newAppExportPool(t)
+	return e, ctx
+}
+
+func newAppExportPool(t *testing.T) (*siteexport.Exporter, context.Context, *pgxpool.Pool) {
+	t.Helper()
 	pool, _ := testpg.New(t)
 	ctx := context.Background()
 	if err := db.Migrate(ctx, pool); err != nil {
@@ -100,7 +108,7 @@ func newAppExport(t *testing.T) (*siteexport.Exporter, context.Context) {
 	}
 	e := siteexport.New(pool)
 	e.SetTrackingMode(privacy.Identified)
-	return e, ctx
+	return e, ctx, pool
 }
 
 func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site int32) (map[string][][]string, []string, string) {
@@ -196,6 +204,32 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 		{"file_id", "kind", "debug_id", "code_id", "arch", "object_name", "features", "cache_state", "size_bytes", "created"},
 		{"1", "elf", "7a3c9e10-55b2-4b8e-8a53-2f0c8d4e9a01", "109e3c7a", "arm64", "libfix.so", "symtab debug", "ok", "4096", "2026-10-02T07:30:00.000Z"},
 	})
+}
+
+func TestAppExportActiveUsersCountsOnly(t *testing.T) {
+	e, ctx, pool := newAppExportPool(t)
+	if err := db.EnsureAppActiveDayPartitions(ctx, pool, day("2026-09-01"), day("2026-11-01")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into app_active_day(site_id,day,visitor_id,events,screens,sessions,engagement_ms) values
+ (7,'2026-09-30',7770001,0,1,1,0),(7,'2026-10-01',7770001,0,1,1,0),(7,'2026-10-02',7770001,0,1,1,0),(7,'2026-10-02',7770002,0,1,1,0),
+ (9,'2026-10-02',7770003,0,1,1,0)`); err != nil {
+		t.Fatal(err)
+	}
+	files, _, raw := exportFiles(t, e, ctx, 7)
+	want := [][]string{
+		{"day", "dau", "wau", "mau", "new_installs"},
+		{"2026-10-01", "1", "1", "1", "0"},
+		{"2026-10-02", "2", "2", "2", "1"},
+	}
+	if !slices.EqualFunc(files["app_active_users.csv"], want, slices.Equal[[]string]) {
+		t.Fatalf("app_active_users.csv = %q\nwant %q", files["app_active_users.csv"], want)
+	}
+	for _, id := range []string{"7770001", "7770002", "7770003"} {
+		if strings.Contains(raw, ","+id) || strings.Contains(raw, id+",") {
+			t.Fatalf("export mentions visitor id %s", id)
+		}
+	}
 }
 
 func TestAppExportLeaksNoPersonalData(t *testing.T) {

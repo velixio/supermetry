@@ -97,6 +97,7 @@ func newLinkFixture(t *testing.T) linkFixture {
 		handler: platformhttp.New(platformhttp.Deps{
 			Authenticator: authenticator, Sites: registry, Store: data, LinkCache: cache,
 			AppErasures:        profileerasure.NewAppStore(pool),
+			ProfileErasures:    profileerasure.New(pool),
 			TrackingPixelViews: views, Pixels: pixelReg,
 			BaseURL: "https://sm.example.test",
 			Now:     func() time.Time { return now },
