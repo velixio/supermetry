@@ -161,7 +161,7 @@ test('opens the command palette with Ctrl+K and from the header, and navigates w
   page.on('request', (request) => {
     if (request.resourceType() === 'document') documentRequests += 1
   })
-  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Open command palette' })
+  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Search or jump to…' })
   await expect(trigger).toBeVisible()
   await page.keyboard.press('Control+KeyK')
   const palette = page.getByRole('dialog', { name: 'Command palette' })

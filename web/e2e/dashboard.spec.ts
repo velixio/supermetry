@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import type { Request } from '@playwright/test'
 
 import { expect, fmtCompact, test } from './fixtures'
+import { setTheme } from './theme'
 
 const range = { from: '2026-09-28', to: '2026-09-30' }
 
@@ -111,7 +112,7 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   expect(header).toMatch(/country/i)
 
   await page.getByRole('button', { name: 'Close' }).click()
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.reload()
   await expect(page.locator('html')).toHaveClass(/dark/)

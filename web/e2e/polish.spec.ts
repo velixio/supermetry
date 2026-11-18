@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const screenshotDir = 'e2e/screenshots/polish'
 const range = '?period=custom&from=2026-09-28&to=2026-09-30'
@@ -25,10 +26,10 @@ test('polished dashboard controls, hierarchy, redirect, and responsive layouts',
   await noHorizontalOverflow(page)
   await page.screenshot({ path: `${screenshotDir}/dashboard-1440-light.png`, fullPage: true })
 
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.screenshot({ path: `${screenshotDir}/dashboard-1440-dark.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
 
   await page.setViewportSize({ width: 1024, height: 900 })
   await noHorizontalOverflow(page)

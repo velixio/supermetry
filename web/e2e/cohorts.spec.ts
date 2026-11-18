@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 
 import { expect, test, type Owner } from './fixtures'
+import { setTheme } from './theme'
 
 function sql(owner: Owner, statement: string) {
   if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('Expected an isolated synthetic schema')
@@ -105,7 +106,7 @@ test('cohorts: build, preview, save, evaluate, filter, duplicate, delete, power 
   expect(order.map((line) => /e2e-\w+/.exec(line)?.[0]).filter(Boolean)).toEqual(['e2e-ada', 'e2e-grace', 'e2e-linus'])
   await page.screenshot({ path: 'e2e/screenshots/cohorts/1440-power-light.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.waitForTimeout(400)
   await page.screenshot({ path: 'e2e/screenshots/cohorts/1440-power-dark.png', fullPage: true })

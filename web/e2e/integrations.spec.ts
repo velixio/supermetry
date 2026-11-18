@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test, type Owner } from './fixtures'
+import { setTheme } from './theme'
 
 const shots = 'e2e/screenshots/integrations'
 const settings = (owner: Owner) => `/app/${owner.orgSlug}/${owner.siteSlug}/settings/integrations`
@@ -91,7 +92,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
   for (const [name, width, height, scheme] of [['1440-light', 1440, 1000, 'light'], ['1440-dark', 1440, 1000, 'dark'], ['1024', 1024, 900, 'light'], ['390', 390, 900, 'light']] as const) {
     const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
     if ((scheme === 'dark') !== dark) {
-      await page.getByRole('button', { name: scheme === 'dark' ? 'Use dark theme' : 'Use light theme' }).click()
+      await setTheme(page, scheme)
     }
     await page.setViewportSize({ width, height })
     await noHorizontalScroll(page)

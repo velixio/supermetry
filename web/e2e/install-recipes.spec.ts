@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const screenshotDir = 'e2e/screenshots/install-recipes'
 
@@ -38,10 +39,10 @@ test('install recipes show real snippets, switch platforms and verify the instal
 
   await noHorizontalOverflow(page)
   await page.screenshot({ path: `${screenshotDir}/1440-light.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.screenshot({ path: `${screenshotDir}/1440-dark.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
 
   // The fixture events are old, so verification waits until a new event arrives.
   await page.getByRole('button', { name: 'Verify installation' }).click()

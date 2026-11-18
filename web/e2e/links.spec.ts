@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const screenshotDir = 'e2e/screenshots/links'
 const desktopUA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -97,10 +98,10 @@ test('short links: create, redirect safely, count clicks, show statistics and pi
   await expectNoHorizontalOverflow(page)
   await page.screenshot({ path: `${screenshotDir}/1440-light.png`, fullPage: true })
 
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.screenshot({ path: `${screenshotDir}/1440-dark.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
 
   // QR code is produced locally.
   const requests: string[] = []
