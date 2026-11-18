@@ -20,6 +20,11 @@ PATCH /api/private/goals/{goal}  # Dashboard or account flow; session/private UI
 GET /api/private/health  # Dashboard or account flow; session/private UI contract.
 POST /api/private/heatmaps/query  # Dashboard or account flow; session/private UI contract.
 DELETE /api/private/imports/{import}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/imports/{import}  # Dashboard or account flow; session/private UI contract.
+GET /api/private/imports/ga4/callback  # Dashboard or account flow; session/private UI contract.
+GET /api/private/imports/ga4/connections  # Dashboard or account flow; session/private UI contract.
+GET /api/private/imports/ga4/connections/{connection}/properties  # Dashboard or account flow; session/private UI contract.
+DELETE /api/private/imports/ga4/connections/{connection}  # Dashboard or account flow; session/private UI contract.
 GET /api/private/invitations/{token}  # Dashboard or account flow; session/private UI contract.
 POST /api/private/invitations/{token}/accept  # Dashboard or account flow; session/private UI contract.
 POST /api/private/journeys/query  # Dashboard or account flow; session/private UI contract.
@@ -83,6 +88,10 @@ POST /api/private/sites/{site}/icon/refetch  # Dashboard or account flow; sessio
 GET /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports/preview  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/imports/capabilities  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/imports/pull  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/imports/pull/preview  # Dashboard or account flow; session/private UI contract.
+POST /api/private/sites/{site}/imports/ga4/connect  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/links  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/links  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/pixel  # Dashboard or account flow; session/private UI contract.

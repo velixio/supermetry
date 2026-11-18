@@ -158,7 +158,9 @@ type Deps struct {
 	ImportQueue     interface {
 		Queue(imports.Job) error
 	}
-	Exporter interface {
+	// ImportPulls serves API-based imports (Plausible, Matomo, GA4). Optional.
+	ImportPulls ImportPullService
+	Exporter    interface {
 		Write(context.Context, io.Writer, int32, time.Time, time.Time) error
 	}
 	ReplayStore replay.BlobStore
@@ -436,6 +438,15 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/imports", h.listImports)
 	mux.HandleFunc("POST /api/private/sites/{site}/imports/preview", h.previewImport)
 	mux.HandleFunc("DELETE /api/private/imports/{import}", h.deleteImport)
+	mux.HandleFunc("GET /api/private/imports/{import}", h.getImport)
+	mux.HandleFunc("GET /api/private/sites/{site}/imports/capabilities", h.importCapabilities)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports/pull", h.createPullImport)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports/pull/preview", h.previewPullImport)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports/ga4/connect", h.connectGA4)
+	mux.HandleFunc("GET /api/private/imports/ga4/callback", h.ga4Callback)
+	mux.HandleFunc("GET /api/private/imports/ga4/connections", h.listGA4Connections)
+	mux.HandleFunc("GET /api/private/imports/ga4/connections/{connection}/properties", h.listGA4Properties)
+	mux.HandleFunc("DELETE /api/private/imports/ga4/connections/{connection}", h.deleteGA4Connection)
 	mux.HandleFunc("GET /api/private/sites/{site}/export", h.exportSite)
 	mux.HandleFunc("GET /api/private/sites/{site}/profiles", h.listProfiles)
 	mux.HandleFunc("GET /api/private/profiles/{profile}", h.getProfile)
