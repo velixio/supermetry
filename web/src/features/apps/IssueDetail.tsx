@@ -23,6 +23,8 @@ import { StatusBadge } from './IssuesTable'
 const DIMENSIONS: [string, string][] = [
   ['release', 'Release'], ['platform', 'Platform'], ['os_version', 'OS version'], ['arch', 'Architecture'], ['device_class', 'Device class'], ['environment', 'Environment'],
 ]
+// The Electron process (main, renderer, ...) is an event tag; it gets its own card instead of a generic tag card.
+const PROCESS_KEY = 'tag:process'
 
 function BarList({ title, rows }: { title: string; rows: AppIssueDetailData['breakdowns'][string] }) {
   const max = Math.max(...rows.map((row) => row.events), 1)
@@ -89,7 +91,8 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
   const act = (status: 'open' | 'resolved' | 'ignored', resolved_in_release?: string) => setStatus.mutate(resolved_in_release ? { status, resolved_in_release } : { status })
   const breakdowns = [
     ...DIMENSIONS.map(([key, title]) => [title, data.breakdowns[key]] as const),
-    ...Object.keys(data.breakdowns).filter((key) => key.startsWith('tag:')).sort().map((key) => [key.slice(4), data.breakdowns[key]] as const),
+    ['Process', data.breakdowns[PROCESS_KEY]] as const,
+    ...Object.keys(data.breakdowns).filter((key) => key.startsWith('tag:') && key !== PROCESS_KEY).sort().map((key) => [key.slice(4), data.breakdowns[key]] as const),
   ].filter(([, rows]) => rows && rows.length > 0)
   return (
     <PageContainer>
