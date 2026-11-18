@@ -254,7 +254,29 @@ from app_debug_files d
 join app_dif_uploads u on u.id=d.upload_id
 where d.org_id=$5 and (d.site_id is null or d.site_id=$1) and ` + inWindow("d.created_at") + `
 order by d.id`
-	return e.writeRows(ctx, archive, "app_debug_files.csv",
+	if err := e.writeRows(ctx, archive, "app_debug_files.csv",
 		[]string{"file_id", "kind", "debug_id", "code_id", "arch", "object_name", "features", "cache_state", "size_bytes", "created"},
-		debugFiles, siteID, f, t, tz, orgID)
+		debugFiles, siteID, f, t, tz, orgID); err != nil {
+		return err
+	}
+
+	// Logs: inside the window and inside the site's own log retention
+	// (partitions are shared by all projects, so older rows can still exist).
+	// Never user_hash, span ids or the source.
+	var hasLogs bool
+	if err := e.pool.QueryRow(ctx, `select to_regclass('logs') is not null`).Scan(&hasLogs); err != nil {
+		return fmt.Errorf("check logs: %w", err)
+	}
+	if !hasLogs {
+		return nil
+	}
+	logs := `
+select ` + utc("l.ts") + `,l.severity,l.service,l.environment,l.release,coalesce(encode(l.trace_id,'hex'),''),l.body,l.attributes::text
+from logs l
+where l.site_id=$1 and ` + inWindow("l.ts") + `
+  and l.ts >= $5::timestamptz - make_interval(days => coalesce(nullif((select settings->'app'->>'log_retention_days' from sites where id=$1)::int,0),7))
+order by l.ts,l.rid`
+	return e.writeRows(ctx, archive, "logs.csv", []string{
+		"timestamp", "severity", "service", "environment", "release", "trace_id", "body", "attributes",
+	}, logs, siteID, f, t, tz, e.clock())
 }
