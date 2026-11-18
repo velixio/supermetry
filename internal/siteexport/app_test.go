@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -258,6 +260,38 @@ func TestAppExportLeaksNoPersonalData(t *testing.T) {
 		if strings.Contains(strings.ToLower(raw), bad) {
 			t.Fatalf("export contains %q", bad)
 		}
+	}
+}
+
+func TestAppExportSpanRollups(t *testing.T) {
+	e, ctx, pool := newAppExportPool(t)
+	if _, err := pool.Exec(ctx, `
+insert into span_hourly(site_id,local_hour,is_segment,name,op,group_hash,release,environment,platform,count,errors,sum_us,buckets,bucket_counts) values
+ (7,'2026-10-02 09:00',true,'GET /items','http.server',0,'1.0','prod','go',3,1,100,'{100,140}','{2,1}'),
+ (7,'2026-10-02 09:00',false,'','db.query',42,'1.0','prod','go',9,0,100,'{100}','{9}'),
+ (7,'2026-09-01 09:00',true,'old','http.server',0,'1.0','prod','go',1,0,1,'{1}','{1}'),
+ (9,'2026-10-02 09:00',true,'theirs','http.server',0,'1.0','prod','go',1,0,1,'{1}','{1}');
+insert into span_groups(site_id,group_hash,op,description,first_seen) values
+ (7,42,'db.query','select * from users where id = ?','2026-10-02T09:00:00Z'),
+ (9,43,'db.query','theirs','2026-10-02T09:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	files, _, _ := exportFiles(t, e, ctx, 7)
+	// p50 is the nearest rank 2 of 3 spans (bucket 100), p95 rank 3 (bucket 140).
+	want := [][]string{
+		{"local_hour", "name", "op", "release", "environment", "platform", "count", "errors", "p50_ms", "p95_ms"},
+		{"2026-10-02T09:00", "GET /items", "http.server", "1.0", "prod", "go", "3", "1",
+			fmt.Sprintf("%.3f", math.Pow(1.1, 100.5)/1000), fmt.Sprintf("%.3f", math.Pow(1.1, 140.5)/1000)},
+	}
+	if !slices.EqualFunc(files["app_transactions_hourly.csv"], want, slices.Equal[[]string]) {
+		t.Fatalf("app_transactions_hourly.csv = %q\nwant %q", files["app_transactions_hourly.csv"], want)
+	}
+	groups := [][]string{
+		{"group_id", "op", "label", "first_seen"},
+		{"42", "db.query", "select * from users where id = ?", "2026-10-02T09:00:00.000Z"},
+	}
+	if !slices.EqualFunc(files["app_span_groups.csv"], groups, slices.Equal[[]string]) {
+		t.Fatalf("app_span_groups.csv = %q\nwant %q", files["app_span_groups.csv"], groups)
 	}
 }
 
