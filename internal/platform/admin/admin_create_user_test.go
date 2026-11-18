@@ -16,7 +16,7 @@ func TestAdminCreateUserWithOrg(t *testing.T) {
 	ctx := context.Background()
 	fake := &mail.Fake{}
 	authService := platformauth.New(data, fake, nil, "https://app.example.test")
-	service.SetResetStarter(authService.StartReset)
+	service.SetResetStarter(authService.StartAccountSetup)
 
 	user, err := service.CreateUser(ctx, actorID, CreateUserInput{Email: " New@X.test ", Name: "New Person", OrgName: "Newco", SendReset: true})
 	if err != nil {
@@ -28,8 +28,13 @@ func TestAdminCreateUserWithOrg(t *testing.T) {
 	if len(user.Memberships) != 1 || user.Memberships[0].OrgName != "Newco" || user.Memberships[0].Role != "owner" {
 		t.Fatalf("memberships = %+v", user.Memberships)
 	}
-	if len(fake.Sent) != 1 || fake.Sent[0].To != "new@x.test" || !strings.Contains(fake.Sent[0].Text, "/reset/") {
+	if len(fake.Sent) != 1 || fake.Sent[0].To != "new@x.test" || !strings.Contains(fake.Sent[0].Text, "/reset/") ||
+		fake.Sent[0].Subject != "Welcome to Supermetry: set your password" || !strings.Contains(fake.Sent[0].Text, "?setup=1") {
 		t.Fatalf("sent = %+v", fake.Sent)
+	}
+	var setupHours float64
+	if err := data.Pool.QueryRow(ctx, `select extract(epoch from max(expires_at) - now())/3600 from password_resets where user_id=$1`, user.ID).Scan(&setupHours); err != nil || setupHours < 23 || setupHours > 25 {
+		t.Fatalf("setup link lifetime = %.1fh err=%v, want about 24h", setupHours, err)
 	}
 	var actor int64
 	var action string
