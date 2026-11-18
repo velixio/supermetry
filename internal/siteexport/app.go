@@ -202,6 +202,36 @@ order by g.day`
 		return err
 	}
 
+	// Hourly transaction rollups in the site's local hours. p50 and p95 are
+	// nearest-rank estimates over the stored duration histogram (bucket b is
+	// worth 1.1^(b+0.5) microseconds); counts only, no trace or user data.
+	pct := func(p string) string {
+		return `(select round((power(1.1::float8, x.b + 0.5) / 1000)::numeric, 3)
+  from (select u.b, sum(u.c) over (order by u.b) as cum from unnest(h.buckets, h.bucket_counts) as u(b, c)) x
+  where x.cum >= ceil(` + p + `::float8 * h.count::float8) order by x.b limit 1)`
+	}
+	transactions := `
+select to_char(h.local_hour,'YYYY-MM-DD"T"HH24:MI'),h.name,h.op,h.release,h.environment,h.platform,h.count,h.errors,
+ coalesce(` + pct("0.5") + `::text,''),coalesce(` + pct("0.95") + `::text,'')
+from span_hourly h
+where h.site_id=$1 and h.is_segment and h.local_hour >= $2::date and h.local_hour < ($3::date)+1
+order by h.local_hour,h.name,h.op,h.release,h.environment,h.platform`
+	if err := e.writeRows(ctx, archive, "app_transactions_hourly.csv", []string{
+		"local_hour", "name", "op", "release", "environment", "platform", "count", "errors", "p50_ms", "p95_ms",
+	}, transactions, siteID, f, t); err != nil {
+		return err
+	}
+	// Child span groups: operation and parameterised description only.
+	groups := `
+select g.group_hash,g.op,g.description,` + utc("g.first_seen") + `
+from span_groups g
+where g.site_id=$1
+order by g.group_hash`
+	if err := e.writeRows(ctx, archive, "app_span_groups.csv",
+		[]string{"group_id", "op", "label", "first_seen"}, groups, siteID); err != nil {
+		return err
+	}
+
 	// Metadata only: never blob keys, file URLs or contents.
 	artifacts := `
 select b.id,b.release,b.dist,b.state,

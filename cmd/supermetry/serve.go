@@ -87,6 +87,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/spanrollup"
 	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
 	"supermetry/internal/updatecheck"
@@ -504,7 +505,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
-		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20})
+		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20,
+		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
@@ -520,7 +522,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			}
 			return nil
 		},
-	}, spans.HealthStats{}, nil)
+	}, spans.HealthStats{}, func(siteID int32, localHours []time.Time) {
+		// Spans landed in already-rolled hours: mark them dirty so the
+		// span-rollups job rebuilds them. Runs on the writer goroutine.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := spanrollup.MarkDirty(ctx, pool, siteID, localHours); err != nil {
+			slog.Warn("mark span hours dirty", "site", siteID, "error", err)
+		}
+	})
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
@@ -531,7 +541,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
-			Disk: debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
+			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
+			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
 		})
 		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
@@ -1237,6 +1248,7 @@ func scheduledJobs(
 			return closeDueDays(ctx, pool, registry, closed, clk.Now(), closeInvalidators...)
 		}},
 		approllup.Job(pool, registry, clk.Now),
+		spanrollup.Job(pool, registry, clk.Now),
 		{Name: "salts", Every: 10 * time.Minute, Run: func(ctx context.Context) error {
 			if err := saltStore.Refresh(ctx); err != nil {
 				return err
