@@ -6,6 +6,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.27 (2026-11-18)
+
 ### Added
 
 - **Performance monitoring for app projects.** Sentry transactions, the span containers that `@sentry/browser` and `@sentry/node` 11 stream by default, and OpenTelemetry traces (`/api/{id}/otlp/v1/traces`) land in a partitioned `spans` table with an hourly histogram rollup. The Performance pages show transactions with throughput, error rate and p50 to p99, a trace waterfall, grouped database and HTTP spans, slow transactions, release regressions, network failures, app start times and a Web Vitals link; errors link to their traces, alert rules gain transaction percentiles and the MCP server gains four tools. Descriptions are parameterised and scrubbed and spans keep no user data. Real recordings from `@sentry/node`, `@sentry/browser` and `sentry-go` fixed how streamed segments are named (`Pageload` becomes the page path), and `make sdk-compat` now covers tracing for Node, browser, Python, Go and the OpenTelemetry Go and Python exporters. See [Performance](docs/guide/apps.md#performance).
