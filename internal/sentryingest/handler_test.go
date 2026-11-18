@@ -332,7 +332,7 @@ func TestSizeCaps(t *testing.T) {
 		t.Errorf("attachments = %d", w.Code)
 	}
 	snap := e.h.Stats().Snapshot()
-	if snap["attachment_too_large"] != 1 || snap["minidump_deferred"] != 1 || snap["item:transaction"] != 1 || snap["item:unknown"] != 1 {
+	if snap["attachment_too_large"] != 1 || snap["minidump_unprocessed"] != 1 || snap["item:transaction"] != 1 || snap["item:unknown"] != 1 {
 		t.Errorf("stats = %v", snap)
 	}
 }
@@ -604,7 +604,7 @@ func TestMatchesRouterContract(t *testing.T) {
 	e := newEnv(t)
 	for path, want := range map[string]bool{
 		"/api/42/envelope/": true, "/api/42/envelope": true, "/api/7/store/": true, "/api/9/security": true,
-		"/api/private/sites": false, "/api/public/v1/app-events": false, "/api/42/minidump/": false,
+		"/api/private/sites": false, "/api/public/v1/app-events": false, "/api/42/minidump/": true,
 	} {
 		if got := e.h.Matches(httptest.NewRequest(http.MethodPost, path, nil)); got != want {
 			t.Errorf("Matches(%s) = %v", path, got)

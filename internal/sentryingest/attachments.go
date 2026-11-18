@@ -28,7 +28,7 @@ func (h *Handler) prepareAttachments(items []Item) preparedAttachments {
 			hasEvent = true
 		case "attachment":
 			in = append(in, appattach.Input{Name: it.Filename, ContentType: it.ContentType, AttachmentType: it.AttachmentType, Payload: it.Payload})
-			if len(it.Payload) > MaxAttachment {
+			if len(it.Payload) > MaxAttachment && it.AttachmentType != "event.minidump" {
 				oversize++
 			}
 		}

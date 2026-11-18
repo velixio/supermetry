@@ -197,7 +197,7 @@ func (h *Handler) Stats() *Stats { return h.stats }
 
 type route struct {
 	siteID int32
-	kind   string // "envelope", "store" or "security"
+	kind   string // "envelope", "store", "security" or "minidump"
 }
 
 // parseRoute matches /api/{numeric id}/{envelope|store|security}[/].
@@ -211,7 +211,7 @@ func parseRoute(path string) (route, bool) {
 		return route{}, false
 	}
 	kind = strings.TrimSuffix(kind, "/")
-	if kind != "envelope" && kind != "store" && kind != "security" {
+	if kind != "envelope" && kind != "store" && kind != "security" && kind != "minidump" {
 		return route{}, false
 	}
 	id, err := strconv.ParseInt(idPart, 10, 32)
@@ -246,6 +246,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rt, ok := parseRoute(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
+		return
+	}
+	if rt.kind == "minidump" {
+		h.serveMinidump(w, r, rt)
 		return
 	}
 	hdr := w.Header()
@@ -441,9 +445,20 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 		EventID: env.Header.EventID, SentAt: env.Header.SentAt, SDKName: env.Header.SDK.Name, SDKVersion: env.Header.SDK.Version,
 		ClientIP: req.ClientIP, UserAgent: req.UserAgent, Country: req.Country, Stats: h.stats,
 	}
+	// The first minidump that fits travels with the event to symbolication; it
+	// is processed in memory and never stored.
+	var dump []byte
 	for _, it := range env.Items {
 		if it.Type == "attachment" && it.AttachmentType == "event.minidump" {
 			ctx.HasMinidump = true
+			switch {
+			case len(it.Payload) > MaxMinidump:
+				h.stats.Add("minidump_too_large", 1)
+			case dump == nil && h.symb != nil:
+				dump = it.Payload
+			case h.symb == nil:
+				h.stats.Add("minidump_unprocessed", 1)
+			}
 		}
 	}
 	prep := h.prepareAttachments(env.Items)
@@ -497,7 +512,10 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				out.eventID = ev.ID
 			}
 			applyRow(&ev, body.Row)
-			if h.symb != nil && needsSymbolication(body) {
+			if dump != nil {
+				body.Minidump, dump = dump, nil
+			}
+			if h.symb != nil && (needsSymbolication(body) || len(body.Minidump) > 0) {
 				// The queued event is accepted later, so answer an exhausted
 				// budget now: the sender must see 429, not a silent 200.
 				if res := h.intake.Admit(site, budgetKey, now); res.Reason != "" {
@@ -514,6 +532,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 					continue
 				}
 			}
+			body.Minidump = nil // not processed: the dump is dropped, never stored
 			if count(h.intake.Accept(site, budgetKey, now, ev)) && h.bodies != nil {
 				body.Attachments, body.Files = prep.Metas, prep.Files
 				if !h.bodies.Enqueue(body) {
@@ -575,10 +594,10 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 			h.stats.Add("item:client_report", 1)
 		case "attachment":
 			switch {
+			case it.AttachmentType == "event.minidump":
+				// Counted above and processed with the event.
 			case len(it.Payload) > MaxAttachment:
 				h.stats.Add("attachment_too_large", 1)
-			case it.AttachmentType == "event.minidump":
-				h.stats.Add("minidump_deferred", 1)
 			default:
 				h.stats.Add("item:attachment", 1)
 			}
