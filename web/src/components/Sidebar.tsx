@@ -7,6 +7,7 @@ import {
   Building2Icon,
   ChartNoAxesCombinedIcon,
   CircleDollarSignIcon,
+  ChevronDownIcon,
   CircleGaugeIcon,
   CodeXmlIcon,
   MonitorSmartphoneIcon,
@@ -20,6 +21,8 @@ import {
   TimerIcon,
   Link2Icon,
   MousePointer2Icon,
+  PinIcon,
+  PinOffIcon,
   PlusIcon,
   RouteIcon,
   Rows3Icon,
@@ -29,6 +32,7 @@ import {
   UserRoundIcon,
   UsersRoundIcon,
 } from 'lucide-react'
+import { useEffect, type ComponentType, type ReactNode } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 
 import { SiteIcon } from '@/components/SiteIcon'
@@ -54,6 +58,7 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
+  SidebarMenuAction,
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
@@ -64,6 +69,8 @@ import { useCreateDemo } from '@/features/demo/useDemo'
 import { ui } from '@/messages/ui'
 import { AccountMenu } from './HeaderMenus'
 import { defaultSearch, stringifySearch } from '@/lib/search'
+import { useSidebarPrefs } from '@/lib/shellPrefs'
+import { isOrgScopedPath } from './routeCrumbs'
 import { orgSwitchTarget, siteSwitchTarget, type CurrentRoute } from '@/lib/switchTarget'
 
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
@@ -396,6 +403,8 @@ export function SidebarAccountFooter({ me }: { me: Me }) {
   )
 }
 
+type NavEntry = { key: string; label: string; active: boolean; button: ReactNode }
+
 export function SupermetrySidebar({
   me,
   membership,
@@ -413,25 +422,132 @@ export function SupermetrySidebar({
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   // The site list keeps the current page (and its portable search) for the chosen site.
   const current = useCurrentRoute()
-  const { setOpenMobile } = useSidebar()
+  const { setOpenMobile, state: sidebarState, isMobile } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
+  const { prefs, setGroupOpen, togglePin } = useSidebarPrefs(me.user.id)
+  const orgScope = isOrgScopedPath(pathname)
   const hasDemo = membership.sites.some((item) => item.is_demo)
   const demoStateKnown = membership.sites.every((item) => item.is_demo !== undefined)
   const visibleItems = visibleNavigation(membership.role, Boolean(navigationSite), membership, navigationSite)
   const showReplays = replaysAvailable(membership, navigationSite)
+  // On the icon rail every group shows, so no item is hidden behind a collapsed heading.
+  const rail = sidebarState === 'collapsed' && !isMobile
+
+  const sections = navigationSections.map((section) => {
+    const suffixes = new Set<string>(section.suffixes)
+    const entries: NavEntry[] = []
+    for (const item of visibleItems.filter((candidate) => suffixes.has(candidate.suffix))) {
+      const active = navigationIsActive(item, pathname, membership.org.slug, currentSite)
+      entries.push({
+        key: `nav:${item.suffix || '/'}`,
+        label: item.label,
+        active,
+        button: (
+          <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={item.label}>
+            {navigationLink(item, membership.org.slug, currentSite, active, closeMobile)}
+          </SidebarMenuButton>
+        ),
+      })
+      if (item.suffix === '/realtime' && showReplays) {
+        const replayActive = pathname.startsWith(`/app/${membership.org.slug}/${currentSite}/replays`)
+        entries.push({
+          key: 'nav:/replays',
+          label: 'Replays',
+          active: replayActive,
+          button: (
+            <SidebarMenuButton asChild className="h-11 md:h-8" isActive={replayActive} tooltip="Replays">
+              <ReplayNavLink enabled org={membership.org.slug} site={currentSite} onClick={closeMobile} />
+            </SidebarMenuButton>
+          ),
+        })
+      }
+    }
+    return { ...section, entries }
+  })
+  const allEntries = sections.flatMap((section) => section.entries)
+  const pinnedEntries = prefs.pinned.flatMap((key) => allEntries.filter((entry) => entry.key === key))
+  const pinnedKeys = new Set(pinnedEntries.map((entry) => entry.key))
+  const activeSection = sections.find((section) => section.entries.some((entry) => entry.active && !pinnedKeys.has(entry.key)))?.key
+  const groupOpen = (key: string) => rail || (prefs.open[key] ?? (key === 'pinned' || key === activeSection))
+
+  // Landing on a page inside a collapsed group (palette, link, back button) opens that group.
+  useEffect(() => {
+    if (activeSection && prefs.open[activeSection] !== true && prefs.open[activeSection] !== undefined) setGroupOpen(activeSection, true)
+    // Only a change of the active group should reopen it, not the user collapsing it afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, pathname])
+
+  const renderEntry = (entry: NavEntry) => {
+    const pinned = pinnedKeys.has(entry.key)
+    return (
+      <SidebarMenuItem key={entry.key}>
+        {entry.button}
+        <SidebarMenuAction
+          aria-label={pinned ? ui.sidebar.unpin(entry.label) : ui.sidebar.pin(entry.label)}
+          aria-pressed={pinned}
+          showOnHover={!pinned}
+          onClick={() => togglePin(entry.key)}
+          type="button"
+        >
+          {pinned ? <PinOffIcon aria-hidden="true" /> : <PinIcon aria-hidden="true" />}
+        </SidebarMenuAction>
+      </SidebarMenuItem>
+    )
+  }
+
+  const renderGroup = (key: string, label: string, entries: NavEntry[]) => {
+    const headingId = `sidebar-${key}-heading`
+    const contentId = `sidebar-${key}-content`
+    const open = groupOpen(key)
+    return (
+      <SidebarGroup key={key}>
+        <SidebarGroupLabel asChild>
+          <h2 id={headingId}>
+            <button
+              aria-controls={contentId}
+              aria-expanded={open}
+              className="flex h-full w-full items-center justify-between rounded-md px-2 text-left outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              onClick={() => setGroupOpen(key, !open)}
+              tabIndex={rail ? -1 : undefined}
+              type="button"
+            >
+              <span>{label}</span>
+              <ChevronDownIcon aria-hidden="true" className={`size-4 transition-transform motion-reduce:transition-none ${open ? '' : '-rotate-90'}`} />
+            </button>
+          </h2>
+        </SidebarGroupLabel>
+        <SidebarGroupContent hidden={!open} id={contentId}>
+          <nav aria-labelledby={headingId}>
+            <SidebarMenu>{entries.map(renderEntry)}</SidebarMenu>
+          </nav>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    )
+  }
+
+  const switcherTooltip = orgScope
+    ? `${ui.sidebar.organizationScope}: ${membership.org.name}`
+    : `${membership.org.name} / ${site?.name ?? en.navigation.site}`
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
-      <SidebarHeader>
+      <SidebarHeader className="sticky top-0 z-10 border-b bg-sidebar">
         <SidebarBrandLink onClick={closeMobile} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="h-auto py-1.5 group-data-[collapsible=icon]:p-1.5!" tooltip={`${membership.org.name} / ${site?.name ?? en.navigation.site}`}>
-              {site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} /> : null}
-              <span className="flex min-w-0 flex-col text-left leading-tight">
-                <span className="truncate">{site?.name ?? en.navigation.site}</span>
-                <span className="truncate text-xs text-muted-foreground">{membership.org.name}</span>
-              </span>
+            <SidebarMenuButton className="h-auto py-1.5 group-data-[collapsible=icon]:p-1.5!" tooltip={switcherTooltip}>
+              {orgScope ? <Building2Icon aria-hidden="true" /> : site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} /> : null}
+              {orgScope ? (
+                <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="org">
+                  <span className="truncate">{ui.sidebar.organizationScope}: {membership.org.name}</span>
+                  {site ? <span className="truncate text-xs text-muted-foreground opacity-60" data-testid="switcher-site-dimmed">{site.name}</span> : null}
+                </span>
+              ) : (
+                <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="site">
+                  <span className="truncate">{site?.name ?? en.navigation.site}</span>
+                  <span className="truncate text-xs text-muted-foreground">{membership.org.name}</span>
+                </span>
+              )}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-56">
@@ -472,47 +588,12 @@ export function SupermetrySidebar({
         </DropdownMenu>
       </SidebarHeader>
       <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
-        {navigationSections.map((section) => {
-          const suffixes = new Set<string>(section.suffixes)
-          const items = visibleItems.filter((item) => suffixes.has(item.suffix))
-          if (items.length === 0 && !(section.key === 'analyze' && showReplays)) return null
-          const headingId = `sidebar-${section.key}-heading`
-          return (
-            <SidebarGroup key={section.key}>
-              <SidebarGroupLabel asChild><h2 id={headingId}>{section.key === 'analyze' && site?.kind === 'app' ? en.a11y2.sidebarSections.appMonitoring : section.label}</h2></SidebarGroupLabel>
-              <SidebarGroupContent>
-                <nav aria-labelledby={headingId}>
-                  <SidebarMenu>
-                    {items.flatMap((item) => {
-                      const active = navigationIsActive(item, pathname, membership.org.slug, currentSite)
-                      const rows = [
-                        <SidebarMenuItem key={item.label}>
-                          <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={item.label}>
-                            {navigationLink(item, membership.org.slug, currentSite, active, closeMobile)}
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>,
-                      ]
-                      if (item.suffix === '/realtime' && showReplays) {
-                        rows.push(
-                          <SidebarMenuItem key="Replays">
-                            <SidebarMenuButton
-                              asChild
-                              className="h-11 md:h-8"
-                              isActive={pathname.startsWith(`/app/${membership.org.slug}/${currentSite}/replays`)}
-                              tooltip="Replays"
-                            >
-                              <ReplayNavLink enabled org={membership.org.slug} site={currentSite} onClick={closeMobile} />
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>,
-                        )
-                      }
-                      return rows
-                    })}
-                  </SidebarMenu>
-                </nav>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )
+        {pinnedEntries.length > 0 ? renderGroup('pinned', ui.sidebar.pinned, pinnedEntries) : null}
+        {sections.map((section) => {
+          const entries = section.entries.filter((entry) => !pinnedKeys.has(entry.key))
+          if (entries.length === 0) return null
+          const label = section.key === 'analyze' && site?.kind === 'app' ? en.a11y2.sidebarSections.appMonitoring : section.label
+          return renderGroup(section.key, label, entries)
         })}
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel asChild><h2 id="sidebar-settings-heading">{ui.menus.settings}</h2></SidebarGroupLabel>

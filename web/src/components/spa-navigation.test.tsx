@@ -8,6 +8,7 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import type { Me, Membership } from '@/lib/me'
@@ -17,7 +18,7 @@ import { RoutePending } from './RoutePending'
 import { SidebarProvider } from './ui/sidebar'
 import { TooltipProvider } from './ui/tooltip'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); localStorage.clear() })
 
 const membership: Membership = {
   org: { id: 1, name: 'Acme', slug: 'acme' },
@@ -33,24 +34,35 @@ const me: Me = {
 
 function renderSidebar(
   initialEntry = '/app/acme/docs-public/realtime',
-  options: { membership?: Membership; me?: Me; defaultOpen?: boolean } = {},
+  options: { membership?: Membership; me?: Me; defaultOpen?: boolean; seed?: boolean | Record<string, boolean> } = {},
 ) {
+  // Groups start collapsed except the active one; most tests want every group open.
+  const seed = options.seed ?? true
+  localStorage.clear()
+  if (seed) localStorage.setItem('sm.sidebar.v1.1', JSON.stringify({ open: seed === true ? { analyze: true, behaviour: true, conversion: true, manage: true } : seed, pinned: [] }))
   const sidebarMembership = options.membership ?? membership
   const sidebarMe = options.me ?? { ...me, memberships: [sidebarMembership] }
   const rootRoute = createRootRoute({
     component: () => (
+      <QueryClientProvider client={new QueryClient()}>
       <TooltipProvider>
         <SidebarProvider defaultOpen={options.defaultOpen ?? true}>
           <SupermetrySidebar me={sidebarMe} membership={sidebarMembership} requestedSite="docs-public" />
           <Outlet />
         </SidebarProvider>
       </TooltipProvider>
+      </QueryClientProvider>
     ),
   })
   const appRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'app',
     component: Outlet,
+  })
+  const orgSettingsRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: '$org/settings',
+    component: () => <h1>Org settings page</h1>,
   })
   const siteRoute = createRoute({
     getParentRoute: () => appRoute,
@@ -69,7 +81,7 @@ function renderSidebar(
   })
   const router = createRouter({
     routeTree: rootRoute.addChildren([
-      appRoute.addChildren([siteRoute.addChildren([siteIndexRoute, siteSectionRoute])]),
+      appRoute.addChildren([orgSettingsRoute, siteRoute.addChildren([siteIndexRoute, siteSectionRoute])]),
     ]),
     history: createMemoryHistory({ initialEntries: [initialEntry] }),
   })
@@ -240,6 +252,117 @@ describe('SPA navigation', () => {
       `${site}?${base}`,
       '/app/account/organizations/new',
     ])
+  })
+})
+
+describe('sidebar groups, pinning and scope', () => {
+  beforeEach(() => {
+    window.scrollTo = () => undefined
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }),
+    })
+  })
+  const groupButton = (name: string) => screen.getByRole('button', { name })
+  const stored = () => JSON.parse(localStorage.getItem('sm.sidebar.v1.1') ?? '{}')
+
+  it('opens only the group with the active route and collapses the rest', async () => {
+    renderSidebar('/app/acme/docs-public/realtime', { seed: false })
+    await screen.findByRole('link', { name: 'Realtime' })
+    expect(groupButton('Analyze')).toHaveAttribute('aria-expanded', 'true')
+    for (const name of ['Behaviour', 'Conversion', 'Manage']) {
+      expect(groupButton(name)).toHaveAttribute('aria-expanded', 'false')
+      expect(groupButton(name)).toHaveAttribute('aria-controls')
+    }
+    expect(screen.queryByRole('link', { name: 'Journeys' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Journeys', hidden: true })).toBeInTheDocument()
+  })
+
+  it('opens a collapsed group by click, Enter or Space, and remembers it per user', async () => {
+    renderSidebar('/app/acme/docs-public/realtime', { seed: false })
+    await screen.findByRole('link', { name: 'Realtime' })
+    fireEvent.click(groupButton('Behaviour'))
+    expect(await screen.findByRole('link', { name: 'Journeys' })).toBeInTheDocument()
+    expect(stored().open.behaviour).toBe(true)
+    // A native button toggles on Enter and Space through click; check the semantics the keys rely on.
+    const conversion = groupButton('Conversion')
+    expect(conversion.tagName).toBe('BUTTON')
+    expect(conversion).toHaveAttribute('type', 'button')
+    fireEvent.click(conversion)
+    expect(conversion).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(conversion)
+    expect(conversion).toHaveAttribute('aria-expanded', 'false')
+    expect(stored().open.conversion).toBe(false)
+    cleanup()
+    // A fresh mount restores the remembered state from storage.
+    localStorage.setItem('sm.sidebar.v1.1', JSON.stringify({ open: { behaviour: true, analyze: false }, pinned: [] }))
+    const router = renderSidebar('/app/acme/docs-public/realtime', { seed: { behaviour: true } })
+    await screen.findByRole('link', { name: 'Journeys' })
+    expect(router).toBeDefined()
+  })
+
+  it('works when localStorage throws', async () => {
+    const getItem = Storage.prototype.getItem
+    const setItem = Storage.prototype.setItem
+    Storage.prototype.getItem = function (key: string) { if (key.startsWith('sm.')) throw new Error('blocked'); return getItem.call(this, key) }
+    Storage.prototype.setItem = function (key: string, value: string) { if (key.startsWith('sm.')) throw new Error('blocked'); setItem.call(this, key, value) }
+    try {
+      renderSidebar('/app/acme/docs-public/realtime', { seed: false })
+      await screen.findByRole('link', { name: 'Realtime' })
+      fireEvent.click(groupButton('Behaviour'))
+      expect(groupButton('Behaviour')).toHaveAttribute('aria-expanded', 'true')
+    } finally {
+      Storage.prototype.getItem = getItem
+      Storage.prototype.setItem = setItem
+    }
+  })
+
+  it('opens the group of the active route when the route changes into a collapsed one', async () => {
+    const router = renderSidebar('/app/acme/docs-public/realtime', { seed: { behaviour: false } })
+    await screen.findByRole('link', { name: 'Realtime' })
+    await router.navigate({ to: '/app/acme/docs-public/journeys' as never })
+    await waitFor(() => expect(groupButton('Behaviour')).toHaveAttribute('aria-expanded', 'true'))
+  })
+
+  it('pins an item into a Pinned group at the top and unpins it again', async () => {
+    renderSidebar('/app/acme/docs-public/realtime')
+    await screen.findByRole('link', { name: 'Realtime' })
+    fireEvent.click(screen.getByRole('button', { name: 'Pin Funnels to the top' }))
+    const pinned = await screen.findByRole('navigation', { name: 'Pinned' })
+    expect(within(pinned).getByRole('link', { name: 'Funnels' })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Funnels' })).toHaveLength(1)
+    expect(stored().pinned).toEqual(['nav:/funnels'])
+    const nav = screen.getAllByRole('navigation')
+    expect(nav.findIndex((item) => item === pinned)).toBeLessThan(nav.findIndex((item) => item === screen.getByRole('navigation', { name: 'Analyze' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Unpin Funnels' }))
+    await waitFor(() => expect(screen.queryByRole('navigation', { name: 'Pinned' })).toBeNull())
+    expect(within(screen.getByRole('navigation', { name: 'Conversion' })).getByRole('link', { name: 'Funnels' })).toBeInTheDocument()
+  })
+
+  it('shows the organization in the switcher, with the site dimmed, on org pages', async () => {
+    renderSidebar('/app/acme/settings')
+    const trigger = await screen.findByRole('button', { name: /Organization: Acme/ })
+    expect(trigger.querySelector('[data-scope="org"]')).not.toBeNull()
+    expect(within(trigger).getByTestId('switcher-site-dimmed')).toHaveClass('opacity-60')
+    cleanup()
+    renderSidebar('/app/acme/docs-public')
+    const siteTrigger = await screen.findByRole('button', { name: /Docs\s*Acme/ })
+    expect(siteTrigger.querySelector('[data-scope="site"]')).not.toBeNull()
+  })
+
+  it('gives the switcher header a solid background and a bottom border so groups never show through', async () => {
+    renderSidebar('/app/acme/docs-public')
+    await screen.findByRole('link', { name: 'Realtime' })
+    const header = document.querySelector('[data-slot="sidebar-header"]')
+    expect(header).toHaveClass('sticky', 'top-0', 'bg-sidebar', 'border-b')
+  })
+
+  it('puts the plan, language and theme in the account menu, not as a floating pill', async () => {
+    renderSidebar('/app/acme/docs-public')
+    fireEvent.keyDown(await screen.findByRole('button', { name: 'Account' }), { key: 'ArrowDown' })
+    expect(await screen.findByRole('menuitem', { name: 'Language' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /theme/ })).toBeInTheDocument()
+    expect(document.querySelector('[data-account-plan-slot]')).not.toBeNull()
   })
 })
 

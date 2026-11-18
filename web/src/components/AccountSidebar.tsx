@@ -47,7 +47,7 @@ export function AccountSidebar({ me }: { me: Me }) {
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
-      <SidebarHeader>
+      <SidebarHeader className="sticky top-0 z-10 border-b bg-sidebar">
         <SidebarBrandLink onClick={closeMobile} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
