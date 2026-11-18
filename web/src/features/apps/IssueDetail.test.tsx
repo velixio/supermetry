@@ -59,6 +59,41 @@ describe('IssueDetail', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(cleanup)
 
+  it('shows the introducing release and suspect commits, and nothing when empty', async () => {
+    mockApi(() => Promise.resolve({}))
+    const base = detail()
+    privateRequest.mockImplementation((method: string, path: string) => {
+      if (method !== 'GET') return Promise.resolve({})
+      if (path.includes('/releases')) return Promise.resolve({ releases: [] })
+      if (path.includes('/assignees')) return Promise.resolve({ members: [] })
+      if (path.includes('/feedback')) return Promise.resolve({ feedback: [] })
+      if (path.includes('/comments')) return Promise.resolve({ comments: [] })
+      if (path.includes('/activity')) return Promise.resolve({ activity: [] })
+      return Promise.resolve({
+        ...base,
+        introduced_in: { release: '1.1.0', first_seen: '2026-11-15T09:00:00Z', deploy_at: '2026-11-15T10:00:00Z' },
+        suspect_commits: [{ sha: 'abc1234def', repository: 'acme/app', message: 'Fix pay\n\nlong body', author_name: 'Dev One', at: null, path: 'src/pay.ts', score: 20 }],
+      })
+    })
+    renderWithQuery(<IssueDetail {...props} canEdit />)
+    expect(await screen.findByTestId('introduced-in')).toHaveTextContent('Introduced in 1.1.0 · deployed')
+    const list = screen.getByRole('list', { name: 'Suspect commits' })
+    expect(list).toHaveTextContent('abc1234')
+    expect(list).not.toHaveTextContent('abc1234d')
+    expect(list).toHaveTextContent('Fix pay')
+    expect(list).not.toHaveTextContent('long body')
+    expect(list).toHaveTextContent('Dev One')
+    expect(list).toHaveTextContent('src/pay.ts')
+  })
+
+  it('shows no introduced-in line or suspect card when there is nothing to show', async () => {
+    mockApi(() => Promise.resolve({}))
+    renderWithQuery(<IssueDetail {...props} canEdit />)
+    await screen.findByRole('heading', { name: 'Segfault in renderer' })
+    expect(screen.queryByTestId('introduced-in')).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Suspect commits' })).not.toBeInTheDocument()
+  })
+
   it('lists the user feedback of the issue', async () => {
     mockApi(() => Promise.resolve({}))
     renderWithQuery(<IssueDetail {...props} canEdit />)
