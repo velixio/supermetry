@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
+import { dashboardView } from '@/messages/dashboardView'
 import { compareValues, periodValues, type Compare, type DashboardSearch, type Period } from '../lib/search'
 import { activeLocale, weekStart } from '@/lib/i18n/intl'
 
@@ -20,6 +21,8 @@ export type DatePickerLabels = {
 
 type DatePickerProps = {
   search: DashboardSearch
+  /** The resolved range. With it the date button reads "Last 30 days · Oct 20 – Nov 18". */
+  dateRange?: { from: string; to: string }
   labels: DatePickerLabels
   onChange: (search: DashboardSearch) => void
 }
@@ -32,8 +35,17 @@ function isoDay(value: Date): string {
   return value.toISOString().slice(0, 10)
 }
 
-function rangeLabel(search: DashboardSearch, labels: DatePickerLabels): string {
-  if (search.period !== 'custom') return labels.periods[search.period]
+/** Both dates, with the year only when the range does not stay inside one year. */
+export function formatRange(from: string, to: string): string {
+  const sameYear = from.slice(0, 4) === to.slice(0, 4)
+  const format = new Intl.DateTimeFormat(activeLocale(), sameYear ? { month: 'short', day: 'numeric', timeZone: 'UTC' } : { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return `${format.format(dateValue(from))} – ${format.format(dateValue(to))}`
+}
+
+export function rangeLabel(search: DashboardSearch, labels: DatePickerLabels, dateRange?: { from: string; to: string }): string {
+  if (search.period !== 'custom') {
+    return dateRange ? dashboardView.dateButton(labels.periods[search.period], formatRange(dateRange.from, dateRange.to)) : labels.periods[search.period]
+  }
   if (!search.from) return labels.periods.custom
   const format = new Intl.DateTimeFormat(activeLocale(), { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
   const from = format.format(dateValue(search.from))
@@ -58,7 +70,7 @@ function monthDays(month: Date): Date[] {
   })
 }
 
-export function DatePicker({ search, labels, onChange }: DatePickerProps) {
+export function DatePicker({ search, dateRange, labels, onChange }: DatePickerProps) {
   const initial = dateValue(search.from) ?? new Date()
   const [month, setMonth] = useState(() => new Date(Date.UTC(initial.getUTCFullYear(), initial.getUTCMonth(), 1)))
   const [draftFrom, setDraftFrom] = useState<string>()
@@ -85,9 +97,9 @@ export function DatePicker({ search, labels, onChange }: DatePickerProps) {
     <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
       <Popover>
         <PopoverTrigger asChild>
-          <Button aria-label={`${en.polish.chooseRange}: ${rangeLabel(search, labels)}`} className="min-h-11 justify-start" type="button" variant="outline">
+          <Button aria-label={`${en.polish.chooseRange}: ${rangeLabel(search, labels, dateRange)}`} className="min-h-11 justify-start" type="button" variant="outline">
             <CalendarDaysIcon data-icon="inline-start" />
-            {rangeLabel(search, labels)}
+            {rangeLabel(search, labels, dateRange)}
           </Button>
         </PopoverTrigger>
         <PopoverContent aria-label={en.polish.chooseRange} className="w-[min(22rem,calc(100vw-2rem))]" align="end">
@@ -129,13 +141,12 @@ export function DatePicker({ search, labels, onChange }: DatePickerProps) {
           </div>
         </PopoverContent>
       </Popover>
-      <label className="flex min-h-11 items-center gap-2 text-sm font-medium">
-        <span>{labels.compare}</span>
-        <Select value={search.compare} onValueChange={(value) => onChange({ ...search, compare: value as Compare })}>
-          <SelectTrigger aria-label={labels.compare} className="min-h-11 min-w-40 flex-1 sm:flex-none"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectGroup>{compareValues.map((compare) => <SelectItem key={compare} value={compare}>{labels.comparisons[compare]}</SelectItem>)}</SelectGroup></SelectContent>
-        </Select>
-      </label>
+      <Select value={search.compare} onValueChange={(value) => onChange({ ...search, compare: value as Compare })}>
+        <SelectTrigger aria-label={labels.compare} className="min-h-11 min-w-44 flex-1 sm:flex-none" data-testid="compare-control">
+          <SelectValue>{`${labels.compare}: ${labels.comparisons[search.compare]}`}</SelectValue>
+        </SelectTrigger>
+        <SelectContent><SelectGroup>{compareValues.map((compare) => <SelectItem key={compare} value={compare}>{labels.comparisons[compare]}</SelectItem>)}</SelectGroup></SelectContent>
+      </Select>
     </div>
   )
 }

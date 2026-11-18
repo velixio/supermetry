@@ -13,12 +13,10 @@ import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { StatsStrip } from '../components/StatsStrip'
 import { ResponsiveFilters } from '../components/ResponsiveFilters'
 import { Button } from '../components/ui/button'
-import { Checkbox } from '../components/ui/checkbox'
-import { Field, FieldLabel } from '../components/ui/field'
+import { ViewOptionsMenu } from '../components/ViewOptionsMenu'
 import { Skeleton } from '../components/ui/skeleton'
 import { useShortcuts } from '../lib/shortcuts'
 import { countryName } from '../lib/country'
-import { fmt } from '../lib/format'
 import { type StatsQuery } from '../lib/stats'
 import {
   addFilter,
@@ -137,6 +135,7 @@ function WebDashboardStateRoute() {
   }
   const dashboardId = parseDashKey(search.dash)
   const [edit, setEdit] = useState<EditState>(null)
+  const [newDashboardOpen, setNewDashboardOpen] = useState(false)
   // The control that opened the inspector; focus returns to it on close.
   const inspectorOrigin = useRef<HTMLElement | null>(null)
   // The sticky filter row wraps (notice, chips); the sticky inspector clears its real height via --dashboard-filter-h.
@@ -255,7 +254,6 @@ function WebDashboardStateRoute() {
       >
       <PageHeader
         title={en.navigation.dashboard}
-        description={`${fmt.date(query.dateRange.from, timezone)} – ${fmt.date(query.dateRange.to, timezone)}`}
         actions={
           <>
             <Suspense fallback={null}>
@@ -264,6 +262,8 @@ function WebDashboardStateRoute() {
                 value={search.dash}
                 onChange={(key, dashboard) => openDashboard(key, dashboard)}
                 onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
+                canWrite={membership?.role !== 'viewer'}
+                onNew={() => setNewDashboardOpen(true)}
               />
             </Suspense>
             {membership?.role !== 'viewer' ? (
@@ -274,6 +274,8 @@ function WebDashboardStateRoute() {
                   editing={edit !== null}
                   onEdit={(id) => setEdit({ kind: 'edit', id })}
                   onNew={(template) => setEdit({ kind: 'new', template })}
+                  newOpen={newDashboardOpen}
+                  onNewOpenChange={setNewDashboardOpen}
                 />
               </Suspense>
             ) : null}
@@ -286,6 +288,7 @@ function WebDashboardStateRoute() {
           <ResponsiveFilters className="justify-start">
             <DatePicker
               search={search}
+              dateRange={query.dateRange}
               labels={en.dashboard}
               onChange={updateSearch}
             />
@@ -313,10 +316,10 @@ function WebDashboardStateRoute() {
               onAdd={onFilter}
               onRemove={(index) => updateSearch(removeFilter(search, index))}
             />}
-            <Field orientation="horizontal" className="w-auto min-h-9 gap-2">
-              <Checkbox id="dashboard-include-imported" checked={search.include_imported} onCheckedChange={(checked) => updateSearch({ ...search, include_imported: checked === true })} />
-              <FieldLabel htmlFor="dashboard-include-imported" className="text-sm text-muted-foreground">{en.polish.includeImported}</FieldLabel>
-            </Field>
+            <ViewOptionsMenu
+              includeImported={search.include_imported}
+              onIncludeImportedChange={(include_imported) => updateSearch({ ...search, include_imported })}
+            />
           </ResponsiveFilters>
         </div>
       )}
@@ -383,6 +386,7 @@ function WebDashboardStateRoute() {
               <StatsStrip
                 query={query}
                 compare={search.compare}
+                selected={search.metric}
                 onSelectMetric={(metric) => updateSearch({ ...search, metric })}
               />
               <DashboardChart
