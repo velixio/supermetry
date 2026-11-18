@@ -6,6 +6,8 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.29 (2026-11-18)
+
 ### Fixed
 
 - A new account created by an admin or by a hosted signup gets a "Welcome to Supermetry: set your password" email instead of the password reset email. Its link lasts 24 hours (a reset link lasts 1 hour) and opens a "Set your password" page.
