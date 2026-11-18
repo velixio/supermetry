@@ -56,7 +56,8 @@ func encodeAttributes(attrs map[string]any) []byte {
 }
 
 // Stats counts drops by reason: log_queue_full, log_out_of_range,
-// log_write_failed.
+// log_write_failed, and from the intake log_attrs_dropped, log_quota_rejected,
+// log_invalid.
 type Stats interface {
 	Add(name string, n int)
 }
@@ -77,5 +78,11 @@ func (HealthStats) Add(name string, n int) {
 		health.LogOutOfRange.Add(uint64(n))
 	case "log_write_failed":
 		health.LogWriteFailed.Add(uint64(n))
+	case "log_attrs_dropped":
+		health.LogAttrsDropped.Add(uint64(n))
+	case "log_quota_rejected":
+		health.LogQuotaRejected.Add(uint64(n))
+	case "log_invalid":
+		health.LogInvalid.Add(uint64(n))
 	}
 }
