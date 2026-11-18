@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"supermetry/internal/appingest"
+	"supermetry/internal/appproduct"
 	"supermetry/internal/appsessions"
 	"supermetry/internal/sites"
 )
@@ -31,9 +32,17 @@ var sessionStatuses = []string{"exited", "errored", "crashed", "abnormal"}
 // event has not been written) gets no Update: nothing can be hashed, and the
 // v1 row still counts the session.
 func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) ([]appingest.Event, []appsessions.Update, error) {
+	events, updates, _, err := parseSession(raw, ctx, site, now)
+	return events, updates, err
+}
+
+// parseSession is ParseSession plus the product session start: non-nil only
+// for a single session update with init=true, carrying the raw did (possibly
+// empty) for the product adapter, which hashes it and never stores it.
+func parseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) ([]appingest.Event, []appsessions.Update, *appproduct.SessionStart, error) {
 	m, err := decodeObject(raw)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	attrs := asMap(m["attrs"])
 	base := appingest.Event{
@@ -48,9 +57,11 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 	}
 	client := parseUA(ua)
 	osName := ""
+	osVersion := ""
 	if client != nil {
 		osName = client.OS
 		base.OSVersion = clip(client.OSVersion, 32)
+		osVersion = base.OSVersion
 	}
 	base.Platform = platformOf(osName, "", client != nil, ctx.SDKName)
 	digest := sha256.Sum256(raw)
@@ -80,19 +91,24 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 				out = append(out, e)
 			}
 		}
-		return out, nil, nil
+		return out, nil, nil, nil
 	}
 
 	sid := clip(str(m["sid"]), 64)
 	if sid == "" {
-		return nil, nil, ErrInvalid
+		return nil, nil, nil, ErrInvalid
 	}
 	init, _ := m["init"].(bool)
 	started := sessionTime(firstNonNil(m["started"], m["timestamp"]), ctx, site, now)
 	did := clip(userIDString(m["did"]), 128)
 
 	var events []appingest.Event
+	var start *appproduct.SessionStart
 	if init {
+		start = &appproduct.SessionStart{
+			Started: started, InstallID: did, Release: base.Release, Environment: base.Environment,
+			Platform: base.Platform, OSName: osName, OSVersion: osVersion, Country: ctx.Country,
+		}
 		e := base
 		e.ID = id("session|" + sid)
 		e.TS = started
@@ -108,14 +124,14 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 	}
 	sessionHash := HashUser(secret, sid)
 	if sessionHash == nil {
-		return events, nil, nil
+		return events, nil, start, nil
 	}
 	rawStarted, ok := parseTime(m["started"])
 	if !ok {
 		// Without `started` the key would fall back to `timestamp`, which changes
 		// on every update and would split one session into several rows.
 		ctx.Stats.Add("session_no_started", 1)
-		return events, nil, nil
+		return events, nil, start, nil
 	}
 	u := appsessions.Update{
 		SiteID: site.ID, SessionHash: sessionHash, InstallHash: HashUser(secret, did), Started: sessionKeyTime(rawStarted, started, now),
@@ -126,7 +142,7 @@ func ParseSession(raw []byte, ctx EventContext, site sites.Site, now time.Time) 
 		ms := int64(d * 1000)
 		u.DurationMS = &ms
 	}
-	return events, []appsessions.Update{u}, nil
+	return events, []appsessions.Update{u}, start, nil
 }
 
 // sessionKeyTime is the start time used in the app_sessions key, so every
