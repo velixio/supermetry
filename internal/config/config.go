@@ -143,11 +143,16 @@ type Config struct {
 	// Search Console integration; it stays hidden while either is empty.
 	SearchConsoleClientID     string
 	SearchConsoleClientSecret string
-	E2ELoginLimit             int
-	IngestDiag                bool
-	ReferrerSpamFile          string
-	TombstonePoll             time.Duration
-	RouteHitsFile             string
+	// GA4OAuthClientID and GA4OAuthClientSecret enable importing from the
+	// Google Analytics Data API; the GA4 pull endpoints answer "not
+	// configured" while either is empty.
+	GA4OAuthClientID     string
+	GA4OAuthClientSecret string
+	E2ELoginLimit        int
+	IngestDiag           bool
+	ReferrerSpamFile     string
+	TombstonePoll        time.Duration
+	RouteHitsFile        string
 }
 
 type ReplayEnv struct {
@@ -323,6 +328,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	c.SearchConsoleClientID = getenv("SUPERMETRY_GSC_CLIENT_ID")
 	c.SearchConsoleClientSecret = getenv("SUPERMETRY_GSC_CLIENT_SECRET")
+	c.GA4OAuthClientID = getenv("SUPERMETRY_GA4_OAUTH_CLIENT_ID")
+	c.GA4OAuthClientSecret = getenv("SUPERMETRY_GA4_OAUTH_CLIENT_SECRET")
 	if raw := getenv("SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS"); raw != "" {
 		value, err := strconv.ParseBool(raw)
 		if err != nil {
