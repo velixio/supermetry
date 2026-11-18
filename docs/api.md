@@ -315,6 +315,28 @@ Mixpanel and Amplitude input is a raw event export, one event per row, uploaded 
 - Privacy: IP addresses, user agents, user ids, device ids and distinct ids are never stored (ids are hashed in memory to group events while the file is read). URLs are reduced to their path, dropping host, query and fragment. Only a 2-letter country code is kept.
 - Limits: the 512 MB upload limit applies, with 5,000,000 event rows, 2,000,000 visitor-days, 1 MiB per line, 1,000 ZIP entries, 2 GiB per file and 8 GiB in total after decompression (gzip bombs are cut off while reading). Overlap, history and undo behave as for GA4.
 
+### Importing straight from another service (pull imports)
+
+Instead of a file, a site can pull daily aggregates from the Plausible Stats API (v2), the Matomo Reporting API or the Google Analytics 4 Data API. A pull is an ordinary import: it has a dry-run preview, shows up in the history, and undo removes it. All endpoints below are owner or admin session endpoints.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/private/sites/{site}/imports/capabilities` | `{plausible_api, matomo_api, ga4_api}`, each `{available, reason?}`. GA4 is unavailable (with the missing configuration named) until `SUPERMETRY_GA4_OAUTH_CLIENT_ID` and `SUPERMETRY_GA4_OAUTH_CLIENT_SECRET` are set. |
+| POST | `/api/private/sites/{site}/imports/pull/preview` | Body below. Fetches the range into memory (at most 120 days) and returns the same summary and `overlap` as a file preview. Stores nothing. Remote failures answer `422` (credentials rejected) or `502` with a credential-free message. |
+| POST | `/api/private/sites/{site}/imports/pull` | Same body. Answers `202` with the import; poll the next endpoint. |
+| GET | `/api/private/imports/{import}` | The import, with `method` and `progress` (`total_days`, `done_days`, `rows`, `bad_rows`, `cursor_day`, `updated_at`) for pull imports. The history list carries the same fields. |
+| POST | `/api/private/sites/{site}/imports/ga4/connect` | Answers `{authorization_url}`; send the browser there. Uses PKCE and a one-time state bound to the signed-in user and organization. The redirect URI to register at Google is `<SUPERMETRY_BASE_URL>/api/private/imports/ga4/callback`, which finishes the flow and redirects to `/app/<org>/<site>/settings/imports?ga4=connected|denied|error`. |
+| GET | `/api/private/imports/ga4/connections` | The organization's Google connections (`id`, `created_at`); never a token. |
+| GET | `/api/private/imports/ga4/connections/{connection}/properties` | Readable GA4 properties (`property`, `display_name`, `account`). |
+| DELETE | `/api/private/imports/ga4/connections/{connection}` | Removes the sealed token and revokes it at Google. |
+
+Pull body: `method` (`plausible_api`, `matomo_api` or `ga4_api`), `from` and `to` (`YYYY-MM-DD`, inclusive, at most 3,660 days), then per method: Plausible `base_url` (default `https://plausible.io`), `remote_site_id` (the domain) and `api_key`; Matomo `base_url`, `remote_site_id` (`idSite`) and `token_auth`; GA4 `property` (`properties/123`) and `connection_id`.
+
+- The user-supplied base URL is fetched only through the SSRF guard: private, loopback and link-local addresses are refused, redirects are not followed, and a rejected URL answers `400`.
+- Background job: the range is fetched in chunks (31 days for Plausible and GA4, 14 for Matomo); each stored chunk advances a cursor, so a run interrupted by a restart continues after the last completed chunk. A removed (undone) import stops the run. Rate limits (`429`, `502`, `503`, `504`) are retried with exponential backoff and `Retry-After`.
+- Credentials: a Plausible key or Matomo token is stored sealed with the installation secret key only while the pull runs, and deleted when it ends. A GA4 refresh token is stored sealed and scoped to the organization until it is disconnected. Tokens are never logged or returned.
+- Data is visible to queries only after the import completes, and the same per-day overlap rules apply as for files. Matomo import keeps up to 1,000 rows per report and day, and no region or city breakdown.
+
 ## Operations endpoints
 
 `GET /healthz` (process alive) and `GET /readyz` (ready to serve) are outside `/api` and need no key. `GET /metrics` (Prometheus) needs `Authorization: Bearer <SUPERMETRY_METRICS_TOKEN>` when that variable is set; without it, only clients on the same machine (loopback) can read it, and everyone else gets 404.
