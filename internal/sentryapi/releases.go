@@ -16,7 +16,7 @@ import (
 
 type releaseBody struct {
 	Version      string        `json:"version"`
-	Projects     []string      `json:"projects"`
+	Projects     projectList   `json:"projects"`
 	URL          *string       `json:"url"`
 	Ref          *string       `json:"ref"`
 	DateReleased *time.Time    `json:"dateReleased"`
@@ -189,6 +189,17 @@ func (h *Handler) createRelease(w http.ResponseWriter, r *http.Request, c *call)
 		notFound(w)
 		return
 	}
+	if !inserted && body.Status != nil && *body.Status != rel.status {
+		// sentry-cli archive and restore re-POST the release with a status.
+		if _, err := h.deps.Pool.Exec(r.Context(), `update app_releases set status=$3 where org_id=$1 and version=$2`, c.orgID, body.Version, *body.Status); err != nil {
+			serverError(w)
+			return
+		}
+		if rel, err = h.loadRelease(r.Context(), c.orgID, body.Version); err != nil {
+			serverError(w)
+			return
+		}
+	}
 	writeJSON(w, status, h.releaseJSON(r.Context(), c, rel))
 }
 
@@ -289,12 +300,12 @@ func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call)
 }
 
 type deployBody struct {
-	Environment  string     `json:"environment"`
-	Name         string     `json:"name"`
-	URL          string     `json:"url"`
-	DateStarted  *time.Time `json:"dateStarted"`
-	DateFinished *time.Time `json:"dateFinished"`
-	Projects     []string   `json:"projects"`
+	Environment  string      `json:"environment"`
+	Name         string      `json:"name"`
+	URL          string      `json:"url"`
+	DateStarted  *time.Time  `json:"dateStarted"`
+	DateFinished *time.Time  `json:"dateFinished"`
+	Projects     projectList `json:"projects"`
 }
 
 func deployJSON(id int64, environment, name, url string, started, finished, created *time.Time) map[string]any {
