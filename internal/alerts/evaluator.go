@@ -53,6 +53,7 @@ type Evaluator struct {
 	onFailure  DeliveryFailureFunc
 	app        AppSource
 	appDedup   AppDedup
+	rules      RuleRepository
 }
 
 func NewEvaluator(repository Repository, metrics MetricSource, registry sites.Registry, active ActiveVisitorSource, deliverer Deliverer, now func() time.Time, failures ...DeliveryFailureFunc) *Evaluator {
@@ -150,9 +151,17 @@ func (e *Evaluator) evaluate(ctx context.Context, alert Alert, now time.Time) er
 
 // fire records and delivers one notification to the alert's channels. persisted
 // runs once the delivery is durable (its state saved, or the evaluation
-// consumed because no channel is enabled); app alerts record their dedup key
-// there, so a crash in between re-fires instead of losing the notification.
+// consumed because no channel is enabled); legacy app alerts record their dedup
+// key there, so a crash in between re-fires instead of losing the notification.
 func (e *Evaluator) fire(ctx context.Context, alert Alert, notification Notification, persisted func() error) error {
+	return e.fireWithKey(ctx, alert, notification, persisted, "")
+}
+
+// fireWithKey is fire with an optional atomic dedup key. With a key, the key
+// and the delivery state are committed in one transaction by the rule
+// repository, so a crash can neither lose the notification (key without state)
+// nor repeat it (state without key). An already-recorded key is a no-op.
+func (e *Evaluator) fireWithKey(ctx context.Context, alert Alert, notification Notification, persisted func() error, key string) error {
 	now := notification.FiredAt
 	channels, err := e.repository.DeliveryChannels(ctx, alert.ChannelIDs)
 	if err != nil {
@@ -168,6 +177,12 @@ func (e *Evaluator) fire(ctx context.Context, alert Alert, notification Notifica
 		}
 	}
 	if len(enabledChannelIDs) == 0 {
+		if key != "" {
+			if e.appDedup == nil {
+				return errors.New("rule dedup store is unavailable")
+			}
+			persisted = func() error { return e.appDedup.RecordAppFired(ctx, alert.ID, key, now) }
+		}
 		if persisted != nil {
 			if err := persisted(); err != nil {
 				return err
@@ -176,6 +191,17 @@ func (e *Evaluator) fire(ctx context.Context, alert Alert, notification Notifica
 		return e.repository.MarkFired(ctx, alert.ID, now)
 	}
 	state := DeliveryState{Notification: notification, ChannelIDs: enabledChannelIDs}
+	if key != "" {
+		if e.rules == nil {
+			return errors.New("rule repository is unavailable")
+		}
+		if err := e.rules.SaveDeliveryStateWithKey(ctx, alert.ID, state, key, now); err != nil {
+			if errors.Is(err, ErrAlreadyFired) {
+				return nil
+			}
+			return err
+		}
+	}
 	for _, channel := range channels {
 		if channel.Enabled {
 			if err := e.repository.RecordDelivery(ctx, alert.ID, channel, notification, 0, DeliveryPending, "", now); err != nil {
@@ -183,8 +209,10 @@ func (e *Evaluator) fire(ctx context.Context, alert Alert, notification Notifica
 			}
 		}
 	}
-	if err := e.repository.SaveDeliveryState(ctx, alert.ID, state); err != nil {
-		return err
+	if key == "" {
+		if err := e.repository.SaveDeliveryState(ctx, alert.ID, state); err != nil {
+			return err
+		}
 	}
 	if persisted != nil {
 		if err := persisted(); err != nil {

@@ -105,8 +105,12 @@ func TestDetectProguard(t *testing.T) {
 
 func TestDetectBreakpadSourceBundlePE(t *testing.T) {
 	objs, err := detect(t, []byte("MODULE Linux x86_64 DE7FADA356F73CE7B81E0B6E964459C10 libfoo.so\nFUNC 0 1 0 f\n"), "libfoo.sym")
-	if err != nil || objs[0].Kind != "breakpad" || objs[0].DebugID != "de7fada3-56f7-3ce7-b81e-0b6e964459c1-0" || objs[0].Arch != "x86_64" {
+	if err != nil || objs[0].Kind != "breakpad" || objs[0].DebugID != "de7fada3-56f7-3ce7-b81e-0b6e964459c1" || objs[0].Arch != "x86_64" || objs[0].Name != "libfoo.so" {
 		t.Fatalf("breakpad: %+v %v", objs, err)
+	}
+	objs, err = detect(t, []byte("MODULE windows x86_64 9C2A902B6FDF40AD8308588A41D572A01 dbghelp.pdb\nINFO CODE_ID 5F3C2A1B7000 dbghelp.dll\nFILE 0 a.c\n"), "x.sym")
+	if err != nil || objs[0].DebugID != "9c2a902b-6fdf-40ad-8308-588a41d572a0-1" || objs[0].CodeID != "5F3C2A1B7000" || objs[0].Name != "dbghelp.pdb" {
+		t.Fatalf("breakpad windows: %+v %v", objs, err)
 	}
 	if objs, err = detect(t, []byte("SYSB\x02\x00\x00\x00PK\x03\x04"), "src.zip"); err != nil || objs[0].Kind != "sourcebundle" {
 		t.Fatalf("sourcebundle: %+v %v", objs, err)

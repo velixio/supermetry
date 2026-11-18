@@ -92,6 +92,7 @@ type Env struct {
 	auth        *platformauth.Auth
 	orgs        *orgs.Orgs
 	definitions *platformgoals.Goals
+	dictionary  *dict.Dict
 }
 
 // New constructs a Redis-free environment with production services.
@@ -171,7 +172,7 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 			Mode: privacy.Identified, Now: func() time.Time { return now },
 		},
 	})
-	env := &Env{Pool: pool, Handler: router, Now: now, data: data, registry: registry, sites: siteService, keys: keyService, auth: authService, orgs: orgService, definitions: definitions}
+	env := &Env{Pool: pool, Handler: router, Now: now, data: data, registry: registry, sites: siteService, keys: keyService, auth: authService, orgs: orgService, definitions: definitions, dictionary: dictionary}
 	t.Cleanup(func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -190,6 +191,15 @@ func newEnv(t testing.TB, rate float64, burst int) *Env {
 type unavailableSink struct{}
 
 func (unavailableSink) Reserve() (stripe.Slot, bool) { return nil, false }
+
+// ReloadDictionary reloads the query engine's dictionary cache after a test
+// inserted dictionary rows (screen and event names) directly.
+func (e *Env) ReloadDictionary(t testing.TB) {
+	t.Helper()
+	if err := e.dictionary.Load(context.Background()); err != nil {
+		t.Fatalf("reload dictionary: %v", err)
+	}
+}
 
 // Org creates an owner and organization.
 func (e *Env) Org(t testing.TB) Org {

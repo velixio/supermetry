@@ -66,6 +66,7 @@ function JourneysRoute() {
         path={search.path}
         siteId={site.id}
         steps={search.steps}
+        app={site.kind === 'app'}
         onControlsChange={(controls) => void navigate({ search: { ...search, ...controls } })}
       />
     </div>

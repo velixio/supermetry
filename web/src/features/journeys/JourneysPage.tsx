@@ -21,6 +21,7 @@ type JourneysPageProps = {
   direction: JourneyDirection
   path: string
   steps: number
+  app?: boolean
   onControlsChange: (value: { direction: JourneyDirection; path: string; steps: number }) => void
 }
 
@@ -31,6 +32,7 @@ export function JourneysPage({
   direction,
   path,
   steps,
+  app = false,
   onControlsChange,
 }: JourneysPageProps) {
   const pages = useStats({
@@ -49,7 +51,7 @@ export function JourneysPage({
 
   return (
     <PageContainer>
-      <PageHeader title={t.title} description={t.description} />
+      <PageHeader title={t.title} description={app ? 'Follow the screens installs viewed in sequence. Repeated consecutive screen views are collapsed.' : t.description} />
       <JourneyControls
         direction={direction}
         path={path}

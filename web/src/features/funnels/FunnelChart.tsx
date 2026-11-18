@@ -2,7 +2,7 @@ import { fmt } from '@/lib/format'
 
 type ChartStep = { label: string; count: number }
 
-export function FunnelChart({ steps, countLabel }: { steps: ChartStep[]; countLabel: 'Sessions' | 'Visitors' }) {
+export function FunnelChart({ steps, countLabel }: { steps: ChartStep[]; countLabel: 'Sessions' | 'Visitors' | 'Installs' }) {
   const maximum = Math.max(0, ...steps.map((step) => step.count))
   const countDescription = countLabel.toLowerCase()
 

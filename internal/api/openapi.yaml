@@ -3070,7 +3070,7 @@ paths:
       summary: Issues with events in the range, filtered, sorted and paged
       parameters:
         - { name: status, in: query, description: 'open, resolved, ignored, regressed or archived.', schema: { type: string, maxLength: 16 } }
-        - { name: kind, in: query, schema: { type: string, maxLength: 32 } }
+        - { name: kind, in: query, description: 'crash, error, hang, oom or watchdog. oom and watchdog are crashes ended by the OS (out of memory, watchdog termination); a crash filter includes them.', schema: { type: string, maxLength: 32 } }
         - { name: q, in: query, description: Case-insensitive prefix of the title or error type., schema: { type: string, maxLength: 100 } }
         - name: query
           in: query
@@ -3396,6 +3396,206 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/product/active-users:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppActiveUsers
+      tags: [Apps]
+      summary: Daily, weekly and monthly active installs, stickiness and new installs
+      description: |
+        WAU and MAU are the distinct installs active in the 7 and 30 site-local days ending that day, never a sum of
+        daily counts. Stickiness is the mean daily active installs divided by the distinct installs of the range. Works in
+        every tracking mode; the counts are keyed by install, no install id is returned.
+      responses:
+        '200': { description: Active installs, content: { application/json: { schema: { $ref: '#/components/schemas/AppActiveUsers' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/product/adoption:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: by, in: query, required: true, schema: { type: string, enum: [release, platform, country, os, device] } }
+    get:
+      operationId: getAppAdoption
+      tags: [Apps]
+      summary: Installs per release, platform, country, OS or device class
+      description: An install that reports two values counts once in each, so range shares can add up to more than 1.
+      responses:
+        '200': { description: Adoption per day and over the range, content: { application/json: { schema: { $ref: '#/components/schemas/AppAdoption' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/product/engagement:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppEngagement
+      tags: [Apps]
+      summary: Product sessions, session length and screens per session
+      responses:
+        '200': { description: Engagement, content: { application/json: { schema: { $ref: '#/components/schemas/AppEngagement' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/product/features:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppFeatureSets
+      tags: [Apps]
+      summary: Feature sets (named groups of product events)
+      responses:
+        '200': { description: Feature sets, content: { application/json: { schema: { type: object, required: [features], properties: { features: { type: array, items: { $ref: '#/components/schemas/AppFeatureSet' } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createAppFeatureSet
+      tags: [Apps]
+      summary: Create a feature set
+      description: Owner, admin or editor only. 1 to 20 event names; the name is unique per project (409).
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeatureSetInput' } } } }
+      responses:
+        '201': { description: The feature set, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeatureSet' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: A feature set with this name exists., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /api/private/sites/{site}/app/product/features/{id}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    delete:
+      operationId: deleteAppFeatureSet
+      tags: [Apps]
+      summary: Delete a feature set
+      description: Owner, admin or editor only.
+      responses:
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/product/features/{id}/adoption:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getAppFeatureAdoption
+      tags: [Apps]
+      summary: Share of active installs that used a feature set
+      responses:
+        '200': { description: Feature adoption, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeatureAdoption' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/sites/{site_id}/app/product/active-users:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getPublicAppActiveUsers
+      tags: [Apps]
+      summary: Daily, weekly and monthly active installs, stickiness and new installs
+      description: |
+        WAU and MAU are the distinct installs active in the 7 and 30 site-local days ending that day, never a sum of
+        daily counts. Stickiness is the mean daily active installs divided by the distinct installs of the range. Works in
+        every tracking mode; the counts are keyed by install, no install id is returned.
+      responses:
+        '200': { description: Active installs, content: { application/json: { schema: { $ref: '#/components/schemas/AppActiveUsers' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/sites/{site_id}/app/product/adoption:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: by, in: query, required: true, schema: { type: string, enum: [release, platform, country, os, device] } }
+    get:
+      operationId: getPublicAppAdoption
+      tags: [Apps]
+      summary: Installs per release, platform, country, OS or device class
+      description: An install that reports two values counts once in each, so range shares can add up to more than 1.
+      responses:
+        '200': { description: Adoption per day and over the range, content: { application/json: { schema: { $ref: '#/components/schemas/AppAdoption' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/sites/{site_id}/app/product/engagement:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getPublicAppEngagement
+      tags: [Apps]
+      summary: Product sessions, session length and screens per session
+      responses:
+        '200': { description: Engagement, content: { application/json: { schema: { $ref: '#/components/schemas/AppEngagement' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/sites/{site_id}/app/product/features:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: getPublicAppFeatureSets
+      tags: [Apps]
+      summary: Feature sets (named groups of product events)
+      responses:
+        '200': { description: Feature sets, content: { application/json: { schema: { type: object, required: [features], properties: { features: { type: array, items: { $ref: '#/components/schemas/AppFeatureSet' } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/sites/{site_id}/app/product/features/{id}/adoption:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: getPublicAppFeatureAdoption
+      tags: [Apps]
+      summary: Share of active installs that used a feature set
+      responses:
+        '200': { description: Feature adoption, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeatureAdoption' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/feedback:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3484,6 +3684,43 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/releases/compare:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: a, in: query, required: true, schema: { type: string, maxLength: 64 } }
+      - { name: b, in: query, required: true, schema: { type: string, maxLength: 64 } }
+    get:
+      operationId: compareAppReleases
+      tags: [Apps]
+      summary: Two releases side by side
+      description: Both releases over the same range. The delta is B minus A; a rate delta is null when either side has no rate. only_in_b lists issues with events in B and none in A.
+      responses:
+        '200': { description: Comparison, content: { application/json: { schema: { $ref: '#/components/schemas/AppReleaseComparison' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/releases/{release}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: release, in: path, required: true, schema: { type: string, maxLength: 64 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppRelease
+      tags: [Apps]
+      summary: One release with its rollout, deploys and issues
+      description: Works for a release that exists only in events (no release API row; created is null and status is open). 404 when the release has neither a row visible to the project nor any data in retention.
+      responses:
+        '200': { description: Release, content: { application/json: { schema: { $ref: '#/components/schemas/AppReleaseDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/deploys:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -3499,6 +3736,155 @@ paths:
       responses:
         '200': { description: Deploys, content: { application/json: { schema: { $ref: '#/components/schemas/AppDeploys' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/performance:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppPerformance
+      tags: [Apps]
+      summary: Performance overview of the range
+      description: Transaction totals with p50 and p95, the five slowest transactions by p95, the five with the highest error rate, app start percentiles and, when a web site of the organisation is linked to the project, a pointer to its Web Vitals. Percentiles are estimates from a log-scale histogram, within 4.9 % of the exact value.
+      responses:
+        '200': { description: Overview, content: { application/json: { schema: { $ref: '#/components/schemas/AppPerformanceOverview' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/transactions:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: sort, in: query, schema: { type: string, enum: [p95, count, errors, p50], default: p95 } }
+      - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
+    get:
+      operationId: listAppTransactions
+      tags: [Apps]
+      summary: Transactions of the range with throughput, error rate and p50-p99
+      responses:
+        '200': { description: Transactions, content: { application/json: { schema: { $ref: '#/components/schemas/AppTransactions' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/transactions/detail:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: name, in: query, required: true, schema: { type: string, maxLength: 200 } }
+    get:
+      operationId: getAppTransaction
+      tags: [Apps]
+      summary: One transaction with its daily series, child span groups and slowest samples
+      description: The child span breakdown and the slowest samples come from raw spans (at most 14 days) of the most recent segments.
+      responses:
+        '200': { description: Transaction, content: { application/json: { schema: { $ref: '#/components/schemas/AppTransactionDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/traces/{trace_id}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: trace_id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-f]{32}$' } }
+    get:
+      operationId: getAppTrace
+      tags: [Apps]
+      summary: One trace as a waterfall, with the errors captured inside it
+      description: At most 10,000 spans, depth first with start offsets in milliseconds; `truncated` says when more exist.
+      responses:
+        '200': { description: Trace, content: { application/json: { schema: { $ref: '#/components/schemas/AppTrace' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/performance/regressions:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+      - { name: base, in: query, required: true, schema: { type: string, maxLength: 64 } }
+      - { name: target, in: query, required: true, schema: { type: string, maxLength: 64 } }
+    get:
+      operationId: getAppRegressions
+      tags: [Apps]
+      summary: Transactions whose p95 grew between two releases
+      description: Only transactions with at least 30 samples on each side and a p95 up by 20 % or more, worst first.
+      responses:
+        '200': { description: Regressions, content: { application/json: { schema: { $ref: '#/components/schemas/AppRegressions' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/performance/network:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppNetworkFailures
+      tags: [Apps]
+      summary: Outgoing HTTP span groups with errors
+      responses:
+        '200': { description: Failures, content: { application/json: { schema: { $ref: '#/components/schemas/AppNetworkFailures' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/platforms:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - $ref: '#/components/parameters/AppFrom'
+      - $ref: '#/components/parameters/AppTo'
+      - $ref: '#/components/parameters/AppRelease'
+      - $ref: '#/components/parameters/AppEnvironment'
+      - $ref: '#/components/parameters/AppPlatform'
+    get:
+      operationId: getAppPlatforms
+      tags: [Apps]
+      summary: Health and symbolication per platform, busiest first
+      description: Events, crashes and crash-free rates per platform from raw events, plus how many error events were symbolicated and how many lack symbols (missing or partial).
+      responses:
+        '200': { description: Platforms, content: { application/json: { schema: { $ref: '#/components/schemas/AppPlatforms' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/debug-files:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppDebugFiles
+      tags: [Apps]
+      summary: Uploaded debug files and the debug images events still miss
+      description: The project's debug files (its own and its organization's org-wide ones, newest first, at most 500) and the images that events needed and no upload covered (at most 200, last seen first; rows idle for 30 days are dropped). Every member role may read.
+      responses:
+        '200': { description: Debug files, content: { application/json: { schema: { $ref: '#/components/schemas/AppDebugFiles' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/debug-files/{id}:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    delete:
+      operationId: deleteAppDebugFile
+      tags: [Apps]
+      summary: Delete one debug file
+      description: "Removes the file; its upload and stored blobs go when no other row uses them. Owner, admin or editor only, and only for the project's own files; an organization-wide file (shared by every project) is removed by an organization owner or admin, anyone else gets 404. Events already symbolicated are not changed."
+      responses:
+        '204': { description: Deleted }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/pixels:
@@ -6308,6 +6694,56 @@ components:
                     id: { type: integer, format: int64 }
                     title: { type: string }
                     events: { type: integer, format: int64 }
+    AppPlatforms:
+      type: object
+      required: [platforms]
+      properties:
+        platforms:
+          type: array
+          items:
+            type: object
+            required: [platform, events, crashes, crash_free_users, crash_free_sessions, symbolicated, missing]
+            properties:
+              platform: { type: string }
+              events: { type: integer, format: int64 }
+              crashes: { type: integer, format: int64 }
+              crash_free_users: { type: number, format: double, nullable: true }
+              crash_free_sessions: { type: number, format: double, nullable: true }
+              symbolicated: { type: integer, format: int64 }
+              missing: { type: integer, format: int64 }
+    AppDebugFiles:
+      type: object
+      required: [files, missing]
+      properties:
+        files:
+          type: array
+          items:
+            type: object
+            required: [id, kind, debug_id, code_id, arch, object_name, features, cache_state, size, created_at, org_wide]
+            properties:
+              id: { type: integer, format: int64 }
+              kind: { type: string, enum: [macho, elf, pe, breakpad, proguard, sourcebundle, other] }
+              debug_id: { type: string }
+              code_id: { type: string }
+              arch: { type: string }
+              object_name: { type: string }
+              features: { type: array, items: { type: string } }
+              cache_state: { type: string, enum: [pending, ok, error, unsupported] }
+              size: { type: integer, format: int64 }
+              created_at: { type: string, format: date-time }
+              org_wide: { type: boolean, description: Serves every project of the organization; only an owner or admin may delete it. }
+        missing:
+          type: array
+          items:
+            type: object
+            required: [kind, debug_id, code_file, arch, last_seen, events]
+            properties:
+              kind: { type: string }
+              debug_id: { type: string }
+              code_file: { type: string }
+              arch: { type: string }
+              last_seen: { type: string, format: date-time }
+              events: { type: integer, format: int64 }
     AppDeploys:
       type: object
       required: [deploys]
@@ -6324,32 +6760,323 @@ components:
               name: { type: string }
               url: { type: string }
               at: { type: string, format: date-time }
+    AppDayCount:
+      type: object
+      required: [day, count]
+      properties:
+        day: { type: string, format: date-time }
+        count: { type: integer, format: int64 }
+    AppActiveUsers:
+      type: object
+      required: [series, distinct, stickiness, new_installs]
+      properties:
+        series:
+          type: array
+          items:
+            type: object
+            required: [day, dau, wau, mau]
+            properties:
+              day: { type: string, format: date-time }
+              dau: { type: integer, format: int64 }
+              wau: { type: integer, format: int64 }
+              mau: { type: integer, format: int64 }
+        distinct: { type: integer, format: int64 }
+        stickiness: { type: number, format: double, nullable: true }
+        new_installs: { type: array, items: { $ref: '#/components/schemas/AppDayCount' } }
+    AppAdoptionRow:
+      type: object
+      required: [day, value, installs, share]
+      properties:
+        day: { type: string, format: date-time, description: The zero time for range totals. }
+        value: { type: string }
+        installs: { type: integer, format: int64 }
+        share: { type: number, format: double }
+    AppAdoption:
+      type: object
+      required: [by, series, totals]
+      properties:
+        by: { type: string }
+        series: { type: array, items: { $ref: '#/components/schemas/AppAdoptionRow' } }
+        totals: { type: array, items: { $ref: '#/components/schemas/AppAdoptionRow' } }
+    AppEngagement:
+      type: object
+      required: [sessions, sessions_per_user, mean_session_seconds, median_session_seconds, screens_per_session]
+      properties:
+        sessions: { type: integer, format: int64 }
+        sessions_per_user: { type: number, format: double, nullable: true }
+        mean_session_seconds: { type: number, format: double, nullable: true }
+        median_session_seconds: { type: number, format: double, nullable: true }
+        screens_per_session: { type: number, format: double, nullable: true }
+    AppFeatureSet:
+      type: object
+      required: [id, name, event_names, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        event_names: { type: array, minItems: 1, maxItems: 20, items: { type: string } }
+        created_at: { type: string, format: date-time }
+    AppFeatureSetInput:
+      type: object
+      required: [name, event_names]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        event_names: { type: array, minItems: 1, maxItems: 20, items: { type: string } }
+    AppFeatureAdoption:
+      type: object
+      required: [users, active_users, share, series]
+      properties:
+        users: { type: integer, format: int64 }
+        active_users: { type: integer, format: int64 }
+        share: { type: number, format: double, nullable: true }
+        series: { type: array, items: { $ref: '#/components/schemas/AppDayCount' } }
+    AppReleaseRow:
+      type: object
+      required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, adoption, handled_errors, unhandled_errors, health_source, new_issues, regressed_issues]
+      properties:
+        release: { type: string }
+        first_seen: { type: string, format: date-time }
+        last_seen: { type: string, format: date-time }
+        installs: { type: integer, format: int64 }
+        crash_free_users: { $ref: '#/components/schemas/AppRate' }
+        crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+        sessions: { type: integer, format: int64 }
+        users: { type: integer, format: int64 }
+        abnormal_sessions: { type: integer, format: int64 }
+        errored_sessions: { type: integer, format: int64 }
+        adoption: { $ref: '#/components/schemas/AppRate' }
+        handled_errors: { type: integer, format: int64 }
+        unhandled_errors: { type: integer, format: int64 }
+        health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
+        new_issues: { type: integer, format: int64 }
+        regressed_issues: { type: integer, format: int64 }
+    AppTransactionRow:
+      type: object
+      required: [name, op, count, errors, throughput_per_min, error_rate, p50_ms, p75_ms, p90_ms, p95_ms, p99_ms]
+      properties:
+        name: { type: string }
+        op: { type: string }
+        count: { type: integer, format: int64 }
+        errors: { type: integer, format: int64 }
+        throughput_per_min: { type: number, format: double }
+        error_rate: { type: number, format: double, nullable: true }
+        p50_ms: { type: number, format: double }
+        p75_ms: { type: number, format: double }
+        p90_ms: { type: number, format: double }
+        p95_ms: { type: number, format: double }
+        p99_ms: { type: number, format: double }
+    AppTransactions:
+      type: object
+      required: [transactions]
+      properties:
+        transactions:
+          type: array
+          items: { $ref: '#/components/schemas/AppTransactionRow' }
+    AppSpanGroup:
+      type: object
+      required: [op, description, count, errors, error_rate, total_ms, avg_ms, p95_ms]
+      properties:
+        op: { type: string }
+        description: { type: string, description: Parameterised; never holds literals, query strings or user data. }
+        count: { type: integer, format: int64 }
+        errors: { type: integer, format: int64 }
+        error_rate: { type: number, format: double, nullable: true }
+        total_ms: { type: number, format: double }
+        avg_ms: { type: number, format: double }
+        p95_ms: { type: number, format: double }
+    AppAppStart:
+      type: object
+      required: [type, count, p50_ms, p95_ms]
+      properties:
+        type: { type: string, enum: [cold, warm] }
+        count: { type: integer, format: int64 }
+        p50_ms: { type: number, format: double }
+        p95_ms: { type: number, format: double }
+    AppPerformanceOverview:
+      type: object
+      required: [transactions, errors, error_rate, p50_ms, p95_ms, slowest, most_failing, app_start]
+      properties:
+        transactions: { type: integer, format: int64 }
+        errors: { type: integer, format: int64 }
+        error_rate: { type: number, format: double, nullable: true }
+        p50_ms: { type: number, format: double }
+        p95_ms: { type: number, format: double }
+        slowest: { type: array, items: { $ref: '#/components/schemas/AppTransactionRow' } }
+        most_failing: { type: array, items: { $ref: '#/components/schemas/AppTransactionRow' } }
+        app_start: { type: array, items: { $ref: '#/components/schemas/AppAppStart' } }
+        vitals_link:
+          type: object
+          required: [site_id]
+          properties:
+            site_id: { type: integer, format: int32 }
+            lcp_p75: { type: number, format: double }
+            inp_p75: { type: number, format: double }
+            cls_p75: { type: number, format: double }
+    AppTransactionDetail:
+      type: object
+      required: [name, summary, series, span_groups, slowest, app_start]
+      properties:
+        name: { type: string }
+        summary: { $ref: '#/components/schemas/AppTransactionRow' }
+        series:
+          type: array
+          items:
+            type: object
+            required: [date, count, errors, p50_ms, p95_ms]
+            properties:
+              date: { type: string, format: date }
+              count: { type: integer, format: int64 }
+              errors: { type: integer, format: int64 }
+              p50_ms: { type: number, format: double, nullable: true }
+              p95_ms: { type: number, format: double, nullable: true }
+        span_groups: { type: array, items: { $ref: '#/components/schemas/AppSpanGroup' } }
+        slowest:
+          type: array
+          items:
+            type: object
+            required: [trace_id, start, duration_ms, release]
+            properties:
+              trace_id: { type: string }
+              start: { type: string, format: date-time }
+              duration_ms: { type: number, format: double }
+              release: { type: string }
+        app_start: { type: array, items: { $ref: '#/components/schemas/AppAppStart' } }
+    AppTrace:
+      type: object
+      required: [trace_id, duration_ms, spans, truncated, errors]
+      properties:
+        trace_id: { type: string }
+        duration_ms: { type: number, format: double }
+        truncated: { type: boolean }
+        spans:
+          type: array
+          items:
+            type: object
+            required: [span_id, depth, is_segment, name, op, description, status, start, start_offset_ms, duration_ms]
+            properties:
+              span_id: { type: string }
+              parent_id: { type: string }
+              depth: { type: integer }
+              is_segment: { type: boolean }
+              name: { type: string }
+              op: { type: string }
+              description: { type: string }
+              status: { type: string }
+              http_status: { type: integer }
+              start: { type: string, format: date-time }
+              start_offset_ms: { type: number, format: double }
+              duration_ms: { type: number, format: double }
+              release: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [event_id, issue_id, title, ts]
+            properties:
+              event_id: { type: string }
+              issue_id: { type: integer, format: int64, nullable: true }
+              title: { type: string }
+              ts: { type: string, format: date-time }
+              span_id: { type: string }
+    AppRegressions:
+      type: object
+      required: [regressions]
+      properties:
+        regressions:
+          type: array
+          items:
+            type: object
+            required: [name, op, base_p95_ms, target_p95_ms, base_count, target_count, delta]
+            properties:
+              name: { type: string }
+              op: { type: string }
+              base_p95_ms: { type: number, format: double }
+              target_p95_ms: { type: number, format: double }
+              base_count: { type: integer, format: int64 }
+              target_count: { type: integer, format: int64 }
+              delta: { type: number, format: double, description: "target p95 / base p95 - 1" }
+    AppNetworkFailures:
+      type: object
+      required: [failures]
+      properties:
+        failures: { type: array, items: { $ref: '#/components/schemas/AppSpanGroup' } }
     AppReleases:
       type: object
       required: [releases]
       properties:
         releases:
           type: array
-          items:
-            type: object
-            required: [release, first_seen, last_seen, installs, crash_free_users, crash_free_sessions, sessions, users, abnormal_sessions, errored_sessions, adoption, handled_errors, unhandled_errors, health_source, new_issues, regressed_issues]
-            properties:
-              release: { type: string }
-              first_seen: { type: string, format: date-time }
-              last_seen: { type: string, format: date-time }
-              installs: { type: integer, format: int64 }
-              crash_free_users: { $ref: '#/components/schemas/AppRate' }
-              crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
-              sessions: { type: integer, format: int64 }
-              users: { type: integer, format: int64 }
-              abnormal_sessions: { type: integer, format: int64 }
-              errored_sessions: { type: integer, format: int64 }
-              adoption: { $ref: '#/components/schemas/AppRate' }
-              handled_errors: { type: integer, format: int64 }
-              unhandled_errors: { type: integer, format: int64 }
-              health_source: { type: string, description: "sessions (tracked session lifecycles) or events (v1 pings)" }
-              new_issues: { type: integer, format: int64 }
-              regressed_issues: { type: integer, format: int64 }
+          items: { $ref: '#/components/schemas/AppReleaseRow' }
+    AppReleaseIssue:
+      type: object
+      required: [id, title, events]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        events: { type: integer, format: int64 }
+    AppRolloutPoint:
+      type: object
+      required: [day, sessions, adoption, crash_free_sessions, crash_free_users]
+      properties:
+        day: { type: string, format: date }
+        sessions: { type: integer, format: int64 }
+        adoption: { $ref: '#/components/schemas/AppRate' }
+        crash_free_sessions: { $ref: '#/components/schemas/AppRate' }
+        crash_free_users: { $ref: '#/components/schemas/AppRate' }
+    AppReleaseDetail:
+      type: object
+      required: [release, first_seen, last_seen, created, status, ref, health, rollout, deploys, new_issues, regressed_issues, commit_count, health_source]
+      properties:
+        release: { type: string }
+        first_seen: { type: string, format: date-time, nullable: true }
+        last_seen: { type: string, format: date-time, nullable: true }
+        created: { type: string, format: date-time, nullable: true, description: Null for a release known only from events. }
+        status: { type: string, enum: [open, archived] }
+        ref: { type: string }
+        health: { $ref: '#/components/schemas/AppReleaseRow' }
+        rollout:
+          type: array
+          description: One point per day the release had sessions; adoption is its share of the project's sessions that day.
+          items: { $ref: '#/components/schemas/AppRolloutPoint' }
+        deploys:
+          type: array
+          items: { $ref: '#/components/schemas/AppDeploy' }
+        new_issues:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AppReleaseIssue' }
+        regressed_issues:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AppReleaseIssue' }
+        commit_count: { type: integer }
+        health_source: { type: string, description: "sessions or events" }
+    AppReleaseComparison:
+      type: object
+      required: [a, b, delta, only_in_b]
+      properties:
+        a: { $ref: '#/components/schemas/AppReleaseDetail' }
+        b: { $ref: '#/components/schemas/AppReleaseDetail' }
+        delta:
+          type: object
+          required: [crash_free_sessions, crash_free_users, new_issues]
+          properties:
+            crash_free_sessions: { type: number, format: double, nullable: true }
+            crash_free_users: { type: number, format: double, nullable: true }
+            new_issues: { type: integer, format: int64 }
+        only_in_b:
+          type: array
+          items: { $ref: '#/components/schemas/AppReleaseIssue' }
+    AppDeploy:
+      type: object
+      required: [id, release, environment, name, url, at]
+      properties:
+        id: { type: integer, format: int64 }
+        release: { type: string }
+        environment: { type: string }
+        name: { type: string }
+        url: { type: string }
+        at: { type: string, format: date-time }
     AppLink:
       type: object
       required: [app_site_id]

@@ -13,6 +13,7 @@ type Source struct {
 
 var sourceRegistry = []Source{
 	{Table: "alert_delivery_log", Category: CategoryAuxiliary},
+	{Table: "alert_incidents", Category: CategoryAuxiliary},
 	{Table: "alerts", Category: CategoryAuxiliary},
 	{Table: "annotations", Category: CategoryAuxiliary},
 	{Table: "cohorts", Category: CategoryAuxiliary},
@@ -63,6 +64,7 @@ var sourceRegistry = []Source{
 	{Table: "app_client_reports", Category: CategoryRetained},
 	{Table: "app_artifact_files", Category: CategoryAuxiliary},
 	{Table: "app_debug_files", Category: CategoryAuxiliary},
+	{Table: "app_missing_debug_files", Category: CategoryAuxiliary},
 	{Table: "app_erasure_requests", Category: CategoryAuxiliary},
 	{Table: "app_feature_sets", Category: CategoryAuxiliary},
 	{Table: "app_event_attachments", Category: CategoryAuxiliary, Partitioned: true},
@@ -87,6 +89,8 @@ var sourceRegistry = []Source{
 	{Table: "app_session_daily", Category: CategoryRetained},
 	{Table: "app_sessions", Category: CategoryAuxiliary, Partitioned: true},
 	{Table: "site_last_event", Category: CategoryAuxiliary},
+	{Table: "metric_points", Category: CategoryHot, Partitioned: true},
+	{Table: "metric_series", Category: CategoryAuxiliary},
 	{Table: "spans", Category: CategoryHot, Partitioned: true},
 	{Table: "span_hourly", Category: CategoryRetained},
 	{Table: "span_hour_state", Category: CategoryAuxiliary},

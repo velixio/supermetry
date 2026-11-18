@@ -64,6 +64,7 @@ const messages: MessageTree = {
     dashboard: 'Panel',
     events: 'Eventos',
     sessions: 'Sesiones',
+    usersAndSessions: 'Sesiones y usuarios',
     journeys: 'Recorridos',
     retention: 'Retención',
     profiles: 'Perfiles',
