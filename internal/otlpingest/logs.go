@@ -412,7 +412,7 @@ func (f *logsFront) count(name string, n int) {
 // serveLogs handles an authenticated, content-type-checked logs export. It
 // reads nothing from the database: the site comes from the in-memory registry
 // and the daily quota from memory.
-func (h *Handler) serveLogs(w http.ResponseWriter, r *http.Request, site sites.Site, ct string, now time.Time) {
+func (h *Handler) serveLogs(w http.ResponseWriter, r *http.Request, site sites.Site, key sites.DSNKey, ct string, now time.Time) {
 	f := h.logs
 	if !h.acquire(r) {
 		w.Header().Set("Retry-After", "5")
@@ -480,6 +480,11 @@ func (h *Handler) serveLogs(w http.ResponseWriter, r *http.Request, site sites.S
 	f.count("log_invalid", rejected)
 	invalid := rejected
 
+	// Error records become issues whatever the logs quota says: the intake's
+	// own key budget and error quota govern them.
+	issues, capped := logIssueEvents(records, maxLogIssuesPerRequest)
+	f.count("log_issue_capped", capped)
+
 	msg := warn
 	taken := 0
 	if n := len(records); n > 0 && f.quota != nil {
@@ -516,6 +521,14 @@ func (h *Handler) serveLogs(w http.ResponseWriter, r *http.Request, site sites.S
 	if f.quota != nil {
 		// Quota rejections were counted by Take, queue drops above.
 		f.quota.Reject(site.ID, obsquota.ClassLogs, invalid)
+	}
+	if h.intake != nil {
+		// Only on success: on the 503 path the client retries the whole
+		// request, and the intake's dedup by event ID absorbs the repeat.
+		budgetKey := "dsn:" + key.PublicKey
+		for _, ev := range issues {
+			h.intake.Accept(site, budgetKey, now, ev)
+		}
 	}
 	h.respondLogs(w, ct, rejected, msg)
 }

@@ -247,7 +247,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.serveMetrics(w, r, site, ct, now)
 		return
 	case routeLogs:
-		h.serveLogs(w, r, site, ct, now)
+		h.serveLogs(w, r, site, key, ct, now)
 		return
 	}
 	if site.App.PerformanceEnabled != nil && !*site.App.PerformanceEnabled {
