@@ -21,6 +21,7 @@ function GoalsRoute() {
     <GoalsPage
       dateRange={resolveRange('30d', site.timezone || 'UTC', new Date())}
       siteId={site.id}
+      orgId={membership?.org.id}
       timezone={site.timezone || 'UTC'}
       revenueCurrency={site.revenue_currency}
       revenueCurrencyState={site.revenue_currency_state}

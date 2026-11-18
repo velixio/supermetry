@@ -18,5 +18,5 @@ function FunnelRoute() {
   )
   const funnelId = Number(id)
   if (!site || !Number.isSafeInteger(funnelId) || funnelId < 1) return null
-  return <FunnelsPage dateRange={resolveRange('30d', 'UTC', new Date())} funnelId={funnelId} siteId={site.id} />
+  return <FunnelsPage dateRange={resolveRange('30d', 'UTC', new Date())} funnelId={funnelId} siteId={site.id} orgId={membership?.org.id} />
 }

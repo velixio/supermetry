@@ -14,13 +14,15 @@ import { activeLocale } from '@/lib/i18n/intl'
 
 type GoalsPageProps = {
   siteId: number
+  /** Needed for the picker of already-seen pages and events. */
+  orgId?: number
   dateRange: { from: string; to: string }
   timezone?: string
   revenueCurrency?: string
   revenueCurrencyState?: 'unconfigured' | 'configured' | 'conflict'
 }
 
-export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
+export function GoalsPage({ siteId, orgId, dateRange, timezone = 'UTC', revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
   const goals = useGoals(siteId)
   const save = useSaveGoal(siteId)
   const [editing, setEditing] = useState<Goal>()
@@ -66,6 +68,7 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
           projectCurrency={revenueCurrency}
           currencyState={revenueCurrencyState}
           goal={editing}
+          suggest={orgId === undefined ? undefined : { siteId, orgId, dateRange }}
           pending={save.isPending}
           onCancel={() => setEditing(undefined)}
           onSave={async (input) => {

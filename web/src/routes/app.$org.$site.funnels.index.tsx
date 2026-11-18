@@ -17,5 +17,5 @@ function FunnelsRoute() {
     item.slug === siteSlug || item.public_id === siteSlug || String(item.id) === siteSlug,
   )
   if (!site) return null
-  return <FunnelsPage app={site.kind === 'app'} dateRange={resolveRange('30d', 'UTC', new Date())} siteId={site.id} />
+  return <FunnelsPage app={site.kind === 'app'} dateRange={resolveRange('30d', 'UTC', new Date())} siteId={site.id} orgId={membership?.org.id} />
 }

@@ -15,13 +15,15 @@ import type { FunnelCountBy, FunnelStep, FunnelWindow } from './types'
 
 type FunnelsPageProps = {
   siteId: number
+  /** Needed for the picker of already-seen pages and events. */
+  orgId?: number
   dateRange: { from: string; to: string }
   funnelId?: number
   /** App project: installs instead of visitors. */
   app?: boolean
 }
 
-export function FunnelsPage({ siteId, dateRange, funnelId, app = false }: FunnelsPageProps) {
+export function FunnelsPage({ siteId, orgId, dateRange, funnelId, app = false }: FunnelsPageProps) {
   const funnels = useFunnels(siteId)
   const create = useCreateFunnel(siteId)
   const update = useUpdateFunnel(siteId)
@@ -105,6 +107,7 @@ export function FunnelsPage({ siteId, dateRange, funnelId, app = false }: Funnel
           <FunnelBuilder
             key={selected?.id ?? 'new'}
             initialSteps={selected?.steps}
+            suggest={orgId === undefined ? undefined : { siteId, orgId, dateRange }}
             pending={create.isPending || update.isPending}
             onSubmit={async (nextSteps) => {
               setPreviewSteps(nextSteps)
