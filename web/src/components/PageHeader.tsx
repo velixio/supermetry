@@ -29,10 +29,11 @@ export function PageHeader({
 }) {
   if (titleHidden && !actions && !description) return <h1 id={titleId} className="sr-only">{title}</h1>
   return (
-    <header className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-3', className)}>
-      <div className={cn('flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5', inlineActions && 'max-sm:shrink-0')}>
-        <h1 id={titleId} className="min-w-0 wrap-anywhere text-xl leading-tight font-semibold tracking-tight">{title}</h1>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+    <header className={cn('flex min-h-8 flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-3', className)}>
+      {/* One line: the title and, while it fits, its description; the full description stays available as a tooltip. */}
+      <div className={cn('flex min-w-0 flex-1 items-baseline gap-x-3', inlineActions && 'max-sm:shrink-0')}>
+        <h1 id={titleId} className="min-w-0 shrink-0 wrap-anywhere text-base leading-tight font-semibold tracking-tight">{title}</h1>
+        {description ? <p className="min-w-0 truncate text-sm text-muted-foreground max-md:hidden" title={typeof description === 'string' ? description : undefined}>{description}</p> : null}
       </div>
       {actions ? (
         <div className={cn('flex flex-wrap items-center gap-2 empty:hidden', inlineActions && 'max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:justify-end')} data-slot="page-header-actions">
