@@ -167,6 +167,7 @@ export function EventDetail({ org, site, siteId, issueId, eventId }: { org: stri
     <PageContainer>
       <PageHeader title="Event" description={<span>{event.data.ts.slice(0, 19).replace('T', ' ')} · <span className="font-mono">{event.data.event_id}</span></span>} />
       {back}
+      {event.data.trace_id ? <Link className="text-sm font-medium underline" to="/app/$org/$site/traces/$trace" params={{ org, site, trace: event.data.trace_id }}>View trace</Link> : null}
       <EventBodyView body={event.data.body} source={{ siteId, eventId: event.data.event_id }} />
     </PageContainer>
   )

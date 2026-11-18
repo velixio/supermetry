@@ -74,6 +74,7 @@ export const en = {
     issues: 'Issues',
     compatibility: 'Compatibility',
     releases: 'Releases',
+    performance: 'Performance',
     goals: 'Goals',
     revenue: 'Revenue',
     settings: 'Site settings',

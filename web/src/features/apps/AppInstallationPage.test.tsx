@@ -35,7 +35,7 @@ vi.mock('./TestReportCheck', async () => {
 })
 
 import { AppInstallationPage, appInstallSnippets } from './AppInstallationPage'
-import { sdkSnippets } from './sdkSnippets'
+import { otelEnvSnippet, otlpEndpoint, sdkSnippets, tracingSnippets } from './sdkSnippets'
 
 afterEach(cleanup)
 
@@ -130,6 +130,27 @@ describe('AppInstallationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revoke key aaaaaaaa' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke key' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('DELETE', '/api/private/sites/19/app/dsn-keys/aaaaaaaa', { orgId: 1 }))
+  })
+
+  it('shows the OTLP endpoint and key beside the DSN with the tracing instructions', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AppInstallationPage org="acme" site="desktop" orgId={1} siteId={19} publicId="6quqxuelthfz" timezone="UTC" />
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByLabelText('OTLP key')).toHaveTextContent(dsnKey.public_key)
+    expect(screen.getByLabelText('OTLP endpoint')).toHaveTextContent(`${window.location.origin}/api/19/otlp`)
+    expect(screen.getByRole('button', { name: 'Copy OTLP URL' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy OTLP key' })).toBeInTheDocument()
+    expect(screen.getByText(/^OpenTelemetry: set/).parentElement).toHaveTextContent(
+      `OpenTelemetry: set OTEL_EXPORTER_OTLP_ENDPOINT to this URL and OTEL_EXPORTER_OTLP_HEADERS to authorization=Bearer ${dsnKey.public_key}. Sentry SDKs: set tracesSampleRate to send transactions.`,
+    )
+  })
+
+  it('builds the OTLP URL and environment snippet', () => {
+    expect(otlpEndpoint('https://app.example.com', 19)).toBe('https://app.example.com/api/19/otlp')
+    expect(otelEnvSnippet('https://app.example.com/api/19/otlp', 'k')).toContain('OTEL_EXPORTER_OTLP_HEADERS=authorization=Bearer k')
+    expect(tracingSnippets().every((item) => item.code.toLowerCase().includes('sample'))).toBe(true)
   })
 
   it('lists a snippet for every supported SDK', () => {

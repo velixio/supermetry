@@ -3046,7 +3046,10 @@ type AppEventBody struct {
 	// Body message, release, symbolication (empty, ok, missing or partial), exceptions, breadcrumbs, contexts, request, tags, attachments (name, type, content_type, size, stored), sdk; every field optional.
 	Body    map[string]interface{} `json:"body"`
 	EventId string                 `json:"event_id"`
-	Ts      time.Time              `json:"ts"`
+
+	// TraceId Trace of the event, 32 hex characters; present only when the event is linked to a trace.
+	TraceId *string   `json:"trace_id,omitempty"`
+	Ts      time.Time `json:"ts"`
 }
 
 // AppEventSample defines model for AppEventSample.
