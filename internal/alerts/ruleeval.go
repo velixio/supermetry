@@ -27,6 +27,10 @@ type Candidate struct {
 	GroupKey     string
 	IssueID      int64
 	Notification Notification
+	// Done runs once the key is committed (sent now, or found already sent by
+	// an earlier run). Incident transitions hang off it, so a crash between
+	// delivery and the state update repeats the update, never the delivery.
+	Done func(ctx context.Context) error
 }
 
 // RuleEvaluator runs the app_rule alerts. The old Evaluator keeps the web
@@ -39,6 +43,8 @@ type RuleEvaluator struct {
 	dedup AppDedup
 	sites sites.Registry
 	now   func() time.Time
+	// metrics serves the metric triggers; nil leaves them inert.
+	metrics RuleMetricSource
 }
 
 // NewRuleEvaluator builds the evaluator of the alert-rules job. It reuses the
@@ -186,10 +192,6 @@ func (e *RuleEvaluator) evalEvent(context.Context, Alert, sites.Site, time.Time)
 	return nil, nil
 }
 
-func (e *RuleEvaluator) evalMetric(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
-	return nil, nil
-}
-
 func (e *RuleEvaluator) evalMonitor(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
 	return nil, nil
 }
@@ -217,6 +219,11 @@ func (e *RuleEvaluator) fireKeyed(ctx context.Context, alert Alert, candidates [
 			break
 		}
 		if _, done := seen[c.Key]; done {
+			if c.Done != nil {
+				if err := c.Done(ctx); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		seen[c.Key] = now
@@ -227,6 +234,11 @@ func (e *RuleEvaluator) fireKeyed(ctx context.Context, alert Alert, candidates [
 		}
 		if err := e.base.fireWithKey(ctx, alert, n, nil, c.Key); err != nil {
 			return err
+		}
+		if c.Done != nil {
+			if err := c.Done(ctx); err != nil {
+				return err
+			}
 		}
 		sent++
 	}
