@@ -255,6 +255,7 @@ function WebDashboardStateRoute() {
       >
       <PageHeader
         title={en.navigation.dashboard}
+        inlineActions
         actions={
           <>
             <Suspense fallback={null}>
@@ -286,13 +287,15 @@ function WebDashboardStateRoute() {
       />
       {edit ? null : (
         <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-12 z-10 -mt-1 bg-background py-1" role="group">
-          <ResponsiveFilters className="justify-start">
-            <DatePicker
+          <ResponsiveFilters
+            className="justify-start"
+            lead={<DatePicker
               search={search}
               dateRange={query.dateRange}
               labels={en.dashboard}
               onChange={updateSearch}
-            />
+            />}
+          >
             {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
               <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
               {filters.map((filter, index) => <Button key={index} variant="outline" size="sm" onClick={() => updateSearch(removeFilter(search, index))} aria-label={`Remove ${filter.dimension} filter`}>{filter.dimension} {filter.operator} {filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')} ×</Button>)}
