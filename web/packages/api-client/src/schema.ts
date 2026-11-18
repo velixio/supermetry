@@ -5225,6 +5225,8 @@ export interface components {
                 size: number;
                 /** Format: date-time */
                 created_at: string;
+                /** @description Serves every project of the organization; only an owner or admin may delete it. */
+                org_wide: boolean;
             }[];
             missing: {
                 kind: string;

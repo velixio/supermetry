@@ -19,6 +19,8 @@ export type AppFeedback = components['schemas']['AppFeedback']
 export type AppMergedIssue = components['schemas']['AppMergedIssue']
 export type AppCompatibilityData = components['schemas']['AppCompatibility']
 export type AppReleasesData = components['schemas']['AppReleases']
+export type AppPlatformsData = components['schemas']['AppPlatforms']
+export type AppDebugFilesData = components['schemas']['AppDebugFiles']
 
 const base = (siteId: number) => `/api/private/sites/${siteId}/app`
 
@@ -45,6 +47,23 @@ export function useAppCompatibility(siteId: number, search: AppSearch, timezone:
 export function useAppReleases(siteId: number, search: AppSearch, timezone: string) {
   const query = appQuery(search, timezone).toString()
   return useQuery({ queryKey: ['app-releases', siteId, query], queryFn: () => privateRequest<AppReleasesData>('GET', `${base(siteId)}/releases?${query}`) })
+}
+
+export function useAppPlatforms(siteId: number, search: AppSearch, timezone: string) {
+  const query = appQuery(search, timezone).toString()
+  return useQuery({ queryKey: ['app-platforms', siteId, query], queryFn: () => privateRequest<AppPlatformsData>('GET', `${base(siteId)}/platforms?${query}`) })
+}
+
+export function useAppDebugFiles(siteId: number) {
+  return useQuery({ queryKey: ['app-debug-files', siteId], queryFn: () => privateRequest<AppDebugFilesData>('GET', `${base(siteId)}/debug-files`) })
+}
+
+export function useDeleteDebugFile(siteId: number) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => privateRequest<void>('DELETE', `${base(siteId)}/debug-files/${id}`),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['app-debug-files', siteId] }),
+  })
 }
 
 export type StatusChange = { status: 'open' | 'resolved' | 'ignored'; resolved_in_release?: string }
