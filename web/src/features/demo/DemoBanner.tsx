@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { LoaderCircleIcon } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,8 +13,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import { deleteSite, getSite } from '@/features/sites/api'
 import { heartbeatDemo } from './api'
 
@@ -91,35 +93,63 @@ export function DemoBanner({
       ? 'Everything here is synthetic and safe to explore.'
       : 'The dashboard will fill in as the project is prepared.'
   const expiry = useDemoExpiry(currentSite.demo_expires_at)
+  const expiryShort = expiry?.replace('Demo expires in ', '')
+
+  const [open, setOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  // A compact chip in the app header: the page keeps its full height for data. The chip names the state
+  // (and the remaining lifetime); the explanation and the remove action are one click away.
+  const chipLabel = failed ? 'Demo failed' : ready ? (expiryShort ? `Demo · ${expiryShort}` : 'Demo') : 'Generating demo…'
 
   return (
-    <Alert className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-sm [&>svg]:hidden">
-      <AlertTitle className="col-auto line-clamp-none font-medium">{title}</AlertTitle>
-      <AlertDescription className="col-auto flex flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
-          <span>{description}</span>
-          {expiry ? <span>{expiry}</span> : null}
-        </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground">Remove demo project</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Remove demo project?</DialogTitle>
-              <DialogDescription>This deletes the demo project and all of its synthetic data.</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-              <Button type="button" variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}>
-                {remove.isPending ? 'Removing…' : 'Remove demo'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {remove.isError ? <span role="alert">The demo project could not be removed.</span> : null}
-      </AlertDescription>
-    </Alert>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-label={`${title} ${chipLabel === 'Demo' ? '' : `(${chipLabel})`}`.trim()}
+            className={cn(
+              'h-7 gap-1.5 rounded-full px-2.5 text-xs font-medium shadow-none',
+              failed ? 'border-destructive/40 text-destructive' : 'border-chart-1/40 text-foreground',
+            )}
+            data-testid="demo-chip"
+          >
+            {ready || failed
+              ? <span aria-hidden="true" className={cn('size-1.5 rounded-full', failed ? 'bg-destructive' : 'bg-chart-1')} />
+              : <LoaderCircleIcon aria-hidden="true" className="size-3 animate-spin motion-reduce:animate-none" />}
+            <span aria-hidden="true" className="tabular-nums">{chipLabel}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 space-y-2 p-3 text-sm">
+          <p className="font-medium">{title}</p>
+          <p className="text-muted-foreground">{description}</p>
+          {expiry ? <p className="text-xs text-muted-foreground tabular-nums">{expiry}</p> : null}
+          <div className="flex justify-end pt-1">
+            <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground" onClick={() => { setOpen(false); setConfirming(true) }}>
+              Remove demo project
+            </Button>
+          </div>
+          {remove.isError ? <p role="alert" className="text-destructive">The demo project could not be removed.</p> : null}
+        </PopoverContent>
+      </Popover>
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove demo project?</DialogTitle>
+            <DialogDescription>This deletes the demo project and all of its synthetic data.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+            <Button type="button" variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}>
+              {remove.isPending ? 'Removing…' : 'Remove demo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {remove.isError && !open ? <span role="alert" className="sr-only">The demo project could not be removed.</span> : null}
+    </>
   )
 }
 

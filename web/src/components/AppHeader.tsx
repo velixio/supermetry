@@ -1,4 +1,4 @@
-import { useId, type Ref } from 'react'
+import { useId, type ReactNode, type Ref } from 'react'
 import { Link } from '@tanstack/react-router'
 import { SearchIcon } from 'lucide-react'
 
@@ -81,6 +81,7 @@ export function AppHeader({
   onOpenAbout,
   onOpenPalette,
   paletteTriggerRef,
+  notice,
 }: {
   instanceAdmin?: boolean
   membership?: Membership
@@ -91,6 +92,8 @@ export function AppHeader({
   onOpenPalette: () => void
   /** Lets the shell return focus here after a command that leaves focus nowhere else. */
   paletteTriggerRef?: Ref<HTMLButtonElement>
+  /** A compact page-scoped status chip (the demo project), so it costs no page height. */
+  notice?: ReactNode
 }) {
   return (
     <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
@@ -119,6 +122,7 @@ export function AppHeader({
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
         </span>
+        {notice}
         <UpdateNotice instanceAdmin={instanceAdmin} />
         {membership && site && requestedSite && site.kind !== 'app' ? (
           <div className="hidden sm:block">

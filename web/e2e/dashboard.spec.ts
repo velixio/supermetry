@@ -90,7 +90,7 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-29&to=2026-09-29`
   await owner.login(page, dashboard)
   await page.goto(dashboard)
-  const headerActions = page.locator('[data-slot="page-header-actions"]')
+  const headerActions = page.getByTestId('filters-trailing')
   await headerActions.getByRole('button', { name: 'View options' }).click()
   await expect(page.getByRole('menuitemcheckbox', { name: 'Include imported data' })).toBeVisible()
   await page.keyboard.press('Escape')

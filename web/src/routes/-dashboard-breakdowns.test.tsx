@@ -120,7 +120,7 @@ describe('dashboard breakdown route', () => {
     return router
   }
 
-  it('keeps dates and filters in the sticky row, view options and export in the header, and compare on the chart', async () => {
+  it('keeps dates and filters at the start of the one sticky row, view options and export at its end, and compare on the chart', async () => {
     renderDashboard()
     const row = await screen.findByRole('group', { name: 'Filters' })
     expect(row).toHaveClass('sticky', 'top-12', 'z-10', 'bg-background')
@@ -132,11 +132,12 @@ describe('dashboard breakdown route', () => {
     const chart = screen.getByTestId('chart-controls')
     expect(within(chart).getByRole('combobox', { name: 'Compare' })).toBeInTheDocument()
     expect(chart).toHaveAttribute('data-pinned', 'false')
-    const actions = document.querySelector('[data-slot="page-header-actions"]') as HTMLElement
+    // No visible title row: the h1 is for assistive tech, the actions close the filter row.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('sr-only')
+    const actions = within(row).getByTestId('filters-trailing')
     expect(within(actions).getByRole('button', { name: 'Export CSV' })).toBeVisible()
     const options = within(actions).getByRole('button', { name: 'View options' })
-    expect(within(row).queryByRole('button', { name: 'View options' })).toBeNull()
-    expect(within(row).queryByRole('button', { name: 'Export CSV' })).toBeNull()
+    expect(segments.compareDocumentPosition(options) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(actions).queryByRole('checkbox')).toBeNull()
     fireEvent.pointerDown(options, { button: 0, ctrlKey: false, pointerType: 'mouse' })
     expect(await screen.findByRole('menuitemcheckbox', { name: 'Include imported data' })).toBeVisible()
@@ -175,7 +176,7 @@ describe('dashboard breakdown route', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Example' })).toBeVisible()
     // The range is stated once, in the date button, not again under the title.
     expect(screen.getByRole('button', { name: /date range/i })).toHaveTextContent('Sep 28, 2026 – Sep 30, 2026')
-    expect(within(screen.getByRole('heading', { level: 1, name: 'Example' }).parentElement as HTMLElement).queryByText(/Sep 28/)).toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: 'Example' })).not.toHaveTextContent(/Sep 28/)
     expect(screen.queryByText(/Example, /)).toBeNull()
     const band = screen.getByTestId('where-when-band')
     expect(band).toHaveClass('lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]')

@@ -14,6 +14,7 @@ export function PageHeader({
   className,
   titleId,
   inlineActions = false,
+  titleHidden = false,
 }: {
   title: ReactNode
   description?: ReactNode
@@ -23,7 +24,10 @@ export function PageHeader({
   titleId?: string
   /** Keep title and actions on one row below 640px; the actions shrink and truncate instead of wrapping. */
   inlineActions?: boolean
+  /** The title is already on screen (breadcrumbs): keep the h1 for assistive tech only, so the page spends no height on it. */
+  titleHidden?: boolean
 }) {
+  if (titleHidden && !actions && !description) return <h1 id={titleId} className="sr-only">{title}</h1>
   return (
     <header className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-2', inlineActions && 'max-sm:flex-nowrap max-sm:gap-x-3', className)}>
       <div className={cn('flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5', inlineActions && 'max-sm:shrink-0')}>

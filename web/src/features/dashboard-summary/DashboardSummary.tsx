@@ -84,6 +84,8 @@ type Props = SummaryContext & {
   /** Anonymous mode has no source or page breakdowns, so only the totals are used. */
   anonymous: boolean
   collapsed: boolean
+  /** One muted line inside the figures block instead of a lead paragraph; no hide control. */
+  compact?: boolean
 }
 
 function rowsOf(data: { rows?: Array<Record<string, unknown>> } | undefined, dimension: string): SummarySourceRow[] {
@@ -99,15 +101,15 @@ type StatsResult = ReturnType<typeof useStats>
 type Summary = { sentences?: Sentence[]; loading: boolean; failed: boolean }
 
 /** The open summary. On an error the shell is hidden, because the key-metric strip already shows the error. */
-function Lead({ summary, onFailed }: { summary: Summary; onFailed(failed: boolean): void }) {
+function Lead({ summary, onFailed, compact = false }: { summary: Summary; onFailed(failed: boolean): void; compact?: boolean }) {
   useEffect(() => onFailed(summary.failed), [summary.failed, onFailed])
-  return summary.failed ? null : <LeadText summary={summary} />
+  return summary.failed ? null : <LeadText compact={compact} summary={summary} />
 }
 
-function LeadText({ summary }: { summary: Summary }) {
-  if (summary.loading || !summary.sentences) return <Skeleton aria-hidden="true" className="h-5 w-2/3" data-testid="dashboard-summary-loading" />
+function LeadText({ summary, compact }: { summary: Summary; compact: boolean }) {
+  if (summary.loading || !summary.sentences) return <Skeleton aria-hidden="true" className={compact ? 'h-4 w-1/2' : 'h-5 w-2/3'} data-testid="dashboard-summary-loading" />
   return (
-    <p className="max-w-3xl text-[0.9375rem] leading-6 text-foreground" data-testid="dashboard-summary-text">
+    <p className={compact ? 'text-xs leading-5 text-muted-foreground' : 'max-w-3xl text-[0.9375rem] leading-6 text-foreground'} data-testid="dashboard-summary-text">
       {summary.sentences.map((sentence, index) => <Fragment key={sentence.kind}>{index > 0 ? ' ' : null}{sentenceNodes(sentence)}</Fragment>)}
     </p>
   )
@@ -124,7 +126,7 @@ function TotalsLead(props: Props) {
   const { reference, current, comparison } = useStripTotals(props)
   const totals = totalsOf(current.data)
   return (
-    <Lead onFailed={props.onFailed} summary={{
+    <Lead compact={props.compact} onFailed={props.onFailed} summary={{
       loading: current.isLoading || comparison.isLoading,
       failed: current.isError,
       sentences: totals ? buildSummary({ ...props, reference, totals, previous: totalsOf(comparison.data) }) : undefined,
@@ -142,7 +144,7 @@ function FullLead(props: Props) {
   // A failed breakdown only drops its sentence; the totals decide whether there is a summary at all.
   const comparisonRows = sources.data?.comparison?.rows
   return (
-    <Lead onFailed={props.onFailed} summary={{
+    <Lead compact={props.compact} onFailed={props.onFailed} summary={{
       loading,
       failed: current.isError,
       sentences: totals && !loading
@@ -180,6 +182,13 @@ export function DashboardSummary(props: DashboardSummaryProps) {
   })
   const { collapsed } = props
   const content = { ...props, onFailed: setFailed }
+  if (props.compact) {
+    return (
+      <section aria-label={en.dashboardSummary.title} className="min-w-0 flex-1 px-2 max-md:order-last max-md:basis-full max-md:pb-1" data-testid="dashboard-summary" hidden={failed}>
+        {props.anonymous ? <TotalsLead {...content} /> : <FullLead {...content} />}
+      </section>
+    )
+  }
   if (collapsed) {
     return (
       <section aria-label={en.dashboardSummary.title} data-testid="dashboard-summary">

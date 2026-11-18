@@ -11,12 +11,14 @@ import { en } from '@/messages/en'
  * `lead` (the date and compare controls) stays visible; on narrow screens it shares one scrollable row with the
  * Filters button, and the remaining controls move into the sheet.
  */
-export function ResponsiveFilters({ children, className, lead }: { children: ReactNode; className?: string; lead?: ReactNode }) {
+export function ResponsiveFilters({ children, className, lead, trailing }: { children: ReactNode; className?: string; lead?: ReactNode; trailing?: ReactNode }) {
   const mobile = useIsMobile()
-  if (!mobile) return <div className={cn('flex flex-wrap items-center justify-end gap-2', className)}>{lead}{children}</div>
+  const end = trailing ? <div className="ml-auto flex shrink-0 items-center gap-1" data-testid="filters-trailing">{trailing}</div> : null
+  if (!mobile) return <div className={cn('flex flex-wrap items-center justify-end gap-2', className)}>{lead}{children}{end}</div>
 
   return (
-    <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
     <Sheet>
       <SheetTrigger asChild>
         <Button className="max-sm:min-h-11 shrink-0" type="button" variant="outline"><ListFilterIcon data-icon="inline-start" />{en.polish.filters}</Button>
@@ -30,6 +32,8 @@ export function ResponsiveFilters({ children, className, lead }: { children: Rea
       </SheetContent>
     </Sheet>
     {lead}
+    </div>
+    {end}
     </div>
   )
 }

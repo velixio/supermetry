@@ -159,15 +159,10 @@ export function AppShell({
             onOpenAbout={() => setAboutOpen(true)}
             onOpenPalette={openPalette}
             paletteTriggerRef={paletteTrigger}
+            notice={membership && scopedSite?.is_demo ? <DemoBanner org={membership.org} site={scopedSite} /> : undefined}
           />
-          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-4 py-3 md:px-6 md:py-4" id={MAIN_CONTENT_ID} tabIndex={-1}>
-            {membership ? (
-              scopedSite?.is_demo ? (
-                <DemoBanner org={membership.org} site={scopedSite} />
-              ) : (
-                <RemoveDemoBanner currentSite={scopedSite} membership={membership} />
-              )
-            ) : null}
+          <main aria-label={en.a11y2.mainContent} className="min-w-0 flex-1 px-3 py-2 md:px-4 md:py-3" id={MAIN_CONTENT_ID} tabIndex={-1}>
+            {membership && !scopedSite?.is_demo ? <RemoveDemoBanner currentSite={scopedSite} membership={membership} /> : null}
             <AuthorizationCacheBoundary scope={authorizationScope(me.user.id, membership)}>
               <div
                 key={pathname}

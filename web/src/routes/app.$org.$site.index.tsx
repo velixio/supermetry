@@ -248,6 +248,40 @@ function WebDashboardStateRoute() {
     },
   } : undefined
 
+  // Dashboard switcher, manage, view options and export: one quiet cluster at the end of the filter row.
+  const dashboardActions = (
+    <>
+      <Suspense fallback={null}>
+        <DashboardSwitcher
+          siteId={site.id}
+          value={search.dash}
+          onChange={(key, dashboard) => openDashboard(key, dashboard)}
+          onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
+          canWrite={membership?.role !== 'viewer'}
+          onNew={() => setNewDashboardOpen(true)}
+        />
+      </Suspense>
+      {membership?.role !== 'viewer' ? (
+        <Suspense fallback={null}>
+          <DashboardManage
+            canWrite
+            currentId={dashboardId}
+            editing={edit !== null}
+            onEdit={(id) => setEdit({ kind: 'edit', id })}
+            onNew={(template) => setEdit({ kind: 'new', template })}
+            newOpen={newDashboardOpen}
+            onNewOpenChange={setNewDashboardOpen}
+          />
+        </Suspense>
+      ) : null}
+      {edit ? null : <ViewOptionsMenu
+        includeImported={search.include_imported}
+        onIncludeImportedChange={(include_imported) => updateSearch({ ...search, include_imported })}
+      />}
+      {edit ? null : <DashboardExportMenu query={query} anonymous={anonymous} />}
+    </>
+  )
+
   return (
     <PageContainer>
       <div
@@ -255,45 +289,13 @@ function WebDashboardStateRoute() {
         data-filter-count={filters.length}
         style={filterRowHeight === undefined ? undefined : ({ '--dashboard-filter-h': `${filterRowHeight}px` } as CSSProperties)}
       >
-      <PageHeader
-        title={<span className="flex min-w-0 items-center gap-2.5"><SiteIcon iconUrl={site.icon_url} name={site.name} size={22} className="rounded-md" /><span className="truncate">{site.name}</span></span>}
-        description={site.allowed_hosts?.[0] && site.allowed_hosts[0] !== site.name ? <span className="max-sm:hidden">{site.allowed_hosts[0]}</span> : undefined}
-        inlineActions
-        actions={
-          <>
-            <Suspense fallback={null}>
-              <DashboardSwitcher
-                siteId={site.id}
-                value={search.dash}
-                onChange={(key, dashboard) => openDashboard(key, dashboard)}
-                onDefault={(key, dashboard) => openDashboard(key, dashboard, true)}
-                canWrite={membership?.role !== 'viewer'}
-                onNew={() => setNewDashboardOpen(true)}
-              />
-            </Suspense>
-            {membership?.role !== 'viewer' ? (
-              <Suspense fallback={null}>
-                <DashboardManage
-                  canWrite
-                  currentId={dashboardId}
-                  editing={edit !== null}
-                  onEdit={(id) => setEdit({ kind: 'edit', id })}
-                  onNew={(template) => setEdit({ kind: 'new', template })}
-                  newOpen={newDashboardOpen}
-                  onNewOpenChange={setNewDashboardOpen}
-                />
-              </Suspense>
-            ) : null}
-            {edit ? null : <ViewOptionsMenu
-              includeImported={search.include_imported}
-              onIncludeImportedChange={(include_imported) => updateSearch({ ...search, include_imported })}
-            />}
-            {edit ? null : <DashboardExportMenu query={query} anonymous={anonymous} />}
-          </>
-        }
-      />
+      {/* The project name is in the breadcrumbs; the page keeps one h1 for assistive tech and no visible title row. */}
+      <PageHeader title={site.name} titleHidden />
+      {edit ? <div className="flex flex-wrap items-center justify-end gap-1">
+        {dashboardActions}
+      </div> : null}
       {edit ? null : (
-        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-12 z-10 -mt-1 bg-background py-1" role="group">
+        <div ref={setFilterRow} aria-label={en.polish.filters} className="sticky top-12 z-10 -my-1 bg-background py-1" role="group">
           <ResponsiveFilters
             className="justify-start"
             lead={<DatePicker
@@ -303,6 +305,7 @@ function WebDashboardStateRoute() {
               onChange={updateSearch}
               showCompare={false}
             />}
+            trailing={dashboardActions}
           >
             {anonymous ? <div className="flex flex-wrap items-center gap-2 text-sm">
               <p className="text-muted-foreground">Anonymous analytics: filter by a country, channel, browser, OS, or device row. Saved segments and free-text filters are unavailable.</p>
@@ -402,15 +405,6 @@ function WebDashboardStateRoute() {
           } : undefined}
           main={
             <>
-              <DashboardSummary
-                anonymous={anonymous}
-                collapsed={me.data?.preferences?.summary_collapsed === true}
-                compare={search.compare}
-                filtered={filters.length > 0}
-                period={search.period}
-                query={query}
-                range={query.dateRange}
-              />
               {/* Figures and chart are one block: the figures are the chart's tabs. */}
               <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs" data-testid="kpi-chart">
               <StatsStrip
@@ -419,6 +413,16 @@ function WebDashboardStateRoute() {
                 selected={search.metric}
                 variant="tabs"
                 onSelectMetric={(metric) => updateSearch({ ...search, metric })}
+                footnote={<DashboardSummary
+                  compact
+                  anonymous={anonymous}
+                  collapsed={false}
+                  compare={search.compare}
+                  filtered={filters.length > 0}
+                  period={search.period}
+                  query={query}
+                  range={query.dateRange}
+                />}
               />
               <DashboardChart
                 embedded

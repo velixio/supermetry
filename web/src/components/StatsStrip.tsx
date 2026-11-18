@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, ChevronUpIcon, MinusIcon } from 'lucide-react'
 
 import { ErrorState } from './ErrorState'
@@ -34,6 +34,8 @@ type StatsStripProps = {
   metrics?: readonly StatMetric[]
   /** `tabs` joins the figures into one strip that heads the chart below it (the dashboard); `cards` are separate tiles (widgets). */
   variant?: 'cards' | 'tabs'
+  /** Tabs only: a line of prose (the dashboard summary) in the block's footer, between the toggle and the reference. */
+  footnote?: ReactNode
 }
 
 function dateAtUTC(value: string): Date {
@@ -189,6 +191,7 @@ export function StatsStrip({
   onSelectMetric,
   metrics: shownMetrics,
   variant = 'cards',
+  footnote,
 }: StatsStripProps) {
   const tabs = variant === 'tabs'
   const selectedSecondary = selected !== undefined && (secondaryMetrics as readonly string[]).includes(selected)
@@ -212,7 +215,7 @@ export function StatsStrip({
     const delta = comparison.data && current.data ? deltaValue(value, comparison.data.totals[metric] ?? 0) : undefined
     const isSelected = selected === metric
     const className = tabs
-      ? 'relative flex h-full min-w-0 flex-col items-start gap-1.5 bg-card px-4 py-3.5 text-left text-card-foreground'
+      ? 'relative flex h-full min-w-0 flex-col items-start gap-1 bg-card px-4 py-3 text-left text-card-foreground'
       : 'flex h-full min-w-0 flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left text-card-foreground shadow-sm'
     const content = (
       <>
@@ -281,9 +284,10 @@ export function StatsStrip({
           </section>
         </div>
         {moreGrid ? <div className="overflow-hidden">{moreGrid}</div> : null}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 border-t px-2 py-1">
-          {toggle ?? <span />}
-          <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground" data-testid="kpi-reference">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1 [&>button]:shrink-0">
+          {toggle}
+          {footnote ?? <span className="flex-1" />}
+          <span className="flex shrink-0 items-center gap-2 px-2 text-xs text-muted-foreground" data-testid="kpi-reference">
             {importedIncluded ? <span className="rounded-full border px-2 py-0.5">{dashboardView.importedChip}</span> : null}
             {dashboardView.kpi.changesVs(referenceText)}
           </span>
