@@ -97,3 +97,18 @@ describe('EventsPage', () => {
     await waitFor(() => expect(get).toHaveBeenCalledTimes(3))
   })
 })
+
+describe('EventsPage for app projects', () => {
+  afterEach(cleanup)
+
+  it('labels the column Screen and drops the referrer source', async () => {
+    get.mockImplementation((path: string) => path.endsWith('/properties') ? Promise.resolve(response([])) : Promise.resolve(response({
+      data: [{ ts: '2026-10-08T12:00:00Z', kind: 'pageview', name: '$screen', page: '/home', props: null, country: 'US', city: '', device: 'phone', browser: '', os: 'iOS', source: 'Google' }],
+    })))
+    renderPage({ app: true })
+    expect(await screen.findByRole('columnheader', { name: 'Screen' })).toBeVisible()
+    expect(screen.queryByRole('columnheader', { name: 'Page' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Source' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Google')).not.toBeInTheDocument()
+  })
+})

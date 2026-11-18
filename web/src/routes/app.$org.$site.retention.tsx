@@ -62,6 +62,7 @@ function RetentionRoute() {
         filters={filters}
         identity={site.profiles_enabled ? search.identity : 'anonymous'}
         interval={search.interval}
+        app={site.kind === 'app'}
         profilesEnabled={Boolean(site.profiles_enabled)}
         siteId={site.id}
         onIdentityChange={(identity) => void navigate({ search: { ...search, identity } })}
