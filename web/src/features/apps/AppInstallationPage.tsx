@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CopyButton } from '@/features/settings/InstallRecipes'
 import { privateRequest } from '@/features/settings/privateApi'
 
-import { dsnOf, DsnKeys, PrimaryDsn, useDsnKeys } from './DsnKeys'
-import { dsnPlaceholder, sdkSnippets } from './sdkSnippets'
+import { dsnOf, DsnKeys, OtlpSetup, PrimaryDsn, useDsnKeys } from './DsnKeys'
+import { dsnPlaceholder, otelEnvSnippet, otlpEndpoint, sdkSnippets, tracingSnippets } from './sdkSnippets'
 import { TestReportCheck } from './TestReportCheck'
 import { UploadTokenSection } from './UploadTokenSection'
 
@@ -94,6 +94,7 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
   const primary = dsnKeys.data?.keys[0]
   const dsn = primary ? dsnOf(primary, siteId) : dsnPlaceholder
   const sdks = useMemo(() => sdkSnippets(dsn), [dsn])
+  const tracing = useMemo(() => tracingSnippets(), [])
   const keys = useQuery({
     queryKey: ['app-ingest-keys', siteId],
     queryFn: () => privateRequest<{ keys: IngestKey[] }>('GET', `/api/private/sites/${siteId}/ingest-keys`, { orgId }),
@@ -113,6 +114,25 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
         {dsnKeys.isError ? <p role="alert" className="text-sm text-destructive">{dsnKeys.error.message}</p> : null}
         {primary ? <PrimaryDsn dsn={dsn} /> : null}
         {dsnKeys.isSuccess && !primary ? <p className="text-sm text-muted-foreground">No DSN key yet. Create one below.</p> : null}
+      </section>
+
+      <section aria-labelledby="app-traces-title" className="flex min-w-0 flex-col gap-3">
+        <h2 id="app-traces-title" className="text-lg font-semibold">Performance and traces</h2>
+        <OtlpSetup endpoint={otlpEndpoint(host, siteId)} apiKey={primary?.public_key} />
+        <Tabs defaultValue="env" className="min-w-0">
+          <TabsList className="h-auto flex-wrap justify-start">
+            <TabsTrigger value="env">OpenTelemetry</TabsTrigger>
+            {tracing.map((item) => <TabsTrigger key={item.value} value={`sentry-${item.value}`}>{item.label}</TabsTrigger>)}
+          </TabsList>
+          <TabsContent value="env" className="min-w-0">
+            <pre className="overflow-auto rounded-md bg-muted p-3 text-xs"><code>{otelEnvSnippet(otlpEndpoint(host, siteId), primary?.public_key ?? '<key>')}</code></pre>
+          </TabsContent>
+          {tracing.map((item) => (
+            <TabsContent key={item.value} value={`sentry-${item.value}`} className="min-w-0">
+              <pre className="overflow-auto rounded-md bg-muted p-3 text-xs"><code>{item.code}</code></pre>
+            </TabsContent>
+          ))}
+        </Tabs>
       </section>
 
       <section aria-labelledby="app-sdk-title" className="flex min-w-0 flex-col gap-3">
