@@ -59,6 +59,8 @@ type MainChartProps = {
   canEditAnnotations?: boolean
   onEditAnnotation?: (annotation: Annotation) => void
   onDeleteAnnotation?: (annotation: Annotation) => void
+  /** Inside a parent card: no border or background of its own. */
+  embedded?: boolean
 }
 
 type ChartPoint = {
@@ -331,6 +333,7 @@ export function MainChart({
   canEditAnnotations = false,
   onEditAnnotation,
   onDeleteAnnotation,
+  embedded = false,
 }: MainChartProps) {
   const summaryId = useId()
   const reducedMotion = usePrefersReducedMotion()
@@ -414,7 +417,7 @@ export function MainChart({
       aria-label={label}
       data-interval={resolvedInterval}
       data-last-bucket={lastBucket}
-      className="rounded-xl border bg-card p-4 text-card-foreground shadow-xs"
+      className={embedded ? 'p-4 text-card-foreground' : 'rounded-xl border bg-card p-4 text-card-foreground shadow-xs'}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <ul aria-label="Chart notes" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">

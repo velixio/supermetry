@@ -25,6 +25,8 @@ export const dashboardView = {
     down: 'down',
     vsPrevious: (days: number) => `vs previous ${days} ${days === 1 ? 'day' : 'days'}`,
     vsPreviousYear: 'vs same dates last year',
+    /** Footnote under the dashboard figures: what every change is measured against. */
+    changesVs: (reference: string) => `Changes ${reference}`,
     ariaDelta: (label: string, value: string, direction: string, percent: string, reference: string) => `${label} ${value}, ${direction} ${percent} ${reference}`,
     ariaFlat: (label: string, value: string, note: string) => `${label} ${value}, ${note}`,
     showOnChart: 'Show on chart',

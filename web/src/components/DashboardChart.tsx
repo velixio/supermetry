@@ -13,6 +13,7 @@ export function DashboardChart({
   siteId,
   interval,
   onIntervalChange,
+  embedded = false,
 }: {
   anonymous: boolean
   canEdit: boolean
@@ -22,12 +23,15 @@ export function DashboardChart({
   siteId: number
   interval?: ChartInterval
   onIntervalChange?: (interval: ChartInterval) => void
+  /** Drawn inside a parent card (the dashboard's figures-and-chart block) instead of its own. */
+  embedded?: boolean
 }) {
-  if (anonymous) return <MainChart query={query} metric={metric} compare={compare} interval={interval} onIntervalChange={onIntervalChange} />
+  if (anonymous) return <MainChart embedded={embedded} query={query} metric={metric} compare={compare} interval={interval} onIntervalChange={onIntervalChange} />
   return (
     <AnnotationManager siteId={siteId} dateRange={query.dateRange} canEdit={canEdit}>
       {({ addButton, annotations, onEdit, onDelete }) => (
         <MainChart
+          embedded={embedded}
           query={query}
           metric={metric}
           compare={compare}

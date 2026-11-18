@@ -408,13 +408,17 @@ function WebDashboardStateRoute() {
                 query={query}
                 range={query.dateRange}
               />
+              {/* Figures and chart are one block: the figures are the chart's tabs. */}
+              <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs" data-testid="kpi-chart">
               <StatsStrip
                 query={query}
                 compare={search.compare}
                 selected={search.metric}
+                variant="tabs"
                 onSelectMetric={(metric) => updateSearch({ ...search, metric })}
               />
               <DashboardChart
+                embedded
                 anonymous={anonymous}
                 canEdit={membership?.role !== 'viewer'}
                 compare={search.compare}
@@ -427,6 +431,7 @@ function WebDashboardStateRoute() {
                   updateSearch({ ...search, granularity })
                 }}
               />
+              </div>
               <DeferredContent className="min-h-[3000px] lg:min-h-[1600px]" label="Dashboard breakdowns">
                 <Suspense fallback={<Skeleton className="size-full min-h-[inherit] rounded-xl" />}>
                   <DashboardBelowFold

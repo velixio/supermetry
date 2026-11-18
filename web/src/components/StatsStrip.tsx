@@ -32,6 +32,8 @@ type StatsStripProps = {
   onSelectMetric?: (metric: StatMetric) => void
   /** Show only these tiles; the underlying query is unchanged so the cache is shared. */
   metrics?: readonly StatMetric[]
+  /** `tabs` joins the figures into one strip that heads the chart below it (the dashboard); `cards` are separate tiles (widgets). */
+  variant?: 'cards' | 'tabs'
 }
 
 function dateAtUTC(value: string): Date {
@@ -102,9 +104,12 @@ export function formatDelta(value: number): string {
   return text
 }
 
-/** A rising bounce rate is bad; every other card metric is good when it rises. */
+/** Changes smaller than this (in percent) are noise and are not coloured good or bad. */
+export const NEUTRAL_DELTA = 1
+
+/** A rising bounce rate is bad; every other card metric is good when it rises. Changes under 1% are neutral. */
 export function deltaTrend(metric: StatMetric, value: number | undefined): 'good' | 'bad' | 'neutral' {
-  if (value === undefined || value === 0) return 'neutral'
+  if (value === undefined || Math.abs(value) < NEUTRAL_DELTA) return 'neutral'
   return (metric === 'bounce_rate' ? value < 0 : value > 0) ? 'good' : 'bad'
 }
 
@@ -119,8 +124,8 @@ function Delta({ metric, value, reference }: { metric: StatMetric; value?: numbe
   if (value === undefined || trend === 'neutral') {
     return (
       <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums" data-trend="neutral" title={reference}>
-        {value === 0 ? <MinusIcon aria-hidden="true" className="size-3" /> : null}
-        {value === 0 ? formatDelta(0) : '\u2014'}
+        {value === undefined ? null : <MinusIcon aria-hidden="true" className="size-3" />}
+        {value === undefined ? '\u2014' : formatDelta(value)}
       </span>
     )
   }
@@ -183,7 +188,9 @@ export function StatsStrip({
   selected,
   onSelectMetric,
   metrics: shownMetrics,
+  variant = 'cards',
 }: StatsStripProps) {
+  const tabs = variant === 'tabs'
   const selectedSecondary = selected !== undefined && (secondaryMetrics as readonly string[]).includes(selected)
   const [expanded, setExpanded] = useState(selectedSecondary)
   useEffect(() => {
@@ -204,10 +211,12 @@ export function StatsStrip({
     const valueText = current.isLoading ? '\u2014' : metricValue(metric, value)
     const delta = comparison.data && current.data ? deltaValue(value, comparison.data.totals[metric] ?? 0) : undefined
     const isSelected = selected === metric
-    const className = 'flex h-full min-w-0 flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left text-card-foreground shadow-sm'
+    const className = tabs
+      ? 'relative flex h-full min-w-0 flex-col items-start gap-1.5 bg-card px-4 py-3.5 text-left text-card-foreground'
+      : 'flex h-full min-w-0 flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left text-card-foreground shadow-sm'
     const content = (
       <>
-        <span className="w-full truncate text-sm text-muted-foreground">{metricLabel(metric)}</span>
+        <span className={`w-full truncate text-muted-foreground ${tabs ? 'text-xs font-medium' : 'text-sm'}`}>{metricLabel(metric)}</span>
         {/* Whitespace text nodes keep the parts apart for assistive-tech text matching; the flex layout does not render them. */}
         {' '}
         <span className="text-2xl font-semibold leading-none tabular-nums">{valueText}</span>
@@ -223,7 +232,10 @@ export function StatsStrip({
         key={metric}
         aria-label={cardAriaLabel(metric, valueText, delta, referenceText)}
         aria-pressed={isSelected}
-        className={`${className} outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:border-foreground/30 aria-pressed:bg-muted/50`}
+        className={tabs
+          // The selected tab carries the chart's own line colour on its top edge, tying the figure to the line below.
+          ? `${className} outline-none transition-colors before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-transparent hover:bg-muted/40 focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset aria-pressed:bg-muted/40 aria-pressed:before:bg-chart-1`
+          : `${className} outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:border-foreground/30 aria-pressed:bg-muted/50`}
         data-priority={primary ? 'primary' : 'secondary'}
         type="button"
         onClick={() => onSelectMetric(metric)}
@@ -237,7 +249,45 @@ export function StatsStrip({
   // Without a metric filter (widgets pass one) the strip is the dashboard's own: five primary cards, the rest on demand.
   const shown = shownMetrics ? visible(statMetrics) : visible(primaryMetrics)
   const more = shownMetrics ? [] : visible(secondaryMetrics)
-  const grid = 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'
+  const grid = tabs
+    // One-pixel gaps over the border colour draw hairline dividers however the tabs wrap.
+    ? 'grid grid-cols-2 gap-px bg-border sm:grid-cols-3 lg:grid-cols-5'
+    : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'
+  const toggle = more.length > 0 ? (
+    <Button
+      aria-controls="dashboard-more-metrics"
+      aria-expanded={expanded}
+      className={tabs ? 'h-7 px-2 text-xs text-muted-foreground' : 'self-start'}
+      size="sm"
+      type="button"
+      variant="ghost"
+      onClick={() => setExpanded(!expanded)}
+    >
+      {expanded ? <ChevronUpIcon data-icon="inline-start" /> : <ChevronDownIcon data-icon="inline-start" />}
+      {expanded ? dashboardView.kpi.fewerMetrics : dashboardView.kpi.moreMetrics}
+    </Button>
+  ) : null
+  const moreGrid = more.length > 0
+    ? <section className={`${grid} ${tabs ? 'border-t' : ''}`} hidden={!expanded} id="dashboard-more-metrics">{expanded ? more.map(card) : null}</section>
+    : null
+
+  if (tabs) {
+    return (
+      <div aria-label={dashboardView.kpi.groupLabel} className="flex flex-col border-b" role="group">
+        <section aria-busy={current.isLoading || comparison.isLoading} className={grid}>
+          {shown.map(card)}
+        </section>
+        {moreGrid}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 border-t px-2 py-1">
+          {toggle ?? <span />}
+          <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground" data-testid="kpi-reference">
+            {importedIncluded ? <span className="rounded-full border px-2 py-0.5">{dashboardView.importedChip}</span> : null}
+            {dashboardView.kpi.changesVs(referenceText)}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div aria-label={dashboardView.kpi.groupLabel} className="flex flex-col gap-3" role="group">
@@ -247,23 +297,8 @@ export function StatsStrip({
       <section aria-busy={current.isLoading || comparison.isLoading} className={grid}>
         {shown.map(card)}
       </section>
-      {more.length > 0 ? (
-        <>
-          <Button
-            aria-controls="dashboard-more-metrics"
-            aria-expanded={expanded}
-            className="self-start"
-            size="sm"
-            type="button"
-            variant="ghost"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? <ChevronUpIcon data-icon="inline-start" /> : <ChevronDownIcon data-icon="inline-start" />}
-            {expanded ? dashboardView.kpi.fewerMetrics : dashboardView.kpi.moreMetrics}
-          </Button>
-          <section className={grid} hidden={!expanded} id="dashboard-more-metrics">{expanded ? more.map(card) : null}</section>
-        </>
-      ) : null}
+      {toggle}
+      {moreGrid}
     </div>
   )
 }
