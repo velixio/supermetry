@@ -323,7 +323,7 @@ func (h *handler) listNotificationHistory(w http.ResponseWriter, r *http.Request
 		}
 		filter.Limit = limit
 	}
-	if filter.Status != "" && filter.Status != alerts.DeliveryPending && filter.Status != alerts.DeliverySucceeded && filter.Status != alerts.DeliveryFailed {
+	if filter.Status != "" && filter.Status != alerts.DeliveryPending && filter.Status != alerts.DeliverySucceeded && filter.Status != alerts.DeliveryFailed && filter.Status != alerts.DeliverySuppressed {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "status is invalid")
 		return
 	}
@@ -341,7 +341,7 @@ func (h *handler) listNotificationHistory(w http.ResponseWriter, r *http.Request
 
 func validHistoryChannel(kind alerts.ChannelKind) bool {
 	switch kind {
-	case alerts.ChannelEmail, alerts.ChannelWebhook, alerts.ChannelSlack, alerts.ChannelDiscord, alerts.ChannelTelegram, alerts.ChannelPagerDuty:
+	case alerts.ChannelEmail, alerts.ChannelWebhook, alerts.ChannelSlack, alerts.ChannelDiscord, alerts.ChannelTelegram, alerts.ChannelPagerDuty, "none":
 		return true
 	default:
 		return false

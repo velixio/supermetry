@@ -4676,6 +4676,29 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/alerts/{alert}/incidents:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: alert, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listAlertIncidents
+      summary: List the incidents of a metric or monitor rule, newest first
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: before, in: query, description: An incident id; returns older incidents., schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200':
+          description: Incidents
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties: { data: { type: array, items: { $ref: '#/components/schemas/AlertIncident' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/notification-history:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -5491,6 +5514,22 @@ components:
       type: string
       description: suppressed rows are notifications withheld by a silence or maintenance window; they have channel kind none.
       enum: [pending, succeeded, failed, suppressed]
+    AlertIncident:
+      type: object
+      required: [id, alert_id, site_id, group_key, severity, opened_at, last_value, peak_value, threshold]
+      properties:
+        id: { type: integer, format: int64 }
+        alert_id: { type: integer, format: int64 }
+        site_id: { type: integer, format: int32 }
+        group_key: { type: string }
+        severity: { type: string, enum: [warning, critical] }
+        opened_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time }
+        last_value: { type: number, format: double }
+        peak_value: { type: number, format: double }
+        threshold: { type: number, format: double }
+        notified_at: { type: string, format: date-time, description: Absent when the open notice was never sent (silenced or no channel). }
+        renotified_at: { type: string, format: date-time }
     AlertSilence:
       type: object
       required: [id, site_id, kind, starts_at, reason, created_at]

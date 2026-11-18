@@ -190,7 +190,14 @@ func (e *Evaluator) fireWithKey(ctx context.Context, alert Alert, notification N
 			if e.appDedup == nil {
 				return errors.New("rule dedup store is unavailable")
 			}
-			persisted = func() error { return e.appDedup.RecordAppFired(ctx, alert.ID, key, now) }
+			// The key is committed without a delivery: mark it, so a later
+			// "resolved" for this notice is not sent.
+			persisted = func() error {
+				if err := e.appDedup.RecordAppFired(ctx, alert.ID, key, now); err != nil {
+					return err
+				}
+				return e.appDedup.RecordAppFired(ctx, alert.ID, suppressedKeyPrefix+key, now)
+			}
 		}
 		if persisted != nil {
 			if err := persisted(); err != nil {

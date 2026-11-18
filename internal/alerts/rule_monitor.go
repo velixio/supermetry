@@ -56,6 +56,13 @@ func (e *RuleEvaluator) monitorCandidates(ctx context.Context, alert Alert, site
 		return nil, err
 	}
 	notifyResolve := rule.NotifyOnResolve == nil || *rule.NotifyOnResolve
+	withheld, err := e.withheldFailures(ctx, alert, events)
+	if err != nil {
+		return nil, err
+	}
+	// failed holds, per monitor, the failure notices of the current outage
+	// that were (or will be, this run) sent; a recovery resolves only those.
+	failed := map[int64]bool{}
 	var out []Candidate
 	for _, ev := range events {
 		if len(trig.Slugs) > 0 && !slices.Contains(trig.Slugs, ev.Slug) {
@@ -69,7 +76,9 @@ func (e *RuleEvaluator) monitorCandidates(ctx context.Context, alert Alert, site
 		var when time.Time
 		switch {
 		case ev.Recovery:
-			if !notifyResolve {
+			sent := failed[ev.MonitorID]
+			delete(failed, ev.MonitorID)
+			if !notifyResolve || !sent {
 				continue
 			}
 			key, status, when = "monitor:"+id+":"+strconv.FormatInt(ev.At.Unix(), 10)+":resolved", ruleStatusResolve, ev.At
@@ -82,6 +91,9 @@ func (e *RuleEvaluator) monitorCandidates(ctx context.Context, alert Alert, site
 				when = *ev.ExpectedAt
 			}
 			key, status, severity = "monitor:"+id+":"+strconv.FormatInt(when.Unix(), 10)+":"+ev.Status, ruleStatusFiring, "critical"
+			if !withheld[key] {
+				failed[ev.MonitorID] = true
+			}
 		}
 		out = append(out, Candidate{
 			Key: key, GroupKey: "monitor:" + id,
@@ -90,11 +102,42 @@ func (e *RuleEvaluator) monitorCandidates(ctx context.Context, alert Alert, site
 				App: &AppNotification{
 					AppName: info.Name, Release: ev.Release, Metric: "cron_monitor",
 					MonitorSlug: ev.Slug, MonitorEnvironment: ev.Environment, MonitorStatus: ev.Status,
-					IssueURL: fmt.Sprintf("/app/%s/%s/alerts/monitors", info.OrgSlug, info.SiteSlug),
+					IssueURL: fmt.Sprintf("/app/%s/%s/settings/monitors", info.OrgSlug, info.SiteSlug),
 				},
 				Rule: &RuleNotification{ID: alert.ID, Name: alert.Name, TriggerType: TriggerMonitor, Severity: severity, Status: status},
 			},
 		})
 	}
 	return out, nil
+}
+
+// withheldFailures returns the failure keys whose notice was committed without
+// being sent (silenced, or no enabled channel); they carry a suppressed marker.
+func (e *RuleEvaluator) withheldFailures(ctx context.Context, alert Alert, events []appmonitors.AlertEvent) (map[string]bool, error) {
+	var markers []string
+	for _, ev := range events {
+		if !ev.Recovery {
+			markers = append(markers, suppressedKeyPrefix+monitorFailureKey(ev))
+		}
+	}
+	out := map[string]bool{}
+	if len(markers) == 0 {
+		return out, nil
+	}
+	seen, err := e.dedup.AppFired(ctx, alert.ID, markers)
+	if err != nil {
+		return nil, err
+	}
+	for marker := range seen {
+		out[marker[len(suppressedKeyPrefix):]] = true
+	}
+	return out, nil
+}
+
+func monitorFailureKey(ev appmonitors.AlertEvent) string {
+	when := ev.At
+	if ev.ExpectedAt != nil {
+		when = *ev.ExpectedAt
+	}
+	return "monitor:" + strconv.FormatInt(ev.MonitorID, 10) + ":" + strconv.FormatInt(when.Unix(), 10) + ":" + ev.Status
 }

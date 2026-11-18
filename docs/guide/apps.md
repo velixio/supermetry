@@ -351,6 +351,60 @@ down by platform.
 the Xcode build phase with `sentry-cli` against a real server and checks that each
 file is listed with a usable cache.
 
+## Alerts
+
+App projects notify you through **alert rules** under Settings, Alerts. A rule is a trigger, optional filters and one or more actions. Notices go to the notification channels of your organization (email, Slack, Discord, Telegram, PagerDuty and webhooks; see [Notification channels](notifications.md)).
+
+### Triggers
+
+- **Issue**: an issue is new, regressed or escalated.
+- **Issue events**: an issue gets more than N events (or affects more than N users) in a window of 5 to 1,440 minutes, or spikes against its usual rate for that hour of the day. A rule notifies at most once per issue per frequency period (default 60 minutes).
+- **Metric**: error count, crash-free sessions, crash-free users, transaction count, transaction failure rate, or transaction duration p50, p75, p95 and p99 crosses a threshold, either a static value or a percent change against the same window a day or a week earlier. A warning level and a resolve level are optional. Crash-free and transaction metrics read whole closed hours (windows of 60 to 1,440 minutes in steps of 60) and need a minimum sample, so a quiet hour does not fire. A percent change with no baseline never fires.
+- **Cron monitor**: a monitor misses its check-in, reports an error or runs past its maximum runtime. See [Cron monitors](#cron-monitors).
+
+Metric and monitor rules open an **incident** when the condition starts and resolve it when it ends; the notice says which. Restarting the server never repeats a notice.
+
+### Filters
+
+Environment, release, platform, level and issue kind (and, for issue and event triggers, tags and owner). A filter with no values matches everything.
+
+### Actions
+
+- **Send to channels** and **Call a webhook** deliver the notice to the chosen channels.
+- **Assign the issue** gives a new issue to a member (issue and event triggers only).
+- **Notify the issue owner** emails the issue's owner, with fallback channels for unowned issues (issue and event triggers only).
+
+A site can have up to 100 rules, each with up to 10 actions and 20 tag filters. Owners, admins and editors create and change rules; viewers cannot see them.
+
+### Silences and maintenance windows
+
+Settings, Silences mutes rules, one rule or all of them, for a one-off period or on a weekly schedule in a time zone (for example Sundays 02:00 for two hours, Europe/Berlin; the window keeps its length across a clock change). A muted notice is recorded in the delivery history as **Suppressed** and is never sent later. An incident still open when a silence ends is announced once; one that opens and resolves inside a silence sends nothing.
+
+### Alert history
+
+Settings, History lists every delivery and its status (pending, succeeded, failed, suppressed). Filter by rule to see its incidents: when each opened and resolved, its peak value, and whether a notice went out.
+
+### PagerDuty
+
+Create an **Events API v2** integration on a PagerDuty service, copy its integration key (routing key) and add a PagerDuty channel with it under Notifications. Use the channel in a rule action. Incidents send a `trigger` event, and resolve it with the same deduplication key when they close; other notices send a trigger only. The key is stored encrypted and is never shown again.
+
+### Cron monitors
+
+A monitor is created by the first Sentry check-in that carries a schedule, so no setup is needed beyond the DSN. With the Python SDK:
+
+```python
+import sentry_sdk
+from sentry_sdk.crons import monitor
+
+sentry_sdk.init(dsn="https://<key>@<your-host>/<project>")
+
+@monitor(monitor_slug="nightly-export")
+def nightly_export():
+    ...
+```
+
+Add `monitor_config` (a crontab or an interval, a margin and a maximum runtime) to the decorator to set the schedule. Settings, Cron monitors lists each monitor's status and next expected check-in. In a rule, pick the monitors (or all of them) and whether a missed, failed or timed-out check-in notifies. A check-in that arrives late for a slot already marked missed closes it without a second alert.
+
 ## Checking delivery
 
 The **Data health** page lists every dropped event by reason: bot user agent, host

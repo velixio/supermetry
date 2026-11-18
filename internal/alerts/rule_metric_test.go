@@ -2,9 +2,12 @@ package alerts
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"supermetry/internal/spans"
 )
@@ -324,5 +327,34 @@ func TestConvertedCrashFreeStaysQuietInCooldown(t *testing.T) {
 	f.runMetric(t, src, 2*time.Hour) // 25 h
 	if f.deliverer.calls != 1 {
 		t.Fatalf("deliveries = %d, want one renotify after 24 h", f.deliverer.calls)
+	}
+}
+
+// Incidents list newest first, page by id, and stay inside the rule's site.
+func TestListIncidentsPagesNewestFirst(t *testing.T) {
+	f := newRuleFixture(t)
+	ctx := context.Background()
+	alert := f.metricRule(t, MetricTrigger{Name: MetricErrorCount, Op: "above", Critical: 10, WindowMinutes: 60})
+	for i := 0; i < 3; i++ {
+		resolved := f.now.Add(time.Duration(i+1) * time.Minute)
+		if _, err := f.service.OpenIncident(ctx, Incident{AlertID: alert.ID, SiteID: f.siteID, GroupKey: "g" + string(rune('a'+i)), Severity: "critical", OpenedAt: f.now, ResolvedAt: &resolved, PeakValue: float64(i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page, err := f.service.ListIncidents(ctx, f.principal, f.siteID, alert.ID, 2, 0)
+	if err != nil || len(page) != 2 || page[0].GroupKey != "gc" || page[1].GroupKey != "gb" {
+		t.Fatalf("first page = %+v, %v", page, err)
+	}
+	rest, err := f.service.ListIncidents(ctx, f.principal, f.siteID, alert.ID, 2, page[1].ID)
+	if err != nil || len(rest) != 1 || rest[0].GroupKey != "ga" {
+		t.Fatalf("second page = %+v, %v", rest, err)
+	}
+	if _, err := f.service.ListIncidents(ctx, f.principal, f.siteID, alert.ID+999, 10, 0); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("unknown alert err = %v, want not found", err)
+	}
+	other := f.principal
+	other.OrgID++
+	if _, err := f.service.ListIncidents(ctx, other, f.siteID, alert.ID, 10, 0); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("other org err = %v, want not found", err)
 	}
 }

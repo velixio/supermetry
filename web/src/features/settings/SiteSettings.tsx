@@ -96,6 +96,7 @@ const settingsTabs = [
   ['shares', 'Shares', '/app/$org/$site/settings/shares'],
   ['reports', 'Reports', '/app/$org/$site/settings/reports'],
   ['alerts', 'Alerts', '/app/$org/$site/settings/alerts'],
+  ['alert-silences', 'Silences', '/app/$org/$site/settings/alert-silences'],
   ['monitors', 'Cron monitors', '/app/$org/$site/settings/monitors'],
   ['notification-history', 'History', '/app/$org/$site/settings/notification-history'],
   ['imports', 'Imports & export', '/app/$org/$site/settings/imports'],
@@ -103,7 +104,7 @@ const settingsTabs = [
 ] as const
 
 /** Tabs that apply to an app: general settings (name, time zone, retention, danger zone), alerts and its own page. */
-const appSettingsTabs: readonly string[] = ['general', 'installation', 'symbols', 'alerts', 'monitors', 'app']
+const appSettingsTabs: readonly string[] = ['general', 'installation', 'symbols', 'alerts', 'alert-silences', 'monitors', 'app']
 
 export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false, kind }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean; kind?: string }) {
   return (

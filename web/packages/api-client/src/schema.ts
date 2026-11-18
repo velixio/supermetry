@@ -4171,6 +4171,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/alerts/{alert}/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                alert: number;
+            };
+            cookie?: never;
+        };
+        /** List the incidents of a metric or monitor rule, newest first */
+        get: operations["listAlertIncidents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/notification-history": {
         parameters: {
             query?: never;
@@ -4737,6 +4757,34 @@ export interface components {
          * @enum {string}
          */
         DeliveryStatus: "pending" | "succeeded" | "failed" | "suppressed";
+        AlertIncident: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            alert_id: number;
+            /** Format: int32 */
+            site_id: number;
+            group_key: string;
+            /** @enum {string} */
+            severity: "warning" | "critical";
+            /** Format: date-time */
+            opened_at: string;
+            /** Format: date-time */
+            resolved_at?: string;
+            /** Format: double */
+            last_value: number;
+            /** Format: double */
+            peak_value: number;
+            /** Format: double */
+            threshold: number;
+            /**
+             * Format: date-time
+             * @description Absent when the open notice was never sent (silenced or no channel).
+             */
+            notified_at?: string;
+            /** Format: date-time */
+            renotified_at?: string;
+        };
         AlertSilence: {
             /** Format: int64 */
             id: number;
@@ -15653,6 +15701,39 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAlertIncidents: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description An incident id; returns older incidents. */
+                before?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+                alert: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incidents */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AlertIncident"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
