@@ -45,6 +45,7 @@ type channelRequest struct {
 		Secret     string   `json:"secret,omitempty"`
 		BotToken   string   `json:"bot_token,omitempty"`
 		ChatID     string   `json:"chat_id,omitempty"`
+		RoutingKey string   `json:"routing_key,omitempty"`
 	} `json:"config"`
 }
 
@@ -172,7 +173,7 @@ func decodeChannelInput(w http.ResponseWriter, r *http.Request) (alerts.ChannelI
 	input := alerts.ChannelInput{
 		Kind: request.Kind, Name: strings.TrimSpace(request.Name),
 		Recipients: request.Config.Recipients, URL: strings.TrimSpace(request.Config.URL), Secret: request.Config.Secret,
-		BotToken: request.Config.BotToken, ChatID: strings.TrimSpace(request.Config.ChatID), Enabled: request.Enabled,
+		BotToken: request.Config.BotToken, ChatID: strings.TrimSpace(request.Config.ChatID), RoutingKey: strings.TrimSpace(request.Config.RoutingKey), Enabled: request.Enabled,
 	}
 	if !validChannelInput(input, r.Method == http.MethodPatch) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "notification channel fields are invalid")
@@ -207,6 +208,9 @@ func validChannelInput(input alerts.ChannelInput, update bool) bool {
 		return len(input.Recipients) == 0 && input.URL == "" && input.Secret == "" &&
 			alerts.ValidTelegramChatID(input.ChatID) &&
 			((update && input.BotToken == "") || alerts.ValidTelegramToken(input.BotToken))
+	case alerts.ChannelPagerDuty:
+		return len(input.Recipients) == 0 && input.URL == "" && input.Secret == "" && input.BotToken == "" && input.ChatID == "" &&
+			((update && input.RoutingKey == "") || alerts.ValidPagerDutyRoutingKey(input.RoutingKey))
 	default:
 		return false
 	}
@@ -337,7 +341,7 @@ func (h *handler) listNotificationHistory(w http.ResponseWriter, r *http.Request
 
 func validHistoryChannel(kind alerts.ChannelKind) bool {
 	switch kind {
-	case alerts.ChannelEmail, alerts.ChannelWebhook, alerts.ChannelSlack, alerts.ChannelDiscord, alerts.ChannelTelegram:
+	case alerts.ChannelEmail, alerts.ChannelWebhook, alerts.ChannelSlack, alerts.ChannelDiscord, alerts.ChannelTelegram, alerts.ChannelPagerDuty:
 		return true
 	default:
 		return false

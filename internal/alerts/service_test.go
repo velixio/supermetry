@@ -493,7 +493,7 @@ func TestServiceTemplateOverrideAndReset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if settings.HistoryRetentionDays != 30 || len(items) != 5 || items[0].IsDefault || items[0].Body != input.Body {
+	if settings.HistoryRetentionDays != 30 || len(items) != 6 || items[0].IsDefault || items[0].Body != input.Body {
 		t.Fatalf("templates=%+v settings=%+v", items, settings)
 	}
 	reset, err := service.ResetTemplate(ctx, principal, ChannelEmail)
