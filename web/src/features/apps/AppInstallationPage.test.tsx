@@ -81,6 +81,7 @@ describe('AppInstallationPage', () => {
     expect(await screen.findByLabelText('DSN')).toHaveTextContent(dsnKey.dsn)
     expect(screen.getByRole('button', { name: 'Copy DSN' })).toBeInTheDocument()
     expect(screen.getByText(/Without it, crash-free rates fall back to error events\./)).toBeInTheDocument()
+    expect(screen.getByText(/Sentry SDKs count an app open per session when/)).toHaveTextContent('Use track() and screen() from the Supermetry kits for custom events and screens.')
     expect(screen.getByLabelText('JavaScript (browser) setup')).toHaveTextContent(`dsn: "${dsnKey.dsn}"`)
     expect(screen.getByLabelText('JavaScript (browser) setup')).toHaveTextContent('release:')
     expect(screen.getByLabelText('App ID')).toHaveTextContent('6quqxuelthfz')
