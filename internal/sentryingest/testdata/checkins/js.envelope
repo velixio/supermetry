@@ -1,0 +1,3 @@
+{"event_id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","sent_at":"2026-11-20T10:00:00.000Z","sdk":{"name":"sentry.javascript.node","version":"11.13.0"}}
+{"type":"check_in"}
+{"check_in_id":"0f1e2d3c4b5a49788796a5b4c3d2e1f0","monitor_slug":"Nightly-Export","status":"in_progress","environment":"production","release":"api@1.4.0","monitor_config":{"schedule":{"type":"crontab","value":"*/5 * * * *"},"checkin_margin":2,"max_runtime":10,"timezone":"Europe/Berlin","failure_issue_threshold":2,"recovery_threshold":1}}

@@ -54,6 +54,7 @@ type Handler struct {
 	bodies    BodyQueue
 	reports   ClientReportSink
 	sessions  SessionQueue
+	checkins  CheckInQueue
 	feedback  FeedbackSink
 	geo       GeoLookup
 	trusted   []netip.Prefix
@@ -117,6 +118,9 @@ func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r
 
 // WithSessions sets where session updates go; nil discards them.
 func (h *Handler) WithSessions(q SessionQueue) *Handler { h.sessions = q; return h }
+
+// WithCheckIns sets where cron check-ins go; nil counts and discards them.
+func (h *Handler) WithCheckIns(q CheckInQueue) *Handler { h.checkins = q; return h }
 
 // WithFeedback sets where scrubbed user reports go; nil counts and discards
 // them.
@@ -513,6 +517,19 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				}
 				if h.sessions != nil {
 					h.sessions.Enqueue(u) // a full queue counts itself
+				}
+			}
+		case "check_in":
+			// Never reads the database: the monitor writer resolves the slug.
+			switch ci, err := ParseCheckIn(it.Payload); {
+			case err != nil:
+				h.stats.Add("checkin_invalid", 1)
+			case h.checkins == nil:
+				h.stats.Add("checkin_discarded", 1)
+			default:
+				ci.SiteID, ci.At = site.ID, checkInAt(now)
+				if h.checkins.Enqueue(ci) {
+					h.stats.Add("checkin_queued", 1)
 				}
 			}
 		case "feedback", "user_report":

@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/api/42/envelope/",
+  "query": "sentry_version=7&sentry_key=0123456789abcdef0123456789abcdef",
+  "headers": {
+    "Content-Type": "application/x-sentry-envelope"
+  },
+  "sdk": "node",
+  "sdk_version": "",
+  "synthetic": true,
+  "notes": "hand-built check_in envelope in the documented SDK monitor payload shape"
+}
