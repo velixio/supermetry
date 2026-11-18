@@ -11,42 +11,23 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegen
 import { Input } from '@/components/ui/input'
 import { useGoals } from '@/features/goals/api'
 
-import { type AlertInput, type AlertKind, type AlertRule, type AppAlertKind, type WebAlertKind, useAlerts, useDeleteAlert, useSaveAlert } from './alertsApi'
+import { type AlertInput, type AlertKind, type AlertRule, type WebAlertKind, useAlerts, useDeleteAlert, useSaveAlert } from './alertsApi'
 import { useChannels } from './notificationApi'
 
 const blank: AlertInput = { kind: 'traffic_spike', threshold: 25, channel_ids: [], enabled: true }
-const blankApp: AlertInput = { kind: 'app_new_issue', channel_ids: [], enabled: true }
 const webKinds: WebAlertKind[] = ['traffic_spike', 'traffic_drop', 'goal_reached']
-const appKinds: AppAlertKind[] = ['app_new_issue', 'app_issue_regressed', 'app_crash_free_below', 'app_issue_spike']
-const labels: Record<AlertKind, string> = {
+const labels: Record<WebAlertKind, string> = {
   traffic_spike: 'Traffic spike',
   traffic_drop: 'Traffic drop',
   goal_reached: 'Goal reached',
-  app_new_issue: 'New issue',
-  app_issue_regressed: 'Issue regressed',
-  app_crash_free_below: 'Crash-free rate below threshold',
-  app_issue_spike: 'Issue spike',
-  app_rule: 'Rule',
 }
-const thresholdDescriptions: Record<AlertKind, string> = {
+const thresholdDescriptions: Record<WebAlertKind, string> = {
   traffic_spike: 'Active visitors in this process during the last 60 minutes.',
   traffic_drop: 'Percentage of visitors in the same 24-hour window seven days earlier.',
   goal_reached: 'Conversions in the current local day.',
-  app_new_issue: '',
-  app_issue_regressed: '',
-  app_crash_free_below: 'Alert when the newest release with at least 100 installs in the last 24 hours drops below this percentage (50 to 100).',
-  app_issue_spike: '',
-  app_rule: '',
 }
-const kindDescriptions: Partial<Record<AlertKind, string>> = {
-  app_new_issue: 'An issue is seen for the first time.',
-  app_issue_regressed: 'A resolved issue comes back in a later release.',
-  app_issue_spike: 'An issue has at least 10 events in the last full hour, and at least three times its average for that hour of the day over the previous week.',
-}
-const issueKinds = ['crash', 'error', 'hang', 'install_failed', 'install_stalled', 'incompatibility', 'operation_failed']
 
-export function AlertsPage({ orgId, orgSlug, siteId, siteKind }: { orgId: number; orgSlug?: string; siteId: number; siteKind?: string }) {
-  const isApp = siteKind === 'app'
+export function AlertsPage({ orgId, orgSlug, siteId }: { orgId: number; orgSlug?: string; siteId: number }) {
   const alerts = useAlerts(siteId, orgId)
   const channels = useChannels(orgId)
   const goals = useGoals(siteId)
@@ -58,7 +39,7 @@ export function AlertsPage({ orgId, orgSlug, siteId, siteKind }: { orgId: number
     <PageContainer width="narrow">
       <PageHeader
         title="Alerts"
-        description={isApp ? 'Notify your team about new issues, regressions, crash-free drops and spikes.' : 'Notify your team when traffic changes or a goal reaches its threshold.'}
+        description="Notify your team when traffic changes or a goal reaches its threshold."
         actions={<Button onClick={() => setEditing(null)}>Create alert</Button>}
       />
       {alerts.error || channels.error || remove.error ? (
@@ -71,8 +52,8 @@ export function AlertsPage({ orgId, orgSlug, siteId, siteKind }: { orgId: number
         {alerts.data?.data.map((alert) => (
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={alert.id}>
             <div>
-              <h2 className="font-medium">{labels[alert.kind]}</h2>
-              <p className="text-sm text-muted-foreground">{alert.kind.startsWith('app_') && alert.kind !== 'app_crash_free_below' ? '' : `Threshold ${alert.threshold} · `}{alert.enabled ? 'Enabled' : 'Disabled'}</p>
+              <h2 className="font-medium">{labels[alert.kind as WebAlertKind] ?? alert.kind}</h2>
+              <p className="text-sm text-muted-foreground">Threshold {alert.threshold} · {alert.enabled ? 'Enabled' : 'Disabled'}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setEditing(alert)}>Edit</Button>
@@ -83,7 +64,6 @@ export function AlertsPage({ orgId, orgSlug, siteId, siteKind }: { orgId: number
       </div>
       <AlertDialog
         alert={editing}
-        isApp={isApp}
         orgSlug={orgSlug}
         channels={channels.data?.data ?? []}
         goals={goals.data ?? []}
@@ -99,9 +79,8 @@ export function AlertsPage({ orgId, orgSlug, siteId, siteKind }: { orgId: number
   )
 }
 
-function AlertDialog({ alert, isApp, orgSlug, channels, goals, error, pending, onClose, onSave }: {
+function AlertDialog({ alert, orgSlug, channels, goals, error, pending, onClose, onSave }: {
   alert: AlertRule | null | undefined
-  isApp: boolean
   orgSlug?: string
   channels: { id: number; name: string; enabled: boolean }[]
   goals: { id: number; name: string }[]
@@ -110,7 +89,7 @@ function AlertDialog({ alert, isApp, orgSlug, channels, goals, error, pending, o
   onClose: () => void
   onSave: (input: AlertInput) => Promise<void>
 }) {
-  const [input, setInput] = useState<AlertInput>(isApp ? blankApp : blank)
+  const [input, setInput] = useState<AlertInput>(blank)
   useEffect(() => setInput(alert ? {
     kind: alert.kind,
     threshold: alert.threshold,
@@ -118,7 +97,7 @@ function AlertDialog({ alert, isApp, orgSlug, channels, goals, error, pending, o
     ...(alert.config ? { config: alert.config } : {}),
     channel_ids: alert.channel_ids,
     enabled: alert.enabled,
-  } : isApp ? blankApp : blank), [alert, isApp])
+  } : blank), [alert])
   if (alert === undefined) return null
 
   function submit(event: FormEvent) {
@@ -137,9 +116,8 @@ function AlertDialog({ alert, isApp, orgSlug, channels, goals, error, pending, o
             <Field>
               <FieldLabel htmlFor="alert-kind">Alert type</FieldLabel>
               <select id="alert-kind" className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput((value) => changeKind(value, event.target.value as AlertKind))}>
-                {(isApp ? appKinds : webKinds).map((kind) => <option key={kind} value={kind}>{labels[kind]}</option>)}
+                {webKinds.map((kind) => <option key={kind} value={kind}>{labels[kind]}</option>)}
               </select>
-              {kindDescriptions[input.kind] ? <FieldDescription>{kindDescriptions[input.kind]}</FieldDescription> : null}
             </Field>
             {input.kind === 'goal_reached' ? (
               <Field>
@@ -150,42 +128,11 @@ function AlertDialog({ alert, isApp, orgSlug, channels, goals, error, pending, o
                 </select>
               </Field>
             ) : null}
-            {input.kind === 'app_new_issue' ? (
-              <FieldSet>
-                <FieldLegend>Issue kinds (none selected means every kind)</FieldLegend>
-                {issueKinds.map((kind) => (
-                  <Field orientation="horizontal" key={kind}>
-                    <input
-                      aria-label={kind}
-                      checked={input.config?.kinds?.includes(kind) ?? false}
-                      id={`alert-issue-kind-${kind}`}
-                      type="checkbox"
-                      onChange={(event) => setInput((value) => {
-                        const current = value.config?.kinds ?? []
-                        const kinds = event.target.checked ? [...current, kind] : current.filter((item) => item !== kind)
-                        return { ...value, config: kinds.length ? { kinds } : undefined }
-                      })}
-                    />
-                    <FieldLabel htmlFor={`alert-issue-kind-${kind}`}>{kind}</FieldLabel>
-                  </Field>
-                ))}
-              </FieldSet>
-            ) : null}
-            {input.kind === 'app_crash_free_below' ? (
-              <Field>
-                <FieldLabel htmlFor="alert-metric">Metric</FieldLabel>
-                <select id="alert-metric" className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.config?.metric ?? 'users'} onChange={(event) => setInput((value) => ({ ...value, config: { metric: event.target.value as 'users' | 'sessions' } }))}>
-                  <option value="users">Crash-free users</option><option value="sessions">Crash-free sessions</option>
-                </select>
-              </Field>
-            ) : null}
-            {!input.kind.startsWith('app_') || input.kind === 'app_crash_free_below' ? (
-              <Field>
-                <FieldLabel htmlFor="alert-threshold">{input.kind === 'app_crash_free_below' ? 'Crash-free threshold (%)' : 'Threshold'}</FieldLabel>
-                <Input id="alert-threshold" min={input.kind === 'app_crash_free_below' ? '50' : '1'} max={input.kind === 'app_crash_free_below' ? '100' : undefined} step={input.kind === 'app_crash_free_below' ? '0.1' : undefined} required type="number" value={input.threshold ?? ''} onChange={(event) => setInput((value) => ({ ...value, threshold: Number(event.target.value) }))} />
-                <FieldDescription>{thresholdDescriptions[input.kind]}</FieldDescription>
-              </Field>
-            ) : null}
+            <Field>
+              <FieldLabel htmlFor="alert-threshold">Threshold</FieldLabel>
+              <Input id="alert-threshold" min="1" required type="number" value={input.threshold ?? ''} onChange={(event) => setInput((value) => ({ ...value, threshold: Number(event.target.value) }))} />
+              <FieldDescription>{thresholdDescriptions[input.kind as WebAlertKind]}</FieldDescription>
+            </Field>
             <FieldSet>
               <FieldLegend>Notification channels</FieldLegend>
               {channels.length === 0 ? (
@@ -229,10 +176,7 @@ function AlertDialog({ alert, isApp, orgSlug, channels, goals, error, pending, o
   )
 }
 
-// changeKind switches the alert type and resets the fields that belong to one kind.
+// changeKind switches the alert type and keeps the threshold.
 function changeKind(value: AlertInput, kind: AlertKind): AlertInput {
-  const base: AlertInput = { kind, channel_ids: value.channel_ids, enabled: value.enabled }
-  if (kind === 'app_crash_free_below') return { ...base, threshold: 99, config: { metric: 'users' } }
-  if (kind.startsWith('app_')) return base
-  return { ...base, threshold: value.threshold ?? 25 }
+  return { kind, channel_ids: value.channel_ids, enabled: value.enabled, threshold: value.threshold ?? 25 }
 }
