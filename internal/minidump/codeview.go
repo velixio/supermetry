@@ -9,7 +9,7 @@ import (
 
 const (
 	cvRSDS = 0x53445352 // "RSDS": PDB 7.0 record (GUID + age + path)
-	cvBpEL = 0x4c457042 // "BpEL": ELF build id
+	cvBpEL = 0x4270454c // MD_CVINFOELF_SIGNATURE: bytes "LEpB" on disk, "BpEL" read as a little-endian word
 	maxCV  = 4096
 	maxBID = 64
 )

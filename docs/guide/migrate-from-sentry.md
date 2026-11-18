@@ -67,8 +67,7 @@ supported and for the files that are only stored.
 - **Performance**: transactions, spans and traces.
 - **Session replay**, **profiles**, **cron monitors**, **user feedback**, logs and
   metrics.
-- Native crash dumps (minidumps) are counted but not processed. Crashes sent as
-  events by the native SDKs are symbolicated from uploaded debug files.
+- Native crash dumps: Crashpad minidumps from Electron (as an envelope attachment or on `/api/<id>/minidump/`) are stack-walked and symbolicated for amd64 and arm64; see [Electron apps and native crashes](apps.md#electron-apps-and-native-crashes). x86 and 32-bit ARM dumps keep modules and the crash reason only. Crashes sent as events by the other native SDKs are symbolicated from uploaded debug files.
 
 ### Why the SDK stops sending performance data
 

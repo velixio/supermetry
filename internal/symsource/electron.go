@@ -323,6 +323,11 @@ func (e *Electron) fetch(ctx context.Context, file, id string) (state string, si
 	if err != nil {
 		return stateError, 0, err
 	}
+	if e.cfg.TmpDir != "" {
+		if err := os.MkdirAll(e.cfg.TmpDir, 0o700); err != nil {
+			return stateError, 0, err
+		}
+	}
 	tmp, err := os.CreateTemp(e.cfg.TmpDir, "remote-sym-*.cache")
 	if err != nil {
 		return stateError, 0, err
