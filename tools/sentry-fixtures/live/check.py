@@ -123,6 +123,40 @@ def main(argv):
                 print(f"{len(titles)} issues, titles={titles}")
                 return 1
             time.sleep(1)
+    if cmd == "nativecrash":  # a crash issue whose top frame has a symbolicated function name
+        last = "no crash issue yet"
+        while True:
+            r = need(*c.call(f"/api/private/sites/{site}/app/issues?kind=crash"), (200,), "list crash issues")
+            for i in r["issues"]:
+                d = need(*c.call(f"/api/private/sites/{site}/app/issues/{i['id']}"), (200,), "issue")
+                for ev in d.get("latest_events", []):
+                    st, b = c.call(f"/api/private/sites/{site}/app/events/{ev.get('event_id')}")
+                    if st != 200:
+                        last = f"event body HTTP {st}"
+                        continue
+                    frames = [f for x in b["body"].get("exceptions", []) for f in x.get("frames", [])]
+                    if not frames:
+                        last = "crash event has no frames"
+                        continue
+                    top = frames[-1]  # oldest call first, so the crashing frame is last
+                    fn = top.get("function", "")
+                    if fn and not re.match(r"^[^\s(]*\+0x[0-9a-f]+$", fn) and not fn.startswith("0x"):
+                        print(f"crash issue {i['id']} top frame {fn} ({top.get('filename')}:{top.get('lineno')}), process={b['body'].get('tags', {}).get('process')}")
+                        return 0
+                    last = f"top frame not symbolicated: {fn!r}"
+            if time.time() > deadline:
+                print(f"FAIL: {last}")
+                return 1
+            time.sleep(1)
+    if cmd == "silent":  # no issue appears for the whole wait (the consent gate dropped everything)
+        while time.time() < deadline:
+            r = need(*c.call(f"/api/private/sites/{site}/app/issues"), (200,), "list issues")
+            if r["issues"]:
+                print(f"FAIL: {len(r['issues'])} issue(s) arrived: {[i['title'] for i in r['issues']]}")
+                return 1
+            time.sleep(2)
+        print(f"no events in {int(float(argv[5]))} s")
+        return 0
     if cmd == "frame":
         want_file, want_line = argv[6], int(argv[7])
         want_func = argv[8] if len(argv) > 8 else ""

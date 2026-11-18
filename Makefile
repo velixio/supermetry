@@ -1,4 +1,4 @@
-.PHONY: build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps envelope-bench bench-otlp-metrics bench bench-full bench-compare
+.PHONY: sdk-compat-electron build build-go fixtures test test-fast test-all test-e2e lint web web-test release release-build test-release run dev dev-embedded test-dev migrate clean distclean kill dev-db-up dev-db-down dev-db-psql soak accuracy-ab accuracy-live api-inventory sdk-compat sdk-compat-sourcemaps envelope-bench bench-otlp-metrics bench bench-full bench-compare
 
 # Build everything: the dashboard UI, then the binary with the UI embedded.
 build: web
@@ -25,6 +25,11 @@ sdk-compat:
 # Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat-sourcemaps
 sdk-compat-sourcemaps:
 	bash tools/sentry-fixtures/live/sourcemaps.sh
+
+# Live Electron native-crash acceptance (real @sentry/electron, DSN only; needs network and xvfb).
+# Run under the heavy lock: flock /tmp/claude-1000/supermetry-heavy.lock make sdk-compat-electron
+sdk-compat-electron:
+	bash tools/sentry-fixtures/live/electron-native.sh
 
 # Sentry envelope endpoint load test: ENVELOPE_BENCH_MINUTES=5 make envelope-bench
 envelope-bench:
