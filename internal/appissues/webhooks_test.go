@@ -96,7 +96,15 @@ func TestWebhookFiresOncePerSubscribedKindWithCleanPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 	snd := &fakeSender{}
-	if err := f.svc.DeliverWebhooks(ctx, snd, "https://app.example.test"); err != nil {
+	// RecordSystem stamps rows with the wall clock, while f.svc runs on the fixed
+	// testNow. Deliver with a clock past both so the test does not depend on the
+	// date it runs.
+	deliverAt := testNow
+	if wall := time.Now(); wall.After(deliverAt) {
+		deliverAt = wall
+	}
+	deliverer := appissues.New(f.pool, func() time.Time { return deliverAt.Add(time.Minute) })
+	if err := deliverer.DeliverWebhooks(ctx, snd, "https://app.example.test"); err != nil {
 		t.Fatal(err)
 	}
 	var types []string
