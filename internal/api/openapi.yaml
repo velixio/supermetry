@@ -3006,7 +3006,7 @@ paths:
             Search syntax, ANDed with the other parameters: space-separated terms. `key:value`, `key:"quoted value"`,
             `!key:value` (negation) and bare words (title or culprit, case-insensitive substring). Keys: `is`
             (unresolved, resolved, ignored, archived, snoozed, assigned, unassigned), `assigned` (me, none or a member
-            email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `level`,
+            email; email lookups work for owners, admins and editors), `release`, `environment`, `platform`, `process` (Electron: main, renderer, gpu, utility), `level`,
             `kind`, `priority` (high, medium, low), `first-seen` and `last-seen` (-24h, -7d, +30d or an ISO date),
             `events` and `users` (>N, <N, >=N, <=N, N; counts within the range). At most 20 terms and 200 characters.
             A syntax error is a 400 whose `position` is the character offset of the problem.

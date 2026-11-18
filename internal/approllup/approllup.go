@@ -211,7 +211,7 @@ insert into app_issue_tags (site_id, issue_id, key, value, events, last_seen)
 select e.site_id, e.issue_id, k.key, left(k.value, 200), sum(e.occurrences), max(e.ts)
 from app_events e
 cross join lateral (values ('release', e.release), ('environment', e.environment), ('platform', e.platform),
-  ('level', e.level), ('os', e.os_version), ('device_class', e.device_class),
+  ('level', e.level), ('process', e.tags->>'process'), ('os', e.os_version), ('device_class', e.device_class),
   ('browser', case when e.platform = 'web' then e.runtime else '' end)) as k(key, value)
 where e.site_id = $1 and e.kind <> 'session' and k.value <> '' and e.issue_id in (
   select distinct issue_id from app_events where site_id = $1 and ts >= $2 and ts < $3 and issue_id is not null and kind <> 'session')
