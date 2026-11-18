@@ -577,7 +577,7 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 
 | File | Contents |
 |---|---|
-| `app_issues.csv` | Issues active in the range: id, title, culprit, level, status, kind, error type, first and last seen, occurrences, first and last release, resolved-in release, priority, assignee id, GitHub link |
+| `app_issues.csv` | Issues active in the range: id, title, culprit, level, status, kind, error type, first and last seen, occurrences, first and last release, resolved-in release, priority, assignee id, GitHub link, and the id of the issue it was merged into (empty when not merged), so merges can be rebuilt |
 | `app_events.csv` | Stored events in the range: event id, timestamp, issue id, kind, level, release, dist, environment, platform, SDK name and version, OS version, architecture, device class, runtime, symbolication status, occurrences |
 | `app_releases.csv`, `app_deploys.csv` | Releases and deploys created in the range that apply to the project |
 | `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
@@ -585,6 +585,9 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_saved_views.csv` | Shared saved searches: id, name, query, owner id, created. Private views are not exported |
 | `app_issue_activity.csv`, `app_issue_comments.csv` | The issue timeline and the comments written in the range (deleted comments are left out). Authors and actors appear as organisation member ids |
 | `app_feedback.csv` | User feedback written in the range: id, issue id, event id, time, whether a contact address was given, text, page path. Reporter emails are stored only as a hash and are not exported |
+| `app_event_attachments.csv`, `app_attachments/` | Attachments of stored events in the range (the scrubbed copies Supermetry kept, at most 30 days old): event id, index, name, content type, size, created and the path of the file inside the archive (`app_attachments/<event id>/<index>-<name>`, names reduced to letters, digits, `.`, `_` and `-`). The bytes are in the archive |
+| `metric_series.csv`, `metric_hourly.csv` | OpenTelemetry metric series (name, kind, unit, histogram bounds, attributes) and their hourly rollups in local hours: samples, sum, min, max, last, histogram count, sum and bucket counts. Raw metric points, raw spans and raw log rows are not exported, only the rollups |
+| `logs.csv` | Log records in the range and within the project's log retention, without user hashes or span ids |
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
 The export never includes end-user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
