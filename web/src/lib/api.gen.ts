@@ -3270,6 +3270,8 @@ export interface components {
         AppUserErase: {
             /** @description The user id the app's SDK reports. */
             user_id: string;
+            /** @description Optional. The install id of the same person's device: also deletes the install's daily activity rows now and queues the erasure of its profile. Matched by keyed hash; never stored. */
+            install_id?: string;
         };
         AppUserErasure: {
             /** Format: int64 */
@@ -3278,6 +3280,11 @@ export interface components {
             status: "pending" | "running" | "done" | "failed";
             /** @description Present on the 202 response. */
             status_url?: string;
+            /**
+             * Format: int64
+             * @description Present on the 202 response when install_id was sent.
+             */
+            install_active_days_deleted?: number;
             /** Format: int64 */
             bodies_deleted: number;
             /** Format: int64 */

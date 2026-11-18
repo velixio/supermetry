@@ -29,7 +29,8 @@ func (h *handler) eraseAppUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		UserID string `json:"user_id"`
+		UserID    string `json:"user_id"`
+		InstallID string `json:"install_id"`
 	}
 	if !decodeJSON(w, r, &in) {
 		return
@@ -38,10 +39,27 @@ func (h *handler) eraseAppUser(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "user_id is required and at most 512 bytes")
 		return
 	}
+	if len(in.InstallID) > maxAppUserIDBytes {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "install_id is at most 512 bytes")
+		return
+	}
+	if in.InstallID != "" && h.deps.ProfileErasures == nil {
+		unavailable(w, "app install erasure")
+		return
+	}
 	var request profileerasure.AppRequest
+	var installRows int64
 	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
 		var err error
 		request, err = h.deps.AppErasures.CreateOrGetTx(r.Context(), tx, site.ID, in.UserID, erasureRequester(principal))
+		if err != nil || in.InstallID == "" {
+			return err
+		}
+		secret, ok, err := profileerasure.AppHashSecret(r.Context(), tx, site.ID)
+		if err != nil || !ok { // no secret: nothing was ever hashed for this project
+			return err
+		}
+		installRows, err = profileerasure.EraseAppInstall(r.Context(), tx, h.deps.ProfileErasures, site.ID, in.InstallID, secret, erasureRequester(principal))
 		return err
 	})
 	if err != nil {
@@ -52,6 +70,9 @@ func (h *handler) eraseAppUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", status)
 	body := newAppErasureResponse(request)
 	body["status_url"] = status
+	if in.InstallID != "" {
+		body["install_active_days_deleted"] = installRows
+	}
 	writeJSON(w, http.StatusAccepted, body)
 }
 

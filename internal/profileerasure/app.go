@@ -294,6 +294,21 @@ func (w *AppWorker) auditTx(ctx context.Context, tx pgx.Tx, r AppRequest, action
 	})
 }
 
+// AppHashSecret returns the project's hash secret, or ok=false when it has
+// none (nothing was ever hashed, so there is nothing to erase).
+func AppHashSecret(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, siteID int32) (secret []byte, ok bool, err error) {
+	err = q.QueryRow(ctx, `select secret from app_hash_secrets where site_id = $1`, siteID).Scan(&secret)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("read app hash secret: %w", err)
+	}
+	return secret, true, nil
+}
+
 // EraseAppInstall removes what an app project keeps about one install beyond
 // raw events: its app_active_day rows (found by the keyed visitor id) and, when
 // the install has a profile (external id "i:" + keyed hash), a queued profile
