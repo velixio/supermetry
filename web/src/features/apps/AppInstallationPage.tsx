@@ -118,7 +118,7 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
       <section aria-labelledby="app-sdk-title" className="flex min-w-0 flex-col gap-3">
         <h2 id="app-sdk-title" className="text-lg font-semibold">Add your SDK</h2>
         <p className="text-sm text-muted-foreground">
-          Use the official Sentry SDK for your platform with its default settings. Only the DSN and the release change. Set <code>release</code>: Sentry SDKs send no sessions without it.
+          Use the official Sentry SDK for your platform with its default settings. Only the DSN and the release change. Sentry SDKs send sessions only when <code>release</code> is set in <code>Sentry.init</code>. Without it, crash-free rates fall back to error events.
         </p>
         <Tabs defaultValue="browser" className="min-w-0">
           <TabsList className="h-auto flex-wrap justify-start">
