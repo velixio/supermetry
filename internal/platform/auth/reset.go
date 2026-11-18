@@ -12,7 +12,6 @@ import (
 
 	platformcrypto "supermetry/internal/platform/crypto"
 	"supermetry/internal/platform/mail"
-	"supermetry/internal/platform/store"
 	"supermetry/internal/platform/users"
 )
 
@@ -23,23 +22,21 @@ const resetLifetime = time.Hour
 const setupLifetime = 24 * time.Hour
 
 // StartReset emails a one-time password reset link. It returns the link
-// instead when mail is not configured.
+// instead when mail is not configured. An account that has never signed in
+// (created for someone who has not set a password yet) gets the account setup
+// email instead, so "send the link again" never reads as a reset.
 func (a *Auth) StartReset(ctx context.Context, email string) (string, error) {
-	return a.startPasswordLink(ctx, email, resetLifetime, "", func(link string, user store.User) mail.Notice {
-		return mail.PasswordReset(a.baseURL, link, user.Email, a.clock.Now(), resetLifetime)
-	})
+	return a.startPasswordLink(ctx, email, false)
 }
 
 // StartAccountSetup is StartReset for an account that was just created for
 // someone: the email welcomes them and asks them to set their first password,
 // and the link lasts setupLifetime.
 func (a *Auth) StartAccountSetup(ctx context.Context, email string) (string, error) {
-	return a.startPasswordLink(ctx, email, setupLifetime, "?setup=1", func(link string, user store.User) mail.Notice {
-		return mail.AccountSetup(a.baseURL, link, user.Email, user.Name, setupLifetime)
-	})
+	return a.startPasswordLink(ctx, email, true)
 }
 
-func (a *Auth) startPasswordLink(ctx context.Context, email string, lifetime time.Duration, query string, notice func(link string, user store.User) mail.Notice) (string, error) {
+func (a *Auth) startPasswordLink(ctx context.Context, email string, setup bool) (string, error) {
 	normalizedEmail := users.NormalizeEmail(email)
 	if !a.limits.allowReset(normalizedEmail, clientKey(ctx), a.clock.Now()) {
 		return "", ErrRateLimited
@@ -51,6 +48,11 @@ func (a *Auth) startPasswordLink(ctx context.Context, email string, lifetime tim
 	if err != nil {
 		return "", err
 	}
+	setup = setup || user.LastLoginAt == nil
+	lifetime, query := resetLifetime, ""
+	if setup {
+		lifetime, query = setupLifetime, "?setup=1"
+	}
 	plain, hash := platformcrypto.NewToken("")
 	if _, err := a.store.Pool.Exec(ctx, `
 		insert into password_resets(token_hash,user_id,expires_at)
@@ -61,7 +63,11 @@ func (a *Auth) startPasswordLink(ctx context.Context, email string, lifetime tim
 	if !a.mail.Enabled() {
 		return link, nil
 	}
-	if err := a.mail.Send(ctx, notice(link, user).Message(user.Email)); err != nil {
+	notice := mail.PasswordReset(a.baseURL, link, user.Email, a.clock.Now(), lifetime)
+	if setup {
+		notice = mail.AccountSetup(a.baseURL, link, user.Email, user.Name, lifetime)
+	}
+	if err := a.mail.Send(ctx, notice.Message(user.Email)); err != nil {
 		return "", fmt.Errorf("send password link: %w", err)
 	}
 	return "", nil
