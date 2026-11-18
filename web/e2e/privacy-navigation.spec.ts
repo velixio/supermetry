@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import type { Page } from '@playwright/test'
 import { expect, fmtCompact, test, type Owner } from './fixtures'
+import { navLink } from './nav'
 
 
 const routes = [
@@ -212,7 +213,7 @@ test('identified owners and admins retain replay navigation with profiles off an
         })
         expect(changed.ok(), await changed.text()).toBe(true)
         await page.goto(`${siteRoot(owner)}/settings/general`)
-        const link = page.getByRole('link', { name: 'Replays', exact: true })
+        const link = await navLink(page, 'Replays')
         await expect(link).toBeVisible()
         await link.click()
         await expect(page.getByRole('heading', { name: 'Replays', exact: true })).toBeVisible()
@@ -224,7 +225,7 @@ test('identified owners and admins retain replay navigation with profiles off an
           await expect(recordingStatus.getByRole('heading', { name: 'Recording is off', exact: true })).toBeVisible()
           await expect(recordingStatus.getByRole('link', { name: 'Replay settings', exact: true })).toBeVisible()
         }
-        await expect(page.getByText('No replays found', { exact: true })).toBeVisible()
+        await expect(page.getByText('No replays yet', { exact: true })).toBeVisible()
         await expect(page.getByText('Existing recordings remain available to authorized viewers.', { exact: true })).toHaveCount(enabled ? 0 : 1)
         await expect(page.getByText(/Instance permission: on\. Project opt-in:/)).toHaveCount(enabled ? 0 : 1)
         expect(seen.forbidden).toEqual([])
@@ -239,7 +240,7 @@ test('identified viewer without replay grant has no replay navigation or history
   const viewer = seedReplayReader(owner, 'viewer')
   await loginReplayReader(page, owner, viewer)
   const seen = watchPrivacyRequests(page)
-  await expect(page.getByRole('link', { name: 'Replays', exact: true })).toHaveCount(0)
+  await expect(await navLink(page, 'Replays')).toHaveCount(0)
   await page.goto(`${siteRoot(owner)}/replays`)
   await expect(page.getByRole('alert').filter({ hasText: 'You don’t have permission to watch replays' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Replays', exact: true })).toHaveCount(0)
