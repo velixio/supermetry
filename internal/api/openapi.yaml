@@ -3494,6 +3494,18 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/public/v1/sites/{site_id}/app/product/features:
+    parameters:
+      - $ref: '#/components/parameters/SitePathID'
+    get:
+      operationId: getPublicAppFeatureSets
+      tags: [Apps]
+      summary: Feature sets (named groups of product events)
+      responses:
+        '200': { description: Feature sets, content: { application/json: { schema: { type: object, required: [features], properties: { features: { type: array, items: { $ref: '#/components/schemas/AppFeatureSet' } } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/public/v1/sites/{site_id}/app/product/features/{id}/adoption:
     parameters:
       - $ref: '#/components/parameters/SitePathID'

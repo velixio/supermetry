@@ -2847,6 +2847,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/sites/{site_id}/app/product/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        /** Feature sets (named groups of product events) */
+        get: operations["getPublicAppFeatureSets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/v1/sites/{site_id}/app/product/features/{id}/adoption": {
         parameters: {
             query?: {
@@ -12474,6 +12493,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppEngagement"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPublicAppFeatureSets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site_id: components["parameters"]["SitePathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feature sets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        features: components["schemas"]["AppFeatureSet"][];
+                    };
                 };
             };
             400: components["responses"]["BadRequest"];

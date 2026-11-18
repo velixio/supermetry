@@ -7653,6 +7653,9 @@ type ServerInterface interface {
 	// GetPublicAppEngagement Product sessions, session length and screens per session
 	// (GET /api/public/v1/sites/{site_id}/app/product/engagement)
 	GetPublicAppEngagement(w http.ResponseWriter, r *http.Request, siteId SitePathID, params GetPublicAppEngagementParams)
+	// GetPublicAppFeatureSets Feature sets (named groups of product events)
+	// (GET /api/public/v1/sites/{site_id}/app/product/features)
+	GetPublicAppFeatureSets(w http.ResponseWriter, r *http.Request, siteId SitePathID)
 	// GetPublicAppFeatureAdoption Share of active installs that used a feature set
 	// (GET /api/public/v1/sites/{site_id}/app/product/features/{id}/adoption)
 	GetPublicAppFeatureAdoption(w http.ResponseWriter, r *http.Request, siteId SitePathID, id int64, params GetPublicAppFeatureAdoptionParams)
@@ -15724,6 +15727,32 @@ func (siw *ServerInterfaceWrapper) GetPublicAppEngagement(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// GetPublicAppFeatureSets operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppFeatureSets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppFeatureSets(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetPublicAppFeatureAdoption operation middleware
 func (siw *ServerInterfaceWrapper) GetPublicAppFeatureAdoption(w http.ResponseWriter, r *http.Request) {
 
@@ -17441,6 +17470,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/active-users", wrapper.GetPublicAppActiveUsers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/adoption", wrapper.GetPublicAppAdoption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/engagement", wrapper.GetPublicAppEngagement)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/features", wrapper.GetPublicAppFeatureSets)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/features/{id}/adoption", wrapper.GetPublicAppFeatureAdoption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/feedback", wrapper.ListAppFeedback)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issue-webhooks", wrapper.GetAppIssueWebhooks)
