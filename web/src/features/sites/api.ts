@@ -28,7 +28,17 @@ export type OverviewSite = {
   last_event_at: string | null
   install_status: 'waiting' | 'receiving' | 'quiet'
   tracking_snippet: string
+  /** Typed status-line facts, at most three, in priority order. */
+  highlights?: ProjectHighlight[]
 }
+
+export type ProjectHighlight =
+  | { kind: 'quiet'; hours: number }
+  | { kind: 'new_issues'; count: number }
+  | { kind: 'crash_free_drop'; points: number }
+  | { kind: 'visitors_change'; percent: number }
+  | { kind: 'top_source'; name: string; share: number }
+  | { kind: 'steady' }
 
 export type SitesOverviewResponse = {
   data: OverviewSite[]

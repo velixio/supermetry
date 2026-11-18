@@ -35,6 +35,8 @@ type UserPreferences struct {
 	LandingPage string `json:"landing_page,omitempty"`
 	SitesView   string `json:"sites_view,omitempty"`
 	LastSiteID  *int32 `json:"last_site_id,omitempty"`
+	// SummaryCollapsed hides the plain-language "In short" lead on the dashboard; false (the default) shows it.
+	SummaryCollapsed bool `json:"summary_collapsed,omitempty"`
 	// Locale is the interface language; empty follows the browser.
 	Locale string `json:"locale,omitempty"`
 }

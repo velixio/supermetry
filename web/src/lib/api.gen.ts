@@ -5888,6 +5888,8 @@ export interface components {
             sites_view: "cards" | "table";
             /** Format: int32 */
             last_site_id?: number | null;
+            /** @description True hides the plain-language summary above the dashboard metrics; absent or false shows it. */
+            summary_collapsed?: boolean;
             /**
              * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
              * @enum {string}
@@ -5903,6 +5905,7 @@ export interface components {
                 sites_view?: "cards" | "table";
                 /** Format: int32 */
                 last_site_id?: number | null;
+                summary_collapsed?: boolean;
                 /**
                  * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
                  * @enum {string}
@@ -5954,6 +5957,38 @@ export interface components {
             /** @description Tracking state (waiting, receiving, or quiet). */
             install_status: string;
             tracking_snippet: string;
+            /** @description Up to three typed facts for the project status line, in priority order. The client words them. */
+            highlights: {
+                /** @enum {string} */
+                kind: "quiet" | "new_issues" | "crash_free_drop" | "visitors_change" | "top_source" | "steady";
+                /**
+                 * Format: double
+                 * @description visitors_change: signed percent change against the previous period.
+                 */
+                percent?: number;
+                /** @description top_source: the source name. */
+                name?: string;
+                /**
+                 * Format: double
+                 * @description top_source: share of visitors, 0 to 1.
+                 */
+                share?: number;
+                /**
+                 * Format: int64
+                 * @description new_issues: issues first seen in the period.
+                 */
+                count?: number;
+                /**
+                 * Format: int64
+                 * @description quiet: whole hours since the last event.
+                 */
+                hours?: number;
+                /**
+                 * Format: double
+                 * @description crash_free_drop: percentage points lost.
+                 */
+                points?: number;
+            }[];
         };
         /**
          * @description Days from the current time, or null for no expiry.

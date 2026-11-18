@@ -336,10 +336,52 @@ const messages: MessageTree = {
     noTrafficNext: 'Elige un rango más amplio o comprueba que el rastreo esté instalado.',
   },
 
+  dashboardSummary: {
+    title: 'En resumen',
+    people: '{count, plural, one {# persona} other {# personas}}',
+    visitorsCount: '{count, plural, one {# visitante} other {# visitantes}}',
+    matchingFilters: ' que coinciden con tus filtros',
+    headlineMore: '{people} visitaron el sitio {period}{scope}, un {percent} más que {reference}.',
+    headlineLess: '{people} visitaron el sitio {period}{scope}, un {percent} menos que {reference}.',
+    headlineSame: '{people} visitaron el sitio {period}{scope}, más o menos lo mismo que {reference}.',
+    headlineOnly: '{people} visitaron el sitio {period}{scope}.',
+    few: 'Aún hay poco tráfico: {visitors} en este periodo.',
+    moverUp: 'Gran parte del aumento vino de {source} ({change} visitantes).',
+    moverDown: 'Gran parte de la caída vino de {source} ({change} visitantes).',
+    topPage: '{page} fue la página más visitada.',
+    bounceBetter: 'La tasa de rebote mejoró de {from} a {to}.',
+    bounceWorse: 'La tasa de rebote subió de {from} a {to}.',
+    durationLonger: 'La duración de las visitas subió de {from} a {to}.',
+    durationShorter: 'La duración de las visitas bajó de {from} a {to}.',
+    period: {
+      today: 'hoy',
+      yesterday: 'ayer',
+      lastDays: 'en los últimos {days} días',
+      lastMonths: 'en los últimos {months} meses',
+      thisMonth: 'este mes',
+      lastMonth: 'el mes pasado',
+      thisYear: 'este año',
+      range: 'del {from} al {to}',
+    },
+    reference: {
+      previousPeriod: 'el periodo anterior de {days, plural, one {# día} other {# días}}',
+      previousYear: 'las mismas fechas del año pasado',
+    },
+  },
+
   // F20 sites overview.
   sitesOverview: {
     title: 'Proyectos',
     description: 'Tráfico y estado de la instalación de todos los proyectos a los que tienes acceso.',
+    highlights: {
+      quiet: 'Sin eventos desde hace {hours, plural, one {# hora} other {# horas}}',
+      newIssues: '{count, plural, one {# incidencia nueva} other {# incidencias nuevas}}',
+      crashFreeDrop: 'Usuarios sin fallos: {points} puntos menos',
+      visitorsUp: 'Los visitantes suben un {percent}',
+      visitorsDown: 'Los visitantes bajan un {percent}',
+      topSource: 'La mayoría de los visitantes llegó desde {name}',
+      steady: 'Estable: sin grandes cambios',
+    },
   },
 
   // F06 notification history and templates.

@@ -40,6 +40,8 @@ test('dashboard numbers equal the API and click-to-filter refetches every card',
   }
 
   await owner.login(page, dashboard)
+  // The plain-language lead above the metrics: a headline, or the few-visitors note on a quiet project.
+  await expect(page.getByTestId('dashboard-summary-text')).toContainText(/visited|Not much traffic yet/)
   await expect(page.getByRole('button', { name: /Visitors/ })).toContainText(
     fmtCompact(api.totals.visitors),
   )

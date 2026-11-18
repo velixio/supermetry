@@ -28,6 +28,7 @@ import { en } from '@/messages/en'
 
 import { deleteSite, listSitesOverview, type OverviewPeriod, type OverviewSite } from './api'
 import { InstallStatusView } from './InstallStatus'
+import { highlightsSummary, ProjectHighlights } from './ProjectHighlights'
 import type { SitesOverviewSort, SitesOverviewView } from './overviewSearch'
 import { privateRequest } from '@/features/settings/privateApi'
 import { activeLocale } from '@/lib/i18n/intl'
@@ -102,9 +103,10 @@ function SiteActions({ site, onDelete }: { site: OverviewSite; onDelete(site: Ov
 }
 
 function SiteCard({ site, multipleOrganizations, onDelete }: { site: OverviewSite; multipleOrganizations: boolean; onDelete(site: OverviewSite): void }) {
-  const accessibleName = `${site.name}, ${site.visitors} visitors, ${site.live_visitors} live, ${changeLabel(site)}`
+  const highlights = highlightsSummary(site)
+  const accessibleName = `${site.name}, ${site.visitors} visitors, ${site.live_visitors} live, ${changeLabel(site)}${highlights ? `, ${highlights}` : ''}`
   return (
-    <Card data-testid="site-overview-card" className="h-72 content-auto [contain-intrinsic-size:288px]">
+    <Card data-testid="site-overview-card" className="h-80 content-auto [contain-intrinsic-size:320px]">
       <CardHeader className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
         <SiteIcon iconUrl={site.icon_url} name={site.name} size={40} />
         <div className="min-w-0">
@@ -112,6 +114,7 @@ function SiteCard({ site, multipleOrganizations, onDelete }: { site: OverviewSit
           <p className="truncate text-sm text-muted-foreground">{site.domain}</p>
           {multipleOrganizations ? <p className="truncate text-xs text-muted-foreground">{site.organization.name} · {site.role}</p> : <p className="text-xs capitalize text-muted-foreground">{site.role}</p>}
           <p className="text-xs text-muted-foreground">Created {fmt.date(site.created_at, site.timezone)}</p>
+          <ProjectHighlights className="mt-1" site={site} />
         </div>
         <SiteActions site={site} onDelete={onDelete} />
       </CardHeader>
@@ -134,8 +137,8 @@ function SitesTable({ sites, multipleOrganizations, onDelete }: { sites: Overvie
       <Table aria-label="Projects overview"><TableHeader><TableRow>
         <TableHead>Project</TableHead>{multipleOrganizations ? <TableHead>Organization</TableHead> : null}<TableHead>Created</TableHead><TableHead>Visitors</TableHead><TableHead>Change</TableHead><TableHead>Traffic</TableHead><TableHead>Live</TableHead><TableHead>Last event</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead>
       </TableRow></TableHeader><TableBody>{sites.map((site) => (
-        <TableRow className="h-20" key={site.id}>
-          <TableCell><div className="flex items-center gap-3"><SiteIcon iconUrl={site.icon_url} name={site.name} size={32} /><div className="min-w-0"><Link className="font-medium hover:underline" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={siteSearch(site)}>{site.name}</Link><p className="max-w-52 truncate text-xs text-muted-foreground">{site.domain}</p></div></div></TableCell>
+        <TableRow className="h-24" key={site.id}>
+          <TableCell><div className="flex items-center gap-3"><SiteIcon iconUrl={site.icon_url} name={site.name} size={32} /><div className="min-w-0"><Link className="font-medium hover:underline" to="/app/$org/$site" params={{ org: site.organization.slug, site: site.slug ?? site.public_id }} search={siteSearch(site)}>{site.name}</Link><p className="max-w-52 truncate text-xs text-muted-foreground">{site.domain}</p><ProjectHighlights className="max-w-72" site={site} /></div></div></TableCell>
           {multipleOrganizations ? <TableCell>{site.organization.name}<p className="text-xs capitalize text-muted-foreground">{site.role}</p></TableCell> : null}
           <TableCell>{fmt.date(site.created_at, site.timezone)}</TableCell><TableCell className="tabular-nums">{fmt.number(site.visitors)}</TableCell><TableCell><ChangeBadge site={site} /></TableCell><TableCell className="w-36"><Sparkline site={site} /></TableCell><TableCell className="tabular-nums">{fmt.number(site.live_visitors)}</TableCell><TableCell>{lastEvent(site)}</TableCell><TableCell><InstallStatusView status={site.install_status} lastSeenAt={site.last_event_at} /></TableCell><TableCell><SiteActions site={site} onDelete={onDelete} /></TableCell>
         </TableRow>
@@ -202,7 +205,7 @@ export function SitesOverview({ canAdd, orgs, org = '', period, query, sort, vie
         <Select value={sort} onValueChange={(value) => onSortChange(value as SitesOverviewSort)}><SelectTrigger aria-label="Sort projects"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="visitors">Most visitors</SelectItem><SelectItem value="change">Biggest change</SelectItem><SelectItem value="name">Name</SelectItem><SelectItem value="created">Newest</SelectItem><SelectItem value="last_event">Latest event</SelectItem></SelectGroup></SelectContent></Select>
         <ToggleGroup aria-label="Project view" type="single" value={view} onValueChange={(value) => { if (value) viewPreference.mutate(value as SitesOverviewView) }}><ToggleGroupItem value="cards" aria-label="Card view"><LayoutGridIcon /></ToggleGroupItem><ToggleGroupItem value="table" aria-label="Table view"><ListIcon /></ToggleGroupItem></ToggleGroup>
       </div>
-      {!enabled || overview.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Loading projects">{Array.from({ length: 6 }, (_, index) => <Skeleton className="h-72 rounded-xl" key={index} />)}</div>
+      {!enabled || overview.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Loading projects">{Array.from({ length: 6 }, (_, index) => <Skeleton className="h-80 rounded-xl" key={index} />)}</div>
         : overview.isError ? <ErrorState level="page" detail={overview.error.message} onRetry={() => void overview.refetch()} />
           : (overview.data?.data.length ?? 0) === 0 ? <Empty><EmptyHeader><EmptyTitle>No projects yet</EmptyTitle><EmptyDescription>Add a project to start collecting analytics.</EmptyDescription></EmptyHeader>{canAdd && addOrg ? <Button asChild><Link to="/app/$org/sites/new" params={{ org: addOrg.slug }}>Add your first project</Link></Button> : null}</Empty>
             : filtered.length === 0 ? <Empty><EmptyHeader><EmptyTitle>No projects match these filters.</EmptyTitle><EmptyDescription>Change the search or organization filter to see your projects.</EmptyDescription></EmptyHeader><Button variant="outline" onClick={() => { onSearchChange(''); onOrgChange('') }}>Clear filters</Button></Empty>

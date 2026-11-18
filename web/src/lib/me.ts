@@ -54,6 +54,8 @@ export type UserPreferences = {
   landing_page: 'overview' | 'last_site'
   sites_view: 'cards' | 'table'
   last_site_id?: number | null
+  /** Hides the dashboard's "In short" summary; absent means shown. */
+  summary_collapsed?: boolean
   locale?: '' | 'en' | 'es' | 'de' | 'bn' | 'en-XA'
 }
 

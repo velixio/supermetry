@@ -2311,6 +2311,36 @@ func (e SiteRevenueCurrencyState) Valid() bool {
 	}
 }
 
+// Defines values for SitesOverviewItemHighlightsKind.
+const (
+	SitesOverviewItemHighlightsKindCrashFreeDrop  SitesOverviewItemHighlightsKind = "crash_free_drop"
+	SitesOverviewItemHighlightsKindNewIssues      SitesOverviewItemHighlightsKind = "new_issues"
+	SitesOverviewItemHighlightsKindQuiet          SitesOverviewItemHighlightsKind = "quiet"
+	SitesOverviewItemHighlightsKindSteady         SitesOverviewItemHighlightsKind = "steady"
+	SitesOverviewItemHighlightsKindTopSource      SitesOverviewItemHighlightsKind = "top_source"
+	SitesOverviewItemHighlightsKindVisitorsChange SitesOverviewItemHighlightsKind = "visitors_change"
+)
+
+// Valid indicates whether the value is a known member of the SitesOverviewItemHighlightsKind enum.
+func (e SitesOverviewItemHighlightsKind) Valid() bool {
+	switch e {
+	case SitesOverviewItemHighlightsKindCrashFreeDrop:
+		return true
+	case SitesOverviewItemHighlightsKindNewIssues:
+		return true
+	case SitesOverviewItemHighlightsKindQuiet:
+		return true
+	case SitesOverviewItemHighlightsKindSteady:
+		return true
+	case SitesOverviewItemHighlightsKindTopSource:
+		return true
+	case SitesOverviewItemHighlightsKindVisitorsChange:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StatsBreakdownDimension.
 const (
 	StatsBreakdownDimensionBrowser        StatsBreakdownDimension = "browser"
@@ -6446,8 +6476,30 @@ type SitesOverviewItem struct {
 	ChangePercent *float64  `json:"change_percent"`
 	CreatedAt     time.Time `json:"created_at"`
 	Domain        string    `json:"domain"`
-	IconUrl       *string   `json:"icon_url,omitempty"`
-	Id            int32     `json:"id"`
+
+	// Highlights Up to three typed facts for the project status line, in priority order. The client words them.
+	Highlights []struct {
+		// Count new_issues: issues first seen in the period.
+		Count *int64 `json:"count,omitempty"`
+
+		// Hours quiet: whole hours since the last event.
+		Hours *int64                          `json:"hours,omitempty"`
+		Kind  SitesOverviewItemHighlightsKind `json:"kind"`
+
+		// Name top_source: the source name.
+		Name *string `json:"name,omitempty"`
+
+		// Percent visitors_change: signed percent change against the previous period.
+		Percent *float64 `json:"percent,omitempty"`
+
+		// Points crash_free_drop: percentage points lost.
+		Points *float64 `json:"points,omitempty"`
+
+		// Share top_source: share of visitors, 0 to 1.
+		Share *float64 `json:"share,omitempty"`
+	} `json:"highlights"`
+	IconUrl *string `json:"icon_url,omitempty"`
+	Id      int32   `json:"id"`
 
 	// InstallStatus Tracking state (waiting, receiving, or quiet).
 	InstallStatus string     `json:"install_status"`
@@ -6476,6 +6528,9 @@ type SitesOverviewItem struct {
 	TrackingSnippet string `json:"tracking_snippet"`
 	Visitors        int64  `json:"visitors"`
 }
+
+// SitesOverviewItemHighlightsKind defines model for SitesOverviewItem.Highlights.Kind.
+type SitesOverviewItemHighlightsKind string
 
 // SitesOverviewResponse defines model for SitesOverviewResponse.
 type SitesOverviewResponse struct {
@@ -6545,8 +6600,9 @@ type UpdateCurrentUserRequest struct {
 		LastSiteId  *int32                                          `json:"last_site_id,omitempty"`
 
 		// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
-		Locale    *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
-		SitesView *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
+		Locale           *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
+		SitesView        *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
+		SummaryCollapsed *bool                                         `json:"summary_collapsed,omitempty"`
 	} `json:"preferences,omitempty"`
 }
 
@@ -6596,6 +6652,9 @@ type UserPreferences struct {
 	// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
 	Locale    *UserPreferencesLocale   `json:"locale,omitempty"`
 	SitesView UserPreferencesSitesView `json:"sites_view"`
+
+	// SummaryCollapsed True hides the plain-language summary above the dashboard metrics; absent or false shows it.
+	SummaryCollapsed *bool `json:"summary_collapsed,omitempty"`
 }
 
 // UserPreferencesLandingPage defines model for UserPreferences.LandingPage.
