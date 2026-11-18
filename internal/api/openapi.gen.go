@@ -2852,7 +2852,10 @@ type AppDebugFiles struct {
 		Id         int64                        `json:"id"`
 		Kind       AppDebugFilesFilesKind       `json:"kind"`
 		ObjectName string                       `json:"object_name"`
-		Size       int64                        `json:"size"`
+
+		// OrgWide Serves every project of the organization; only an owner or admin may delete it.
+		OrgWide bool  `json:"org_wide"`
+		Size    int64 `json:"size"`
 	} `json:"files"`
 	Missing []struct {
 		Arch     string    `json:"arch"`

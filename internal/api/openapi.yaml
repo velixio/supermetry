@@ -6280,7 +6280,7 @@ components:
           type: array
           items:
             type: object
-            required: [id, kind, debug_id, code_id, arch, object_name, features, cache_state, size, created_at]
+            required: [id, kind, debug_id, code_id, arch, object_name, features, cache_state, size, created_at, org_wide]
             properties:
               id: { type: integer, format: int64 }
               kind: { type: string, enum: [macho, elf, pe, breakpad, proguard, sourcebundle, other] }
@@ -6292,6 +6292,7 @@ components:
               cache_state: { type: string, enum: [pending, ok, error, unsupported] }
               size: { type: integer, format: int64 }
               created_at: { type: string, format: date-time }
+              org_wide: { type: boolean, description: Serves every project of the organization; only an owner or admin may delete it. }
         missing:
           type: array
           items:

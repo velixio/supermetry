@@ -34,6 +34,9 @@ type File struct {
 	CacheState string    `json:"cache_state"`
 	Size       int64     `json:"size"`
 	CreatedAt  time.Time `json:"created_at"`
+	// OrgWide files serve every project of the organization; only an
+	// organization owner or admin may delete them.
+	OrgWide bool `json:"org_wide"`
 }
 
 // Missing is a debug image events needed and no upload covered.
@@ -69,7 +72,7 @@ func NewStore(pool *pgxpool.Pool, blobs replay.BlobStore) *Store {
 func (s *Store) List(ctx context.Context, orgID int64, siteID int32) (Listing, error) {
 	out := Listing{Files: []File{}, Missing: []Missing{}}
 	rows, err := s.pool.Query(ctx, `
-select f.id, f.kind, f.debug_id, f.code_id, f.arch, f.object_name, f.features, f.cache_state, u.size, f.created_at
+select f.id, f.kind, f.debug_id, f.code_id, f.arch, f.object_name, f.features, f.cache_state, u.size, f.created_at, f.site_id is null
 from app_debug_files f join app_dif_uploads u on u.id = f.upload_id
 where f.org_id = $1 and (f.site_id = $2 or f.site_id is null)
 order by f.id desc limit $3`, orgID, siteID, maxFiles)
@@ -78,7 +81,7 @@ order by f.id desc limit $3`, orgID, siteID, maxFiles)
 	}
 	for rows.Next() {
 		var f File
-		if err := rows.Scan(&f.ID, &f.Kind, &f.DebugID, &f.CodeID, &f.Arch, &f.ObjectName, &f.Features, &f.CacheState, &f.Size, &f.CreatedAt); err != nil {
+		if err := rows.Scan(&f.ID, &f.Kind, &f.DebugID, &f.CodeID, &f.Arch, &f.ObjectName, &f.Features, &f.CacheState, &f.Size, &f.CreatedAt, &f.OrgWide); err != nil {
 			rows.Close()
 			return out, fmt.Errorf("scan debug file: %w", err)
 		}
