@@ -348,6 +348,7 @@ export const en = {
     moverUp: 'Much of the growth came from {source} ({change} visitors).',
     moverDown: 'Much of the drop came from {source} ({change} visitors).',
     topPage: '{page} was the most visited page.',
+    topPageHome: 'The home page was the most visited page.',
     bounceBetter: 'Bounce rate improved from {from} to {to}.',
     bounceWorse: 'Bounce rate rose from {from} to {to}.',
     durationLonger: 'Visit duration rose from {from} to {to}.',

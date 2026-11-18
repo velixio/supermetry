@@ -349,6 +349,7 @@ const messages: MessageTree = {
     moverUp: 'Ein großer Teil des Zuwachses kam von {source} ({change} Besucher).',
     moverDown: 'Ein großer Teil des Rückgangs kam von {source} ({change} Besucher).',
     topPage: '{page} war die meistbesuchte Seite.',
+    topPageHome: 'Die Startseite war die meistbesuchte Seite.',
     bounceBetter: 'Die Absprungrate hat sich von {from} auf {to} verbessert.',
     bounceWorse: 'Die Absprungrate ist von {from} auf {to} gestiegen.',
     durationLonger: 'Die Besuchsdauer ist von {from} auf {to} gestiegen.',

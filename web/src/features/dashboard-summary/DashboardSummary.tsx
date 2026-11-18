@@ -14,7 +14,7 @@ import { en } from '@/messages/en'
 
 import { buildSummary, type Sentence, type SummaryInput, type SummarySourceRow, type SummaryTotals } from './buildSummary'
 
-const emphasis = 'font-medium text-foreground tabular-nums'
+const emphasis = 'font-semibold text-foreground tabular-nums'
 
 /** The period phrase of the headline ("in the last 7 days"), from the dashboard's period. */
 function periodPhrase(sentence: Extract<Sentence, { kind: 'headline' }>): string {
@@ -67,7 +67,7 @@ export function sentenceNodes(sentence: Sentence): ReactNode[] {
     case 'mover':
       return fill(sentence.change > 0 ? t.moverUp : t.moverDown, { source: sentence.source, change: formatNumber(sentence.change, { signDisplay: 'always' }) }, ['change'])
     case 'topPage':
-      return fill(t.topPage, { page: sentence.page })
+      return sentence.page === '/' ? [t.topPageHome] : fill(t.topPage, { page: sentence.page })
     case 'bounce':
       return fill(sentence.better ? t.bounceBetter : t.bounceWorse, { from: fmt.percent(sentence.from), to: fmt.percent(sentence.to) }, ['from', 'to'])
     case 'duration':
@@ -107,7 +107,7 @@ function Lead({ summary, onFailed }: { summary: Summary; onFailed(failed: boolea
 function LeadText({ summary }: { summary: Summary }) {
   if (summary.loading || !summary.sentences) return <Skeleton aria-hidden="true" className="h-5 w-2/3" data-testid="dashboard-summary-loading" />
   return (
-    <p className="text-sm text-muted-foreground" data-testid="dashboard-summary-text">
+    <p className="max-w-prose text-base leading-relaxed text-foreground" data-testid="dashboard-summary-text">
       {summary.sentences.map((sentence, index) => <Fragment key={sentence.kind}>{index > 0 ? ' ' : null}{sentenceNodes(sentence)}</Fragment>)}
     </p>
   )
@@ -183,7 +183,7 @@ export function DashboardSummary(props: DashboardSummaryProps) {
   const content = { ...props, onFailed: setFailed }
   return (
     <section aria-label={en.dashboardSummary.title} className="flex flex-col items-start gap-1" data-testid="dashboard-summary" hidden={failed && !collapsed}>
-      <Button aria-controls={regionId} aria-expanded={!collapsed} className="-ml-2 h-7 px-2 text-sm" size="sm" type="button" variant="ghost" onClick={() => preference.mutate(!collapsed)}>
+      <Button aria-controls={regionId} aria-expanded={!collapsed} className="-ml-2 h-7 px-2 text-xs font-medium text-muted-foreground" size="sm" type="button" variant="ghost" onClick={() => preference.mutate(!collapsed)}>
         {en.dashboardSummary.title}
         <Chevron data-icon="inline-end" />
       </Button>

@@ -35,13 +35,18 @@ export const BOUNCE_MIN_POINTS = 5
 export const DURATION_MIN_RATIO = 0.2
 export const MAX_SENTENCES = 3
 
+/** A previous period with almost no traffic has no meaningful rates, so nothing is compared against it. */
+function comparable(previous: SummaryTotals | undefined): previous is SummaryTotals {
+  return previous !== undefined && previous.visitors >= FEW_VISITORS
+}
+
 function lengthDays(from: string, to: string): number {
   return Math.floor((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1
 }
 
 function mover(input: SummaryInput): Sentence | undefined {
   const { sources, previous } = input
-  if (!sources?.previousRows || !previous) return undefined
+  if (!sources?.previousRows || !comparable(previous)) return undefined
   const total = input.totals.visitors - previous.visitors
   if (total === 0) return undefined
   const before = new Map(sources.previousRows.map((row) => [row.name, row.visitors]))
@@ -58,7 +63,7 @@ function mover(input: SummaryInput): Sentence | undefined {
 
 function engagement(input: SummaryInput): Sentence | undefined {
   const { totals, previous } = input
-  if (!previous) return undefined
+  if (!comparable(previous)) return undefined
   const points = totals.bounce_rate - previous.bounce_rate
   if (Math.abs(points) >= BOUNCE_MIN_POINTS) {
     return { kind: 'bounce', from: previous.bounce_rate, to: totals.bounce_rate, better: points < 0 }
@@ -80,7 +85,7 @@ export function buildSummary(input: SummaryInput): Sentence[] {
     from: input.range.from,
     to: input.range.to,
     days: lengthDays(input.range.from, input.range.to),
-    delta: input.previous ? deltaValue(input.totals.visitors, input.previous.visitors) : undefined,
+    delta: comparable(input.previous) ? deltaValue(input.totals.visitors, input.previous.visitors) : undefined,
     reference: input.reference,
     filtered: input.filtered,
   }

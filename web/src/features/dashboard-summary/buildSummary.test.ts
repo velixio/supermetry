@@ -25,6 +25,18 @@ describe('buildSummary', () => {
     expect((headline as { delta?: number }).delta).toBeDefined()
   })
 
+  it('compares nothing against a previous period with fewer than 10 visitors', () => {
+    // Previous period empty: bounce 0% -> 56.1% must not read as "bounce rate rose".
+    const sentences = buildSummary({
+      ...base,
+      totals: { visitors: 3041, bounce_rate: 56.1, visit_duration: 172 },
+      previous: { visitors: 9, bounce_rate: 0, visit_duration: 0 },
+    })
+    expect(sentences).toHaveLength(1)
+    expect(sentences[0]).toMatchObject({ kind: 'headline', visitors: 3041 })
+    expect((sentences[0] as { delta?: number }).delta).toBeUndefined()
+  })
+
   it('has no delta without previous data or with a zero previous period', () => {
     expect((buildSummary({ ...base, previous: undefined })[0] as { delta?: number }).delta).toBeUndefined()
     expect((buildSummary({ ...base, previous: { ...base.previous!, visitors: 0 } })[0] as { delta?: number }).delta).toBeUndefined()

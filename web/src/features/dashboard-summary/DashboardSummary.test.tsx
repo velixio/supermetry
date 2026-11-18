@@ -59,8 +59,8 @@ describe('DashboardSummary', () => {
     serve()
     renderSummary()
     expect(screen.getByTestId('dashboard-summary-text')).toHaveTextContent('1,240 people visited in the last 7 days, 18% more than the 7 days before.')
-    expect(screen.getByText('1,240 people')).toHaveClass('font-medium', 'text-foreground', 'tabular-nums')
-    expect(screen.getByTestId('dashboard-summary-text')).toHaveClass('text-sm', 'text-muted-foreground')
+    expect(screen.getByText('1,240 people')).toHaveClass('font-semibold', 'text-foreground', 'tabular-nums')
+    expect(screen.getByTestId('dashboard-summary-text')).toHaveClass('text-base', 'text-foreground')
   })
 
   it('says so when filters apply, and keeps the delta with comparison off', () => {

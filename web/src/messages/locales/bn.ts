@@ -169,6 +169,7 @@ const messages: MessageTree = {
     moverUp: 'বৃদ্ধির বড় অংশ এসেছে {source} থেকে ({change} দর্শনার্থী)।',
     moverDown: 'হ্রাসের বড় অংশ এসেছে {source} থেকে ({change} দর্শনার্থী)।',
     topPage: '{page} ছিল সবচেয়ে বেশি দেখা পেজ।',
+    topPageHome: 'হোম পেজ ছিল সবচেয়ে বেশি দেখা পেজ।',
     bounceBetter: 'বাউন্স রেট {from} থেকে উন্নত হয়ে {to} হয়েছে।',
     bounceWorse: 'বাউন্স রেট {from} থেকে বেড়ে {to} হয়েছে।',
     durationLonger: 'ভিজিটের সময়কাল {from} থেকে বেড়ে {to} হয়েছে।',
