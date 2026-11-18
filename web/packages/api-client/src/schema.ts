@@ -4498,6 +4498,18 @@ export interface components {
             performance_enabled?: boolean | null;
             /** @description Raw span retention in days. 0 means the default of 14. */
             span_retention_days?: number;
+            /** @description Raw log retention in days. 0 means the default of 7. */
+            log_retention_days?: number;
+            /**
+             * Format: int64
+             * @description Log records accepted per UTC day. Omitted or null means the default of 5,000,000; 0 means unlimited.
+             */
+            log_daily_quota?: number | null;
+            /**
+             * Format: int64
+             * @description Metric points accepted per UTC day. Omitted or null means the default of 50,000,000; 0 means unlimited.
+             */
+            metric_daily_quota?: number | null;
             /** @description Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on. */
             electron_symbols?: boolean | null;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */

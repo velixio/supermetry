@@ -3888,8 +3888,17 @@ type AppSettings struct {
 	// FilterLocalhostDefault The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update.
 	FilterLocalhostDefault *bool `json:"filter_localhost_default,omitempty"`
 
+	// LogDailyQuota Log records accepted per UTC day. Omitted or null means the default of 5,000,000; 0 means unlimited.
+	LogDailyQuota *int64 `json:"log_daily_quota,omitempty"`
+
+	// LogRetentionDays Raw log retention in days. 0 means the default of 7.
+	LogRetentionDays *int `json:"log_retention_days,omitempty"`
+
 	// MaxReportAgeDays 0 means the default of 7.
 	MaxReportAgeDays *int `json:"max_report_age_days,omitempty"`
+
+	// MetricDailyQuota Metric points accepted per UTC day. Omitted or null means the default of 50,000,000; 0 means unlimited.
+	MetricDailyQuota *int64 `json:"metric_daily_quota,omitempty"`
 
 	// PerformanceEnabled Accept transactions and spans. Omitted or null means on.
 	PerformanceEnabled *bool `json:"performance_enabled,omitempty"`
