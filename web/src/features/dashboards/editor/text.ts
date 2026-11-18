@@ -28,4 +28,5 @@ export const issueText: IssueText = {
   dimension: t.issues.dimension,
   funnel: t.issues.funnel,
   limit: t.issues.limit,
+  metricName: t.issues.metricName,
 }
