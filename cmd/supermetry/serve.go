@@ -53,6 +53,7 @@ import (
 	"supermetry/internal/integrations/stripe"
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
+	"supermetry/internal/obslogs"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
@@ -234,6 +235,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	now := settings.clock.Now()
 	if err := ensureSpanPartitions(ctx, pool, now, 13); err != nil {
 		return fmt.Errorf("ensure startup span partitions: %w", err)
+	}
+	if err := ensureLogPartitions(ctx, pool, now); err != nil {
+		return fmt.Errorf("ensure startup log partitions: %w", err)
 	}
 	if err := db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead)); err != nil {
 		return fmt.Errorf("ensure startup partitions: %w", err)
@@ -522,6 +526,9 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		},
 	}, spans.HealthStats{}, nil)
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
+	// The log writer starts its own flush goroutine; the OTLP and Sentry log
+	// front doors enqueue into it. Close flushes it before the pool closes.
+	logWriter := obslogs.NewWriter(pool, obslogs.WriterConfig{Now: settings.clock.Now}, obslogs.HealthStats{})
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
@@ -797,6 +804,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// Stop the span writer: it drains on cancel, before the app writer.
 	cancelSpanWriter()
 	cause = errors.Join(cause, <-spanWriterDone)
+	logWriter.Close()
 	cancelAppWriter()
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
@@ -1243,6 +1251,9 @@ func scheduledJobs(
 			if err := ensureSpanPartitions(ctx, pool, now, 1); err != nil {
 				return err
 			}
+			if err := ensureLogPartitions(ctx, pool, now); err != nil {
+				return err
+			}
 			return db.EnsurePartitions(ctx, pool, now.AddDate(0, 0, -2), now.Add(partitionLookahead))
 		}},
 		{Name: "retention", Every: time.Hour, Run: func(ctx context.Context) error {
@@ -1627,4 +1638,11 @@ func civilDay(value time.Time) time.Time {
 // and counted.
 func ensureSpanPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time, daysBack int) error {
 	return db.EnsureDailyPartitions(ctx, pool, "spans", now.AddDate(0, 0, -daysBack), now.AddDate(0, 0, 3))
+}
+
+// ensureLogPartitions pre-creates the daily logs partitions from yesterday to
+// 3 days ahead. The log writer never runs DDL: a record whose day has no
+// partition is dropped and counted.
+func ensureLogPartitions(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
+	return db.EnsureDailyPartitions(ctx, pool, "logs", now.AddDate(0, 0, -1), now.AddDate(0, 0, 3))
 }
