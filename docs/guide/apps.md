@@ -44,6 +44,29 @@ cookies and query strings are scrubbed before storage. See
 The sections below describe Supermetry's own app endpoint and client kits, still
 supported and listed under **Legacy kits** on the Installation page.
 
+## Electron apps and native crashes
+
+An Electron app using `@sentry/electron` needs only the DSN changed. JavaScript errors in the main and renderer processes arrive as events; a **native crash** (a crash of Electron itself, such as `process.crash()` or a segfault in a native module) is saved by Crashpad as a minidump and sent by the SDK on the next start. All of them land in the same app project, each in its own issue, and every event carries a `process` tag (`main`, `renderer`, `gpu`, `utility` or `other`). The issue list has a **Process** filter (the search term `process:renderer` does the same), and an issue's detail page has a **Process** breakdown. Issues are never merged across processes.
+
+```js
+const Sentry = require("@sentry/electron/main");
+Sentry.init({ dsn: "https://<public key>@<your host>/<project id>", release: "my-app@1.0.0" });
+```
+
+If your app drops events in `beforeSend` (for example until the user consents), the SDK routes native crashes through the same hook, so a `beforeSend` that returns `null` sends no crash report either.
+
+Other Crashpad clients can post a dump straight to `POST /api/<project id>/minidump/` as `multipart/form-data` (field `upload_file_minidump`, plus optional `sentry[release]`, `sentry[environment]`, `sentry[dist]`, `sentry[user][id]`, `sentry[tags][<key>]` and Crashpad's `prod`, `ver`, `ptype` and `platform`; every other field is dropped). The DSN public key goes in the `sentry_key` query parameter or an `X-Sentry-Auth` header. A dump may be gzip-compressed and is limited to 16 MiB after decompression (larger is a 413).
+
+**What is stored from a minidump.** A minidump holds raw process memory, so it is read in memory and thrown away; it is never written to the database, the attachment store or a log. Supermetry keeps only what it derives from it: the crash reason and address, the crashing thread's frames (function, source file and line, module file name and offset), and the modules' file names (paths are scrubbed) with their debug ids. Other threads, registers, stack contents and environment variables are not kept. Because the dump is not kept, a crash that arrives before its symbols are available stays unsymbolicated (frames show as `module+0xoffset`) and the issue is regrouped only for new events once the symbols are uploaded. The same module and offset always group into the same issue.
+
+**Symbols.** Frames are resolved with Breakpad `.sym` files for amd64 and arm64 dumps (Linux, macOS and Windows x64):
+
+- **Electron's own binaries** are looked up on Electron's public symbol server (`https://symbols.electronjs.org`, by module file name and debug id) the first time a crash needs them, converted, and cached for every project on the server. Only the module file name and the debug id of Electron's own binaries leave the server; nothing else, and never the dump. A symbol file for the Electron binary is large (about 0.75 GB for Linux x64), so the first crash of a new Electron version takes a minute or two to resolve. Turn it off for the whole server with `SUPERMETRY_ELECTRON_SYMBOLS=false`, or per project with **Fetch Electron's public symbols** under **Native crashes** in the project's app settings (on by default). `SUPERMETRY_REMOTE_SYMBOLS_MB` (default 4096) caps the on-disk cache of fetched symbols, evicting the least recently used; a module the server does not have is not asked for again for 24 hours.
+- **Your own native modules**: generate a `.sym` file with Breakpad's `dump_syms` and upload it with `sentry-cli debug-files upload`. Your own uploads are always used before the public server and are counted in the organization's storage like other debug files.
+- **Windows**: modules are matched by their PDB id. Upload `.sym` files made with `dump_syms` (reading `.pdb` files directly is not supported yet), or rely on Electron's public symbols for the Electron binaries. Frames of Windows x64 modules are unwound from the `STACK CFI` records of the `.sym` file, then by frame pointer, then by scanning the stack.
+
+`SUPERMETRY_MINIDUMP_INFLIGHT_MB` (default 128) bounds the minidump bytes waiting for or in processing; a dump over the budget is dropped with the event kept and counted as `minidump_skipped` on the **Data health** page. x86 and 32-bit ARM dumps keep their modules and crash reason, but only the crashing frame is shown.
+
 ## Sending reports from desktop and mobile apps
 
 Desktop apps (Electron, Tauri, native), mobile apps and backend services can send
@@ -364,7 +387,7 @@ The query bar above the issue list takes a search. Terms are separated by spaces
 | `timeout`, `"null pointer"` | A bare word or quoted phrase in the title or culprit (case-insensitive substring) |
 | `is:unresolved` | `unresolved` (open or regressed), `resolved`, `ignored`, `archived`, `snoozed`, `assigned`, `unassigned` |
 | `assigned:me`, `assigned:none`, `assigned:ann@example.com` | Assignee. Owners, admins and editors can search by a member's email; for viewers an email never matches, so emails are not revealed |
-| `release:1.4.0`, `environment:prod`, `platform:linux`, `level:fatal` | Issues that had at least one event with that value (`"quoted value"` if it has spaces) |
+| `release:1.4.0`, `environment:prod`, `platform:linux`, `process:renderer`, `level:fatal` | Issues that had at least one event with that value (`"quoted value"` if it has spaces) |
 | `kind:crash`, `priority:high` | Issue kind and priority |
 | `first-seen:-24h`, `last-seen:+30d`, `first-seen:2026-11-01` | `-` is within the last, `+` is older than that (units `m`, `h`, `d`, `w`); a date is that UTC day |
 | `events:>10`, `users:<=3`, `events:7` | Events or affected users in the selected date range (`>`, `<`, `>=`, `<=`, or equal) |

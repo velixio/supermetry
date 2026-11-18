@@ -52,7 +52,7 @@ Create an upload token under Settings, Installation, set `SENTRY_AUTH_TOKEN`
 - **Performance**: transactions, spans and traces.
 - **Session replay**, **profiles**, **cron monitors**, **user feedback**, logs and
   metrics.
-- Native crash dumps (minidumps) are counted but not processed.
+- Native crash dumps: Crashpad minidumps from Electron (as an envelope attachment or on `/api/<id>/minidump/`) are stack-walked and symbolicated for amd64 and arm64; see [Electron apps and native crashes](apps.md#electron-apps-and-native-crashes). x86 and 32-bit ARM dumps keep modules and the crash reason only.
 
 ### Why the SDK stops sending performance data
 
