@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { privateRequest } from '@/features/settings/privateApi'
 import type { components } from '@/lib/api.gen'
-import { en } from '@/messages/en'
 
 import { Attachments, type AttachmentSource } from './Attachments'
 import { crumbTime, frameLabel, readBody, show, type BodyException, type BodyFrame } from './eventBody'
@@ -148,7 +147,7 @@ export function EventBodyView({ body, source, settings }: { body: unknown; sourc
         </Card>
       ) : null}
       <Attachments attachments={view.attachments} source={source} />
-      {view.sdk?.name === 'otlp-logs' ? <p className="text-xs text-muted-foreground">{en.issueSourceLogs}</p> : view.sdk?.name ? <p className="text-xs text-muted-foreground">Sent by {view.sdk.name}{view.sdk.version ? ` ${view.sdk.version}` : ''}</p> : null}
+      {view.sdk?.name ? <p className="text-xs text-muted-foreground">Sent by {view.sdk.name}{view.sdk.version ? ` ${view.sdk.version}` : ''}</p> : null}
       {nothing ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">This event has no stored detail.</p> : null}
     </div>
   )

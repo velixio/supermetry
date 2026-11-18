@@ -6000,6 +6000,8 @@ export interface components {
             tags: {
                 [key: string]: unknown;
             };
+            /** @description Sender of the event; otlp-logs when the issue was created from an error log record. Absent when empty. */
+            sdk_name?: string;
         };
         AppEventBody: {
             event_id: string;
