@@ -676,6 +676,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"DELETE " + privatePrefix + "/imports/{import}",
 		"GET " + privatePrefix + "/imports/{import}",
 		"GET " + privatePrefix + "/sites/{site}/imports/capabilities",
+		"GET " + privatePrefix + "/sites/{site}/imports/compare",
 		"POST " + privatePrefix + "/sites/{site}/imports/pull",
 		"POST " + privatePrefix + "/sites/{site}/imports/pull/preview",
 		"POST " + privatePrefix + "/sites/{site}/imports/ga4/connect",

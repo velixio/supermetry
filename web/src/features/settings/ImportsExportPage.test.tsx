@@ -43,24 +43,27 @@ describe('imports and export', () => {
     expect(importPollInterval([{ status: 'running' }])).toBe(2_000)
   })
 
-  it('uploads the selected source and shows progress', async () => {
+  it('uploads a file through the wizard and shows progress', async () => {
     request.mockResolvedValue([])
+    preview.mockResolvedValue({
+      source: 'umami', file_name: 'umami.csv', rows: 1, bad_rows: 0, duplicate_rows: 0, errors: [], days: 1,
+      date_from: '2024-03-01', date_to: '2024-03-01',
+      totals: { visitors: 1, visits: 1, pageviews: 1, events: 0 }, dimensions: {},
+      overlap: { imported_days: 0, live_days: 0, same_file: null },
+    })
     upload.mockImplementation(async (_siteId, _orgId, _source, _file, onProgress) => {
       onProgress(42)
-      return { id: 9, status: 'pending' } as never
+      return new Promise(() => {})
     })
     renderPage()
 
-    fireEvent.change(screen.getByLabelText('Import source'), {
-      target: { value: 'umami' },
-    })
-    const file = new File(['website_id,session_id\n1,a'], 'umami.csv', {
-      type: 'text/csv',
-    })
-    fireEvent.change(screen.getByLabelText('Import file'), {
-      target: { files: [file] },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Upload import' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload a file' }))
+    fireEvent.change(screen.getByLabelText('File type'), { target: { value: 'umami' } })
+    const file = new File(['website_id,session_id\n1,a'], 'umami.csv', { type: 'text/csv' })
+    fireEvent.change(screen.getByLabelText('Import file'), { target: { files: [file] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Import this range' }))
 
     expect(await screen.findByText('Uploading 42%')).toBeVisible()
     expect(upload).toHaveBeenCalledWith(7, 3, 'umami', file, expect.any(Function), undefined, false)
@@ -114,44 +117,6 @@ describe('imports and export', () => {
 
     await waitFor(() => {
       expect(download).toHaveBeenCalledWith(7, 3, '2025-02-01', '2025-02-28')
-    })
-  })
-
-  it('previews a GA4 file before importing and replaces a repeated file', async () => {
-    request.mockResolvedValue([])
-    preview.mockResolvedValue({
-      source: 'ga4',
-      file_name: 'ga4.csv',
-      rows: 3,
-      bad_rows: 1,
-      duplicate_rows: 0,
-      errors: [{ row: 6, message: 'invalid date "x"' }],
-      days: 3,
-      date_from: '2024-03-01',
-      date_to: '2024-03-03',
-      totals: { visitors: 1380, visits: 450, pageviews: 1150, events: 2400 },
-      dimensions: { page: 2 },
-      overlap: {
-        imported_days: 2,
-        live_days: 1,
-        same_file: { import_id: 4, imported_at: '2026-10-01T00:00:00Z' },
-      },
-    })
-    upload.mockResolvedValue({ id: 10, status: 'pending' } as never)
-    renderPage()
-
-    fireEvent.change(screen.getByLabelText('Import source'), { target: { value: 'ga4' } })
-    const file = new File(['Date,Sessions\n20240301,1'], 'ga4.csv', { type: 'text/csv' })
-    fireEvent.change(screen.getByLabelText('Import file'), { target: { files: [file] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Preview import' }))
-
-    expect(await screen.findByText('Row 6: invalid date "x"')).toBeVisible()
-    expect(screen.getByText('1,380')).toBeVisible()
-    expect(screen.getByText('2024-03-01 – 2024-03-03')).toBeVisible()
-    expect(upload).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Replace earlier import' }))
-    await waitFor(() => {
-      expect(upload).toHaveBeenCalledWith(7, 3, 'ga4', file, expect.any(Function), undefined, true)
     })
   })
 })

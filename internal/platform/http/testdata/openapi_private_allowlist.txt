@@ -91,6 +91,7 @@ GET /api/private/sites/{site}/imports  # Dashboard or account flow; session/priv
 POST /api/private/sites/{site}/imports  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports/preview  # Dashboard or account flow; session/private UI contract.
 GET /api/private/sites/{site}/imports/capabilities  # Dashboard or account flow; session/private UI contract.
+GET /api/private/sites/{site}/imports/compare  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports/pull  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports/pull/preview  # Dashboard or account flow; session/private UI contract.
 POST /api/private/sites/{site}/imports/ga4/connect  # Dashboard or account flow; session/private UI contract.

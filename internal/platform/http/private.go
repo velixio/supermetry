@@ -479,6 +479,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/private/imports/{import}", h.deleteImport)
 	mux.HandleFunc("GET /api/private/imports/{import}", h.getImport)
 	mux.HandleFunc("GET /api/private/sites/{site}/imports/capabilities", h.importCapabilities)
+	mux.HandleFunc("GET /api/private/sites/{site}/imports/compare", h.compareImports)
 	mux.HandleFunc("POST /api/private/sites/{site}/imports/pull", h.createPullImport)
 	mux.HandleFunc("POST /api/private/sites/{site}/imports/pull/preview", h.previewPullImport)
 	mux.HandleFunc("POST /api/private/sites/{site}/imports/ga4/connect", h.connectGA4)
