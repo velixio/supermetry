@@ -4227,6 +4227,8 @@ export interface components {
             performance_enabled?: boolean | null;
             /** @description Raw span retention in days. 0 means the default of 14. */
             span_retention_days?: number;
+            /** @description Fetch Electron's public symbols from symbols.electronjs.org to symbolicate native crashes. Only Electron module names and debug ids are sent. Omitted or null means on. */
+            electron_symbols?: boolean | null;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
         };

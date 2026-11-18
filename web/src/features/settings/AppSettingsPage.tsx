@@ -23,6 +23,7 @@ type AppSettings = {
   filter_extensions: boolean | null
   filter_crawlers: boolean | null
   filter_localhost: boolean | null
+  electron_symbols?: boolean | null
   filter_localhost_default: boolean
 }
 type Erasure = {
@@ -51,6 +52,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
   const [extensions, setExtensions] = useState(true)
   const [crawlers, setCrawlers] = useState(true)
   const [localhost, setLocalhost] = useState(false)
+  const [electronSymbols, setElectronSymbols] = useState(true)
   // Until the owner flips the localhost switch the project keeps following the server default.
   const [localhostTouched, setLocalhostTouched] = useState(false)
   const [eraseId, setEraseId] = useState('')
@@ -65,6 +67,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
     setExtensions(value.filter_extensions !== false)
     setCrawlers(value.filter_crawlers !== false)
     setLocalhost(value.filter_localhost ?? value.filter_localhost_default)
+    setElectronSymbols(value.electron_symbols !== false)
     setLocalhostTouched(value.filter_localhost !== null && value.filter_localhost !== undefined)
   }
   useEffect(() => { if (settings.data) show(settings.data) }, [settings.data])
@@ -74,7 +77,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
       orgId,
       body: {
         tag_allowlist: toList(tags), max_report_age_days: Number(age), environments: toList(environments),
-        filter_extensions: extensions, filter_crawlers: crawlers, filter_localhost: localhostTouched ? localhost : null,
+        filter_extensions: extensions, filter_crawlers: crawlers, filter_localhost: localhostTouched ? localhost : null, electron_symbols: electronSymbols,
       },
     }),
     onSuccess: (value) => { show(value); client.setQueryData(['app-settings', siteId], value) },
@@ -142,6 +145,11 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
             <FilterSwitch id="filter-localhost" label="Localhost" checked={localhost}
               onChange={(value) => { setLocalhost(value); setLocalhostTouched(true) }}
               hint={`Events raised on a developer machine. Server default: ${settings.data?.filter_localhost_default ? 'on' : 'off'}.`} />
+          </Field>
+          <Field>
+            <FieldLabel>Native crashes</FieldLabel>
+            <FilterSwitch id="electron-symbols" label="Fetch Electron's public symbols" checked={electronSymbols} onChange={setElectronSymbols}
+              hint="Sends only Electron module names and ids to symbols.electronjs.org." />
           </Field>
           {save.error ? <FieldError>{save.error.message}</FieldError> : null}
         </FieldGroup>

@@ -72,3 +72,14 @@ func TestAppSettingsPerformanceDefaults(t *testing.T) {
 		}
 	}
 }
+
+func TestAppSettingsElectronSymbols(t *testing.T) {
+	got, err := sites.ParseAppSettings(nil)
+	if err != nil || got.ElectronSymbols == nil || !*got.ElectronSymbols {
+		t.Fatalf("default %+v err=%v", got, err)
+	}
+	off, err := sites.ParseAppSettings([]byte(`{"electron_symbols":false}`))
+	if err != nil || off.ElectronSymbols == nil || *off.ElectronSymbols {
+		t.Fatalf("explicit off %+v err=%v", off, err)
+	}
+}

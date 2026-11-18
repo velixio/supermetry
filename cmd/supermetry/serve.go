@@ -96,6 +96,7 @@ import (
 	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
 	"supermetry/internal/symcache"
+	"supermetry/internal/symsource"
 	"supermetry/internal/updatecheck"
 	"supermetry/internal/writer"
 )
@@ -519,6 +520,21 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}, "breakpad": {Version: 1, Build: breakpad.BuildFunc(filepath.Join(cfg.DataDir, "symcache-tmp"))}, "elf": nativeCache, "macho": nativeCache}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
+	// Electron's public symbol server: fetched on a symbolication miss by the
+	// native crash path, never on the ingest path. nil when no blob store.
+	var electronSymbols *symsource.Electron
+	if replayStore != nil {
+		electronSymbols = symsource.NewElectron(pool, replayStore, symsource.NewHTTPClient(), symsource.ElectronConfig{
+			Enabled: cfg.ElectronSymbols,
+			SiteEnabled: func(siteID int32) bool {
+				site, ok := registry.Site(siteID)
+				return ok && (site.App == nil || site.App.ElectronSymbols == nil || *site.App.ElectronSymbols)
+			},
+			TmpDir: filepath.Join(cfg.DataDir, "symcache-tmp"),
+		})
+		defer electronSymbols.Close()
+	}
+	_ = electronSymbols // consumed by the minidump resolver (phase 2d task 4)
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
 	appProduct := appproduct.New(w, sessions, dictionary, dropRecorder, settings.clock.Now)
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
@@ -702,6 +718,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	jobs := scheduledJobs(pool, registry, refreshRegistry, dictionary, saltStore, sessions, closed, reportService, alertEvaluator, geo, replayStore, cfg.Replay, cfg.DataDir, cfg.SecretKey, refreshReplayDiskGuard, cfg.OpenCounters, settings.clock, engine.InvalidateSite)
+	if replayStore != nil {
+		jobs = append(jobs, scheduler.Job{Name: "remote-symbols-sweep", Every: time.Hour, Run: func(ctx context.Context) error {
+			_, err := sentryapi.SweepRemoteSymbols(ctx, pool, replayStore, settings.clock.Now(), int64(cfg.RemoteSymbolsMB)<<20)
+			return err
+		}})
+	}
 	storageStore := storageusage.NewStore(pool)
 	storageScanners := []storageusage.Scanner{storageusage.NewPostgresScanner(pool, cfg.QueryTimeout), storageusage.NewArtifactScanner(pool)}
 	if replayStore != nil {

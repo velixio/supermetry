@@ -40,6 +40,10 @@ type AppSettings struct {
 	SpanRetentionDays int `json:"span_retention_days"`
 	// LogRetentionDays is the raw log life, 1..30; 0 means the default 7.
 	LogRetentionDays int `json:"log_retention_days"`
+	// ElectronSymbols turns the fetch of Electron's public symbols on or off.
+	// A nil pointer means on; the server switch SUPERMETRY_ELECTRON_SYMBOLS can
+	// still turn it off for every project.
+	ElectronSymbols *bool `json:"electron_symbols"`
 }
 
 // ParseAppSettings decodes stored settings; empty or missing input gives the defaults.
@@ -72,6 +76,9 @@ func (a AppSettings) Normalize() (AppSettings, error) {
 	}
 	if a.PerformanceEnabled == nil {
 		a.PerformanceEnabled = &on
+	}
+	if a.ElectronSymbols == nil {
+		a.ElectronSymbols = &on
 	}
 	if a.SpanRetentionDays == 0 {
 		a.SpanRetentionDays = defaultSpanRetentionDays
