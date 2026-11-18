@@ -2570,6 +2570,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/issues/{issue}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * User feedback linked to the issue, newest first
+         * @description Reports sent with captureFeedback or the legacy user report whose event belongs to this issue. Text is scrubbed; reporter emails are not returned.
+         */
+        get: operations["listAppIssueFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * All user feedback of the project, newest first
+         * @description Includes reports whose event is unknown (not linked to an issue).
+         */
+        get: operations["listAppFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/issue-webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /** Issue webhook settings */
+        get: operations["getAppIssueWebhooks"];
+        /**
+         * Choose the notification channels and event kinds that receive issue webhooks
+         * @description Channels are existing notification channels of the organisation. Webhook channels receive a JSON body `{type, issue:{id,title,culprit,level,status,url,first_seen,last_seen,events}, actor:{kind,name?}}` signed like alert webhooks; other channels receive a text line. Delivery is from an outbox after the change commits, retried with backoff.
+         */
+        put: operations["updateAppIssueWebhooks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/assignees": {
         parameters: {
             query?: never;
@@ -4974,6 +5042,32 @@ export interface components {
         };
         AppIssueCommentInput: {
             body: string;
+        };
+        AppFeedback: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            at: string;
+            /**
+             * Format: int64
+             * @description Null when the event the report names is unknown.
+             */
+            issue_id: number | null;
+            event_id: string | null;
+            /** @description Always null until the opt-in to keep names exists. */
+            name: string | null;
+            /** @description Whether the reporter gave an email. The address itself is stored only as a keyed hash and never returned. */
+            has_contact: boolean;
+            message: string;
+            /** @description The page path */
+            url: string | null;
+        };
+        AppFeedbackList: {
+            feedback: components["schemas"]["AppFeedback"][];
+        };
+        AppIssueWebhooks: {
+            channel_ids: number[];
+            kinds: ("created" | "resolved" | "regressed" | "assigned" | "escalated" | "github_linked")[];
         };
         AppIssueActivity: {
             /** Format: int64 */
@@ -11666,6 +11760,116 @@ export interface operations {
                         /** Format: int64 */
                         issue_id: number;
                     };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppIssueFeedback: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                site: number;
+                issue: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feedback */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppFeedbackList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppFeedback: {
+        parameters: {
+            query?: {
+                limit?: number;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feedback */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppFeedbackList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppIssueWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueWebhooks"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppIssueWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppIssueWebhooks"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppIssueWebhooks"];
                 };
             };
             400: components["responses"]["BadRequest"];

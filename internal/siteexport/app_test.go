@@ -37,6 +37,10 @@ insert into app_saved_views(site_id,owner_user_id,name,query,shared,created_at) 
  (7,50,'Fatal','level:fatal',true,'2026-10-02T14:00:00Z'),
  (7,50,'My private','assigned:me',false,'2026-10-02T14:00:00Z'),
  (9,null,'Theirs','is:resolved',true,'2026-10-02T14:00:00Z');
+insert into app_feedback(site_id,issue_id,event_id,at,email_hash,message,url) values
+ (7,1,'evt-b','2026-10-02T13:10:00Z','\x0badc0de','Crashed on save','/save'),
+ (7,null,null,'2026-01-01T13:10:00Z',null,'too old',null),
+ (9,3,null,'2026-10-02T13:10:00Z',null,'theirs',null);
 insert into app_events(site_id,ts,received_at,event_id,issue_id,kind,level,release,environment,platform,os_version,arch,device_class,runtime,occurrences,
   install_hash,session_hash,user_hash,sdk_name,sdk_version,dist,symbolication)
  values
@@ -125,7 +129,7 @@ func exportFiles(t *testing.T, e *siteexport.Exporter, ctx context.Context, site
 func TestAppSiteExportsExactCSVs(t *testing.T) {
 	e, ctx := newAppExport(t)
 	files, names, _ := exportFiles(t, e, ctx, 7)
-	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv", "app_sessions_daily.csv", "app_commits.csv", "app_debug_files.csv", "app_saved_views.csv"} {
+	for _, want := range []string{"app_issues.csv", "app_events.csv", "app_releases.csv", "app_deploys.csv", "app_artifacts.csv", "app_client_reports.csv", "app_issue_activity.csv", "app_issue_comments.csv", "app_sessions_daily.csv", "app_commits.csv", "app_debug_files.csv", "app_saved_views.csv", "app_feedback.csv"} {
 		if !slices.Contains(names, want) {
 			t.Fatalf("missing %s in %v", want, names)
 		}
@@ -153,6 +157,10 @@ func TestAppSiteExportsExactCSVs(t *testing.T) {
 	check("app_saved_views.csv", [][]string{
 		{"view_id", "name", "query", "owner_id", "created"},
 		{"1", "Fatal", "level:fatal", "50", "2026-10-02T14:00:00.000Z"},
+	})
+	check("app_feedback.csv", [][]string{
+		{"feedback_id", "issue_id", "event_id", "at", "has_contact", "text", "page"},
+		{"1", "1", "evt-b", "2026-10-02T13:10:00.000Z", "true", "Crashed on save", "/save"},
 	})
 	check("app_events.csv", [][]string{
 		{"event_id", "timestamp", "issue_id", "kind", "level", "release", "dist", "environment", "platform", "sdk_name", "sdk_version", "os_version", "arch", "device_class", "runtime", "symbolication", "occurrences"},

@@ -3307,6 +3307,64 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issues/{issue}/feedback:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+      - { name: issue, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+    get:
+      operationId: listAppIssueFeedback
+      tags: [Apps]
+      summary: User feedback linked to the issue, newest first
+      description: Reports sent with captureFeedback or the legacy user report whose event belongs to this issue. Text is scrubbed; reporter emails are not returned.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Feedback, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeedbackList' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/feedback:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: listAppFeedback
+      tags: [Apps]
+      summary: All user feedback of the project, newest first
+      description: Includes reports whose event is unknown (not linked to an issue).
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Feedback, content: { application/json: { schema: { $ref: '#/components/schemas/AppFeedbackList' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/sites/{site}/app/issue-webhooks:
+    parameters:
+      - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
+    get:
+      operationId: getAppIssueWebhooks
+      tags: [Apps]
+      summary: Issue webhook settings
+      responses:
+        '200': { description: Settings, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueWebhooks' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateAppIssueWebhooks
+      tags: [Apps]
+      summary: Choose the notification channels and event kinds that receive issue webhooks
+      description: >-
+        Channels are existing notification channels of the organisation. Webhook channels receive a JSON body
+        `{type, issue:{id,title,culprit,level,status,url,first_seen,last_seen,events}, actor:{kind,name?}}` signed like alert
+        webhooks; other channels receive a text line. Delivery is from an outbox after the change commits, retried with backoff.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueWebhooks' } } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/AppIssueWebhooks' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/sites/{site}/app/assignees:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
@@ -6091,6 +6149,29 @@ components:
       additionalProperties: false
       properties:
         body: { type: string, minLength: 1, maxLength: 10000 }
+    AppFeedback:
+      type: object
+      required: [id, at, issue_id, event_id, name, has_contact, message, url]
+      properties:
+        id: { type: integer, format: int64 }
+        at: { type: string, format: date-time }
+        issue_id: { type: integer, format: int64, nullable: true, description: Null when the event the report names is unknown. }
+        event_id: { type: string, nullable: true }
+        name: { type: string, nullable: true, description: Always null until the opt-in to keep names exists. }
+        has_contact: { type: boolean, description: Whether the reporter gave an email. The address itself is stored only as a keyed hash and never returned. }
+        message: { type: string }
+        url: { type: string, nullable: true, description: The page path, without host or query. }
+    AppFeedbackList:
+      type: object
+      required: [feedback]
+      properties:
+        feedback: { type: array, items: { $ref: '#/components/schemas/AppFeedback' } }
+    AppIssueWebhooks:
+      type: object
+      required: [channel_ids, kinds]
+      properties:
+        channel_ids: { type: array, maxItems: 10, items: { type: integer, format: int64 } }
+        kinds: { type: array, items: { type: string, enum: [created, resolved, regressed, assigned, escalated, github_linked] } }
     AppIssueActivity:
       type: object
       required: [id, at, kind, actor_user_id, actor_name, data]

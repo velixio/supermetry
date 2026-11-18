@@ -392,3 +392,92 @@ func (h *handler) putAppNotificationPrefs(w http.ResponseWriter, r *http.Request
 	}
 	writeJSON(w, http.StatusOK, prefs)
 }
+
+func (h *handler) listAppIssueFeedback(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	h.writeAppFeedback(w, r, site.ID, id)
+}
+
+func (h *handler) listAppFeedback(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	h.writeAppFeedback(w, r, site.ID, 0)
+}
+
+// writeAppFeedback lists user reports; the stored contact hash never leaves
+// the database.
+func (h *handler) writeAppFeedback(w http.ResponseWriter, r *http.Request, siteID int32, issueID int64) {
+	limit := 0
+	var err error
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if limit, err = strconv.Atoi(v); err != nil || limit < 1 || limit > 200 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "limit must be between 1 and 200")
+			return
+		}
+	}
+	var before time.Time
+	if v := r.URL.Query().Get("before"); v != "" {
+		if before, err = time.Parse(time.RFC3339Nano, v); err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "before must be an RFC 3339 time")
+			return
+		}
+	}
+	items, err := h.appIssues().Feedback(r.Context(), siteID, issueID, limit, before)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"feedback": items})
+}
+
+func (h *handler) getAppIssueWebhooks(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	cfg, err := h.appIssues().WebhookSettings(r.Context(), site.ID)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+// updateAppIssueWebhooks picks the notification channels and event kinds that
+// receive issue webhooks.
+func (h *handler) updateAppIssueWebhooks(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	var in appissues.WebhookSettings
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		if err := h.appIssues().SetWebhookSettingsTx(r.Context(), tx, site.OrgID, site.ID, in); err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "app.issue_webhooks_updated", "site", int64(site.ID), map[string]any{"channels": len(in.ChannelIDs), "kinds": in.Kinds})
+	})
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	cfg, err := h.appIssues().WebhookSettings(r.Context(), site.ID)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}

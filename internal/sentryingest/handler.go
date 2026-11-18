@@ -53,6 +53,7 @@ type Handler struct {
 	bodies    BodyQueue
 	reports   ClientReportSink
 	sessions  SessionQueue
+	feedback  FeedbackSink
 	geo       GeoLookup
 	trusted   []netip.Prefix
 	now       func() time.Time
@@ -80,6 +81,10 @@ func (h *Handler) WithClientReports(r ClientReportSink) *Handler { h.reports = r
 
 // WithSessions sets where session updates go; nil discards them.
 func (h *Handler) WithSessions(q SessionQueue) *Handler { h.sessions = q; return h }
+
+// WithFeedback sets where scrubbed user reports go; nil counts and discards
+// them.
+func (h *Handler) WithFeedback(f FeedbackSink) *Handler { h.feedback = f; return h }
 
 // WithNormaliser replaces the event normaliser (Normalise by default); a nil
 // function makes event items counted and dropped.
@@ -285,8 +290,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	events := 0
 	for _, it := range env.Items {
-		if it.Type == "event" {
-			events++
+		if it.Type == "event" || isFeedbackItem(it.Type) {
+			events++ // reports count toward spike protection like events
 		}
 	}
 	var cspEvents []appingest.Event
@@ -449,6 +454,18 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 					h.sessions.Enqueue(u) // a full queue counts itself
 				}
 			}
+		case "feedback", "user_report":
+			item, err := ParseFeedback(it.Type, it.Payload, site, now)
+			switch {
+			case err != nil:
+				h.stats.Add("feedback_invalid", 1)
+			case h.feedback == nil:
+				h.stats.Add("feedback_discarded", 1)
+			case h.feedback.Add(item):
+				h.stats.Add("feedback_stored", 1)
+			default:
+				h.stats.Add("feedback_dropped", 1)
+			}
 		case "client_report":
 			if counts, err := ParseClientReport(it.Payload); err == nil {
 				var total int64
@@ -478,6 +495,8 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 	}
 	return out
 }
+
+func isFeedbackItem(t string) bool { return t == "feedback" || t == "user_report" }
 
 // applyRow copies the normaliser's extra columns onto the event.
 func applyRow(ev *appingest.Event, r appingest.RowExtras) {

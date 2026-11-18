@@ -301,6 +301,37 @@ An archived issue escalates back to open (activity "escalated", by System) when 
 
 Supermetry emails the person an issue is assigned to when someone else assigns it to them, when an issue assigned to them regresses, and (off by default) when someone else resolves it. You never get an email about your own change. Choose what you receive per project under Account, Notifications; assigned and regressed are on by default. Only members who can read the project are emailed. The emails are plain notices with one ordinary link to the issue: no tracking pixels and no tracked links. A notification that cannot be delivered is retried for up to 24 hours, then dropped. There is no weekly digest yet.
 
+## Issue webhooks
+
+Under the project's settings, **Issue webhooks** sends issue events to notification channels you already created. Pick the channels and the events: new issue (`created`), `resolved`, `regressed`, `assigned`, `escalated` and `github_linked`. Owners, admins and editors can change the setting; viewers can read it.
+
+- **Webhook channels** receive a JSON body, signed exactly like alert webhooks (`X-Supermetry-Timestamp` and `X-Supermetry-Signature`, HMAC-SHA256 of `timestamp.body`):
+
+  ```json
+  {"type": "resolved",
+   "issue": {"id": 12, "title": "...", "culprit": "...", "level": "error", "status": "resolved",
+             "url": "https://.../app/<org>/<project>/issues/12", "first_seen": "...", "last_seen": "...", "events": 42},
+   "actor": {"kind": "user", "name": "Ada"}}
+  ```
+
+  `actor.kind` is `user` or `system`. A member's name is included only when it is a plain display name; an address-like name is left out. The body never contains end-user identifiers, hashes or email addresses.
+- **Slack, Discord, email and Telegram channels** receive one line of text.
+- **Delivery** happens after the change is saved, from an outbox: a failing receiver is retried with growing delays (30 seconds, then 1, 2, 4 and 8 minutes) and dropped after six attempts. A deleted or disabled channel is skipped.
+
+Through the private API: `GET` and `PUT /api/private/sites/{site}/app/issue-webhooks` with `{"channel_ids": [...], "kinds": [...]}`. Channels must belong to the project's organisation.
+
+## User feedback
+
+Sentry SDKs can ask people what went wrong: `Sentry.captureFeedback(...)`, the feedback widget, and the older user report dialog. Supermetry accepts these (`feedback` and `user_report` envelope items) and stops telling SDKs to skip them. Reports count toward the project's per-minute spike limit.
+
+- The message is scrubbed like event text (emails, tokens, card numbers and the like are replaced) and cut to 5,000 characters. The page URL is reduced to its path.
+- The reporter's **email address is never stored**: only a keyed hash, so the list can show that a contact address was given. Their **name is not stored** either. Names are kept only after an opt-in that does not exist yet.
+- A report that names the event it is about is linked to that event's issue and appears under **User feedback** on the issue. A report for an unknown event is kept without a link and shows in the project's feedback list (`GET /api/private/sites/{site}/app/feedback`). Per issue: `GET .../issues/{issue}/feedback`.
+- Feedback text is user content: it is part of the project export (`app_feedback.csv`, without any email) and is removed with the project.
+
+## GitHub link
+
+An issue can carry one link to an existing GitHub issue, `https://github.com/<owner>/<repo>/issues/<number>`. Other addresses are refused. Supermetry stores the link and never calls GitHub. Linking (not unlinking) can also be sent as a `github_linked` issue webhook.
 ### Merging and unmerging issues
 
 Two issues that are really the same bug can be merged. Open the issue you want to keep, type the ids of the others in "Merged issues" and choose Merge. Owners, admins and editors can merge; viewers can read the list.
@@ -358,6 +389,7 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
 | `app_saved_views.csv` | Shared saved searches: id, name, query, owner id, created. Private views are not exported |
 | `app_issue_activity.csv`, `app_issue_comments.csv` | The issue timeline and the comments written in the range (deleted comments are left out). Authors and actors appear as organisation member ids |
+| `app_feedback.csv` | User feedback written in the range: id, issue id, event id, time, whether a contact address was given, text, page path. Reporter emails are stored only as a hash and are not exported |
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
 The export never includes end-user identifiers or hashes, install or session hashes, IP data or the full event bodies. Rows stream out as they are read, so large ranges do not load into memory.
@@ -368,3 +400,8 @@ An AI assistant connected to the [MCP server](../api.md#mcp-for-ai-assistants) c
 an app's health with an API key that has the `stats:read` scope: the overview, open
 issues, one issue with its latest events, the compatibility matrix and the releases.
 The tools are read-only, so an assistant cannot resolve or ignore issues. `list_app_issues` takes an optional `query` in the search syntax above (without `assigned:me` or emails, which need a signed-in user), and `search_app_events` returns the newest events of the issues a query matches: event ids, times, issue ids, release and platform, up to 50, and never event bodies or user identifiers.
+Two more tools read one issue's history: `get_issue_timeline` (the activity timeline, newest
+first, at most 100 rows) and `get_issue_impact` (users, sessions and events over the last 30
+days, with the releases and platforms they came from). They take `site` and `issue`, return
+no emails or hashes, and show actors by display name only.
+The tools are read-only, so an assistant cannot resolve or ignore issues.

@@ -512,6 +512,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	appWriter := appingest.NewWriter(pool, appIntake, appingest.WriterConfig{})
 	appBodies := appingest.NewBodyWriter(pool, appingest.BodyWriterConfig{})
 	appReports := appingest.NewClientReports(pool, 0)
+	appFeedback := appissues.NewFeedbackWriter(pool, 0)
 	spanWriter := spans.NewWriter(pool, spans.WriterConfig{
 		Location: func(id int32) *time.Location {
 			if site, ok := registry.Site(id); ok {
@@ -527,7 +528,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
-			WithClientReports(appReports).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
 			Disk: debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
@@ -577,7 +578,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), AppIssues: appissues.New(pool, settings.clock.Now), Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
 		StripeAttribution: &stripe.AttributionHandler{
@@ -629,6 +630,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	go func() { appBodiesDone <- appBodies.Run(appWriterCtx) }()
 	appReportsDone := make(chan error, 1)
 	go func() { appReportsDone <- appReports.Run(appWriterCtx) }()
+	appFeedbackDone := make(chan error, 1)
+	go func() { appFeedbackDone <- appFeedback.Run(appWriterCtx) }()
 	dropStatsCtx, cancelDropStats := context.WithCancel(context.Background())
 	dropStatsDone := make(chan error, 1)
 	go func() { dropStatsDone <- dropRecorder.Run(dropStatsCtx) }()
@@ -668,6 +671,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	storageReconciler := storageusage.NewReconciler(storageStore, storageusage.MeasurementVersion, storageScanners...)
 	jobs = append(jobs, storageUsageJob(storageReconciler, settings.clock))
+	jobs = append(jobs, issueWebhookJob(appissues.New(pool, settings.clock.Now), issueWebhookSender{channels: alertService, dispatcher: alertDispatcher}, cfg.BaseURL))
 	jobs = append(jobs, alertService.RetentionJob(), integrationService.SyncJob(), integrationService.RetentionJob(), stripeService.RetentionJob())
 	starService.AlertChannels = alertService
 	trendingService.Notifier = trendingAlerts{alerts: starService}
@@ -797,7 +801,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if appWriterDone != nil {
 		cause = errors.Join(cause, <-appWriterDone)
 	}
-	cause = errors.Join(cause, <-appBodiesDone, <-appReportsDone)
+	cause = errors.Join(cause, <-appBodiesDone, <-appReportsDone, <-appFeedbackDone)
 	cancelDropStats()
 	if dropStatsDone != nil {
 		cause = errors.Join(cause, <-dropStatsDone)

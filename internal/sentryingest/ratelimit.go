@@ -11,8 +11,8 @@ const DefaultSpikePerMinute = 600
 
 const (
 	// rejectUnsupported is sent on every 2xx so SDKs stop sending categories
-	// that Phase 1a does not store.
-	rejectUnsupported = "3600:transaction;span;profile;profile_chunk;replay;log;trace_metric;check_in;feedback:project:not_supported"
+	// that are not stored. Feedback and user reports are stored.
+	rejectUnsupported = "3600:transaction;span;profile;profile_chunk;replay;log;trace_metric;check_in:project:not_supported"
 	// spikeLimits and budgetLimits accompany a 429.
 	spikeLimits  = "60:error;default:project:spike_protection"
 	budgetLimits = "60:error;default:project:rate_limit"
