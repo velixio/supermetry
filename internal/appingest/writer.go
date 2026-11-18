@@ -105,11 +105,15 @@ func (w *Writer) Run(ctx context.Context) error {
 	ticker := time.NewTicker(w.flushEvery)
 	defer ticker.Stop()
 	batch := make([]Queued, 0, w.batchSize)
+	// A flush is never cut short by shutdown: a batch already taken off the
+	// queue would otherwise be lost, so each one gets its own bounded context.
 	flush := func(c context.Context) {
 		if len(batch) == 0 {
 			return
 		}
-		_ = w.flushRetry(c, batch) // failures are counted and logged there
+		fc, cancel := context.WithTimeout(context.WithoutCancel(c), shutdownTimeout)
+		_ = w.flushRetry(fc, batch) // failures are counted and logged there
+		cancel()
 		batch = batch[:0]
 	}
 	for {
