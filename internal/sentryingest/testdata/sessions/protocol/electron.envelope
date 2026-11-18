@@ -1,0 +1,3 @@
+{"event_id":"00000000000000000000000000000d04","sent_at":"2026-11-17T10:00:05.000Z","sdk":{"name":"sentry.javascript.electron","version":"8.0.0"}}
+{"type":"session","length":267}
+{"sid":"e1e2e3e4e5e64e7e8e9eaebecedeeef0","did":"install-electron-1","init":true,"started":"2026-11-17T08:30:00.000Z","timestamp":"2026-11-17T08:41:10.000Z","status":"crashed","errors":1,"duration":670.0,"attrs":{"release":"desktop@2.0.0","environment":"production"}}

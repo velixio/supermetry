@@ -1,0 +1,3 @@
+{"event_id":"00000000000000000000000000000d02","sent_at":"2026-11-17T10:00:05.000Z","sdk":{"name":"sentry.javascript.node","version":"9.0.0"}}
+{"type":"sessions","length":199}
+{"aggregates":[{"started":"2026-11-17T09:55:00.000Z","exited":5,"errored":2},{"started":"2026-11-17T09:56:00.000Z","exited":3,"crashed":1}],"attrs":{"release":"api@2.0.0","environment":"production"}}

@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"supermetry/internal/appissues"
 	"supermetry/internal/appquery"
 	"supermetry/internal/db"
 	"supermetry/internal/health"
@@ -557,5 +558,61 @@ func TestWriterRecordsFirstSeenAndRegressionOnTheTimeline(t *testing.T) {
 	}
 	if got := kinds(); got != "first_seen,regressed" {
 		t.Fatalf("after a post-regression event: %q", got)
+	}
+}
+
+func TestWriterRedirectsAMergedFingerprintToTheMergeTarget(t *testing.T) {
+	pool, _, w := writerFixture(t)
+	ctx := context.Background()
+	if err := w.flush(ctx, []Queued{
+		queued("m1", "fp-src", "1.0.0", testNow.Add(-2*time.Hour), 2),
+		queued("m2", "fp-dst", "1.0.0", testNow.Add(-2*time.Hour), 3),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	src, dst := readIssue(t, pool, "fp-src"), readIssue(t, pool, "fp-dst")
+	svc := appissues.New(pool, func() time.Time { return testNow })
+	if err := svc.Merge(ctx, 7, dst.ID, []int64{src.ID}, appissues.Actor{System: true}); err != nil {
+		t.Fatal(err)
+	}
+	// New events with the merged fingerprint, alone and with the target's.
+	for _, batch := range [][]Queued{
+		{queued("m3", "fp-src", "1.0.0", testNow.Add(-time.Hour), 4)},
+		{queued("m4", "fp-src", "1.0.0", testNow.Add(-30*time.Minute), 1), queued("m5", "fp-dst", "1.0.0", testNow.Add(-30*time.Minute), 1)},
+	} {
+		if err := w.flush(ctx, batch); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var issues, onSource int
+	if err := pool.QueryRow(ctx, `select count(*) from app_issues`).Scan(&issues); err != nil || issues != 2 {
+		t.Fatalf("issues = %d %v, want 2 (no resurrected issue)", issues, err)
+	}
+	if err := pool.QueryRow(ctx, `select count(*) from app_events where issue_id = $1`, src.ID).Scan(&onSource); err != nil || onSource != 0 {
+		t.Fatalf("%d events still on the merged source (%v)", onSource, err)
+	}
+	if got := readIssue(t, pool, "fp-dst"); got.EventCount != 2+3+4+1+1 {
+		t.Fatalf("target count = %d", got.EventCount)
+	}
+	if got := readIssue(t, pool, "fp-src"); got.EventCount != 2 {
+		t.Fatalf("source count changed to %d", got.EventCount)
+	}
+	var n int64
+	if err := pool.QueryRow(ctx, `select coalesce(sum(occurrences),0) from app_events where issue_id = $1`, dst.ID).Scan(&n); err != nil || n != 11 {
+		t.Fatalf("target events = %d %v", n, err)
+	}
+	// Unmerging splits by the fingerprint hash; later events follow the issue.
+	sum := sha256.Sum256([]byte("fp-src"))
+	if _, err := svc.Unmerge(ctx, 7, dst.ID, [][]byte{sum[:]}, appissues.Actor{System: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.flush(ctx, []Queued{queued("m6", "fp-src", "1.0.0", testNow, 1)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := readIssue(t, pool, "fp-src"); got.EventCount != 2+4+1+1 {
+		t.Fatalf("reinstated source count = %d", got.EventCount)
+	}
+	if got := readIssue(t, pool, "fp-dst"); got.EventCount != 3+1 {
+		t.Fatalf("target count after unmerge = %d", got.EventCount)
 	}
 }

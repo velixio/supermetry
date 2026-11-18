@@ -86,7 +86,7 @@ func newEnv(t *testing.T, mod func(*Deps)) *env {
 		t.Fatal(err)
 	}
 	reg := fakeSites{all: []sites.Site{
-		{ID: 10, OrgID: owner.OrgID, PublicID: "appsite00010"}, {ID: 20, OrgID: owner.OrgID, PublicID: "appsite00020"}, {ID: 30, OrgID: other.OrgID, PublicID: "appsite00030"},
+		{ID: 10, OrgID: owner.OrgID, PublicID: "appsite00010", Kind: sites.KindApp}, {ID: 20, OrgID: owner.OrgID, PublicID: "appsite00020", Kind: sites.KindApp}, {ID: 30, OrgID: other.OrgID, PublicID: "appsite00030", Kind: sites.KindApp},
 	}}
 	blobs, err := replay.NewDiskStore(t.TempDir())
 	if err != nil {
