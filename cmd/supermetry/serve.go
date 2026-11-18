@@ -87,6 +87,7 @@ import (
 	"supermetry/internal/session"
 	"supermetry/internal/siteexport"
 	"supermetry/internal/sites"
+	"supermetry/internal/spanrollup"
 	"supermetry/internal/spans"
 	"supermetry/internal/storageusage"
 	"supermetry/internal/updatecheck"
@@ -521,7 +522,15 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			}
 			return nil
 		},
-	}, spans.HealthStats{}, nil)
+	}, spans.HealthStats{}, func(siteID int32, localHours []time.Time) {
+		// Spans landed in already-rolled hours: mark them dirty so the
+		// span-rollups job rebuilds them. Runs on the writer goroutine.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := spanrollup.MarkDirty(ctx, pool, siteID, localHours); err != nil {
+			slog.Warn("mark span hours dirty", "site", siteID, "error", err)
+		}
+	})
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
@@ -1233,6 +1242,7 @@ func scheduledJobs(
 			return closeDueDays(ctx, pool, registry, closed, clk.Now(), closeInvalidators...)
 		}},
 		approllup.Job(pool, registry, clk.Now),
+		spanrollup.Job(pool, registry, clk.Now),
 		{Name: "salts", Every: 10 * time.Minute, Run: func(ctx context.Context) error {
 			if err := saltStore.Refresh(ctx); err != nil {
 				return err

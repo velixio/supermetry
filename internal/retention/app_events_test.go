@@ -85,6 +85,8 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 				`insert into app_session_daily(site_id,day,release,environment,platform,sessions) values($1::int,$2::date,'1.0','production','linux',1)`,
 				`insert into app_issue_hourly(site_id,issue_id,hour,events) values($1::int,$1::int,$2::date + time '05:00',1)`,
 				`insert into app_client_reports(site_id,day,reason,category,quantity) values($1::int,$2::date,'sample_rate','error',1)`,
+				`insert into span_hourly(site_id,local_hour,is_segment,name,op,group_hash,release,environment,platform,count,errors,sum_us,buckets,bucket_counts) values($1::int,$2::date + time '05:00',true,'t','o',0,'','','',1,0,1,'{1}','{1}')`,
+				`insert into span_hour_state(site_id,local_hour,status) values($1::int,$2::date + time '05:00','done')`,
 			} {
 				if _, err := pool.Exec(ctx, q, site, day); err != nil {
 					t.Fatal(err)
@@ -92,10 +94,13 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 			}
 		}
 	}
+	if _, err := pool.Exec(ctx, `insert into span_groups(site_id,group_hash,op,description) values(1,5,'db.query','q')`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := retention.Run(ctx, pool, now); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_session_daily", "app_issue_hourly", "app_client_reports", "app_active_day"} {
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_session_daily", "app_issue_hourly", "app_client_reports", "app_active_day", "span_hourly", "span_hour_state"} {
 		var s1, s2 int
 		if err := pool.QueryRow(ctx, `select count(*) filter (where site_id=1), count(*) filter (where site_id=2) from `+table).Scan(&s1, &s2); err != nil {
 			t.Fatal(err)
@@ -107,7 +112,7 @@ insert into app_issues(id,site_id,fingerprint,kind,first_seen,last_seen) overrid
 	if err := retention.Erase(ctx, pool, 1, 10, 0); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_session_daily", "app_issue_hourly", "app_client_reports", "app_active_day"} {
+	for _, table := range []string{"app_issue_daily", "app_release_daily", "app_session_daily", "app_issue_hourly", "app_client_reports", "app_active_day", "span_hourly", "span_hour_state", "span_groups"} {
 		var n int
 		if err := pool.QueryRow(ctx, `select count(*) from `+table+` where site_id=1`).Scan(&n); err != nil || n != 0 {
 			t.Fatalf("%s rows left after erase: %d %v", table, n, err)
