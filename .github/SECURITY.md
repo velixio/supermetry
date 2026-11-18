@@ -10,7 +10,7 @@ Include what you found, how to reproduce it, the version or commit, and the impa
 
 ## Supported versions
 
-Until `v0.1.0` is released, only the latest commit on `main` is supported. After that, the latest release gets security fixes.
+Only the latest release gets security fixes. Please reproduce on the latest release before reporting.
 
 ## Scope
 
