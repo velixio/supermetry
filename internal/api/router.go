@@ -505,6 +505,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/sites/{site}/alerts",
 		"PATCH " + privatePrefix + "/sites/{site}/alerts/{alert}",
 		"DELETE " + privatePrefix + "/sites/{site}/alerts/{alert}",
+		"GET " + privatePrefix + "/sites/{site}/alerts/{alert}/incidents",
 		"GET " + privatePrefix + "/sites/{site}/alert-silences",
 		"POST " + privatePrefix + "/sites/{site}/alert-silences",
 		"DELETE " + privatePrefix + "/sites/{site}/alert-silences/{silence}",
