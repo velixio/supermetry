@@ -12,14 +12,19 @@ import { PasswordInput } from '@/features/auth/PasswordInput'
 import { authProblemMessage, postPrivate, type LoginResult } from '@/features/auth/api'
 
 export const Route = createFileRoute('/reset/$token')({
+  // setup=1 marks the first-password link of a newly created account.
+  validateSearch: (search: Record<string, unknown>): { setup?: boolean } =>
+    search.setup === 1 || search.setup === '1' || search.setup === true ? { setup: true } : {},
   component: ResetRoute,
 })
 
 function ResetRoute() {
   const { token } = Route.useParams()
+  const { setup } = Route.useSearch()
   const navigate = Route.useNavigate()
   return (
     <ResetPasswordForm
+      setup={setup === true}
       submit={(password) => postPrivate('/api/private/auth/password-reset/confirm', { token, password, sign_in: true })}
       onDone={(signedIn) => void (signedIn
         ? navigate({ to: '/app', replace: true })
@@ -28,7 +33,7 @@ function ResetRoute() {
   )
 }
 
-export function ResetPasswordForm({ submit, onDone }: { submit: (password: string) => Promise<LoginResult>; onDone: (signedIn: boolean) => void }) {
+export function ResetPasswordForm({ submit, onDone, setup = false }: { submit: (password: string) => Promise<LoginResult>; onDone: (signedIn: boolean) => void; setup?: boolean }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [invalidLink, setInvalidLink] = useState(false)
@@ -56,7 +61,7 @@ export function ResetPasswordForm({ submit, onDone }: { submit: (password: strin
   }
 
   return (
-    <AuthScreen title={en.auth.resetHeading} description={en.auth.resetDescription}>
+    <AuthScreen title={setup ? en.auth.accountSetupHeading : en.auth.resetHeading} description={setup ? en.auth.accountSetupDescription : en.auth.resetDescription}>
       <form onSubmit={(event) => void handleSubmit(event)}>
         <FieldGroup>
           <Field data-invalid={Boolean(error) || undefined}>
@@ -76,7 +81,7 @@ export function ResetPasswordForm({ submit, onDone }: { submit: (password: strin
           {invalidLink ? <Link to="/forgot" className="text-sm font-medium underline underline-offset-4">{uiFlows.auth.requestNewLink}</Link> : null}
           <Button type="submit" disabled={pending}>
             {pending ? <LoaderCircleIcon data-icon="inline-start" className="animate-spin" /> : null}
-            {pending ? uiFlows.auth.resetting : en.auth.resetPassword}
+            {pending ? (setup ? en.auth.settingPassword : uiFlows.auth.resetting) : (setup ? en.auth.setPassword : en.auth.resetPassword)}
           </Button>
         </FieldGroup>
       </form>
