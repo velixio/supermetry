@@ -25,6 +25,8 @@ func appIssueError(w http.ResponseWriter, err error) {
 		writeProblem(w, http.StatusNotFound, "Not found", "not found")
 	case errors.Is(err, appissues.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", err.Error())
+	case errors.Is(err, appissues.ErrViewExists):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, appissues.ErrInvalidAssignee):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 	case errors.Is(err, appissues.ErrInvalid):
@@ -341,4 +343,52 @@ func (h *handler) unmergeAppIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"issue_id": newID})
+}
+
+// listAppNotificationPrefs returns the caller's own workflow-notification
+// switches for every app project they can read.
+func (h *handler) listAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	sites, err := appissues.ListPrefs(r.Context(), h.deps.Store.Pool, principal.UserID)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sites": sites})
+}
+
+// putAppNotificationPrefs saves the caller's own switches for one project. A
+// project the caller cannot read (another organisation's) is a 404.
+func (h *handler) putAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("site"), 10, 32)
+	if err != nil || id < 1 {
+		writeProblem(w, http.StatusNotFound, "Not found", "not found")
+		return
+	}
+	var in struct {
+		Assigned  *bool `json:"assigned"`
+		Resolved  *bool `json:"resolved"`
+		Regressed *bool `json:"regressed"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if in.Assigned == nil || in.Resolved == nil || in.Regressed == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "assigned, resolved and regressed are required")
+		return
+	}
+	prefs := appissues.Prefs{Assigned: *in.Assigned, Resolved: *in.Resolved, Regressed: *in.Regressed}
+	if err := appissues.SetPrefs(r.Context(), h.deps.Store.Pool, principal.UserID, int32(id), prefs); err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, prefs)
 }

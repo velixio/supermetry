@@ -41,6 +41,7 @@ func invalid(format string, args ...any) error {
 // Scope identifies the site a read runs for.
 type Scope struct {
 	SiteID        int32
+	OrgID         int64          // owning organisation (deploys are org-level)
 	TZ            *time.Location // nil means UTC
 	RetentionDays int            // 0 keeps everything
 }

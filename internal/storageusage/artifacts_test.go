@@ -72,6 +72,11 @@ func TestArtifactScannerSplitsBundleBytesAcrossSites(t *testing.T) {
 	insertBundle(t, pool, orgA, []int32{s3}, "error", 999)     // failed assembly: not stored
 	insertBundle(t, pool, orgA, []int32{s3}, "assembling", 77) // not stored yet
 	insertBundle(t, pool, orgB, nil, "ok", 7)
+	// A stored debug file counts like a bundle; a failed one does not.
+	if _, err := pool.Exec(ctx, `insert into app_dif_uploads(org_id,site_ids,checksum,state,size) values($1,$2,$3,'ok',20),($1,$2,$4,'error',500)`,
+		orgA, []int32{s3}, fmt.Sprintf("%040x", 901), fmt.Sprintf("%040x", 902)); err != nil {
+		t.Fatal(err)
+	}
 
 	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
 	if err != nil {
@@ -95,16 +100,16 @@ func TestArtifactScannerSplitsBundleBytesAcrossSites(t *testing.T) {
 		return artifactBytes(t, got)
 	}
 	a := scan(units[0])
-	if len(a) != 3 || a[s1] != 55 || a[s2] != 53 || a[s3] != 3 {
-		t.Fatalf("org A = %v, want %d:55 %d:53 %d:3", a, s1, s2, s3)
+	if len(a) != 3 || a[s1] != 55 || a[s2] != 53 || a[s3] != 23 {
+		t.Fatalf("org A = %v, want %d:55 %d:53 %d:23", a, s1, s2, s3)
 	}
-	if sum := a[s1] + a[s2] + a[s3]; sum != 111 {
-		t.Fatalf("org A total = %d, want the 101+10 bundle bytes", sum)
+	if sum := a[s1] + a[s2] + a[s3]; sum != 131 {
+		t.Fatalf("org A total = %d, want the 101+10 bundle and 20 debug file bytes", sum)
 	}
 	if b := scan(units[1]); len(b) != 1 || b[b1] != 7 {
 		t.Fatalf("org B = %v", b)
 	}
-	// A work unit for another scanner's shape is refused.
+	// A work unit for another scanner's shape is refused (see also the commit-bytes test below).
 	if _, err := scanner.Scan(ctx, run.ID, WorkUnit{Key: "artifacts:x", OrgID: orgA, Scanner: scanner.Fingerprint()}); err == nil {
 		t.Fatal("malformed work unit accepted")
 	}
@@ -164,5 +169,51 @@ func TestArtifactBytesReachPublishedUsage(t *testing.T) {
 	}
 	if aux != 4096 {
 		t.Fatalf("auxiliary_bytes = %d, want 4096", aux)
+	}
+}
+
+func TestArtifactScannerCountsReleaseCommits(t *testing.T) {
+	store, pool, _ := newStoreFixture(t, 0)
+	ctx := context.Background()
+	var org, relID, repoID, commitID int64
+	if err := pool.QueryRow(ctx, `insert into orgs(name,slug) values('C','art-c') returning id`).Scan(&org); err != nil {
+		t.Fatal(err)
+	}
+	s1 := insertAppSite(t, pool, org, "appcom0001xx")
+	s2 := insertAppSite(t, pool, org, "appcom0002xx")
+	if err := pool.QueryRow(ctx, `insert into app_releases(org_id,version,site_ids) values($1,'1.0.0','{}') returning id`, org).Scan(&relID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into app_repositories(org_id,name) values($1,'acme/app') returning id`, org).Scan(&repoID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into app_commits(org_id,repository_id,sha,message,author_name,author_email) values($1,$2,'abcd0001','msg','Dev','dev@example.com') returning id`, org, repoID).Scan(&commitID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into app_commit_files(commit_id,path) values($1,'src/a.ts')`, commitID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into app_release_commits(release_id,commit_id,position) values($1,$2,0)`, relID, commitID); err != nil {
+		t.Fatal(err)
+	}
+	run, err := store.BeginOrResume(ctx, MeasurementVersion, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	scanner := NewArtifactScanner(pool)
+	units, err := scanner.WorkUnits(ctx, run.ID)
+	if err != nil || len(units) != 1 || units[0] != artifactWorkUnit(org) {
+		t.Fatalf("units = %+v %v", units, err)
+	}
+	u := units[0]
+	u.Scanner = scanner.Fingerprint()
+	got, err := scanner.Scan(ctx, run.ID, u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// commit 8+3+3+15+32 = 61, file 8+9 = 17, repository 8+16 = 24, link 16: 118 bytes, 59 per site.
+	b := artifactBytes(t, got)
+	if len(b) != 2 || b[s1] != 59 || b[s2] != 59 {
+		t.Fatalf("commit bytes = %v, want 59 per site", b)
 	}
 }

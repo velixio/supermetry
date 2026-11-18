@@ -10,17 +10,20 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"supermetry/internal/platform/authz"
 	"supermetry/internal/sites"
 )
 
 type releaseBody struct {
-	Version      string     `json:"version"`
-	Projects     []string   `json:"projects"`
-	URL          *string    `json:"url"`
-	Ref          *string    `json:"ref"`
-	DateReleased *time.Time `json:"dateReleased"`
-	DateStarted  *time.Time `json:"dateStarted"`
-	Status       *string    `json:"status"`
+	Version      string        `json:"version"`
+	Projects     []string      `json:"projects"`
+	URL          *string       `json:"url"`
+	Ref          *string       `json:"ref"`
+	DateReleased *time.Time    `json:"dateReleased"`
+	DateStarted  *time.Time    `json:"dateStarted"`
+	Status       *string       `json:"status"`
+	Commits      *[]commitBody `json:"commits"`
+	Refs         *[]refBody    `json:"refs"`
 }
 
 // validate checks the optional fields shared by create and update.
@@ -74,17 +77,6 @@ func (h *Handler) visibleSites(c *call, rel releaseRow) []int32 {
 		ids = slices.DeleteFunc(ids, func(id int32) bool { return !slices.Contains(c.principal.SiteIDs, id) })
 	}
 	return ids
-}
-
-// commitJSON is one commit in a release summary (filled by the commits task).
-type commitJSON struct {
-	ID      string `json:"id"`
-	Message string `json:"message"`
-}
-
-// releaseCommitSummary returns the commit count and newest commit of a release.
-func (h *Handler) releaseCommitSummary(_ context.Context, _ int64) (count int, last *commitJSON, err error) {
-	return 0, nil, nil
 }
 
 func (h *Handler) releaseJSON(ctx context.Context, c *call, rel releaseRow) map[string]any {
@@ -219,12 +211,28 @@ func (h *Handler) getRelease(w http.ResponseWriter, r *http.Request, c *call) {
 
 func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call) {
 	var body releaseBody
-	if !readJSON(w, r, &body) {
+	if !readJSONMax(w, r, &body, maxReleaseBody) {
 		return
 	}
 	if msg := body.validate(); msg != "" {
 		writeDetail(w, http.StatusBadRequest, msg)
 		return
+	}
+	var commits []commitBody
+	var refs []refBody
+	if body.Commits != nil {
+		var msg string
+		if commits, msg = normalizeCommits(*body.Commits); msg != "" {
+			writeDetail(w, http.StatusBadRequest, msg)
+			return
+		}
+	}
+	if body.Refs != nil {
+		var msg string
+		if refs, msg = normalizeRefs(*body.Refs); msg != "" {
+			writeDetail(w, http.StatusBadRequest, msg)
+			return
+		}
 	}
 	version := r.PathValue("version")
 	rel, err := h.loadRelease(r.Context(), c.orgID, version)
@@ -271,6 +279,12 @@ func (h *Handler) updateRelease(w http.ResponseWriter, r *http.Request, c *call)
 		serverError(w)
 		return
 	}
+	if body.Commits != nil || body.Refs != nil {
+		if err := replaceReleaseCommits(r.Context(), h.deps.Pool, c.orgID, rel.id, commits, body.Commits != nil, refs, body.Refs != nil); err != nil {
+			serverError(w)
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, h.releaseJSON(r.Context(), c, rel))
 }
 
@@ -296,6 +310,33 @@ func deployJSON(id int64, environment, name, url string, started, finished, crea
 	}
 }
 
+// canUseDeploys reports whether the principal may read and write the deploys
+// of a release: unrestricted keys always, a restricted key when the release is
+// bound to at least one of its sites (an org-wide release is out of reach).
+func (c *call) canUseDeploys(rel releaseRow) bool {
+	if c.principal.SiteIDs == nil {
+		return true
+	}
+	return slices.ContainsFunc(rel.siteIDs, func(id int32) bool { return authz.Can(c.principal, authz.ActionReleasesWrite, id) })
+}
+
+// deploySites is the project list stored with a deploy. Named projects win;
+// otherwise the release's projects, narrowed to the key's restriction, so a
+// restricted key never creates an org-wide deploy.
+func (h *Handler) deploySites(c *call, rel releaseRow, slugs []string) ([]int32, *projectError) {
+	if len(slugs) > 0 {
+		return h.resolveProjects(c, slugs)
+	}
+	ids := slices.Clone(rel.siteIDs)
+	if c.principal.SiteIDs == nil {
+		return ids, nil
+	}
+	if len(ids) == 0 {
+		return slices.Clone(c.principal.SiteIDs), nil
+	}
+	return slices.DeleteFunc(ids, func(id int32) bool { return !authz.Can(c.principal, authz.ActionReleasesWrite, id) }), nil
+}
+
 func (h *Handler) createDeploy(w http.ResponseWriter, r *http.Request, c *call) {
 	var body deployBody
 	if !readJSON(w, r, &body) {
@@ -314,18 +355,22 @@ func (h *Handler) createDeploy(w http.ResponseWriter, r *http.Request, c *call) 
 		serverError(w)
 		return
 	}
-	if !h.canUseRelease(c, rel) {
+	if !c.canUseDeploys(rel) {
 		notFound(w)
 		return
 	}
-	if _, perr := h.resolveProjects(c, body.Projects); perr != nil {
+	siteIDs, perr := h.deploySites(c, rel, body.Projects)
+	if perr != nil {
 		writeDetail(w, perr.status, perr.detail)
 		return
 	}
+	if siteIDs == nil {
+		siteIDs = []int32{}
+	}
 	var id int64
 	var created time.Time
-	err = h.deps.Pool.QueryRow(r.Context(), `insert into app_deploys(release_id, environment, name, url, date_started, date_finished) values ($1,$2,$3,$4,$5,$6) returning id, date_created`,
-		rel.id, body.Environment, body.Name, body.URL, body.DateStarted, body.DateFinished).Scan(&id, &created)
+	err = h.deps.Pool.QueryRow(r.Context(), `insert into app_deploys(release_id, org_id, site_ids, environment, name, url, date_started, date_finished) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id, date_created`,
+		rel.id, c.orgID, siteIDs, body.Environment, body.Name, body.URL, body.DateStarted, body.DateFinished).Scan(&id, &created)
 	if err != nil {
 		serverError(w)
 		return
@@ -343,11 +388,18 @@ func (h *Handler) listDeploys(w http.ResponseWriter, r *http.Request, c *call) {
 		serverError(w)
 		return
 	}
-	if !h.canUseRelease(c, rel) {
+	if !c.canUseDeploys(rel) {
 		notFound(w)
 		return
 	}
-	rows, err := h.deps.Pool.Query(r.Context(), `select id, environment, name, url, date_started, date_finished, date_created from app_deploys where release_id=$1 order by id desc limit 100`, rel.id)
+	var restrict any // nil: no key restriction
+	if c.principal.SiteIDs != nil {
+		restrict = c.principal.SiteIDs
+	}
+	rows, err := h.deps.Pool.Query(r.Context(), `select d.id, d.environment, d.name, d.url, d.date_started, d.date_finished, d.date_created
+from app_deploys d join app_releases r on r.id=d.release_id
+where d.release_id=$1 and ($2::int[] is null or case when cardinality(d.site_ids)>0 then d.site_ids else r.site_ids end && $2::int[])
+order by d.id desc limit 100`, rel.id, restrict)
 	if err != nil {
 		serverError(w)
 		return

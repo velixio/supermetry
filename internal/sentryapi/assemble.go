@@ -3,11 +3,12 @@ package sentryapi
 import (
 	"bytes"
 	"context"
-	"crypto/sha1" //nolint:gosec // the upload protocol identifies bundles by SHA-1
+	"crypto/sha1" //nolint:gosec // the upload protocol identifies files by SHA-1
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -168,39 +169,26 @@ func (h *Handler) assembleBundle(ctx context.Context, id int64) {
 		slog.Error("sentryapi: load bundle", "bundle", id, "err", err)
 		return
 	}
-	if h.deps.TempDir != "" {
-		_ = os.MkdirAll(h.deps.TempDir, 0o700)
-	}
-	tmp, err := os.CreateTemp(h.deps.TempDir, "bundle-*.zip")
-	if err != nil {
+	tmp, size, sum, err := h.concatChunks(ctx, "bundle-*.zip", chunks, h.deps.Caps.MaxTotal+chunkSize)
+	switch {
+	case errors.Is(err, errChunkMissing):
+		h.fail(ctx, id, "a chunk is missing, upload the bundle again")
+		return
+	case errors.Is(err, errTooLarge):
+		h.fail(ctx, id, "bundle exceeds the size limit")
+		return
+	case err != nil:
 		h.fail(ctx, id, "storage unavailable")
 		return
 	}
 	defer os.Remove(tmp.Name())
 	defer tmp.Close()
-
-	hash := sha1.New() //nolint:gosec // see import
-	var size int64
-	for _, chunk := range chunks {
-		rc, err := h.deps.Blobs.Open(ctx, chunkKey(chunk))
-		if err != nil {
-			h.fail(ctx, id, "a chunk is missing, upload the bundle again")
-			return
-		}
-		n, err := io.Copy(io.MultiWriter(tmp, hash), io.LimitReader(rc, chunkSize+1))
-		_ = rc.Close()
-		size += n
-		if err != nil || n > chunkSize || size > h.deps.Caps.MaxTotal+chunkSize {
-			h.fail(ctx, id, "bundle exceeds the size limit")
-			return
-		}
-	}
-	if hex.EncodeToString(hash.Sum(nil)) != checksum {
+	if sum != checksum {
 		h.fail(ctx, id, "chunks do not match the bundle checksum")
 		return
 	}
 	var used int64
-	if err := h.deps.Pool.QueryRow(ctx, `select coalesce(sum(size),0) from app_artifact_bundles where org_id=$1 and state='ok'`, orgID).Scan(&used); err != nil {
+	if err := h.deps.Pool.QueryRow(ctx, `select (select coalesce(sum(size),0) from app_artifact_bundles where org_id=$1 and state='ok') + (select coalesce(sum(size),0) from app_dif_uploads where org_id=$1 and state='ok')`, orgID).Scan(&used); err != nil {
 		h.fail(ctx, id, "storage unavailable")
 		return
 	}
@@ -291,4 +279,48 @@ func sendBatch(ctx context.Context, tx pgx.Tx, batch *pgx.Batch) error {
 		}
 	}
 	return br.Close()
+}
+
+var (
+	errChunkMissing = errors.New("a chunk is missing")
+	errTooLarge     = errors.New("assembled file exceeds the size limit")
+)
+
+// concatChunks writes the chunks, in order, to a new temp file and returns it
+// with its size and SHA-1. It stops reading as soon as the total passes max, so
+// a hostile chunk list never costs more than max bytes of disk. The caller
+// closes and removes the file (also on a non-nil error the file is already gone).
+func (h *Handler) concatChunks(ctx context.Context, pattern string, chunks []string, max int64) (*os.File, int64, string, error) {
+	if h.deps.TempDir != "" {
+		_ = os.MkdirAll(h.deps.TempDir, 0o700)
+	}
+	tmp, err := os.CreateTemp(h.deps.TempDir, pattern)
+	if err != nil {
+		return nil, 0, "", err
+	}
+	cleanup := func() { _ = tmp.Close(); _ = os.Remove(tmp.Name()) }
+	hash := sha1.New() //nolint:gosec // the upload protocol identifies files by SHA-1
+	var size int64
+	for _, chunk := range chunks {
+		rc, err := h.deps.Blobs.Open(ctx, chunkKey(chunk))
+		if err != nil {
+			cleanup()
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, 0, "", errChunkMissing
+			}
+			return nil, 0, "", err
+		}
+		n, err := io.Copy(io.MultiWriter(tmp, hash), io.LimitReader(rc, chunkSize+1))
+		_ = rc.Close()
+		size += n
+		if err != nil {
+			cleanup()
+			return nil, 0, "", err
+		}
+		if n > chunkSize || size > max {
+			cleanup()
+			return nil, 0, "", errTooLarge
+		}
+	}
+	return tmp, size, hex.EncodeToString(hash.Sum(nil)), nil
 }

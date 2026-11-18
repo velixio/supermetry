@@ -245,6 +245,9 @@ func (e *Engine) Query(ctx context.Context, req api.QueryRequest) (api.QueryResp
 	if problem != nil {
 		return api.QueryResponse{}, errors.New(problemDetail(problem))
 	}
+	if err := guardAppVisitors(normalized, site); err != nil {
+		return api.QueryResponse{}, err
+	}
 	normalized.PGZone = postgresZone(ctx, e.pool, normalized.Location)
 	if err := e.resolveGoalFilters(&normalized); err != nil {
 		return api.QueryResponse{}, err
@@ -835,4 +838,18 @@ func maxTime(a, b time.Time) time.Time {
 		return a
 	}
 	return b
+}
+
+// guardAppVisitors rejects range visitors on app sites: the web engine sums
+// daily identities, which is not a unique-install count across days.
+func guardAppVisitors(req Normalized, site sites.Site) error {
+	if site.Kind != sites.KindApp || !req.From.Before(req.To) {
+		return nil
+	}
+	for _, metric := range req.Metrics {
+		if metric == api.Visitors {
+			return errors.New("visitors over a range is not unique for apps; use /app/product/active-users")
+		}
+	}
+	return nil
 }

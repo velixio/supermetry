@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"regexp"
 	"strings"
+
+	"supermetry/internal/apprules"
 )
 
 // Grouping versions. Version 1 is Fingerprint (the app-events wire format);
@@ -34,8 +36,25 @@ var (
 // "{{ default }}" stands for it, so ["{{ default }}", "tenant-x"] splits by
 // tenant. body must already be scrubbed (the normaliser does that).
 func GroupingKey(ev Event, body Body, sdkFingerprint []string) (string, int16) {
+	return GroupingKeyRules(ev, body, sdkFingerprint, nil)
+}
+
+// GroupingKeyRules is GroupingKey with the project's grouping rules: the first
+// matching rule replaces the computed key (and any SDK fingerprint) with
+// "{{rule}}:<fingerprint>", where a "{{ default }}" token in the fingerprint
+// stands for the default grouping text, so it keeps the default key and
+// appends. The version stays 2. rules may be nil.
+func GroupingKeyRules(ev Event, body Body, sdkFingerprint []string, rules *apprules.Set) (string, int16) {
 	var parts []string
-	if len(sdkFingerprint) == 0 {
+	if fp, ok := matchGroupingRule(ev, body, rules); ok {
+		if strings.Contains(fp, "{{") {
+			def := defaultGrouping(ev, body)
+			for token := range defaultPart {
+				fp = strings.ReplaceAll(fp, token, def)
+			}
+		}
+		parts = []string{"{{rule}}:" + fp}
+	} else if len(sdkFingerprint) == 0 {
 		parts = []string{defaultGrouping(ev, body)}
 	} else {
 		for _, p := range sdkFingerprint {

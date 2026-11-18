@@ -25,7 +25,20 @@ func (h *Handler) Start(ctx context.Context) {
 			}
 		}()
 	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-h.ctx.Done():
+				return
+			case id := <-h.difQueue:
+				h.processDIF(h.ctx, id)
+			}
+		}
+	}()
 	go func() { wg.Wait(); close(h.done) }()
+	h.requeueDIFs(h.ctx)
 	rows, err := h.deps.Pool.Query(h.ctx, `select id from app_artifact_bundles where state in ('created','assembling') order by id limit $1`, assembleQueue)
 	if err != nil {
 		slog.Error("sentryapi: recover bundles", "err", err)

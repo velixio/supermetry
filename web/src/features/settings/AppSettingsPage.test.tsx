@@ -31,6 +31,8 @@ describe('AppSettingsPage', () => {
           ? { ...base, tag_allowlist: ['beta', 'stable'], max_report_age_days: 14, environments: ['prod'] }
           : { ...base, tag_allowlist: ['a'], max_report_age_days: 7, environments: [] })
       }
+      if (path.endsWith('/app/rules')) return Promise.resolve({ ownership: [], grouping: [] })
+      if (path.endsWith('/assignees')) return Promise.resolve({ members: [] })
       if (method === 'POST') return Promise.resolve({ key: 'smk_new', prefix: 'zzzz9999', previous_expires_at: '2026-11-22T00:00:00Z' })
       return Promise.resolve({ keys: [
         { prefix: 'abcd1234', created_at: '2026-11-01T00:00:00Z', expires_at: null },

@@ -108,7 +108,10 @@ ENV := set -a; [ -f .env ] && . ./.env; set +a;
 DEV_DB := docker compose -f deploy/docker-compose.dev-db.yml
 DEV_DB_URL := postgres://supermetry:supermetry@127.0.0.1:5433/supermetry?sslmode=disable
 DEV_TEST_DSN := postgres://supermetry:supermetry@127.0.0.1:5433/supermetry_test?sslmode=disable
-DEV_DB_START := $(DEV_DB) up -d --wait >/dev/null 2>&1 || { echo "could not start the dev database (is Docker running?)"; exit 1; };
+# Skip `compose up` when the container is already healthy: the compose file's
+# relative bind mount resolves per checkout, so `up` from another git worktree
+# would recreate the shared container and cut every other run's connections.
+DEV_DB_START := { [ "$$(docker inspect -f '{{.State.Health.Status}}' supermetry-dev-postgres 2>/dev/null)" = healthy ] || $(DEV_DB) up -d --wait >/dev/null 2>&1; } || { echo "could not start the dev database (is Docker running?)"; exit 1; };
 # Also default the two other required settings for local runs: the base URL, and a
 # random secret key generated once into .dev/secret-key (gitignored, kept across runs).
 DEV_SECRET := .dev/secret-key

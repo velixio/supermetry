@@ -175,7 +175,7 @@ func isClientQueryError(detail string) bool {
 		"funnel step ", "invalid cursor", "invalid funnel", "invalid timezone",
 		"limit ", "order_by ", "provide either", "site_id ", "site timezone",
 		"unknown comparison", "unknown dimension", "unknown filter", "unknown heatmap", "unknown metric",
-		"unknown order", "unknown period", "unknown site", "unsupported type",
+		"unknown order", "unknown period", "visitors over a range", "unknown site", "unsupported type",
 		"heatmap ", "invalid filter", "journey ", "retention ", "range must be within the raw retention window",
 		"property filter requires", "property key ", "property suggestion requires", "suggestion query ", "name must ",
 		"date range must ", "from ", "session timeline ",

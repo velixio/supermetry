@@ -12,6 +12,8 @@ export type AppIssueDetailData = components['schemas']['AppIssueDetail']
 export type AppIssueStatus = components['schemas']['AppIssueStatus']
 export type AppIssueChange = components['schemas']['AppIssueChange']
 export type AppIssueComment = components['schemas']['AppIssueComment']
+export type AppIssueBulkResult = components['schemas']['AppIssueBulkResult']
+export type AppSavedView = components['schemas']['AppSavedView']
 export type AppIssueActivity = components['schemas']['AppIssueActivity']
 export type AppMergedIssue = components['schemas']['AppMergedIssue']
 export type AppCompatibilityData = components['schemas']['AppCompatibility']
@@ -116,6 +118,37 @@ export function useCommentMutations(siteId: number, issueId: number) {
   return {
     post: useMutation({ mutationFn: (body: string) => privateRequest<AppIssueComment>('POST', path, { body: { body } }), onSuccess: refresh }),
     remove: useMutation({ mutationFn: (id: number) => privateRequest<void>('DELETE', `${path}/${id}`), onSuccess: refresh }),
+  }
+}
+
+/** What a bulk action applies to: the checked rows, or everything a search matches (range and filters ride in the URL). */
+export type BulkTarget = { ids: number[] } | { query: string; params: string }
+
+export function useBulkIssues(siteId: number) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ target, change }: { target: BulkTarget; change: AppIssueChange }) => {
+      if ('ids' in target) return privateRequest<AppIssueBulkResult>('POST', `${base(siteId)}/issues/bulk`, { body: { ids: target.ids, change } })
+      return privateRequest<AppIssueBulkResult>('POST', `${base(siteId)}/issues/bulk?${target.params}`, { body: { query: target.query, change } })
+    },
+    onSettled: () => Promise.all([
+      client.invalidateQueries({ queryKey: ['app-issues', siteId] }),
+      client.invalidateQueries({ queryKey: ['app-overview', siteId] }),
+      client.invalidateQueries({ queryKey: ['app-issue', siteId] }),
+    ]),
+  })
+}
+
+export function useSavedViews(siteId: number) {
+  return useQuery({ queryKey: ['app-views', siteId], queryFn: () => privateRequest<{ views: AppSavedView[] }>('GET', `${base(siteId)}/views`) })
+}
+
+export function useSavedViewMutations(siteId: number) {
+  const client = useQueryClient()
+  const refresh = () => client.invalidateQueries({ queryKey: ['app-views', siteId] })
+  return {
+    create: useMutation({ mutationFn: (view: { name: string; query: string; shared: boolean }) => privateRequest<AppSavedView>('POST', `${base(siteId)}/views`, { body: view }), onSuccess: refresh }),
+    remove: useMutation({ mutationFn: (id: number) => privateRequest<void>('DELETE', `${base(siteId)}/views/${id}`), onSuccess: refresh }),
   }
 }
 
