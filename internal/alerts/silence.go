@@ -193,6 +193,13 @@ func (s *Service) RecordSuppressed(ctx context.Context, alert Alert, key string,
 		if inserted.RowsAffected() == 0 {
 			return nil
 		}
+		if commit {
+			// A committed key is gone for good; the marker tells a later
+			// recovery that this notice was never sent.
+			if _, err := tx.Exec(ctx, `insert into app_alert_fired(alert_id,dedup_key,fired_at) values ($1,$2,$3) on conflict (alert_id,dedup_key) do nothing`, alert.ID, suppressedKeyPrefix+key, at); err != nil {
+				return fmt.Errorf("record suppressed marker: %w", err)
+			}
+		}
 		logged, err := tx.Exec(ctx, `insert into alert_delivery_log
 			(org_id,site_id,alert_id,channel_id,channel_kind,channel_name,status,attempts,error_text,notification,fired_at,updated_at)
 			select s.org_id,$1,$2,0,'none','Silenced','suppressed',0,left($3,512),$4,$5,$5 from sites s where s.id=$1

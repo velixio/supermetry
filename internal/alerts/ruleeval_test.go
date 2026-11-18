@@ -170,8 +170,9 @@ func TestRuleWithoutChannelsRecordsTheKeyAndSendsNothing(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if f.deliverer.calls != 0 || f.firedKeys(t, alert.ID) != 1 {
-		t.Fatalf("deliveries=%d keys=%d, want 0 and 1", f.deliverer.calls, f.firedKeys(t, alert.ID))
+	// The key plus its "never sent" marker.
+	if f.deliverer.calls != 0 || f.firedKeys(t, alert.ID) != 2 {
+		t.Fatalf("deliveries=%d keys=%d, want 0 and 2", f.deliverer.calls, f.firedKeys(t, alert.ID))
 	}
 }
 
