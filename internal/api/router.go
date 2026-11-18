@@ -76,6 +76,7 @@ type Deps struct {
 	// SentryAPI serves the Sentry-compatible upload and release API under /api/0/. Nil leaves the routes off.
 	SentryAPI    http.Handler
 	SentryIngest SentryIngest // Sentry-compatible /api/{id}/envelope|store|security; nil disables it
+	OTLPIngest   SentryIngest // OTLP/HTTP traces at /api/{id}/otlp/v1/traces; nil disables it
 	// Links serves the public short-link redirect and tracking pixel. Optional.
 	Links  *links.Handler
 	Pixels http.Handler
@@ -299,13 +300,20 @@ func NewRouter(deps Deps) http.Handler {
 	mux.HandleFunc("GET /metrics", metricsHandler(deps.Config))
 
 	var root http.Handler = mux
-	if sentry := deps.SentryIngest; sentry != nil {
+	// Platform ingest paths (/api/{id}/...) cannot be registered on the mux next
+	// to the fixed /api/private/ subtree, so each front door is offered the
+	// request first.
+	for _, front := range []SentryIngest{deps.SentryIngest, deps.OTLPIngest} {
+		if front == nil {
+			continue
+		}
+		front, next := front, root
 		root = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if sentry.Matches(r) {
-				sentry.ServeHTTP(w, r)
+			if front.Matches(r) {
+				front.ServeHTTP(w, r)
 				return
 			}
-			mux.ServeHTTP(w, r)
+			next.ServeHTTP(w, r)
 		})
 	}
 	return requestID(recoverProblems(routehits.WrapFile(root, routehits.File(deps.Config.RouteHitsFile))))

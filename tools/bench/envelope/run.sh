@@ -31,9 +31,10 @@ SQL
   sleep 35
 fi
 "$work/envelope-bench" -base "$base" -keys "$work/keys.txt" -fixtures "$root/internal/sentryingest/testdata" \
-  -minutes "${ENVELOPE_BENCH_MINUTES:-5}" -workers "${ENVELOPE_BENCH_WORKERS:-24}"
+  -minutes "${ENVELOPE_BENCH_MINUTES:-5}" -workers "${ENVELOPE_BENCH_WORKERS:-24}" ${ENVELOPE_BENCH_OTLP:+-otlp}
 rc=$?
 sleep 3
 echo "server errors in log: $(grep -ci 'level=error' "$work/server.log")"
 psql "$db_url" -Atc "select 'app_events rows: '||count(*) from app_events" 2>/dev/null
+psql "$db_url" -Atc "select 'spans rows: '||count(*) from spans" 2>/dev/null
 exit $rc

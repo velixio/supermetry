@@ -54,6 +54,7 @@ import (
 	"supermetry/internal/links"
 	"supermetry/internal/minutes"
 	"supermetry/internal/opencounters"
+	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
@@ -520,8 +521,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		},
 	}, spans.HealthStats{}, nil)
 	spanBudget := spans.NewBudget(cfg.SpansPerMin)
-	_, _ = spanWriter, spanBudget // handed to the Sentry and OTLP front doors by the next tasks
 	var sentryIngest api.SentryIngest
+	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
 	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
@@ -535,6 +536,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
 		sentryHandler.WithSessions(appSessions)
 		sentryIngest = sentryHandler
+		otlpIngest = otlpingest.NewHandler(dsnRegistry, appIntake, spanWriter, spanBudget, spans.HealthStats{}, settings.clock.Now)
 	}
 	intake := &ingest.Handler{
 		TrackingMode: cfg.Tracking.Mode,
@@ -575,7 +577,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	router := api.NewRouter(api.Deps{
 		UI:     web.Handler(),
-		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
+		Config: cfg, Version: "v" + strings.TrimPrefix(version, "v"), SchemaVersion: int64(latestSchemaVersion), Query: engine, SessionExplore: engine, Revenue: engine, Cohorts: engine, Heatmaps: heatmaps, Ingest: intake, SentryAPI: sentryAPI, AppIngest: appingest.NewHandler(registry, appIntake, cfg.TrustedProxies, settings.clock.Now).WithProduct(appProduct), SentryIngest: sentryIngest, OTLPIngest: otlpIngest, Replay: replayHandler, ReplayCSS: replayCSSHandler, Sessions: sessions, MinuteSource: minutes.NewStore(pool), Sites: registry, AppQuery: appquery.New(pool, settings.clock.Now), Dictionary: dictionary,
 		PublicAuth: publicAuthenticator, PrivateAuth: apiAuthenticator, Platform: platformHandler, Links: linkHandler, Pixels: pixelHandler, GitHubWebhook: &ghstars.Handler{Service: starService},
 		StripeWebhook: &stripe.WebhookHandler{Service: stripeService, Limiter: ingest.NewTokenBuckets(20, 100), TrustedProxies: cfg.TrustedProxies},
 		StripeAttribution: &stripe.AttributionHandler{
