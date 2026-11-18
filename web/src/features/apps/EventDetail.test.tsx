@@ -49,6 +49,12 @@ describe('EventBodyView', () => {
     expect(screen.getByText(/sentry\.javascript\.browser 8\.0\.0/)).toBeInTheDocument()
   })
 
+  it('labels an issue created from an error log record', () => {
+    render(<EventBodyView body={{ message: 'order failed', sdk: { name: 'otlp-logs' } }} />)
+    expect(screen.getByText('From logs')).toBeInTheDocument()
+    expect(screen.queryByText(/Sent by/)).toBeNull()
+  })
+
   it('warns when source maps are missing for the release and links to the upload guide', () => {
     render(<EventBodyView body={{ ...body, release: '1.4.2', symbolication: 'missing' }} />)
     const banner = screen.getByRole('status', { name: 'Source maps' })

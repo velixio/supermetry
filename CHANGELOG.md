@@ -6,6 +6,10 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Added
+
+- Error-level OTLP log records now create issues, so apps that only write logs get error tracking without an SDK.
+
 ## v0.1.29 (2026-11-18)
 
 ### Fixed
