@@ -75,6 +75,11 @@ var (
 	LogQueueFull             Counter
 	LogOutOfRange            Counter
 	LogWriteFailed           Counter
+	MetricQueueFull          Counter
+	MetricWriteFailed        Counter
+	MetricNoPartition        Counter
+	MetricSeriesLimit        Counter
+	MetricUnsupported        Counter
 	IngestRateLimitedIP      Counter
 	IngestRateLimitedSite    Counter
 	IngestRateLimitedGlobal  Counter
@@ -234,6 +239,11 @@ func Snapshot() map[string]float64 {
 		"log_queue_full_total":                       float64(LogQueueFull.Load()),
 		"log_out_of_range_total":                     float64(LogOutOfRange.Load()),
 		"log_write_failed_total":                     float64(LogWriteFailed.Load()),
+		"metric_queue_full_total":                    float64(MetricQueueFull.Load()),
+		"metric_write_failed_total":                  float64(MetricWriteFailed.Load()),
+		"metric_no_partition_total":                  float64(MetricNoPartition.Load()),
+		"metric_series_limit_total":                  float64(MetricSeriesLimit.Load()),
+		"metric_unsupported_total":                   float64(MetricUnsupported.Load()),
 		"ingest_clock_skew_total":                    float64(IngestClockSkew.Load()),
 		`ingest_rate_limited_total{reason="ip"}`:     float64(IngestRateLimitedIP.Load()),
 		`ingest_rate_limited_total{reason="site"}`:   float64(IngestRateLimitedSite.Load()),
@@ -316,6 +326,11 @@ func WritePrometheus(w io.Writer) {
 	writeFamily(w, snapshot, "log_queue_full_total", "counter")
 	writeFamily(w, snapshot, "log_out_of_range_total", "counter")
 	writeFamily(w, snapshot, "log_write_failed_total", "counter")
+	writeFamily(w, snapshot, "metric_queue_full_total", "counter")
+	writeFamily(w, snapshot, "metric_write_failed_total", "counter")
+	writeFamily(w, snapshot, "metric_no_partition_total", "counter")
+	writeFamily(w, snapshot, "metric_series_limit_total", "counter")
+	writeFamily(w, snapshot, "metric_unsupported_total", "counter")
 	writeFamily(w, snapshot, "ingest_clock_skew_total", "counter")
 	writeFamily(w, snapshot, "ingest_rate_limited_total", "counter")
 	writeFamily(w, snapshot, "ingest_privacy_dropped_total", "counter")

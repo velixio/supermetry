@@ -186,6 +186,20 @@ order by c.day,c.reason,c.category`
 		return err
 	}
 
+	// Metric series registry: names, kinds, units and (privacy-filtered)
+	// attributes; the points themselves are not exported.
+	series := `
+select s.id,s.name,s.kind,s.unit,s.attrs::text,` + utc("s.first_seen") + `,` + utc("s.last_seen") + `
+from metric_series s
+where s.site_id=$1 and s.last_seen >= ($2::date)::timestamp at time zone $4
+  and s.first_seen < (($3::date)+1)::timestamp at time zone $4
+order by s.id`
+	if err := e.writeRows(ctx, archive, "metric_series.csv",
+		[]string{"series_id", "name", "kind", "unit", "attributes", "first_seen", "last_seen"},
+		series, siteID, f, t, tz); err != nil {
+		return err
+	}
+
 	// Active installs per day: counts only, never install ids or their hashes.
 	active := `
 select g.day::text,
