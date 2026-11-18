@@ -1,3 +1,4 @@
+import { deltaValue } from '@/components/StatsStrip'
 import type { Period } from '@/lib/search'
 
 /** Totals the summary reads; the same figures the key-metric strip shows. */
@@ -36,11 +37,6 @@ export const MAX_SENTENCES = 3
 
 function lengthDays(from: string, to: string): number {
   return Math.floor((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1
-}
-
-function change(current: number, previous: number): number | undefined {
-  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return undefined
-  return ((current - previous) / Math.abs(previous)) * 100
 }
 
 function mover(input: SummaryInput): Sentence | undefined {
@@ -84,7 +80,7 @@ export function buildSummary(input: SummaryInput): Sentence[] {
     from: input.range.from,
     to: input.range.to,
     days: lengthDays(input.range.from, input.range.to),
-    delta: input.previous ? change(input.totals.visitors, input.previous.visitors) : undefined,
+    delta: input.previous ? deltaValue(input.totals.visitors, input.previous.visitors) : undefined,
     reference: input.reference,
     filtered: input.filtered,
   }

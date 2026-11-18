@@ -334,6 +334,40 @@ export const en = {
     noTrafficNext: 'Choose a wider range or verify that tracking is installed.',
   },
 
+  // The plain-language summary above the dashboard metrics. Sentences are built from typed facts and worded here.
+  dashboardSummary: {
+    title: 'In short',
+    people: '{count, plural, one {# person} other {# people}}',
+    visitorsCount: '{count, plural, one {# visitor} other {# visitors}}',
+    matchingFilters: ' matching your filters',
+    headlineMore: '{people} visited {period}{scope}, {percent} more than {reference}.',
+    headlineLess: '{people} visited {period}{scope}, {percent} fewer than {reference}.',
+    headlineSame: '{people} visited {period}{scope}, about the same as {reference}.',
+    headlineOnly: '{people} visited {period}{scope}.',
+    few: 'Not much traffic yet: {visitors} in this period.',
+    moverUp: 'Much of the growth came from {source} ({change} visitors).',
+    moverDown: 'Much of the drop came from {source} ({change} visitors).',
+    topPage: '{page} was the most visited page.',
+    bounceBetter: 'Bounce rate improved from {from} to {to}.',
+    bounceWorse: 'Bounce rate rose from {from} to {to}.',
+    durationLonger: 'Visit duration rose from {from} to {to}.',
+    durationShorter: 'Visit duration fell from {from} to {to}.',
+    period: {
+      today: 'today',
+      yesterday: 'yesterday',
+      lastDays: 'in the last {days} days',
+      lastMonths: 'in the last {months} months',
+      thisMonth: 'this month',
+      lastMonth: 'last month',
+      thisYear: 'this year',
+      range: 'from {from} to {to}',
+    },
+    reference: {
+      previousPeriod: 'the {days, plural, one {# day} other {# days}} before',
+      previousYear: 'the same dates last year',
+    },
+  },
+
   // F20 sites overview.
   sitesOverview: {
     title: 'Projects',

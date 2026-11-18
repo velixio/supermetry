@@ -12,6 +12,7 @@ import { FilterBar } from '../components/FilterBar'
 import { DashboardNoDataBanner } from '../components/NoDataBanner'
 import { GettingStartedChecklist } from '@/features/onboarding/GettingStartedChecklist'
 import { StatsStrip } from '../components/StatsStrip'
+import { DashboardSummary } from '@/features/dashboard-summary/DashboardSummary'
 import { ResponsiveFilters } from '../components/ResponsiveFilters'
 import { Button } from '../components/ui/button'
 import { ViewOptionsMenu } from '../components/ViewOptionsMenu'
@@ -398,6 +399,15 @@ function WebDashboardStateRoute() {
           } : undefined}
           main={
             <>
+              <DashboardSummary
+                anonymous={anonymous}
+                collapsed={me.data?.preferences?.summary_collapsed === true}
+                compare={search.compare}
+                filtered={filters.length > 0}
+                period={search.period}
+                query={query}
+                range={query.dateRange}
+              />
               <StatsStrip
                 query={query}
                 compare={search.compare}

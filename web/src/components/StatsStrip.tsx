@@ -150,6 +150,30 @@ export function cardAriaLabel(metric: StatMetric, valueText: string, delta: numb
   return t.ariaDelta(label, `${valueText} ${formatDelta(delta)}`, delta > 0 ? t.up : t.down, fmt.percent(Math.abs(delta)), reference)
 }
 
+/**
+ * The two queries behind the strip: the period itself and the period it is compared with. The delta is always
+ * computed: with comparison off the previous period is still requested, but not drawn on the chart. The dashboard
+ * summary builds the same queries so both share one cache entry each.
+ */
+export function statsStripQueries(query: StatsQuery, compare: Compare): {
+  currentQuery: StatsQuery
+  comparisonQuery: StatsQuery
+  reference: 'previous_year' | 'previous_period'
+} {
+  const currentQuery: StatsQuery = {
+    ...query,
+    metrics: [...statMetrics],
+    dimensions: undefined,
+    compare: undefined,
+  }
+  const reference = compare === 'previous_year' ? 'previous_year' : 'previous_period'
+  const comparisonQuery: StatsQuery = {
+    ...currentQuery,
+    dateRange: comparisonRange(query.dateRange, reference),
+  }
+  return { currentQuery, comparisonQuery, reference }
+}
+
 const primaryMetrics: readonly StatMetric[] = ['visitors', 'visits', 'pageviews', 'bounce_rate', 'visit_duration']
 const secondaryMetrics: readonly StatMetric[] = ['views_per_visit', 'engagement_time']
 
@@ -165,18 +189,7 @@ export function StatsStrip({
   useEffect(() => {
     if (selectedSecondary) setExpanded(true)
   }, [selectedSecondary])
-  const currentQuery: StatsQuery = {
-    ...query,
-    metrics: [...statMetrics],
-    dimensions: undefined,
-    compare: undefined,
-  }
-  // The delta is always computed: with comparison off the previous period is still requested, but not drawn on the chart.
-  const reference = compare === 'previous_year' ? 'previous_year' : 'previous_period'
-  const comparisonQuery: StatsQuery = {
-    ...currentQuery,
-    dateRange: comparisonRange(query.dateRange, reference),
-  }
+  const { currentQuery, comparisonQuery, reference } = statsStripQueries(query, compare)
   const current = useStats(currentQuery)
   const comparison = useStats(comparisonQuery)
   const importedIncluded = current.data?.meta.imported_included
