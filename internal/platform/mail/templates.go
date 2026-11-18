@@ -102,6 +102,35 @@ func PasswordReset(baseURL, link, account string, at time.Time, lifetime time.Du
 	}
 }
 
+// AccountSetup is the email sent when an account is created for someone (by
+// an admin or a hosted signup): it welcomes them and carries the one-time link
+// that sets their first password.
+func AccountSetup(baseURL, link, account, name string, lifetime time.Duration) Notice {
+	heading := "Welcome to Supermetry"
+	if clean := cleanName(name, 60); clean != "" {
+		heading = "Welcome to Supermetry, " + clean
+	}
+	return Notice{
+		Subject:   "Welcome to Supermetry: set your password",
+		Preheader: "Your account is ready. Set a password within " + Lifetime(lifetime) + " to sign in.",
+		Eyebrow:   "Welcome",
+		Heading:   heading,
+		Paragraphs: []string{
+			"Your Supermetry account is ready. Set your password with the button below to sign in. The link works once.",
+		},
+		Sections: detailRows(
+			Row{"Account", cleanName(account, 80)},
+			Row{"Link expires in", Lifetime(lifetime)},
+		),
+		ActionLabel: "Set your password",
+		ActionURL:   link,
+		Links:       []Link{{Label: "Read the documentation", URL: DocsURL}},
+		Footer:      "If you did not create this account, you can safely ignore this email.",
+		Reason:      "You are receiving this because an account was created with this email address.",
+		BaseURL:     baseURL,
+	}
+}
+
 // InvitationInfo describes an invitation for the email.
 type InvitationInfo struct {
 	OrgName      string

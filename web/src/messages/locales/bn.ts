@@ -62,7 +62,7 @@ const messages: MessageTree = {
     passwordPolicy: 'কমপক্ষে 6টি অক্ষর ব্যবহার করুন এবং বহুল ব্যবহৃত পাসওয়ার্ড এড়িয়ে চলুন।', setupHeading: 'Supermetry সেট আপ করুন',
     setupDescription: 'প্রথম মালিক ও প্রতিষ্ঠান তৈরি করুন।', completeSetup: 'সেটআপ সম্পন্ন করুন', invitationHeading: 'আমন্ত্রণ গ্রহণ করুন',
     invitationDescription: 'প্রতিষ্ঠানে যোগ দিতে আপনার অ্যাকাউন্ট সম্পন্ন করুন।', acceptInvitation: 'আমন্ত্রণ গ্রহণ করুন', resetHeading: 'নতুন পাসওয়ার্ড বেছে নিন',
-    resetDescription: 'আগে ব্যবহার করেননি এমন শক্তিশালী পাসওয়ার্ড ব্যবহার করুন।', resetPassword: 'পাসওয়ার্ড রিসেট করুন', success: 'আপনার পরিবর্তন সংরক্ষিত হয়েছে।',
+    resetDescription: 'আগে ব্যবহার করেননি এমন শক্তিশালী পাসওয়ার্ড ব্যবহার করুন।', resetPassword: 'পাসওয়ার্ড রিসেট করুন', accountSetupHeading: 'আপনার পাসওয়ার্ড সেট করুন', accountSetupDescription: 'আপনার অ্যাকাউন্ট প্রস্তুত। সাইন ইন করতে একটি পাসওয়ার্ড বেছে নিন।', setPassword: 'পাসওয়ার্ড সেট করুন', settingPassword: 'পাসওয়ার্ড সেট করা হচ্ছে…', success: 'আপনার পরিবর্তন সংরক্ষিত হয়েছে।',
     signupHeading: 'আপনার Supermetry অ্যাকাউন্ট তৈরি করুন', signupDescription: 'আপনার সাইটগুলোর জন্য একটি অ্যাকাউন্ট ও প্রতিষ্ঠান তৈরি করুন।', createAccount: 'অ্যাকাউন্ট তৈরি করুন',
     creatingAccount: 'অ্যাকাউন্ট তৈরি হচ্ছে…', signupError: 'অ্যাকাউন্ট তৈরি ব্যর্থ হয়েছে। তথ্য পরীক্ষা করে আবার চেষ্টা করুন।', inviteOnly: 'শুধু আমন্ত্রণে নিবন্ধন করা যায়।', backToLogin: 'সাইন ইন',
   },

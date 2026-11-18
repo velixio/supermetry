@@ -84,6 +84,17 @@ describe('reset password', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(true))
   })
 
+  it('words a new account\'s first-password link as setting a password, not a reset', async () => {
+    const submit = vi.fn().mockResolvedValue({ ok: true, signedIn: true })
+    const onDone = vi.fn()
+    renderWithRouter(<ResetPasswordForm setup submit={submit} onDone={onDone} />)
+    expect(await screen.findByText('Set your password')).toBeInTheDocument()
+    expect(screen.queryByText(/reset/i)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Set password' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(true))
+  })
+
   it('offers a new link when the token is spent', async () => {
     const submit = vi.fn().mockResolvedValue({ ok: false, problem: new ApiProblem(400, { type: 'about:blank', title: 'Bad request', detail: 'reset token is invalid' }) })
     renderWithRouter(<ResetPasswordForm submit={submit} onDone={vi.fn()} />)

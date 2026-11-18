@@ -32,6 +32,8 @@ func allEmails(base string) []previewCase {
 		{"password-reset", PasswordReset(base, reset, "dana@acme.test", fixedAt, time.Hour), reset},
 		{"invitation", Invitation(base, invite, InvitationInfo{OrgName: "Acme Analytics", InviterName: "Dana Reyes", InviterEmail: "dana@acme.test", Role: "editor", Lifetime: 7 * 24 * time.Hour}), invite},
 		{"invitation-hostile", Invitation(base, invite, InvitationInfo{OrgName: hostileName, InviterName: hostileName, InviterEmail: "x@y.test", Role: "viewer", Lifetime: 7 * 24 * time.Hour}), invite},
+		{"account-setup", AccountSetup(base, reset+"?setup=1", "dana@acme.test", "Dana Reyes", 24*time.Hour), reset + "?setup=1"},
+		{"account-setup-hostile", AccountSetup(base, reset, "dana@acme.test", hostileName, 24*time.Hour), reset},
 		{"welcome", Welcome(base, "Dana Reyes"), base + "/app"},
 		{"welcome-hostile", Welcome(base, hostileName), base + "/app"},
 		{"confirm-email", ConfirmNewEmail(base, confirm, "new@example.test", fixedAt, time.Hour), confirm},
@@ -248,6 +250,22 @@ func TestDesignElements(t *testing.T) {
 	for _, want := range []string{"dana@acme.test", "28 Oct 2026, 09:30 UTC", "1 hour"} {
 		if !strings.Contains(reset.HTML, want) || !strings.Contains(reset.Text, want) {
 			t.Errorf("reset email missing %q", want)
+		}
+	}
+}
+
+func TestAccountSetupIsNotAReset(t *testing.T) {
+	n := AccountSetup("https://stats.example.test", "https://stats.example.test/reset/abc?setup=1", "dana@acme.test", "Dana", 24*time.Hour)
+	msg := n.Message("dana@acme.test")
+	if msg.Subject != "Welcome to Supermetry: set your password" {
+		t.Fatalf("subject = %q", msg.Subject)
+	}
+	for _, body := range []string{msg.Text, msg.HTML} {
+		if strings.Contains(strings.ToLower(body), "reset") && !strings.Contains(body, "/reset/") {
+			t.Fatalf("setup email mentions a reset: %q", body)
+		}
+		if !strings.Contains(body, "Set your password") || !strings.Contains(body, "24 hours") {
+			t.Fatalf("setup email missing action or lifetime: %q", body)
 		}
 	}
 }
