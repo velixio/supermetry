@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"supermetry/internal/platform/authz"
 )
 
 // ErrAlreadyFired means the dedup key of a keyed delivery was recorded before:
@@ -104,3 +106,45 @@ func (s *Service) OpenIncidents(ctx context.Context, alertID int64) ([]Incident,
 }
 
 var _ RuleRepository = (*Service)(nil)
+
+// MaxIncidentPage is the most incidents one history request returns.
+const MaxIncidentPage = 100
+
+// ListIncidents returns a rule's incidents, newest first. before is an
+// incident id to page from (0 for the first page). A rule of another site or
+// organization is not found.
+func (s *Service) ListIncidents(ctx context.Context, principal authz.Principal, siteID int32, alertID int64, limit int, before int64) ([]Incident, error) {
+	if !authz.Can(principal, authz.ActionAlertsManage, siteID) {
+		return nil, ErrForbidden
+	}
+	limit = min(max(limit, 1), MaxIncidentPage)
+	rows, err := s.store.Pool.Query(ctx, `select i.id,i.alert_id,i.site_id,i.group_key,i.severity,i.opened_at,i.resolved_at,i.last_value,i.peak_value,i.threshold,i.notified_at,i.renotified_at
+		from alert_incidents i join alerts a on a.id=i.alert_id join sites s on s.id=a.site_id
+		where i.alert_id=$1 and a.site_id=$2 and s.org_id=$3 and s.deleted_at is null and ($4=0 or i.id<$4)
+		order by i.id desc limit $5`, alertID, siteID, principal.OrgID, before, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list incidents: %w", err)
+	}
+	defer rows.Close()
+	out := make([]Incident, 0)
+	for rows.Next() {
+		i, err := scanIncident(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		var exists bool
+		if err := s.store.Pool.QueryRow(ctx, `select exists(select 1 from alerts a join sites s on s.id=a.site_id where a.id=$1 and a.site_id=$2 and s.org_id=$3 and s.deleted_at is null)`, alertID, siteID, principal.OrgID).Scan(&exists); err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, pgx.ErrNoRows
+		}
+	}
+	return out, nil
+}

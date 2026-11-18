@@ -517,6 +517,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/alert-silences", h.listAlertSilences)
 	mux.HandleFunc("POST /api/private/sites/{site}/alert-silences", h.createAlertSilence)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/alert-silences/{silence}", h.deleteAlertSilence)
+	mux.HandleFunc("GET /api/private/sites/{site}/alerts/{alert}/incidents", h.listAlertIncidents)
 	mux.HandleFunc("GET /api/private/sites/{site}/notification-history", h.listNotificationHistory)
 	mux.HandleFunc("POST /api/private/sites/{site}/notification-history/{delivery}/retry", h.retryNotificationDelivery)
 	mux.HandleFunc("GET /api/private/orgs/{org}/notification-templates", h.listNotificationTemplates)

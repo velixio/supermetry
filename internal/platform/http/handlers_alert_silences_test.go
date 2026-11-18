@@ -92,3 +92,50 @@ func TestAlertSilenceRoutesNeedSilenceService(t *testing.T) {
 		t.Fatalf("status=%d, want 500 (unavailable)", response.Code)
 	}
 }
+
+type fakeIncidentService struct {
+	*fakeAlertsService
+	limit  int
+	before int64
+}
+
+func (f *fakeIncidentService) ListIncidents(_ context.Context, _ authz.Principal, _ int32, _ int64, limit int, before int64) ([]alerts.Incident, error) {
+	f.limit, f.before = limit, before
+	return []alerts.Incident{}, nil
+}
+
+func TestAlertIncidentRouteEnforcesRoleBoundaries(t *testing.T) {
+	actors := actorAuthenticator{
+		"owner":  {UserID: 1, OrgID: 1, Role: authz.RoleOwner},
+		"viewer": {UserID: 4, OrgID: 1, Role: authz.RoleViewer, SiteIDs: []int32{10}},
+	}
+	service := &fakeIncidentService{fakeAlertsService: &fakeAlertsService{}}
+	handler := platformhttp.New(platformhttp.Deps{
+		Authenticator: actors,
+		Sites: siteRegistry{
+			10: {ID: 10, OrgID: 1, PublicID: "siteaaaaaaaa", TZ: time.UTC},
+			20: {ID: 20, OrgID: 2, PublicID: "sitebbbbbbbb", TZ: time.UTC},
+		},
+		Alerts: service,
+	})
+	tests := []struct {
+		name, actor, path string
+		status            int
+	}{
+		{"owner lists", "owner", "/api/private/sites/10/alerts/5/incidents?limit=20&before=9", http.StatusOK},
+		{"viewer cannot list", "viewer", "/api/private/sites/10/alerts/5/incidents", http.StatusForbidden},
+		{"other org is hidden", "owner", "/api/private/sites/20/alerts/5/incidents", http.StatusNotFound},
+		{"bad limit", "owner", "/api/private/sites/10/alerts/5/incidents?limit=101", http.StatusBadRequest},
+		{"bad cursor", "owner", "/api/private/sites/10/alerts/5/incidents?before=x", http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if response := requestAs(t, handler, tt.actor, http.MethodGet, tt.path, ""); response.Code != tt.status {
+				t.Fatalf("status=%d body=%s, want %d", response.Code, response.Body.String(), tt.status)
+			}
+		})
+	}
+	if service.limit != 20 || service.before != 9 {
+		t.Fatalf("service saw limit=%d before=%d, want 20 and 9", service.limit, service.before)
+	}
+}

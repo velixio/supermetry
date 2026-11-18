@@ -358,6 +358,24 @@ func (e AdminUpdateStatusDeploymentMode) Valid() bool {
 	}
 }
 
+// Defines values for AlertIncidentSeverity.
+const (
+	AlertIncidentSeverityCritical AlertIncidentSeverity = "critical"
+	AlertIncidentSeverityWarning  AlertIncidentSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the AlertIncidentSeverity enum.
+func (e AlertIncidentSeverity) Valid() bool {
+	switch e {
+	case AlertIncidentSeverityCritical:
+		return true
+	case AlertIncidentSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AlertSilenceKind.
 const (
 	AlertSilenceKindMaintenance AlertSilenceKind = "maintenance"
@@ -2943,6 +2961,27 @@ type AdminUserPatch struct {
 type AdminUsersResponse struct {
 	Data []AdminUser `json:"data"`
 }
+
+// AlertIncident defines model for AlertIncident.
+type AlertIncident struct {
+	AlertId   int64   `json:"alert_id"`
+	GroupKey  string  `json:"group_key"`
+	Id        int64   `json:"id"`
+	LastValue float64 `json:"last_value"`
+
+	// NotifiedAt Absent when the open notice was never sent (silenced or no channel).
+	NotifiedAt   *time.Time            `json:"notified_at,omitempty"`
+	OpenedAt     time.Time             `json:"opened_at"`
+	PeakValue    float64               `json:"peak_value"`
+	RenotifiedAt *time.Time            `json:"renotified_at,omitempty"`
+	ResolvedAt   *time.Time            `json:"resolved_at,omitempty"`
+	Severity     AlertIncidentSeverity `json:"severity"`
+	SiteId       int32                 `json:"site_id"`
+	Threshold    float64               `json:"threshold"`
+}
+
+// AlertIncidentSeverity defines model for AlertIncident.Severity.
+type AlertIncidentSeverity string
 
 // AlertSilence defines model for AlertSilence.
 type AlertSilence struct {
@@ -6501,6 +6540,14 @@ type ListReplaysParams struct {
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// ListAlertIncidentsParams defines parameters for ListAlertIncidents.
+type ListAlertIncidentsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Before An incident id; returns older incidents.
+	Before *int64 `form:"before,omitempty" json:"before,omitempty"`
+}
+
 // GetAppCompatibilityParams defines parameters for GetAppCompatibility.
 type GetAppCompatibilityParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
@@ -8171,6 +8218,9 @@ type ServerInterface interface {
 	// DeleteAlertSilence Delete a silence or maintenance window
 	// (DELETE /api/private/sites/{site}/alert-silences/{silence})
 	DeleteAlertSilence(w http.ResponseWriter, r *http.Request, site int32, silence int64)
+	// ListAlertIncidents List the incidents of a metric or monitor rule, newest first
+	// (GET /api/private/sites/{site}/alerts/{alert}/incidents)
+	ListAlertIncidents(w http.ResponseWriter, r *http.Request, site int32, alert int64, params ListAlertIncidentsParams)
 	// GetAppLink Read the app project a web site sends diagnostic reports to
 	// (GET /api/private/sites/{site}/app-link)
 	GetAppLink(w http.ResponseWriter, r *http.Request, site int32)
@@ -11634,6 +11684,70 @@ func (siw *ServerInterfaceWrapper) DeleteAlertSilence(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DeleteAlertSilence(w, r, site, silence)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAlertIncidents operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertIncidents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "alert" -------------
+	var alert int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "alert", r.PathValue("alert"), &alert, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "alert", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAlertIncidentsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "before", r.URL.Query(), &params.Before, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "before"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "before", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertIncidents(w, r, site, alert, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -19993,6 +20107,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.ListAlertSilences)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences", wrapper.CreateAlertSilence)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/alert-silences/{silence}", wrapper.DeleteAlertSilence)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/alerts/{alert}/incidents", wrapper.ListAlertIncidents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/notification-history", wrapper.ListNotificationHistory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/notification-history/{delivery}/retry", wrapper.RetryNotificationDelivery)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/notification-templates", wrapper.ListNotificationTemplates)
