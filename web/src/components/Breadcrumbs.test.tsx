@@ -24,10 +24,18 @@ async function at(path: string) {
 }
 
 describe('Breadcrumbs', () => {
-  it('renders linked ancestors and a current-page last crumb', async () => {
+  it('starts at the section on settings pages', async () => {
+    await at('/app/acme/settings/api-keys')
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+    expect(screen.getByText('API keys')).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByText('Acme')).toBeNull()
+  })
+
+  it('renders a current-page last crumb with no org or site ancestors', async () => {
     await at('/app/acme/docs/funnels')
-    expect(screen.getByRole('link', { name: 'Acme' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Docs' })).toBeInTheDocument()
+    // Org and site live in the sidebar switcher; the trail names only the page.
+    expect(screen.queryByRole('link', { name: 'Acme' })).toBeNull()
+    expect(screen.queryByText('Docs')).toBeNull()
     expect(screen.getByText('Funnels')).toHaveAttribute('aria-current', 'page')
     // The current page is plain text with aria-current, never a link.
     expect(screen.queryByRole('link', { name: 'Funnels' })).toBeNull()
@@ -35,11 +43,11 @@ describe('Breadcrumbs', () => {
   })
 
   it('marks all but the last two crumbs as hidden on small screens', async () => {
-    await at('/app/acme/docs/funnels/42')
+    await at('/app/acme/docs/links/pixel/9')
     const items = screen.getByRole('navigation', { name: 'Breadcrumb' }).querySelectorAll('li[data-crumb]')
-    expect([...items].map((li) => li.className.includes('hidden'))).toEqual([true, true, false, false])
+    expect([...items].map((li) => li.className.includes('hidden'))).toEqual([true, false, false])
     const separators = screen.getByRole('navigation', { name: 'Breadcrumb' }).querySelectorAll('[data-slot="breadcrumb-separator"]')
-    expect([...separators].map((li) => li.className.includes('hidden'))).toEqual([true, true, false])
+    expect([...separators].map((li) => li.className.includes('hidden'))).toEqual([true, false])
   })
 
   it('renders nothing outside /app', async () => {
