@@ -14,6 +14,7 @@
 
 <p align="center">
   <a href="https://github.com/velixio/supermetry/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/velixio/supermetry?style=flat-square&logo=github&label=release&color=6d5dfc"></a>
+  <a href="https://github.com/velixio/supermetry/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/velixio/supermetry/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-3b82f6?style=flat-square"></a>
   <img alt="Go and PostgreSQL" src="https://img.shields.io/badge/Go%20%2B%20PostgreSQL-00ADD8?style=flat-square&logo=go&logoColor=white">
   <img alt="Tracker about 1.2 KB gzipped" src="https://img.shields.io/badge/tracker-~1.2%20KB-22c55e?style=flat-square">
@@ -100,6 +101,10 @@ Most analytics tools make you pick two: **privacy**, **depth**, or **easy hostin
 - Web Vitals (LCP, CLS, INP, FCP, TTFB), heatmaps with click and scroll maps, and session replay, each opt-in per project.
 - A sessions explorer, an events explorer and user profiles with `identify` (opt-in per project).
 
+**App Monitoring**
+- Error ingest for unmodified Sentry SDKs, with issues, releases, performance and traces, logs, metrics, alerts and cron monitors.
+- See [docs/features.md](docs/features.md) for the full list.
+
 **Teams and integrations**
 - Organizations and projects, roles, two-factor sign-in, shareable links and API keys.
 - Alerts with email, webhook, Slack, Discord and Telegram delivery, and scheduled email reports.
@@ -136,7 +141,7 @@ Docker serves the dashboard on `http://localhost:8787/app`; see [Docker Compose]
 
 **One-click deploy** to a hosted platform with a managed PostgreSQL ([details](deploy/README.md#one-click-deploy)), or use the [Helm chart](deploy/helm/supermetry) on Kubernetes:
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/supermetry) <!-- TODO: replace with the published Railway template URL, see deploy/railway/README.md -->
+<!-- TODO: add the Deploy on Railway button once the template is published, see deploy/railway/README.md. The template URL does not exist yet. -->
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/velixio/supermetry)
 [![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/velixio/supermetry/tree/main)
 
@@ -240,6 +245,11 @@ An EU-hosted Cloud is open: [start free](https://app.supermetry.com/signup?utm_s
 - [Ad blockers](docs/guide/ad-blockers.md): proxy through your own domain, or send events from your server
 - [Desktop and mobile apps](docs/guide/apps.md): rules for sending events and failure reports from apps
 - App Health client kits: [TypeScript](sdk/typescript/README.md) and [Python](sdk/python/README.md), MIT licensed, no dependencies
+- SDKs and integrations (see [sdk/SPEC.md](sdk/SPEC.md)):
+  - Browser and frameworks: [JavaScript](sdk/js/README.md), [React](sdk/react/README.md), [Vue](sdk/vue/README.md), [Next.js](sdk/nextjs/README.md), [Remix](sdk/remix/README.md), [Astro](sdk/astro/README.md)
+  - Server: [Node.js](sdk/node/README.md), [Express](sdk/express/README.md), [Laravel](sdk/laravel/README.md), [Ruby](sdk/ruby/README.md), [Rust](sdk/rust/README.md)
+  - Mobile: [iOS (Swift)](sdk/ios/README.md), [Android (Kotlin)](sdk/android/README.md), [React Native](sdk/react-native/README.md)
+  - Platforms: [Ghost](sdk/ghost/README.md), [Shopify](sdk/shopify/README.md)
 - [Migrate from Plausible](docs/guide/migrate-from-plausible.md) and [Migrate from Umami](docs/guide/migrate-from-umami.md): import your history and swap the script
 - [Tracking and privacy](docs/tracking-privacy.md)
 - [API](docs/api.md) and [API authentication](docs/api-auth.md)

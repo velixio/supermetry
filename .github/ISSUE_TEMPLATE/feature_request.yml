@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [docs/features.md](https://github.com/velixio/supermetry/blob/main/docs/features.md) first: the feature may already exist. For open-ended questions, use Discussions.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version you are using, if relevant.
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options:
+        - Release binary
+        - Docker
+        - systemd (installer script)
+        - Supermetry Cloud
+        - Built from source
+        - Other
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+      description: Describe the behavior you expect, including how it should look in the dashboard or API.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
