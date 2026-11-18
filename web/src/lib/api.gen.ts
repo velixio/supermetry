@@ -5958,15 +5958,15 @@ export interface components {
         };
         RetentionResponse: {
             /**
-             * @description Anonymous identities last one local day; opted-in profiles link activity across days.
+             * @description Anonymous identities last one local day; opted-in profiles link activity across days; app projects link activity by install.
              * @enum {string}
              */
-            identity_window: "day" | "profile";
+            identity_window: "day" | "profile" | "install";
             /**
-             * @description Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets.
+             * @description Anonymous mode counts repeated same-day sessions. Profile mode counts identified users returning in later day, week, or month buckets. Install mode (app projects) counts installs returning in later buckets.
              * @enum {string}
              */
-            retention_mode: "within_day_session_return" | "classic_profile_return";
+            retention_mode: "within_day_session_return" | "classic_profile_return" | "install_return";
             /** @description Week and month intervals group daily cohorts without cross-day identity linkage. */
             cohorts: components["schemas"]["RetentionCohort"][];
         };

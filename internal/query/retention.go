@@ -14,6 +14,7 @@ import (
 	"supermetry/internal/db"
 	"supermetry/internal/dict"
 	"supermetry/internal/privacy"
+	"supermetry/internal/sites"
 )
 
 type retentionVisit struct {
@@ -48,7 +49,8 @@ func (e *Engine) Retention(ctx context.Context, req api.RetentionRequest) (api.R
 	if err := validateRawReportRange(req.SiteId, req.DateRange, filtersFrom(req.Filters), site, e.reportNow()); err != nil {
 		return api.RetentionResponse{}, err
 	}
-	querySQL, args, err := buildRetentionSQL(req, site.Retention, postgresLocation(ctx, e.pool, site.TZ))
+	isApp := site.Kind == sites.KindApp
+	querySQL, args, err := buildRetentionSQLFor(req, site.Retention, postgresLocation(ctx, e.pool, site.TZ), isApp)
 	if err != nil {
 		return api.RetentionResponse{}, err
 	}
@@ -57,7 +59,10 @@ func (e *Engine) Retention(ctx context.Context, req api.RetentionRequest) (api.R
 		RetentionMode:  api.WithinDaySessionReturn,
 		Cohorts:        []api.RetentionCohort{},
 	}
-	if req.Identity != nil && *req.Identity == api.ProfileRetentionIdentity {
+	if isApp {
+		response.IdentityWindow = api.InstallIdentityWindow
+		response.RetentionMode = api.InstallReturn
+	} else if req.Identity != nil && *req.Identity == api.ProfileRetentionIdentity {
 		if !site.ProfilesEnabled {
 			return api.RetentionResponse{}, errors.New("profiles are disabled for this site")
 		}
@@ -101,6 +106,12 @@ func (e *Engine) Retention(ctx context.Context, req api.RetentionRequest) (api.R
 }
 
 func buildRetentionSQL(req api.RetentionRequest, retention db.RetentionClass, location *time.Location) (string, []any, error) {
+	return buildRetentionSQLFor(req, retention, location, false)
+}
+
+// buildRetentionSQLFor builds the retention query. With app set, days are
+// linked by the stable install visitor id instead of a daily identity.
+func buildRetentionSQLFor(req api.RetentionRequest, retention db.RetentionClass, location *time.Location, app bool) (string, []any, error) {
 	builder := &sqlBuilder{}
 	filters := filtersFrom(req.Filters)
 	pageFilters, remaining := splitPageFilters(filters)
@@ -142,6 +153,9 @@ func buildRetentionSQL(req api.RetentionRequest, retention db.RetentionClass, lo
 		bucket = "date_trunc('week',local_day)::date"
 	case api.RetentionMonth:
 		bucket = "date_trunc('month',local_day)::date"
+	}
+	if app {
+		return appRetentionSQL(where, bucket, req.Interval), builder.args, nil
 	}
 	if req.Identity != nil && *req.Identity == api.ProfileRetentionIdentity {
 		timezoneArg := builder.arg(location.String())
@@ -344,4 +358,38 @@ func retentionBucket(day time.Time, interval api.RetentionRequestInterval) time.
 	default:
 		return day
 	}
+}
+
+// appRetentionSQL links an install across days through its stable visitor id.
+// An install belongs to the cohort of its first active bucket inside the
+// requested range; a bucket counts as retained when the install has any
+// session in it.
+func appRetentionSQL(where, bucket string, interval api.RetentionRequestInterval) string {
+	offset := "(a.activity_bucket-c.first_bucket)"
+	switch interval {
+	case api.RetentionWeek:
+		offset = "((a.activity_bucket-c.first_bucket)/7)"
+	case api.RetentionMonth:
+		offset = "((extract(year from a.activity_bucket)::int-extract(year from c.first_bucket)::int)*12+extract(month from a.activity_bucket)::int-extract(month from c.first_bucket)::int)"
+	}
+	return `with activity as (
+  select distinct s.visitor_id,` + bucket + ` as activity_bucket
+  from sessions s
+  where ` + where + `
+), cohorts as (
+  select visitor_id,min(activity_bucket) as first_bucket from activity group by visitor_id
+), observed as (
+  select c.visitor_id,c.first_bucket,` + offset + ` as bucket_offset
+  from cohorts c join activity a using(visitor_id)
+), cohort_sizes as (
+  select first_bucket,count(*)::int8 as size from cohorts group by first_bucket
+), offsets as (
+  select generate_series(0,least(coalesce((select max(bucket_offset) from observed),0),` + fmt.Sprint(maxRetentionOffsets-1) + `)::int) as bucket_offset
+)
+select z.first_bucket,z.size,x.bucket_offset,
+       count(o.visitor_id) filter (where o.bucket_offset=x.bucket_offset)::int8 as retained
+from cohort_sizes z cross join offsets x
+left join observed o on o.first_bucket=z.first_bucket
+group by z.first_bucket,z.size,x.bucket_offset
+order by z.first_bucket,x.bucket_offset`
 }
