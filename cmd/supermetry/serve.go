@@ -27,6 +27,7 @@ import (
 
 	"supermetry/internal/alerts"
 	"supermetry/internal/api"
+	"supermetry/internal/appdebug"
 	"supermetry/internal/appingest"
 	"supermetry/internal/appissues"
 	"supermetry/internal/appproduct"
@@ -525,13 +526,18 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	var sentryIngest api.SentryIngest
 	var otlpIngest api.SentryIngest
 	var symbolicator *sentryingest.Symbolicator
+	var symbolMisses *appdebug.MissRecorder
 	var appSessions *appsessions.Writer
 	if dsnRegistry, ok := registry.(sites.DSNRegistry); ok {
 		sentryHandler := sentryingest.NewHandler(dsnRegistry, appIntake, appBodies, enricher, cfg.TrustedProxies, settings.clock.Now).
 			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
+		symbolMisses = appdebug.NewMissRecorder(pool, 10*time.Second, appdebug.DefaultMaxKeys)
+		symbolMisses.SetStats(sentryHandler.Stats())
+		symbolMisses.Start()
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
-			Disk: debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
+			Disk:   debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
+			Misses: symbolMisses,
 		})
 		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
@@ -789,6 +795,10 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	// Drain the symbolication queue into the intake before the writer stops.
 	if symbolicator != nil {
 		symbolicator.Close()
+	}
+	// Workers may report misses until the queue drains; write what is left.
+	if symbolMisses != nil {
+		symbolMisses.Close()
 	}
 	// Session updates are queued by the handler too; flush them first.
 	if appSessions != nil {

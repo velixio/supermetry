@@ -2746,6 +2746,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/platforms": {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Health and symbolication per platform, busiest first
+         * @description Events, crashes and crash-free rates per platform from raw events, plus how many error events were symbolicated and how many lack symbols (missing or partial).
+         */
+        get: operations["getAppPlatforms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/debug-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Uploaded debug files and the debug images events still miss
+         * @description The project's debug files (its own and its organization's org-wide ones, newest first, at most 500) and the images that events needed and no upload covered (at most 200, last seen first; rows idle for 30 days are dropped). Every member role may read.
+         */
+        get: operations["listAppDebugFiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/debug-files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete one debug file
+         * @description Removes the file; its upload and stored blobs go when no other row uses them. Owner, admin or editor only. Events already symbolicated are not changed.
+         */
+        delete: operations["deleteAppDebugFile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/pixels": {
         parameters: {
             query?: never;
@@ -5114,6 +5189,52 @@ export interface components {
                     /** Format: int64 */
                     events: number;
                 }[];
+            }[];
+        };
+        AppPlatforms: {
+            platforms: {
+                platform: string;
+                /** Format: int64 */
+                events: number;
+                /** Format: int64 */
+                crashes: number;
+                /** Format: double */
+                crash_free_users: number | null;
+                /** Format: double */
+                crash_free_sessions: number | null;
+                /** Format: int64 */
+                symbolicated: number;
+                /** Format: int64 */
+                missing: number;
+            }[];
+        };
+        AppDebugFiles: {
+            files: {
+                /** Format: int64 */
+                id: number;
+                /** @enum {string} */
+                kind: "macho" | "elf" | "pe" | "breakpad" | "proguard" | "sourcebundle" | "other";
+                debug_id: string;
+                code_id: string;
+                arch: string;
+                object_name: string;
+                features: string[];
+                /** @enum {string} */
+                cache_state: "pending" | "ok" | "error" | "unsupported";
+                /** Format: int64 */
+                size: number;
+                /** Format: date-time */
+                created_at: string;
+            }[];
+            missing: {
+                kind: string;
+                debug_id: string;
+                code_file: string;
+                arch: string;
+                /** Format: date-time */
+                last_seen: string;
+                /** Format: int64 */
+                events: number;
             }[];
         };
         AppDeploys: {
@@ -11164,6 +11285,7 @@ export interface operations {
                 platform?: components["parameters"]["AppPlatform"];
                 /** @description open, resolved, ignored, regressed or archived. */
                 status?: string;
+                /** @description crash, error, hang, oom or watchdog. oom and watchdog are crashes ended by the OS (out of memory, watchdog termination); a crash filter includes them. */
                 kind?: string;
                 /** @description Case-insensitive prefix of the title or error type. */
                 q?: string;
@@ -12008,6 +12130,86 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAppPlatforms: {
+        parameters: {
+            query?: {
+                /** @description First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`. */
+                from?: components["parameters"]["AppFrom"];
+                /** @description Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days. */
+                to?: components["parameters"]["AppTo"];
+                release?: components["parameters"]["AppRelease"];
+                environment?: components["parameters"]["AppEnvironment"];
+                platform?: components["parameters"]["AppPlatform"];
+            };
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Platforms */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppPlatforms"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppDebugFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Debug files */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDebugFiles"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAppDebugFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
