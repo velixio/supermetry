@@ -94,11 +94,11 @@ describe('AlertsPage', () => {
     await screen.findByText('No alerts yet.')
     fireEvent.click(screen.getByRole('button', { name: 'Create alert' }))
 
-    expect(screen.getByText('Active visitors in this process during the last 60 minutes.')).toBeVisible()
+    expect(screen.getByText('Active visitors, last 60 minutes.')).toBeVisible()
     fireEvent.change(screen.getByLabelText('Alert type'), { target: { value: 'traffic_drop' } })
-    expect(screen.getByText('Percentage of visitors in the same 24-hour window seven days earlier.')).toBeVisible()
+    expect(screen.getByText('% of visitors vs the same 24 h a week earlier.')).toBeVisible()
     fireEvent.change(screen.getByLabelText('Alert type'), { target: { value: 'goal_reached' } })
-    expect(screen.getByText('Conversions in the current local day.')).toBeVisible()
+    expect(screen.getByText('Conversions today.')).toBeVisible()
   })
 
 

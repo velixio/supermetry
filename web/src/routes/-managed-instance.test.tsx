@@ -66,7 +66,7 @@ describe('managed instance', () => {
   it.each(['/app/admin/users', '/app/admin/update', '/app/admin'])('shows one calm notice at %s and calls no admin API', async (path) => {
     renderRoute(path, true)
     expect(await screen.findByRole('heading', { level: 1, name: 'This instance is managed by its operator.' })).toBeVisible()
-    expect(screen.getByText('Instance administration is done outside the app, so there is nothing to configure here.')).toBeVisible()
+    expect(screen.getByText('Administration happens outside the app.')).toBeVisible()
     expect(screen.getByRole('link', { name: 'Back to the dashboard' })).toHaveAttribute('href', '/app')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Instance administration sections' })).not.toBeInTheDocument()

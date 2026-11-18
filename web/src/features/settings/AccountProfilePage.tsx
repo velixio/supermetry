@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { LabelTip } from './LabelTip'
 import { PasswordInput } from '@/features/auth/PasswordInput'
 import type { UserPreferences } from '@/lib/me'
 import { manifest, pickerLocales, type LocaleCode } from '@/lib/i18n'
@@ -66,30 +67,29 @@ export function AccountProfilePage({ name, email, totpEnabled, preferences, requ
   const emailError = emailChange.error ? errorText(emailChange.error) : ''
   const passwordError = passwordChange.error ? errorText(passwordChange.error) : ''
 
-  return <PageContainer width="narrow">
-    <PageHeader title={uiAccount.profile.title} description={uiAccount.profile.intro} />
-    <Card><CardHeader><CardTitle>{uiAccount.profile.displayName}</CardTitle><CardDescription>{uiAccount.profile.displayNameNote}</CardDescription></CardHeader>
+  return <PageContainer width="narrow" className="max-w-2xl">
+    <PageHeader title={uiAccount.profile.title} />
+    <Card><CardHeader><CardTitle>{uiAccount.profile.displayName}</CardTitle></CardHeader>
       <form onSubmit={(event) => { event.preventDefault(); nameSave.mutate({ method: 'PATCH', path: '/api/private/me', body: fields(event, ['name']) }) }}>
         <CardContent><FieldGroup><Field data-invalid={Boolean(nameError) || undefined}>
-          <FieldLabel htmlFor="display-name">{uiAccount.profile.displayName}</FieldLabel>
+          <LabelTip htmlFor="display-name" tipLabel={`About ${uiAccount.profile.displayName}`} tip={<>{uiAccount.profile.displayNameNote}</>}>{uiAccount.profile.displayName}</LabelTip>
           <Input id="display-name" name="name" defaultValue={name} autoComplete="name" required aria-invalid={Boolean(nameError) || undefined} aria-describedby={nameError ? 'display-name-error' : undefined} />
           {nameError ? <FieldError id="display-name-error">{nameError}</FieldError> : null}
           {nameSave.done ? <Status>{uiFlows.account.nameSaved}</Status> : null}
         </Field></FieldGroup></CardContent>
         <CardFooter><Button disabled={nameSave.isPending}>{nameSave.isPending ? uiFlows.common.saving : uiAccount.profile.saveName}</Button></CardFooter>
       </form></Card>
-    <Card><CardHeader><CardTitle>{uiAccount.profile.landingTitle}</CardTitle><CardDescription>{uiAccount.profile.landingNote}</CardDescription></CardHeader>
+    <Card><CardHeader><CardTitle>{uiAccount.profile.landingTitle}</CardTitle></CardHeader>
       <CardContent><FieldGroup><Field data-invalid={Boolean(landingSave.error) || undefined}>
-        <FieldLabel htmlFor="landing-page">{uiAccount.profile.afterSignIn}</FieldLabel>
-        <select id="landing-page" className={nativeSelectClass} defaultValue={preferences?.landing_page ?? 'overview'} disabled={landingSave.isPending} aria-describedby="landing-page-hint" onChange={(event) => landingSave.mutate({ method: 'PATCH', path: '/api/private/me', body: { preferences: { landing_page: event.target.value } } })}>
+        <LabelTip htmlFor="landing-page" tipLabel={`About ${uiAccount.profile.landingTitle}`} tip={<>{uiAccount.profile.landingNote} {uiAccount.profile.landingHint}</>}>{uiAccount.profile.afterSignIn}</LabelTip>
+        <select id="landing-page" className={nativeSelectClass} defaultValue={preferences?.landing_page ?? 'overview'} disabled={landingSave.isPending} onChange={(event) => landingSave.mutate({ method: 'PATCH', path: '/api/private/me', body: { preferences: { landing_page: event.target.value } } })}>
           <option value="overview">{uiAccount.profile.sitesOverview}</option><option value="last_site">{uiAccount.profile.lastSite}</option>
         </select>
-        <FieldDescription id="landing-page-hint">{uiAccount.profile.landingHint}</FieldDescription>
         {landingSave.error ? <FieldError>{errorText(landingSave.error)}</FieldError> : null}
         {landingSave.done ? <Status>{uiFlows.account.landingSaved}</Status> : null}
       </Field></FieldGroup></CardContent></Card>
-    <Card><CardHeader><CardTitle>{en.language.title}</CardTitle><CardDescription>{en.language.description}</CardDescription></CardHeader>
-      <CardContent><FieldGroup><Field><FieldLabel htmlFor="interface-language">{en.language.label}</FieldLabel><select id="interface-language" className={nativeSelectClass} defaultValue={preferences?.locale ?? ''} disabled={localeSave.isPending} onChange={(event) => localeSave.save(event.target.value as LocaleCode | '')}><option value="">{en.language.browserDefault}</option>{pickerLocales.map((code) => <option key={code} value={code}>{manifest[code].nativeName}{manifest[code].reviewed ? '' : ` ${en.language.machineTranslated}`}</option>)}</select><FieldDescription>{en.language.note}</FieldDescription></Field></FieldGroup></CardContent></Card>
+    <Card><CardHeader><CardTitle>{en.language.title}</CardTitle></CardHeader>
+      <CardContent><FieldGroup><Field><LabelTip htmlFor="interface-language" tipLabel={`About ${en.language.title}`} tip={<>{en.language.description} {en.language.note}</>}>{en.language.label}</LabelTip><select id="interface-language" className={nativeSelectClass} defaultValue={preferences?.locale ?? ''} disabled={localeSave.isPending} onChange={(event) => localeSave.save(event.target.value as LocaleCode | '')}><option value="">{en.language.browserDefault}</option>{pickerLocales.map((code) => <option key={code} value={code}>{manifest[code].nativeName}{manifest[code].reviewed ? '' : ` ${en.language.machineTranslated}`}</option>)}</select></Field></FieldGroup></CardContent></Card>
     <Card><CardHeader><CardTitle>{uiAccount.profile.emailTitle}</CardTitle><CardDescription>{uiAccount.profile.emailNote(email)}</CardDescription></CardHeader>
       <form onSubmit={(event) => { event.preventDefault(); emailChange.mutate({ method: 'POST', path: '/api/private/me/email', body: fields(event, ['new_email', 'password']) }) }}>
         <CardContent><FieldGroup>

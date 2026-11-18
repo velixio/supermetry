@@ -55,9 +55,9 @@ describe('UpdateProgress', () => {
 
   it('warns that Supermetry will go offline before it does, then says it is offline', () => {
     const { rerender } = render(<UpdateProgress job={job('downloading')} reconnecting={false} />)
-    expect(screen.getByText('Supermetry will be offline for a few seconds')).toBeVisible()
+    expect(screen.getByText('Offline for a few seconds')).toBeVisible()
     rerender(<UpdateProgress job={job('stopping')} reconnecting={false} />)
-    expect(screen.getByText('Supermetry is offline right now')).toBeVisible()
+    expect(screen.getByText('Supermetry is offline')).toBeVisible()
     rerender(<UpdateProgress job={job('restarting')} reconnecting />)
     expect(screen.getByText('Reconnecting…')).toBeVisible()
   })

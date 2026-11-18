@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { InfoIcon } from 'lucide-react'
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,7 +11,9 @@ import { cn } from '@/lib/utils'
  */
 export function InfoTip({ children, label = 'More info', className }: { children: ReactNode; label?: string; className?: string }) {
   const [open, setOpen] = useState(false)
+  // Its own provider, so a tip works in any subtree (and in isolated renders) without app-level setup.
   return (
+    <TooltipProvider>
     <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
         <button
@@ -27,5 +29,6 @@ export function InfoTip({ children, label = 'More info', className }: { children
       </TooltipTrigger>
       <TooltipContent className="max-w-xs text-pretty">{children}</TooltipContent>
     </Tooltip>
+    </TooltipProvider>
   )
 }

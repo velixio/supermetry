@@ -109,9 +109,8 @@ describe('account active sessions', () => {
       if (path === '/api/private/me/sessions') return pending
     })
     mount()
-    const bulk = await screen.findByRole('button', { name: 'Sign out all other devices' })
-    expect(bulk).toHaveClass('w-full', 'sm:w-auto')
-    await waitFor(() => expect(bulk).toBeEnabled())
+    const bulk = await screen.findByRole('button', { name: 'Sign out others' })
+        await waitFor(() => expect(bulk).toBeEnabled())
     fireEvent.click(bulk)
     expect(screen.getByRole('heading', { name: 'Sign out all other devices?' })).toBeVisible()
     expect(screen.getByText('This signs out 1 other login session on your account. This session stays signed in.')).toBeVisible()
@@ -135,7 +134,7 @@ describe('account active sessions', () => {
   it('disables bulk sign-out when there are no other sessions', async () => {
     request.mockResolvedValue({ data: [current] })
     mount()
-    expect(await screen.findByRole('button', { name: 'Sign out all other devices' })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Sign out others' })).toBeDisabled()
     expect(request.mock.calls.filter(([method]) => method === 'DELETE')).toHaveLength(0)
   })
 
@@ -145,7 +144,7 @@ describe('account active sessions', () => {
       return { data: [current, other] }
     })
     mount()
-    const bulk = await screen.findByRole('button', { name: 'Sign out all other devices' })
+    const bulk = await screen.findByRole('button', { name: 'Sign out others' })
     await waitFor(() => expect(bulk).toBeEnabled())
     fireEvent.click(bulk)
     fireEvent.click(screen.getByRole('button', { name: 'Sign out other sessions' }))

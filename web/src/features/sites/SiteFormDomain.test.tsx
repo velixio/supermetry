@@ -23,7 +23,7 @@ describe('SiteForm on a managed instance', () => {
   it('shows the domain hint and blocks a single-label host before calling the server', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<SiteForm submitLabel="Add project" onSubmit={onSubmit} requireDomain />)
-    expect(screen.getByText(/with a dot, such as example\.com/)).toBeInTheDocument()
+    expect(screen.getByText(/full domain such as example\.com/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'afaridar' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add project' }))
     expect(await screen.findByText('host "afaridar" is not a domain: use something like example.com')).toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('SiteForm on a self-hosted instance', () => {
   it('has no extra hint and still sends a single-label host', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<SiteForm submitLabel="Add project" onSubmit={onSubmit} />)
-    expect(screen.queryByText(/with a dot, such as example\.com/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/full domain such as example\.com/)).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Domain'), { target: { value: 'wiki' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add project' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ hosts: ['wiki'] })))

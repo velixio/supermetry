@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { SiteIcon } from '@/components/SiteIcon'
 import type { Role } from '@/components/Sidebar'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/InfoTip'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { refetchSiteIcon } from '@/features/sites/api'
 import { AdBlockerSetup, AiInstallPrompt, InstallRecipes, SiteDetails, type VerifyResult } from './InstallRecipes'
@@ -64,16 +65,16 @@ export function SiteIconSettings({
   const canRefetch = role === 'owner' || role === 'admin'
 
   return (
-    <section aria-labelledby="site-icon-heading" className="flex flex-wrap items-center gap-3 border-b pb-5">
+    <section aria-labelledby="site-icon-heading" className="flex flex-wrap items-center gap-3">
       <SiteIcon iconUrl={iconUrl} name={name} size={40} />
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <h2 id="site-icon-heading" className="text-sm font-medium">Project icon</h2>
-        <p className="text-sm text-muted-foreground">Fetched from your website's pages</p>
+        <InfoTip label="About project icon">Fetched from your website's pages.</InfoTip>
       </div>
       {canRefetch ? (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           disabled={refetch.isPending}
           onClick={() => refetch.mutate()}
         >
@@ -108,13 +109,13 @@ const appSettingsTabs: readonly string[] = ['general', 'installation', 'symbols'
 
 export function SiteSettingsTabs({ org, site, current, showReplay = false, trackingRestricted = false, kind }: { org: string; site: string; current: string; showReplay?: boolean; trackingRestricted?: boolean; kind?: string }) {
   return (
-    <nav aria-label="Project settings" className="overflow-x-auto border-b">
-      <div className="flex min-w-max gap-5">
+    <nav aria-label="Project settings" className="overflow-x-auto">
+      <div className="flex min-w-max gap-1">
         {settingsTabs.filter(([value]) => (kind === 'app' ? appSettingsTabs.includes(value) : value !== 'app') && (value !== 'replay' || showReplay) && (!trackingRestricted || !['imports', 'goals', 'funnels'].includes(value))).map(([value, label, to]) => (
           <Link
             key={value}
             aria-current={current === value ? 'page' : undefined}
-            className="border-b-2 border-transparent px-0.5 py-3 text-sm font-medium text-muted-foreground aria-current-page:border-primary aria-current-page:text-foreground"
+            className="inline-flex h-8 items-center rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-foreground aria-current-page:bg-accent aria-current-page:text-foreground max-md:min-h-11"
             to={to}
             params={{ org, site }}
           >
@@ -132,25 +133,25 @@ export function installationStatusInterval(status?: InstallStatus): number {
 }
 
 const featureSetup: { feature: string; needs: string; code?: string }[] = [
-  { feature: 'Pageviews, sources, countries, devices', needs: 'Either script. Nothing else to do.' },
-  { feature: 'Outbound links, file downloads, data-supermetry-event clicks', needs: 'Enable them in Project settings → Tracking.' },
-  { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Enable Web Vitals in Project settings → Tracking. Data appears after a visitor leaves.' },
-  { feature: '404 pages', needs: 'Enable 404 tracking, then add this tag to your 404 page:', code: '<meta name="supermetry:404">' },
-  { feature: 'Custom events', needs: 'Either script. Call from your code:', code: "supermetry.track('Signup', { plan: 'pro' })" },
+  { feature: 'Pageviews, sources, countries, devices', needs: 'Either script. Nothing to do.' },
+  { feature: 'Outbound links, file downloads, data-supermetry-event clicks', needs: 'Enable in Tracking settings.' },
+  { feature: 'Web Vitals (LCP, CLS, INP)', needs: 'Enable in Tracking settings. Data arrives after a visitor leaves.' },
+  { feature: '404 pages', needs: 'Enable 404 tracking, then add to your 404 page:', code: '<meta name="supermetry:404">' },
+  { feature: 'Custom events', needs: 'Either script. Call:', code: "supermetry.track('Signup', { plan: 'pro' })" },
   {
     feature: 'Revenue',
-    needs: 'Either script. Send an amount and currency with an event, then add a revenue goal:',
+    needs: 'Either script. Send amount and currency, then add a revenue goal:',
     code: "supermetry.track('Purchase', { plan: 'pro' }, { revenue: { amount: '49.90', currency: 'USD' } })",
   },
-  { feature: 'Heatmaps', needs: 'Turn on heatmaps and click tracking in Project settings → Tracking.' },
+  { feature: 'Heatmaps', needs: 'Enable heatmaps and click tracking in Tracking settings.' },
   {
     feature: 'Visitor opt-out',
-    needs: 'Use this in an opt-out link or button. It stores only supermetry_ignore="1" in localStorage; call supermetry.optIn() to resume:',
+    needs: 'For an opt-out link or button. Stores only supermetry_ignore in localStorage; supermetry.optIn() resumes:',
     code: 'supermetry.optOut()',
   },
   {
     feature: 'User profiles',
-    needs: 'Either script. Turn on profiles in Project settings → General (needs your users\' consent), then on every page load call:',
+    needs: 'Either script. Enable profiles in General settings (needs user consent), then call on each page load:',
     code: "supermetry.identify('user-123', { plan: 'pro' })",
   },
 ]
@@ -159,9 +160,9 @@ function FeatureSetup({ currency }: { currency?: string }) {
   return (
     <section aria-label="Feature setup" className="flex flex-col gap-3">
       <h3 className="text-sm font-medium">Feature setup</h3>
-      <ul className="divide-y rounded-lg border text-sm">
+      <ul className="divide-y text-sm">
         {featureSetup.map((item) => (
-          <li key={item.feature} className="flex flex-col gap-1 p-3">
+          <li key={item.feature} className="flex flex-col gap-1 py-3 first:pt-0">
             <span className="font-medium">{item.feature}</span>
             <span className="text-muted-foreground">{item.needs}</span>
             {item.code ? (
@@ -201,10 +202,10 @@ export function InstallGuide({ publicId, snippet, fullSnippet, installStatus, la
       <AiInstallPrompt publicId={publicId} snippet={snippet} />
       <InstallRecipes publicId={publicId} snippet={snippet} verify={verify} troubleshooting={troubleshooting} />
       <FeatureSetup currency={revenueCurrency} />
-      <aside className="border-l-2 border-border pl-4 text-sm">
+      <aside className="rounded-md bg-muted/50 p-3 text-sm">
         <p className="font-medium">Track custom clicks</p>
-        <p className="text-muted-foreground">Add an event name and optional properties to any button, link, or form.</p>
-        <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 text-xs select-all" tabIndex={0}><code>{'<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>'}</code></pre>
+        <p className="text-muted-foreground">Add an event name to any button, link or form.</p>
+        <pre className="mt-2 overflow-x-auto rounded-md bg-background p-3 text-xs select-all" tabIndex={0}><code>{'<button data-supermetry-event="Signup" data-supermetry-prop-plan="pro">Start free trial</button>'}</code></pre>
       </aside>
       <AdBlockerSetup publicId={publicId} snippet={snippet} managed={managed} />
     </div>

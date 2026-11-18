@@ -97,7 +97,7 @@ describe('ApiKeysPage', () => {
     openMenu('claude')
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Roll key' }))
     const dialog = await screen.findByRole('dialog', { name: 'Roll claude' })
-    fireEvent.click(within(dialog).getByRole('combobox', { name: /Keep the current key working/ }))
+    fireEvent.click(within(dialog).getByRole('combobox', { name: /Keep old key for/ }))
     fireEvent.click(await screen.findByRole('option', { name: '1 hour' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Roll key' }))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/private/orgs/3/api-keys/1/roll', expect.objectContaining({ body: { grace_hours: 1 } })))

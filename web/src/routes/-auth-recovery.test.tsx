@@ -36,7 +36,7 @@ describe('forgot password', () => {
     renderWithRouter(<ForgotPasswordForm request={request} cooldown={2} />)
     fireEvent.change(await screen.findByLabelText('Email'), { target: { value: ' someone@example.test ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('If an account exists for someone@example.test')
+    expect(await screen.findByRole('status')).toHaveTextContent('If someone@example.test has an account')
     expect(request).toHaveBeenCalledWith('someone@example.test')
     expect(screen.getByRole('button', { name: 'Send another link' })).toBeDisabled()
     expect(screen.getByText('You can request another link in 2 s.')).toBeVisible()
@@ -48,7 +48,7 @@ describe('forgot password', () => {
     renderWithRouter(<ForgotPasswordForm request={request} />)
     fireEvent.change(await screen.findByLabelText('Email'), { target: { value: 'nobody@example.test' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('If an account exists for nobody@example.test')
+    expect(await screen.findByRole('status')).toHaveTextContent('If nobody@example.test has an account')
   })
 
   it('reports rate limiting as an error', async () => {
@@ -126,7 +126,7 @@ describe('sign-up settings failure', () => {
   it('reports the failure with a retry instead of claiming sign-ups are invite-only', async () => {
     const onRetryConfig = vi.fn()
     renderWithRouter(<SignupPageContent configFailed onRetryConfig={onRetryConfig} submit={vi.fn()} onSuccess={vi.fn()} />)
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the sign-up settings')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load sign-up settings')
     expect(screen.queryByText('Signups are invite-only.')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetryConfig).toHaveBeenCalled()

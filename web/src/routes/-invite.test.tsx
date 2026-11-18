@@ -46,7 +46,7 @@ it('submits the canonical invitation route token to the acceptance endpoint', as
   render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
 
   expect(await screen.findByRole('heading', { name: 'Join Acme' })).toBeVisible()
-  expect(screen.getByText('Olive invited you to join Acme on Supermetry.')).toBeVisible()
+  expect(screen.getByText('Olive invited you to Acme.')).toBeVisible()
   fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Invited User' } })
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-1234' } })
   fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }))
@@ -95,7 +95,7 @@ describe('invitation page', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'New' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password' } })
     fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Use at least 6 characters')
+    expect(await screen.findByRole('alert')).toHaveTextContent('6+ characters')
     expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('button', { name: 'Accept invitation' })).toBeEnabled()
   })
@@ -103,14 +103,14 @@ describe('invitation page', () => {
   it('asks the wrong signed-in account to sign out first', () => {
     const onSignOut = vi.fn()
     render(<InvitationPage {...base} preview={preview} user={{ email: 'other@example.test' }} onSignOut={onSignOut} />)
-    expect(screen.getByRole('alert')).toHaveTextContent('signed in as other@example.test')
+    expect(screen.getByRole('alert')).toHaveTextContent('Signed in as other@example.test')
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(onSignOut).toHaveBeenCalled()
   })
 
   it('explains an invalid or used link', async () => {
     renderWithRouter(<InvitationPage {...base} preview={null} user={null} />)
-    expect(await screen.findByRole('alert')).toHaveTextContent('invalid, has expired, or was already used')
+    expect(await screen.findByRole('alert')).toHaveTextContent('invalid, expired or already used')
   })
 
   it('sends someone with an existing account to sign in first', async () => {

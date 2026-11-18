@@ -58,7 +58,7 @@ describe('CreateKeyWizard', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }))
     fireEvent.click(within(dialog).getByRole('combobox', { name: 'Expires' }))
     fireEvent.click(await screen.findByRole('option', { name: 'No expiry' }))
-    expect(within(dialog).getByRole('note')).toHaveTextContent(/works until someone revokes it/)
+    expect(within(dialog).getByRole('note')).toHaveTextContent(/stays valid until revoked/)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create key' }))
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/private/orgs/3/api-keys', expect.objectContaining({
       body: expect.objectContaining({ never_expires: true }),

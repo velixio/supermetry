@@ -88,7 +88,7 @@ describe('ExportsPage', () => {
     const secret = within(dialog).getByLabelText('Secret access key')
     expect(secret).toHaveValue('')
     expect(secret).toHaveAttribute('type', 'password')
-    expect(dialog).toHaveTextContent('A secret is stored. Leave this empty to keep it.')
+    expect(dialog).toHaveTextContent('Stored. Leave empty to keep.')
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Test connection' }))
     expect(await within(dialog).findByText('Connection failed: bad key')).toBeVisible()
@@ -135,7 +135,7 @@ describe('SettingsBundle', () => {
     expect(request).toHaveBeenCalledTimes(1)
     expect(request).toHaveBeenCalledWith('POST', '/api/private/orgs/4/settings-import?dry_run=true&invite_members=false', expect.objectContaining({ body: { version: 1 } }))
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Invite the bundle/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Invite bundle members/ }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('POST', '/api/private/orgs/4/settings-import?dry_run=true&invite_members=true', expect.anything()))
     fireEvent.click(await screen.findByRole('button', { name: 'Apply import' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('POST', '/api/private/orgs/4/settings-import?dry_run=false&invite_members=true', expect.anything()))

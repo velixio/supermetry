@@ -84,7 +84,7 @@ describe('integrations page', () => {
   it('explains when the instance has no provider configured', async () => {
     serve([])
     renderPage()
-    expect(await screen.findByText('No integrations are configured on this instance')).toBeVisible()
+    expect(await screen.findByText('No integrations configured')).toBeVisible()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
@@ -114,7 +114,7 @@ describe('integrations page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Disconnect/ }))
     const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText(/deletes the stored access tokens and every imported/)).toBeVisible()
+    expect(within(dialog).getByText(/deletes the stored tokens and all imported/i)).toBeVisible()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete tokens and imported data' }))
     await waitFor(() =>
       expect(request).toHaveBeenCalledWith('DELETE', '/api/private/sites/7/integrations/search-console', { orgId: 3 }),
@@ -159,6 +159,6 @@ describe('integrations page', () => {
   it('shows an empty state when there is no data', async () => {
     serve([{ provider: 'search-console', name: 'Google Search Console', available: true, connection }], { ...top, rows: [] })
     renderPage()
-    expect(await screen.findByText(/No Search Console data in this range yet/)).toBeVisible()
+    expect(await screen.findByText(/No data in this range/)).toBeVisible()
   })
 })

@@ -29,7 +29,7 @@ describe('AdminEmailPage', () => {
   it('saves edited settings and never shows the stored password', () => {
     render(<AdminEmailPage />)
     expect(screen.getByLabelText(/^Password/)).toHaveValue('')
-    expect(screen.getByText('A password is saved. Leave blank to keep it.')).toBeVisible()
+    expect(screen.getByText('Saved. Leave blank to keep.')).toBeVisible()
     fireEvent.change(screen.getByLabelText('SMTP host'), { target: { value: 'smtp.other.test' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save email settings' }))
     expect(save).toHaveBeenCalledWith({ host: 'smtp.other.test', port: 587, tls: 'starttls', user: 'mailer', password: '', from: 'a@example.com', helo: '' })
