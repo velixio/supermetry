@@ -2732,6 +2732,35 @@ type AnnotationPatch struct {
 	Text *string             `json:"text,omitempty"`
 }
 
+// AppActiveUsers defines model for AppActiveUsers.
+type AppActiveUsers struct {
+	Distinct    int64         `json:"distinct"`
+	NewInstalls []AppDayCount `json:"new_installs"`
+	Series      []struct {
+		Dau int64     `json:"dau"`
+		Day time.Time `json:"day"`
+		Mau int64     `json:"mau"`
+		Wau int64     `json:"wau"`
+	} `json:"series"`
+	Stickiness float64 `json:"stickiness"`
+}
+
+// AppAdoption defines model for AppAdoption.
+type AppAdoption struct {
+	By     string           `json:"by"`
+	Series []AppAdoptionRow `json:"series"`
+	Totals []AppAdoptionRow `json:"totals"`
+}
+
+// AppAdoptionRow defines model for AppAdoptionRow.
+type AppAdoptionRow struct {
+	// Day The zero time for range totals.
+	Day      time.Time `json:"day"`
+	Installs int64     `json:"installs"`
+	Share    float64   `json:"share"`
+	Value    string    `json:"value"`
+}
+
 // AppBreakdown defines model for AppBreakdown.
 type AppBreakdown struct {
 	Events int64  `json:"events"`
@@ -2783,6 +2812,12 @@ type AppDSNKeyList struct {
 	Keys []AppDSNKey `json:"keys"`
 }
 
+// AppDayCount defines model for AppDayCount.
+type AppDayCount struct {
+	Count int64     `json:"count"`
+	Day   time.Time `json:"day"`
+}
+
 // AppDeploys defines model for AppDeploys.
 type AppDeploys struct {
 	Deploys []struct {
@@ -2793,6 +2828,15 @@ type AppDeploys struct {
 		Release     string    `json:"release"`
 		Url         string    `json:"url"`
 	} `json:"deploys"`
+}
+
+// AppEngagement defines model for AppEngagement.
+type AppEngagement struct {
+	MeanSessionSeconds   float64 `json:"mean_session_seconds"`
+	MedianSessionSeconds float64 `json:"median_session_seconds"`
+	ScreensPerSession    float64 `json:"screens_per_session"`
+	Sessions             int64   `json:"sessions"`
+	SessionsPerUser      float64 `json:"sessions_per_user"`
 }
 
 // AppEvent One app report. Unknown fields are ignored. A wrong type, an over-long value or an unknown enum value drops the event as `invalid`.
@@ -2904,6 +2948,28 @@ type AppEventsResponseDroppedReason string
 
 // AppEventsResponseWarningsReason defines model for AppEventsResponse.Warnings.Reason.
 type AppEventsResponseWarningsReason string
+
+// AppFeatureAdoption defines model for AppFeatureAdoption.
+type AppFeatureAdoption struct {
+	ActiveUsers int64         `json:"active_users"`
+	Series      []AppDayCount `json:"series"`
+	Share       float64       `json:"share"`
+	Users       int64         `json:"users"`
+}
+
+// AppFeatureSet defines model for AppFeatureSet.
+type AppFeatureSet struct {
+	CreatedAt  time.Time `json:"created_at"`
+	EventNames []string  `json:"event_names"`
+	Id         int64     `json:"id"`
+	Name       string    `json:"name"`
+}
+
+// AppFeatureSetInput defines model for AppFeatureSetInput.
+type AppFeatureSetInput struct {
+	EventNames []string `json:"event_names"`
+	Name       string   `json:"name"`
+}
 
 // AppFeedback defines model for AppFeedback.
 type AppFeedback struct {
@@ -5850,6 +5916,55 @@ type GetAppOverviewParams struct {
 	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
 }
 
+// GetAppActiveUsersParams defines parameters for GetAppActiveUsers.
+type GetAppActiveUsersParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppAdoptionParams defines parameters for GetAppAdoption.
+type GetAppAdoptionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	By          string          `form:"by" json:"by"`
+}
+
+// GetAppEngagementParams defines parameters for GetAppEngagement.
+type GetAppEngagementParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetAppFeatureAdoptionParams defines parameters for GetAppFeatureAdoption.
+type GetAppFeatureAdoptionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
 // GetAppReleasesParams defines parameters for GetAppReleases.
 type GetAppReleasesParams struct {
 	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
@@ -6001,6 +6116,55 @@ type ListSitesParams struct {
 type ListAnnotationsParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
 	To   openapi_types.Date `form:"to" json:"to"`
+}
+
+// GetPublicAppActiveUsersParams defines parameters for GetPublicAppActiveUsers.
+type GetPublicAppActiveUsersParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetPublicAppAdoptionParams defines parameters for GetPublicAppAdoption.
+type GetPublicAppAdoptionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+	By          string          `form:"by" json:"by"`
+}
+
+// GetPublicAppEngagementParams defines parameters for GetPublicAppEngagement.
+type GetPublicAppEngagementParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetPublicAppFeatureAdoptionParams defines parameters for GetPublicAppFeatureAdoption.
+type GetPublicAppFeatureAdoptionParams struct {
+	// From First day, YYYY-MM-DD in the site's time zone. Defaults to 29 days before `to`.
+	From *AppFrom `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Last day, inclusive, YYYY-MM-DD in the site's time zone. Defaults to today. The range is at most 366 days.
+	To          *AppTo          `form:"to,omitempty" json:"to,omitempty"`
+	Release     *AppRelease     `form:"release,omitempty" json:"release,omitempty"`
+	Environment *AppEnvironment `form:"environment,omitempty" json:"environment,omitempty"`
+	Platform    *AppPlatform    `form:"platform,omitempty" json:"platform,omitempty"`
 }
 
 // ListEventsParams defines parameters for ListEvents.
@@ -6282,6 +6446,9 @@ type MergeAppIssuesJSONRequestBody = AppIssueMergeInput
 
 // UnmergeAppIssueJSONRequestBody defines body for UnmergeAppIssue for application/json ContentType.
 type UnmergeAppIssueJSONRequestBody = AppIssueUnmergeInput
+
+// CreateAppFeatureSetJSONRequestBody defines body for CreateAppFeatureSet for application/json ContentType.
+type CreateAppFeatureSetJSONRequestBody = AppFeatureSetInput
 
 // ReplaceAppRulesJSONRequestBody defines body for ReplaceAppRules for application/json ContentType.
 type ReplaceAppRulesJSONRequestBody = AppRules
@@ -7223,6 +7390,27 @@ type ServerInterface interface {
 	// GetAppOverview Crash-free rates, issue counts and a daily series for an app project
 	// (GET /api/private/sites/{site}/app/overview)
 	GetAppOverview(w http.ResponseWriter, r *http.Request, site int32, params GetAppOverviewParams)
+	// GetAppActiveUsers Daily, weekly and monthly active installs, stickiness and new installs
+	// (GET /api/private/sites/{site}/app/product/active-users)
+	GetAppActiveUsers(w http.ResponseWriter, r *http.Request, site int32, params GetAppActiveUsersParams)
+	// GetAppAdoption Installs per release, platform, country, OS or device class
+	// (GET /api/private/sites/{site}/app/product/adoption)
+	GetAppAdoption(w http.ResponseWriter, r *http.Request, site int32, params GetAppAdoptionParams)
+	// GetAppEngagement Product sessions, session length and screens per session
+	// (GET /api/private/sites/{site}/app/product/engagement)
+	GetAppEngagement(w http.ResponseWriter, r *http.Request, site int32, params GetAppEngagementParams)
+	// ListAppFeatureSets Feature sets (named groups of product events)
+	// (GET /api/private/sites/{site}/app/product/features)
+	ListAppFeatureSets(w http.ResponseWriter, r *http.Request, site int32)
+	// CreateAppFeatureSet Create a feature set
+	// (POST /api/private/sites/{site}/app/product/features)
+	CreateAppFeatureSet(w http.ResponseWriter, r *http.Request, site int32)
+	// DeleteAppFeatureSet Delete a feature set
+	// (DELETE /api/private/sites/{site}/app/product/features/{id})
+	DeleteAppFeatureSet(w http.ResponseWriter, r *http.Request, site int32, id int64)
+	// GetAppFeatureAdoption Share of active installs that used a feature set
+	// (GET /api/private/sites/{site}/app/product/features/{id}/adoption)
+	GetAppFeatureAdoption(w http.ResponseWriter, r *http.Request, site int32, id int64, params GetAppFeatureAdoptionParams)
 	// GetAppReleases Releases with events in the range, newest first, with crash-free rates
 	// (GET /api/private/sites/{site}/app/releases)
 	GetAppReleases(w http.ResponseWriter, r *http.Request, site int32, params GetAppReleasesParams)
@@ -7475,6 +7663,21 @@ type ServerInterface interface {
 	// CreateAnnotation Create a chart annotation
 	// (POST /api/public/v1/sites/{site_id}/annotations)
 	CreateAnnotation(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// GetPublicAppActiveUsers Daily, weekly and monthly active installs, stickiness and new installs
+	// (GET /api/public/v1/sites/{site_id}/app/product/active-users)
+	GetPublicAppActiveUsers(w http.ResponseWriter, r *http.Request, siteId SitePathID, params GetPublicAppActiveUsersParams)
+	// GetPublicAppAdoption Installs per release, platform, country, OS or device class
+	// (GET /api/public/v1/sites/{site_id}/app/product/adoption)
+	GetPublicAppAdoption(w http.ResponseWriter, r *http.Request, siteId SitePathID, params GetPublicAppAdoptionParams)
+	// GetPublicAppEngagement Product sessions, session length and screens per session
+	// (GET /api/public/v1/sites/{site_id}/app/product/engagement)
+	GetPublicAppEngagement(w http.ResponseWriter, r *http.Request, siteId SitePathID, params GetPublicAppEngagementParams)
+	// GetPublicAppFeatureSets Feature sets (named groups of product events)
+	// (GET /api/public/v1/sites/{site_id}/app/product/features)
+	GetPublicAppFeatureSets(w http.ResponseWriter, r *http.Request, siteId SitePathID)
+	// GetPublicAppFeatureAdoption Share of active installs that used a feature set
+	// (GET /api/public/v1/sites/{site_id}/app/product/features/{id}/adoption)
+	GetPublicAppFeatureAdoption(w http.ResponseWriter, r *http.Request, siteId SitePathID, id int64, params GetPublicAppFeatureAdoptionParams)
 	// ListEvents Explore raw pageviews and custom events
 	// (GET /api/public/v1/sites/{site_id}/events)
 	ListEvents(w http.ResponseWriter, r *http.Request, siteId SitePathID, params ListEventsParams)
@@ -11899,6 +12102,491 @@ func (siw *ServerInterfaceWrapper) GetAppOverview(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// GetAppActiveUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetAppActiveUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppActiveUsersParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppActiveUsers(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetAppAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "by" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "by", r.URL.Query(), &params.By, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "by"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "by", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppAdoption(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppEngagement operation middleware
+func (siw *ServerInterfaceWrapper) GetAppEngagement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppEngagementParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppEngagement(w, r, site, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAppFeatureSets operation middleware
+func (siw *ServerInterfaceWrapper) ListAppFeatureSets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAppFeatureSets(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAppFeatureSet operation middleware
+func (siw *ServerInterfaceWrapper) CreateAppFeatureSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAppFeatureSet(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAppFeatureSet operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAppFeatureSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAppFeatureSet(w, r, site, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppFeatureAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetAppFeatureAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAppFeatureAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppFeatureAdoption(w, r, site, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAppReleases operation middleware
 func (siw *ServerInterfaceWrapper) GetAppReleases(w http.ResponseWriter, r *http.Request) {
 
@@ -14763,6 +15451,430 @@ func (siw *ServerInterfaceWrapper) CreateAnnotation(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// GetPublicAppActiveUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppActiveUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppActiveUsersParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppActiveUsers(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "by" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "by", r.URL.Query(), &params.By, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "by"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "by", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppAdoption(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppEngagement operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppEngagement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppEngagementParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppEngagement(w, r, siteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppFeatureSets operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppFeatureSets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppFeatureSets(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicAppFeatureAdoption operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicAppFeatureAdoption(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site_id" -------------
+	var siteId SitePathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site_id", r.PathValue("site_id"), &siteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicAppFeatureAdoptionParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "release" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "release", r.URL.Query(), &params.Release, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "release"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "release", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "environment" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment", r.URL.Query(), &params.Environment, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "environment"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "environment", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "platform", r.URL.Query(), &params.Platform, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicAppFeatureAdoption(w, r, siteId, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListEvents operation middleware
 func (siw *ServerInterfaceWrapper) ListEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -16367,6 +17479,18 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/merged", wrapper.ListMergedAppIssues)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/unmerge", wrapper.UnmergeAppIssue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/{issue}/feedback", wrapper.ListAppIssueFeedback)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/active-users", wrapper.GetAppActiveUsers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/adoption", wrapper.GetAppAdoption)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/engagement", wrapper.GetAppEngagement)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features", wrapper.ListAppFeatureSets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features", wrapper.CreateAppFeatureSet)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features/{id}", wrapper.DeleteAppFeatureSet)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/product/features/{id}/adoption", wrapper.GetAppFeatureAdoption)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/active-users", wrapper.GetPublicAppActiveUsers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/adoption", wrapper.GetPublicAppAdoption)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/engagement", wrapper.GetPublicAppEngagement)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/features", wrapper.GetPublicAppFeatureSets)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/sites/{site_id}/app/product/features/{id}/adoption", wrapper.GetPublicAppFeatureAdoption)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/feedback", wrapper.ListAppFeedback)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issue-webhooks", wrapper.GetAppIssueWebhooks)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/sites/{site}/app/issue-webhooks", wrapper.UpdateAppIssueWebhooks)

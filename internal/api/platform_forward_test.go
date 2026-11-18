@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"supermetry/internal/api"
+	"supermetry/internal/ingest"
 )
 
 // TestEveryPlatformRouteIsForwarded guards the explicit forward list in
@@ -49,6 +50,7 @@ func TestEveryPlatformRouteIsForwarded(t *testing.T) {
 	platform := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(218) })
 	router := identifiedRouter(api.Deps{
 		Platform:    platform,
+		RateLimiter: ingest.NewTokenBuckets(1000, 1000),
 		PublicAuth:  principalAuth{principal: api.Principal{OrgID: 7, Scopes: []string{"stats:read"}}},
 		PrivateAuth: principalAuth{principal: api.Principal{OrgID: 7}},
 	})
