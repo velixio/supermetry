@@ -149,7 +149,7 @@ var wantEvents = map[string]int{
 	"electron/main-exception": 1, "electron/native-crash": 1, "electron/renderer-exception": 1,
 	"go/captured-exception": 1, "go/recovered-panic": 1,
 	"node/captured-message": 1, "node/client-report": 0, "node/session-aggregates": 0, "node/unhandled-exception": 1, "node/unhandled-rejection": 1,
-	"transactions/python": 0, "transactions/javascript-static": 0, "transactions/javascript-v11-stream": 0, "transactions/android-app-start": 0, "transactions/cocoa-app-start": 0,
+	"transactions/python": 0, "transactions/javascript-static": 0, "transactions/javascript-v11-stream": 0, "transactions/node-v11-stream": 0, "transactions/android-app-start": 0, "transactions/cocoa-app-start": 0,
 	"checkins/js": 0, "checkins/python": 0, "python/client-report": 0, "python/logging-error": 1, "python/unhandled-exception": 1, "python/unhandled-exception-br": 1, "python/wsgi-sessions": 0,
 }
 

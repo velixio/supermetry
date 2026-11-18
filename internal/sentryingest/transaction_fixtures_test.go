@@ -17,6 +17,7 @@ func TestTransactionFixtures(t *testing.T) {
 		"transactions/python":                {3, "GET /api/items", "", 0},
 		"transactions/javascript-static":     {4, "/users/*", "", 0},
 		"transactions/javascript-v11-stream": {3, "/users/1234", "", 0},
+		"transactions/node-v11-stream":       {3, "GET /users/:id", "", 0},
 		"transactions/android-app-start":     {4, "MainActivity", "cold", 1234},
 		"transactions/cocoa-app-start":       {4, "ViewController", "warm", 620},
 	}
