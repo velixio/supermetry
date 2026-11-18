@@ -504,7 +504,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	intakeLimiter := ingest.NewIngestRateLimiter(ipRate, siteRate, globalRate)
 	dropRecorder := dropstats.New(pool, dropstats.Options{})
 	sentryAPI := sentryapi.New(sentryapi.Deps{Pool: pool, Keys: keyService, Sites: registry, Blobs: replayStore, Now: settings.clock.Now, BaseURL: cfg.BaseURL, TempDir: filepath.Join(cfg.DataDir, "sentry-upload-tmp"),
-		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20})
+		IPPerMin: cfg.SentryAPIIPPerMin, TokenPerMin: cfg.SentryAPITokenPerMin, TrustedProxies: cfg.TrustedProxies, OrgCapBytes: cfg.SentryOrgCapBytes, DIFMaxBytes: int64(cfg.DIFMaxMB) << 20,
+		Builders: map[string]sentryapi.CacheBuilder{"proguard": {Version: 1, Build: sentryingest.BuildProguardCache}}})
 	sentryAPI.Start(ctx)
 	defer sentryAPI.Close()
 	appIntake := appingest.NewIntake(appingest.Config{DropStats: dropRecorder})
@@ -531,7 +532,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 			WithClientReports(appReports).WithFeedback(appFeedback).WithSpikeLimit(cfg.AppSpikePerMin).WithIPLimit(cfg.SentryIPPerMin).WithMaxInflight(cfg.SentryMaxInflight).WithLocalhostFilter(cfg.SentryFilterLocalhost)
 		symbolicator = sentryingest.NewSymbolicator(sentryingest.NewPGArtifactStore(pool), replayStore, sentryingest.SymbolicatorConfig{
 			Workers: cfg.SymbolicateWorkers, CacheBytes: int64(cfg.SymbolicateCacheMB) << 20, Stats: sentryHandler.Stats(),
-			Disk: debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
+			Disk:      debugfile.NewDiskCache(filepath.Join(cfg.DataDir, "symcache"), int64(cfg.SymcacheDiskMB)<<20),
+			Resolvers: []sentryingest.Resolver{sentryingest.JSResolver(), sentryingest.JVMResolver()}, DebugFiles: sentryingest.NewPGArtifactStore(pool),
 		})
 		sentryHandler.WithSymbolicator(symbolicator).WithSpans(spanWriter, spanBudget)
 		appSessions = appsessions.NewWriter(pool, appsessions.WriterConfig{}, sentryHandler.Stats())
