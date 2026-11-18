@@ -249,8 +249,11 @@ func TestSearchLimits(t *testing.T) {
 	q := parse(t, "")
 	for name, run := range map[string]func() error{
 		"limit 201": func() error { _, err := obslogs.Search(ctx, pool, 1, now, q, from, to, 201, nil); return err },
-		"31 days":   func() error { _, err := obslogs.Search(ctx, pool, 1, now, q, now.AddDate(0, 0, -31), now, 10, nil); return err },
-		"inverted":  func() error { _, err := obslogs.Search(ctx, pool, 1, now, q, to, from, 10, nil); return err },
+		"31 days": func() error {
+			_, err := obslogs.Search(ctx, pool, 1, now, q, now.AddDate(0, 0, -31), now, 10, nil)
+			return err
+		},
+		"inverted": func() error { _, err := obslogs.Search(ctx, pool, 1, now, q, to, from, 10, nil); return err },
 	} {
 		if err := run(); !errors.Is(err, obslogs.ErrInvalid) {
 			t.Errorf("%s: %v", name, err)
