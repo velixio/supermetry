@@ -9,6 +9,7 @@ PATCH /api/private/annotations/{annotation}  # Dashboard or account flow; sessio
 GET /api/private/auth/config  # Dashboard or account flow; session/private UI contract.
 POST /api/private/auth/login  # Dashboard or account flow; session/private UI contract.
 POST /api/private/auth/logout  # Dashboard or account flow; session/private UI contract.
+POST /api/private/auth/reauth  # Dashboard or account flow; session/private UI contract.
 POST /api/private/auth/password-reset  # Dashboard or account flow; session/private UI contract.
 POST /api/private/auth/password-reset/confirm  # Dashboard or account flow; session/private UI contract.
 POST /api/private/auth/signup  # Dashboard or account flow; session/private UI contract.
@@ -41,6 +42,7 @@ GET /api/private/orgs/{org}  # Dashboard or account flow; session/private UI con
 GET /api/private/orgs/{org}/api-keys  # Dashboard or account flow; session/private UI contract.
 POST /api/private/orgs/{org}/api-keys  # Dashboard or account flow; session/private UI contract.
 DELETE /api/private/orgs/{org}/api-keys/{key}  # Dashboard or account flow; session/private UI contract.
+POST /api/private/orgs/{org}/api-keys/{key}/roll  # Dashboard or account flow; session/private UI contract.
 GET /api/private/orgs/{org}/audit  # Dashboard or account flow; session/private UI contract.
 GET /api/private/orgs/{org}/channels  # Dashboard or account flow; session/private UI contract.
 POST /api/private/orgs/{org}/channels  # Dashboard or account flow; session/private UI contract.

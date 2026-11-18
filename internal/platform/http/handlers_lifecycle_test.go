@@ -81,7 +81,7 @@ func newLifecycleHTTPFixture(t *testing.T) lifecycleHTTPFixture {
 	}
 	services := platformhttp.Services{Sites: siteService, Store: data}
 	return lifecycleHTTPFixture{
-		handler: platformhttp.New(platformhttp.Deps{
+		handler: platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 			Now: func() time.Time { return now }, Authenticator: actors, Store: data, Sites: registry, Mutations: services, Orgs: orgService,
 		}),
 		data: data, sites: siteService, registry: registry, orgs: orgService,
@@ -217,7 +217,7 @@ func TestDeletedOrganizationAccountLifecycleHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Auth: authService, Authenticator: platformhttp.NewAuthenticator(authService, nil, nil, f.orgs),
 		Store: f.data, Sites: f.registry, Mutations: platformhttp.Services{Sites: f.sites, Store: f.data}, Orgs: f.orgs,
 	})
@@ -271,7 +271,7 @@ func TestRestoreOrganizationHidesNonOwnerAsNotFound(t *testing.T) {
 	if err := (platformhttp.Services{Sites: f.sites, Store: f.data}).DeleteOrg(context.Background(), authz.Principal{UserID: f.ownerID, OrgID: f.orgID, Role: authz.RoleOwner}, f.orgID); err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"viewer": {UserID: f.viewerID}}, Store: f.data, Orgs: f.orgs,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/private/me/orgs/"+itoa64(f.orgID)+"/restore", nil)

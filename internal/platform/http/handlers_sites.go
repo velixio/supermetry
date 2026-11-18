@@ -393,7 +393,7 @@ func (h *handler) deleteSite(w http.ResponseWriter, r *http.Request) {
 		roles = []authz.Role{authz.RoleKey}
 	}
 	principal, site, ok := h.sitePrincipal(w, r, authz.ActionSiteDelete, roles...)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	if h.deps.Mutations == nil {

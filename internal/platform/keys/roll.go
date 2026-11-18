@@ -106,6 +106,7 @@ func (k *Keys) Roll(ctx context.Context, principal authz.Principal, id int64, gr
 			return createErr
 		}
 		info = keyInfo(stored)
+		var predecessorExpires time.Time
 		graceEnd := now.Add(time.Duration(graceHours) * time.Hour)
 		if oldKey.ExpiresAt == nil || graceEnd.Before(*oldKey.ExpiresAt) {
 			if err := store.SetAPIKeyExpiry(ctx, tx, principal.OrgID, oldKey.ID, graceEnd); err != nil {
@@ -114,6 +115,8 @@ func (k *Keys) Roll(ctx context.Context, principal authz.Principal, id int64, gr
 		} else {
 			graceEnd = *oldKey.ExpiresAt
 		}
+		predecessorExpires = graceEnd
+		info.PredecessorExpiresAt = &predecessorExpires
 		return audit.Write(ctx, tx, principal, "api_key.rolled", "api_key", oldKey.ID, map[string]any{
 			"name": oldKey.Name, "successor_id": stored.ID, "grace_hours": graceHours, "old_key_expires_at": graceEnd,
 		})

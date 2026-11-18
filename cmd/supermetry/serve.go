@@ -314,6 +314,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	orgService := orgs.New(platformStore, databaseRegistry)
 	keyService := keys.New(platformStore)
 	defer keyService.Close()
+	// Last-use country comes from the local GeoIP database; the address is not kept.
+	keyService.SetCountryResolver(func(r *http.Request) string {
+		if ip, ok := clientip.ResolveAccessClient(r, cfg.TrustedProxies); ok && ip.IsGlobalUnicast() && !ip.IsPrivate() && !ip.IsLoopback() {
+			return enricher.Country(ip)
+		}
+		return ""
+	})
 	shareService := shares.New(platformStore)
 	inviteService := invites.New(platformStore, accounts, sender, cfg.BaseURL)
 	definitionService := goals.New(platformStore, 30*time.Second)

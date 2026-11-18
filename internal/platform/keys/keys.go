@@ -50,6 +50,9 @@ type KeyInfo struct {
 	// LastUsedCountry and LastUsedClient are empty until the key is used.
 	LastUsedCountry string
 	LastUsedClient  string
+	// PredecessorExpiresAt is set only on the value Roll returns: when the key
+	// that was rolled stops working.
+	PredecessorExpiresAt *time.Time
 }
 
 // DefaultExpiry is how long a key lives when its creator makes no explicit

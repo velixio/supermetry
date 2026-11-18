@@ -51,7 +51,7 @@ func (a *Authenticator) authenticateKey(r *http.Request) (api.Principal, bool) {
 	if !ok || !strings.EqualFold(scheme, "Bearer") || credential == "" {
 		return api.Principal{}, false
 	}
-	principal, ok := a.keys.Verify(r.Context(), credential)
+	principal, ok := a.keys.VerifyRequest(r, credential)
 	if !ok {
 		return api.Principal{}, false
 	}

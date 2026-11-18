@@ -235,7 +235,7 @@ func (h *handler) listAPIKeys(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+	writeJSON(w, http.StatusOK, map[string]any{"data": apiKeyResponses(items)})
 }
 
 func (h *handler) revokeAPIKey(w http.ResponseWriter, r *http.Request) {

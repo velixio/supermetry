@@ -252,6 +252,9 @@ func (h *handler) exportSite(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "Forbidden", "the principal cannot read site analytics")
 		return
 	}
+	if !h.requireRecentAuth(w, r, principal) {
+		return
+	}
 	if !h.allowHistoricalIdentity(w) {
 		return
 	}

@@ -33,7 +33,7 @@ func TestPublicAPIKeysRejectEscalation(t *testing.T) {
 		{name: "extra site", body: fmt.Sprintf(`{"name":"bad","scopes":["stats:read"],"site_ids":[10,20],"expires_at":%q}`, expiresAt)},
 		{name: "all sites", body: fmt.Sprintf(`{"name":"bad","scopes":["stats:read"],"expires_at":%q}`, expiresAt)},
 		{name: "longer expiry", body: fmt.Sprintf(`{"name":"bad","scopes":["stats:read"],"site_ids":[10],"expires_at":%q}`, longerExpiry)},
-		{name: "no expiry", body: `{"name":"bad","scopes":["stats:read"],"site_ids":[10]}`},
+		{name: "no expiry", body: `{"name":"bad","scopes":["stats:read"],"site_ids":[10],"never_expires":true}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -71,7 +71,7 @@ func TestPublicAPIKeyLifecycle(t *testing.T) {
 	if err := json.Unmarshal(created.Body.Bytes(), &createBody); err != nil {
 		t.Fatal(err)
 	}
-	if createBody.ID == 0 || !strings.HasPrefix(createBody.Key, "pnl_") {
+	if createBody.ID == 0 || !strings.HasPrefix(createBody.Key, "smkapi_") {
 		t.Fatalf("create response = %+v", createBody)
 	}
 
@@ -91,6 +91,7 @@ func TestPublicAPIKeyLifecycle(t *testing.T) {
 	wantFields := map[string]bool{
 		"id": true, "name": true, "scopes": true, "site_ids": true, "created_at": true,
 		"expires_at": true, "last_used_at": true, "revoked": true,
+		"last_used_country": true, "last_used_client": true, "never_expires": true, "expiring_soon": true,
 	}
 	for _, item := range listBody.Data {
 		if string(item["id"]) == fmt.Sprint(env.foreignKeyID) {

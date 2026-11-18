@@ -74,6 +74,10 @@ func (noopMutations) UpdateSite(context.Context, authz.Principal, int32, sitesvc
 
 func (noopMutations) DeleteSite(context.Context, authz.Principal, int32) error { return nil }
 
+func (noopMutations) RollAPIKey(context.Context, authz.Principal, int64, platformhttp.RollAPIKeyRequest) (platformhttp.RolledAPIKey, error) {
+	return platformhttp.RolledAPIKey{}, nil
+}
+
 func (noopMutations) CreateAPIKey(context.Context, authz.Principal, platformhttp.CreateAPIKeyRequest) (platformhttp.CreatedAPIKey, error) {
 	return platformhttp.CreatedAPIKey{ID: 1, Key: "shown-once"}, nil
 }
@@ -96,7 +100,7 @@ func TestRouteAuthorizationMatrix(t *testing.T) {
 		"key":    {KeyID: 5, OrgID: org1, Role: authz.RoleKey, Scopes: []string{"stats:read"}},
 		"share":  {ShareID: 6, OrgID: org1, Role: authz.RoleShare, SiteIDs: []int32{siteA}},
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: authenticator,
 		Sites: siteRegistry{
 			siteA: {ID: siteA, OrgID: org1, PublicID: "siteaaaaaaaa", TZ: time.UTC},
@@ -195,7 +199,7 @@ func TestAnonymousAuthRouteMatrix(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			platform := platformhttp.New(platformhttp.Deps{Auth: authService, Signup: tt.signup})
+			platform := platformhttp.New(platformhttp.Deps{StepUp: freshSession{}, Auth: authService, Signup: tt.signup})
 			handler := api.NewRouter(api.Deps{Platform: platform})
 			request := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
 			request.Header.Set("Content-Type", "application/json")
@@ -274,7 +278,7 @@ func TestAuthHTTPPasswordLengthBoundary(t *testing.T) {
 			mailer = &mail.Fake{}
 			authService := platformauth.New(data, mailer, box, "https://supermetry.example")
 			path, body, successStatus := tt.prepare(t, ctx, authService, data)
-			handler := platformhttp.New(platformhttp.Deps{Auth: authService, Signup: "open"})
+			handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{}, Auth: authService, Signup: "open"})
 
 			for _, boundary := range []struct {
 				name     string
@@ -337,7 +341,7 @@ func TestSignupCreatesOwnerOrganizationAuditAndSessionCookies(t *testing.T) {
 		t.Fatal(err)
 	}
 	authService := platformauth.New(data, &mail.Fake{}, box, "https://supermetry.example")
-	handler := platformhttp.New(platformhttp.Deps{Auth: authService, Signup: "open"})
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{}, Auth: authService, Signup: "open"})
 
 	request := httptest.NewRequest(http.MethodPost, "/api/private/auth/signup", strings.NewReader(`{"email":"owner@example.test","name":"Owner","password":"pw-123456789","org_name":"Acme"}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -432,7 +436,7 @@ func TestMeReturnsUserMembershipsAndSites(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal},
 		Store:         data,
 		Orgs:          orgs.New(data),
@@ -511,7 +515,7 @@ func TestMutationsWriteAudit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal},
 		Sites:         registry,
 		Mutations:     platformhttp.Services{Sites: sites},
@@ -540,7 +544,7 @@ func TestMutationsWriteAudit(t *testing.T) {
 
 func TestPrivateRequiresCSRF(t *testing.T) {
 	principal := authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal},
 		Sites:         siteRegistry{},
 		Mutations:     noopMutations{},
@@ -564,7 +568,7 @@ func TestPrivateRequiresCSRF(t *testing.T) {
 
 func TestRoutesMountOnAnalyticsRouter(t *testing.T) {
 	principal := authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}
-	platform := platformhttp.New(platformhttp.Deps{
+	platform := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal},
 		Sites: siteRegistry{
 			10: {ID: 10, OrgID: 1, PublicID: "siteaaaaaaaa", TZ: time.UTC},
@@ -595,7 +599,7 @@ func TestRoutesMountOnAnalyticsRouter(t *testing.T) {
 
 func TestShareStatsUsesQueryService(t *testing.T) {
 	principal := authz.Principal{OrgID: 1, ShareID: 9, Role: authz.RoleShare, SiteIDs: []int32{10}}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"share": principal},
 		Sites: siteRegistry{
 			10: {ID: 10, OrgID: 1, PublicID: "siteaaaaaaaa", TZ: time.UTC},
@@ -639,7 +643,7 @@ func TestGoalAndFunnelMutationsWriteAudit(t *testing.T) {
 	if _, err := pool.Exec(ctx, `delete from audit_log`); err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal},
 		Sites:         registry,
 		Store:         data,
