@@ -5105,6 +5105,17 @@ type NotificationTemplateList struct {
 	Variables []string               `json:"variables"`
 }
 
+// ObsIngestHealth defines model for ObsIngestHealth.
+type ObsIngestHealth struct {
+	Days []struct {
+		Day             openapi_types.Date `json:"day"`
+		LogsAccepted    int64              `json:"logs_accepted"`
+		LogsRejected    int64              `json:"logs_rejected"`
+		MetricsAccepted int64              `json:"metrics_accepted"`
+		MetricsRejected int64              `json:"metrics_rejected"`
+	} `json:"days"`
+}
+
 // ObsLog defines model for ObsLog.
 type ObsLog struct {
 	Attributes  map[string]interface{} `json:"attributes"`
@@ -8435,6 +8446,9 @@ type ServerInterface interface {
 	// RetryNotificationDelivery Retry one failed alert delivery
 	// (POST /api/private/sites/{site}/notification-history/{delivery}/retry)
 	RetryNotificationDelivery(w http.ResponseWriter, r *http.Request, site int32, delivery int64)
+	// GetObsIngestHealth Log records and metric points accepted and rejected per UTC day
+	// (GET /api/private/sites/{site}/obs/ingest)
+	GetObsIngestHealth(w http.ResponseWriter, r *http.Request, site int32)
 	// SearchObsLogs Search an app project's logs, newest first
 	// (GET /api/private/sites/{site}/obs/logs)
 	SearchObsLogs(w http.ResponseWriter, r *http.Request, site int32, params SearchObsLogsParams)
@@ -15788,6 +15802,32 @@ func (siw *ServerInterfaceWrapper) RetryNotificationDelivery(w http.ResponseWrit
 	handler.ServeHTTP(w, r)
 }
 
+// GetObsIngestHealth operation middleware
+func (siw *ServerInterfaceWrapper) GetObsIngestHealth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetObsIngestHealth(w, r, site)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SearchObsLogs operation middleware
 func (siw *ServerInterfaceWrapper) SearchObsLogs(w http.ResponseWriter, r *http.Request) {
 
@@ -19904,6 +19944,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/logs", wrapper.SearchObsLogs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/ingest", wrapper.GetObsIngestHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/obs/traces/{trace_id}/logs", wrapper.ListObsTraceLogs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/issues", wrapper.ListAppIssues)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/issues/bulk", wrapper.BulkUpdateAppIssues)

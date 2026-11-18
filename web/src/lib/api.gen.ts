@@ -2290,6 +2290,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/obs/ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * Log records and metric points accepted and rejected per UTC day
+         * @description The last 7 UTC days including today, oldest first; days without traffic are zero. Counts flush about once a minute.
+         */
+        get: operations["getObsIngestHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/obs/traces/{trace_id}/logs": {
         parameters: {
             query?: never;
@@ -7801,6 +7823,20 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        ObsIngestHealth: {
+            days: {
+                /** Format: date */
+                day: string;
+                /** Format: int64 */
+                logs_accepted: number;
+                /** Format: int64 */
+                logs_rejected: number;
+                /** Format: int64 */
+                metrics_accepted: number;
+                /** Format: int64 */
+                metrics_rejected: number;
+            }[];
+        };
         ObsLogPage: {
             data: components["schemas"]["ObsLog"][];
             next_cursor: string | null;
@@ -12736,6 +12772,30 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getObsIngestHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The daily counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObsIngestHealth"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };

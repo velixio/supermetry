@@ -148,3 +148,58 @@ func (h *handler) traceObsLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": rows})
 }
+
+type obsIngestDay struct {
+	Day             string `json:"day"`
+	LogsAccepted    int64  `json:"logs_accepted"`
+	LogsRejected    int64  `json:"logs_rejected"`
+	MetricsAccepted int64  `json:"metrics_accepted"`
+	MetricsRejected int64  `json:"metrics_rejected"`
+}
+
+// obsIngestHealth answers the last 7 UTC days of accepted and rejected log
+// records and metric points, oldest first, with zero rows for quiet days.
+func (h *handler) obsIngestHealth(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.obsLogSite(w, r)
+	if !ok {
+		return
+	}
+	today := h.deps.Now().UTC().Truncate(24 * time.Hour)
+	days := make([]obsIngestDay, 7)
+	index := map[string]int{}
+	for i := range days {
+		d := today.AddDate(0, 0, i-6).Format("2006-01-02")
+		days[i].Day = d
+		index[d] = i
+	}
+	rows, err := h.deps.Store.Pool.Query(r.Context(), `select to_char(day, 'YYYY-MM-DD'), class, accepted, rejected
+		from obs_ingest_daily where site_id = $1 and day >= $2::date and day <= $3::date`,
+		site.ID, days[0].Day, days[6].Day)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var day, class string
+		var accepted, rejected int64
+		if err := rows.Scan(&day, &class, &accepted, &rejected); err != nil {
+			serviceError(w, err)
+			return
+		}
+		i, ok := index[day]
+		if !ok {
+			continue
+		}
+		if class == "logs" {
+			days[i].LogsAccepted, days[i].LogsRejected = accepted, rejected
+		} else {
+			days[i].MetricsAccepted, days[i].MetricsRejected = accepted, rejected
+		}
+	}
+	if err := rows.Err(); err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"days": days})
+}

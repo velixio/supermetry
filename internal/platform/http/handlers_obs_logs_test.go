@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"supermetry/internal/db"
 	"supermetry/internal/platform/authz"
@@ -175,5 +176,49 @@ func TestObsLogRoutesRejectWebSites(t *testing.T) {
 	}
 	if code, _, _ := f.obsGet(t, "owner", fmt.Sprintf("/api/private/sites/%d/obs/logs", f.siteID)); code != http.StatusNotFound {
 		t.Fatalf("web site = %d", code)
+	}
+}
+
+func TestObsIngestHealthSevenDays(t *testing.T) {
+	f := newObsLogFixture(t)
+	ctx := context.Background()
+	today := f.now.UTC().Truncate(24 * time.Hour)
+	day := func(offset int) string { return today.AddDate(0, 0, offset).Format("2006-01-02") }
+	for _, r := range []struct {
+		offset             int
+		class              string
+		accepted, rejected int64
+	}{
+		{0, "logs", 120, 5}, {0, "metrics", 900, 0},
+		{-3, "logs", 40, 0},
+		{-6, "metrics", 70, 7},
+		{-7, "logs", 999, 999}, // outside the window
+	} {
+		if _, err := f.pool.Exec(ctx, `insert into obs_ingest_daily(site_id, day, class, accepted, rejected, bytes) values($1,$2::date,$3,$4,$5,0)`,
+			f.siteID, day(r.offset), r.class, r.accepted, r.rejected); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := fmt.Sprintf("/api/private/sites/%d/obs/ingest", f.siteID)
+	for _, actor := range []string{"owner", "viewer"} {
+		code, body, raw := f.obsGet(t, actor, path)
+		days, _ := body["days"].([]any)
+		if code != http.StatusOK || len(days) != 7 {
+			t.Fatalf("%s: %d %s", actor, code, raw)
+		}
+		want := map[int][4]float64{6: {120, 5, 900, 0}, 3: {40, 0, 0, 0}, 0: {0, 0, 70, 7}}
+		for i, d := range days {
+			row := d.(map[string]any)
+			if row["day"] != day(i-6) {
+				t.Fatalf("%s day %d = %v, want %s", actor, i, row["day"], day(i-6))
+			}
+			got := [4]float64{row["logs_accepted"].(float64), row["logs_rejected"].(float64), row["metrics_accepted"].(float64), row["metrics_rejected"].(float64)}
+			if got != want[i] {
+				t.Fatalf("%s %s = %v, want %v", actor, row["day"], got, want[i])
+			}
+		}
+	}
+	if code, _, _ := f.obsGet(t, "key-noscope", path); code != http.StatusForbidden {
+		t.Fatalf("no scope = %d", code)
 	}
 }
