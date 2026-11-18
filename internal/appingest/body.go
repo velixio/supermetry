@@ -19,6 +19,7 @@ type Body struct {
 	Release       string                    `json:"release,omitempty"`
 	Symbolication string                    `json:"symbolication,omitempty"` // "", "ok", "missing" or "partial"
 	DebugImages   []DebugImage              `json:"-"`                       // in memory only, for symbolication
+	Minidump      []byte                    `json:"-"`                       // raw crash dump, in memory only until symbolication; never stored
 	MissingDebug  []MissingDebug            `json:"missing_debug,omitempty"` // images no uploaded file covered, for the event banner
 	Level         string                    `json:"level,omitempty"`
 	Platform      string                    `json:"platform,omitempty"`
@@ -73,6 +74,9 @@ type DebugImage struct {
 	ImageSize uint64
 	// ImageVMAddr is the image's link-time base address (Mach-O __TEXT vmaddr).
 	ImageVMAddr uint64
+	// Minidump marks an image taken from a minidump: its debug id is a
+	// Breakpad one, so .sym caches are tried first.
+	Minidump bool
 }
 
 // Exception is one entry of an exception chain, oldest first.
@@ -103,6 +107,7 @@ type Frame struct {
 	Colno           int      `json:"colno,omitempty"`
 	InApp           bool     `json:"in_app,omitempty"`
 	InstructionAddr string   `json:"instruction_addr,omitempty"`
+	Trust           string   `json:"trust,omitempty"` // how a minidump frame was found: context, cfi, fp or scan
 	PreContext      []string `json:"pre_context,omitempty"`
 	ContextLine     string   `json:"context_line,omitempty"`
 	PostContext     []string `json:"post_context,omitempty"`

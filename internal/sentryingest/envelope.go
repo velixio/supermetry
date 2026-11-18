@@ -23,6 +23,9 @@ const (
 	// carries no key in a header or the query.
 	MaxUnauthenticatedBytes = 2 << 20
 	MaxAttachment           = 1 << 20
+	// MaxMinidump caps a minidump after decompression, whether it arrives as
+	// an envelope attachment or on /minidump/.
+	MaxMinidump = 16 << 20
 )
 
 // Errors a caller maps to HTTP statuses.

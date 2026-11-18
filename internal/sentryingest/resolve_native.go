@@ -59,6 +59,8 @@ type nativeImage struct {
 	im    appingest.DebugImage
 	kind  string
 	id    string
+	kinds []string // cache kinds to try, in order
+	miss  string   // kind reported to the missing-symbols recorder
 	tried bool
 	cache *symcache.Cache
 	file  *os.File
@@ -97,8 +99,16 @@ func nativeInApp(codeFile string) bool {
 func (nativeResolver) Resolve(ctx context.Context, ev appingest.Event, body *appingest.Body, s *Symbolicator) (attempted, resolved int) {
 	var imgs []*nativeImage
 	for _, im := range body.DebugImages {
-		if k := nativeKind(im.Type); k != "" {
-			imgs = append(imgs, &nativeImage{im: im, kind: k, id: debugIDOf(im)})
+		if im.Minidump {
+			// Minidump images carry Breakpad ids: .sym caches first, then the
+			// native debug files of the same id.
+			ni := &nativeImage{im: im, kind: nativeKind(im.Type), id: debugIDOf(im), kinds: []string{"breakpad"}, miss: "breakpad"}
+			if ni.kind != "" {
+				ni.kinds = append(ni.kinds, ni.kind)
+			}
+			imgs = append(imgs, ni)
+		} else if k := nativeKind(im.Type); k != "" {
+			imgs = append(imgs, &nativeImage{im: im, kind: k, id: debugIDOf(im), kinds: []string{k}, miss: k})
 		}
 	}
 	defer func() {
@@ -131,10 +141,19 @@ func (nativeResolver) Resolve(ctx context.Context, ev appingest.Event, body *app
 		if ni.id == "" {
 			return nil
 		}
-		key, found := s.cacheFor(ctx, body.SiteID, ni.kind, ni.id)
+		var key string
+		var found bool
+		for _, k := range ni.kinds {
+			if key, found = s.cacheFor(ctx, body.SiteID, k, ni.id); found {
+				break
+			}
+		}
+		if !found && ni.im.Minidump {
+			key, found = s.remoteCache(ctx, body.SiteID, ni.im)
+		}
 		if !found {
 			if s.cfg.Misses != nil {
-				s.cfg.Misses.Missing(body.SiteID, ni.kind, ni.im, time.Now())
+				s.cfg.Misses.Missing(body.SiteID, ni.miss, ni.im, time.Now())
 			}
 			return nil
 		}

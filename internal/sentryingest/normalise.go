@@ -71,7 +71,11 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 	reqRaw := asMap(m["request"])
 	body.Request = ScrubRequest(reqRaw)
 	body.Breadcrumbs = scrubBreadcrumbs(asList(m["breadcrumbs"]))
-	body.Tags = limitTags(tagPairs(m["tags"]), maxBodyTags)
+	tags := tagPairs(m["tags"])
+	if p := processTag(tags, body.Contexts); p != "" {
+		tags["process"] = p
+	}
+	body.Tags = limitTags(tags, maxBodyTags)
 	ev.Tags = limitTags(body.Tags, maxEventTags)
 
 	level := strings.ToLower(str(m["level"]))
@@ -696,4 +700,47 @@ func parseAddr(v any) uint64 {
 		return n
 	}
 	return 0
+}
+
+// processTag normalises the process an Electron or Crashpad event came from
+// into main, renderer, gpu, utility or other; "" when the event names none.
+// One Electron app reports all its processes to one project, and this tag
+// tells them apart.
+func processTag(tags map[string]string, contexts map[string]map[string]any) string {
+	raw, fromTag := "", ""
+	for _, k := range []string{"process", "event.process", "process_type"} {
+		if v := strings.TrimSpace(tags[k]); v != "" {
+			raw, fromTag = v, k
+			break
+		}
+	}
+	if raw == "" {
+		for _, c := range []string{"electron", "crashpad"} {
+			if v := strings.TrimSpace(str(contexts[c]["process_type"])); v != "" {
+				raw = v
+				break
+			}
+			if v := strings.TrimSpace(str(contexts[c]["crashpad.process_type"])); v != "" {
+				raw = v
+				break
+			}
+		}
+	}
+	if raw == "" {
+		return ""
+	}
+	switch strings.ToLower(raw) {
+	case "main", "browser":
+		return "main"
+	case "renderer":
+		return "renderer"
+	case "gpu", "gpu-process":
+		return "gpu"
+	case "utility":
+		return "utility"
+	}
+	if fromTag == "process" {
+		return "" // an app's own process tag keeps its own values
+	}
+	return "other"
 }

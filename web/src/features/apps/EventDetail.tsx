@@ -26,6 +26,7 @@ function Frame({ frame }: { frame: BodyFrame }) {
         <span className={inApp ? 'font-semibold text-foreground' : ''}>{frameLabel(frame)}</span>
         {frame.function ? <span>in {frame.function}</span> : null}
         {inApp ? <Badge variant="secondary">in app</Badge> : null}
+        {frame.trust && frame.trust !== 'context' && frame.trust !== 'cfi' ? <Badge variant="outline" title="Found by walking the stack without exact unwind data; may be inaccurate">{frame.trust === 'fp' ? 'frame pointer' : 'stack scan'}</Badge> : null}
       </div>
       {context ? (
         <pre className="mt-1 overflow-auto whitespace-pre text-foreground"><code>{[...(frame.pre_context ?? []), context, ...(frame.post_context ?? [])].map((line, i) => (
