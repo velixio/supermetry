@@ -39,6 +39,8 @@ type RuleEvaluator struct {
 	dedup AppDedup
 	sites sites.Registry
 	now   func() time.Time
+
+	monitors MonitorSource // cron monitor crossings (WithMonitors)
 }
 
 // NewRuleEvaluator builds the evaluator of the alert-rules job. It reuses the
@@ -190,8 +192,8 @@ func (e *RuleEvaluator) evalMetric(context.Context, Alert, sites.Site, time.Time
 	return nil, nil
 }
 
-func (e *RuleEvaluator) evalMonitor(context.Context, Alert, sites.Site, time.Time) ([]Candidate, error) {
-	return nil, nil
+func (e *RuleEvaluator) evalMonitor(ctx context.Context, alert Alert, site sites.Site, now time.Time) ([]Candidate, error) {
+	return e.monitorCandidates(ctx, alert, site, now)
 }
 
 // fireKeyed sends the candidates whose key has not fired yet, at most
