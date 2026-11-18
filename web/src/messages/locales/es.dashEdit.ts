@@ -70,6 +70,7 @@ const messages: MessageTree = {
     funnel: 'Embudo',
     retention: 'Retención',
     web_vitals: 'Web Vitals',
+    obs_metric: 'Métrica personalizada',
   },
   kindNotes: {
     kpi_strip: 'Una fila de hasta seis cifras destacadas.',
@@ -81,6 +82,7 @@ const messages: MessageTree = {
     funnel: 'Abandono paso a paso de un embudo guardado.',
     retention: 'Cuántos visitantes vuelven.',
     web_vitals: 'Carga, interacción y estabilidad del diseño.',
+    obs_metric: 'Una métrica personalizada de esta app a lo largo del tiempo, agrupada por un atributo si quieres.',
   },
   titleLabel: 'Título (opcional)',
   titleHint: 'Déjalo vacío para usar el título estándar.',
@@ -157,6 +159,7 @@ const messages: MessageTree = {
     dimension: (name: string) => `${name}: elige por qué agrupar.`,
     funnel: (name: string) => `${name}: elige un embudo.`,
     limit: (name: string) => `${name}: las filas deben ser un número entero de 1 a 50.`,
+    metricName: (name: string) => `${name}: elige una métrica.`,
   },
 }
 

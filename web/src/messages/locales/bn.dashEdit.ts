@@ -61,6 +61,7 @@ const messages: MessageTree = {
   kinds: {
     kpi_strip: 'মূল পরিসংখ্যান', time_series: 'প্রবণতার চার্ট', breakdown: 'বিভাজন তালিকা', map: 'অবস্থান (মানচিত্র)',
     weekly_rhythm: 'সাপ্তাহিক ছন্দ', goals: 'লক্ষ্য', funnel: 'ফানেল', retention: 'ধরে রাখা', web_vitals: 'Web Vitals',
+    obs_metric: 'কাস্টম মেট্রিক',
   },
   kindNotes: {
     kpi_strip: 'সর্বোচ্চ ছয়টি প্রধান সংখ্যার একটি সারি।',
@@ -72,6 +73,7 @@ const messages: MessageTree = {
     funnel: 'সংরক্ষিত ফানেলে ধাপে ধাপে ঝরে পড়া।',
     retention: 'কতজন দর্শনার্থী ফিরে আসেন।',
     web_vitals: 'লোডিং, ইন্টারঅ্যাকশন ও লেআউটের স্থিতিশীলতা।',
+    obs_metric: 'এই অ্যাপের একটি কাস্টম মেট্রিক সময়ের সাথে, চাইলে একটি অ্যাট্রিবিউট অনুযায়ী গ্রুপ করা।',
   },
   titleLabel: 'শিরোনাম (ঐচ্ছিক)',
   titleHint: 'সাধারণ শিরোনাম ব্যবহার করতে ফাঁকা রাখুন।',
@@ -144,6 +146,7 @@ const messages: MessageTree = {
     dimension: (name: string) => `${name}: কী অনুযায়ী গ্রুপ হবে তা বেছে নিন।`,
     funnel: (name: string) => `${name}: একটি ফানেল বেছে নিন।`,
     limit: (name: string) => `${name}: সারির সংখ্যা 1 থেকে 50-এর মধ্যে পূর্ণসংখ্যা হতে হবে।`,
+    metricName: (name: string) => `${name}: একটি মেট্রিক বেছে নিন।`,
   },
 }
 
