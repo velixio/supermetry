@@ -2367,6 +2367,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/sites/{site}/app/monitors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The cron monitors of an app project
+         * @description Monitors are created by the first Sentry `check_in` that carries a `monitor_config` (a crontab or interval
+         *     schedule), keyed by slug and environment. `status` is the monitor's state after the failure and recovery
+         *     thresholds; `next_expected_at` is the next slot a check-in is due.
+         */
+        get: operations["listAppMonitors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/monitors/{monitor}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a cron monitor and its check-ins
+         * @description Owner, admin or editor only. A later check-in that carries a `monitor_config` creates the monitor again.
+         */
+        delete: operations["deleteAppMonitor"];
+        options?: never;
+        head?: never;
+        /**
+         * Disable, enable or tune a cron monitor
+         * @description Owner, admin or editor only. Re-enabling restarts the monitor as ok with the next slot computed from now.
+         */
+        patch: operations["updateAppMonitor"];
+        trace?: never;
+    };
+    "/api/private/sites/{site}/app/monitors/{monitor}/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        /** The newest check-ins of a cron monitor */
+        get: operations["listAppMonitorCheckins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/sites/{site}/app/events/{event_id}/attachments/{idx}": {
         parameters: {
             query?: never;
@@ -3621,6 +3692,50 @@ export interface components {
             span_retention_days?: number;
             /** @description The server-wide localhost default (SUPERMETRY_SENTRY_FILTER_LOCALHOST); ignored on update. */
             readonly filter_localhost_default?: boolean;
+        };
+        AppMonitor: {
+            /** Format: int64 */
+            id: number;
+            slug: string;
+            environment: string;
+            /** @enum {string} */
+            schedule_type: "crontab" | "interval";
+            /** @description A 5-field cron expression, or "N unit" for an interval (unit: minute, hour, day, week, month, year). */
+            schedule: string;
+            timezone: string;
+            checkin_margin_minutes: number;
+            max_runtime_minutes: number;
+            failure_threshold: number;
+            recovery_threshold: number;
+            /** @enum {string} */
+            status: "ok" | "missed" | "error" | "timeout" | "disabled";
+            /** Format: date-time */
+            next_expected_at: string | null;
+            /** Format: date-time */
+            last_checkin_at: string | null;
+        };
+        AppMonitorList: {
+            monitors: components["schemas"]["AppMonitor"][];
+        };
+        AppMonitorPatch: {
+            disabled?: boolean;
+            checkin_margin_minutes?: number;
+            max_runtime_minutes?: number;
+        };
+        AppMonitorCheckin: {
+            checkin_id: string;
+            /** Format: date-time */
+            timestamp: string;
+            /** @enum {string} */
+            status: "in_progress" | "ok" | "error" | "missed" | "timeout";
+            /** Format: date-time */
+            expected_at: string | null;
+            /** Format: int64 */
+            duration_ms: number | null;
+            release: string;
+        };
+        AppMonitorCheckins: {
+            checkins: components["schemas"]["AppMonitorCheckin"][];
         };
         AppRules: {
             ownership: {
@@ -11463,6 +11578,111 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    listAppMonitors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Monitors */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppMonitorList"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAppMonitor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppMonitor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppMonitorPatch"];
+            };
+        };
+        responses: {
+            /** @description The monitor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppMonitor"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAppMonitorCheckins: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                site: number;
+                monitor: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Check-ins */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppMonitorCheckins"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getAppEventAttachment: {
