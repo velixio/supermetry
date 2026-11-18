@@ -134,3 +134,34 @@ func FuzzParseSpanV2(f *testing.F) {
 		}
 	})
 }
+
+// The names below come from a real @sentry/browser 11.13.0 pageload and a
+// @sentry/node 11.13.0 route span: the SDK marks the naming source in
+// `sentry.segment.name.source` (and `sentry.source`), and a pageload without a
+// router is just called "Pageload" with the page in `url.path`.
+func TestParseSpanV2PageloadNamedAfterURLPath(t *testing.T) {
+	out, _ := parseV2(t, v2Container(
+		v2Item(txRoot, "", true, "Pageload", 0, 0.6, v2Attr("sentry.op", "pageload", "sentry.segment.name", "Pageload", "sentry.segment.name.source", "url", "url.path", "/users/1234/orders", "url.full", "http://x.example.com/users/1234/orders?token=abc")),
+	))
+	if len(out) != 1 || out[0].Name != "/users/*/orders" {
+		t.Fatalf("pageload segment = %+v, want the parameterised url path", out)
+	}
+}
+
+func TestParseSpanV2URLSourceIsParameterised(t *testing.T) {
+	out, _ := parseV2(t, v2Container(
+		v2Item(txRoot, "", true, "/orders/9f8b7c6d5e4f3a2b", 0, 0.1, v2Attr("sentry.op", "pageload", "sentry.segment.name.source", "url")),
+	))
+	if len(out) != 1 || out[0].Name != "/orders/*" {
+		t.Fatalf("url-source name = %+v", out)
+	}
+}
+
+func TestParseSpanV2RouteNameKept(t *testing.T) {
+	out, _ := parseV2(t, v2Container(
+		v2Item(txRoot, "", true, "GET /users/:id", 0, 0.1, v2Attr("sentry.op", "http.server", "sentry.segment.name.source", "custom", "sentry.source", "route", "url.path", "/users/42")),
+	))
+	if len(out) != 1 || out[0].Name != "GET /users/:id" {
+		t.Fatalf("route name = %+v", out)
+	}
+}
