@@ -497,7 +497,7 @@ func (h *Handler) process(site sites.Site, key sites.DSNKey, env Envelope, csp [
 				out.eventID = ev.ID
 			}
 			applyRow(&ev, body.Row)
-			if h.symb != nil && needsSymbolication(body) {
+			if h.symb != nil && h.symb.wants(body) {
 				// The queued event is accepted later, so answer an exhausted
 				// budget now: the sender must see 429, not a silent 200.
 				if res := h.intake.Admit(site, budgetKey, now); res.Reason != "" {
