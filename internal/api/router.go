@@ -28,6 +28,7 @@ import (
 	"supermetry/internal/dropstats"
 	"supermetry/internal/ingest"
 	"supermetry/internal/links"
+	"supermetry/internal/obslogs"
 	"supermetry/internal/opencounters"
 	"supermetry/internal/privacy"
 	"supermetry/internal/realtime"
@@ -97,6 +98,7 @@ type Deps struct {
 	PrivateAuth         Authenticator
 	AppQuery            *appquery.Querier  // App Health reads for the MCP tools; nil disables them
 	AppIssues           *appissues.Service // issue timeline and impact for the MCP tools; nil disables them
+	AppLogs             *obslogs.Reader    // log search for the MCP tools; nil disables them
 	Sites               sites.Registry     // resolves site ownership for every site-scoped request
 	UI                  http.Handler       // the embedded dashboard; serves every GET that no API route claims
 	RateLimiter         ingest.RateLimiter
@@ -167,6 +169,9 @@ func NewRouter(deps Deps) http.Handler {
 	}
 	if deps.AppIssues != nil {
 		mcpDeps.AppIssues = deps.AppIssues
+	}
+	if deps.AppLogs != nil {
+		mcpDeps.AppLogs = deps.AppLogs
 	}
 	mcp := NewMCPHandler(mcpDeps)
 	mux.Handle("POST "+publicPrefix+"/mcp", authenticateRateLimited(deps.PublicAuth, deps.Sites, deps.RateLimiter, apiLimiter, deps.Config.TrustedProxies, rateLimitNow, true, mcp))
