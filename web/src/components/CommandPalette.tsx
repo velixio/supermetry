@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { Building2Icon, CircleHelpIcon, FileTextIcon, Globe2Icon, LogOutIcon, SunMoonIcon } from 'lucide-react'
+import { Building2Icon, CircleHelpIcon, FileTextIcon, Globe2Icon, InfoIcon, LogOutIcon, PlusIcon, SettingsIcon, SunMoonIcon } from 'lucide-react'
 
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -10,6 +10,7 @@ import { paletteGroups, type PaletteAction, type PaletteCommand } from './palett
 const actionIcons = {
   theme: SunMoonIcon,
   help: CircleHelpIcon,
+  about: InfoIcon,
   logout: LogOutIcon,
 } satisfies Record<PaletteAction, unknown>
 
@@ -18,6 +19,8 @@ function CommandIcon({ command }: { command: PaletteCommand }) {
     const Icon = actionIcons[command.action]
     return <Icon aria-hidden="true" />
   }
+  if (command.group === 'settings') return <SettingsIcon aria-hidden="true" />
+  if (command.kind === 'navigate' && command.id.startsWith('action:')) return <PlusIcon aria-hidden="true" />
   if (command.group === 'sites') return <Globe2Icon aria-hidden="true" />
   if (command.group === 'organizations') return <Building2Icon aria-hidden="true" />
   return <FileTextIcon aria-hidden="true" />

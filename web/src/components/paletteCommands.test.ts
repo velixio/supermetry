@@ -4,7 +4,7 @@ import type { Me, Membership, Site } from '@/lib/me'
 import { defaultSearch, stringifySearch } from '@/lib/search'
 
 import { anonymousRouteRestricted } from './AnalyticsPrivacyBoundary'
-import { paletteCommands, type PaletteCommand } from './paletteCommands'
+import { paletteCommands, settingsCommandsFromRoutes, withRecent, type PaletteCommand } from './paletteCommands'
 import { orgSwitchHref, siteSwitchHref } from '@/lib/switchTarget'
 
 const docs: Site = { id: 7, name: 'Docs', slug: 'docs', public_id: 'docs-public', tracking_policy: { instance_mode: 'identified', effective_mode: 'anonymous', configured_profiles_enabled: false, restrictions: [] } }
@@ -100,10 +100,56 @@ describe('paletteCommands', () => {
   })
 
   it('offers only existing actions, labels theme for the current theme, and keeps ids unique', () => {
-    expect(labels(run(), 'actions')).toEqual(['Use dark theme', 'Show keyboard shortcuts', 'Log out'])
-    expect(labels(run({ theme: 'dark' }), 'actions')[0]).toBe('Use light theme')
+    expect(labels(run(), 'actions')).toEqual([
+      'Create API key', 'Invite member', 'Add site', 'Change language', 'Switch theme', 'Show keyboard shortcuts', 'About Supermetry', 'Log out',
+    ])
     const ids = run().map((command) => command.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+describe('palette actions and settings', () => {
+  it('wires the create actions to the settings pages and hides them from viewers', () => {
+    const commands = run()
+    expect(hrefOf(commands, 'Create API key')).toBe('/app/acme/settings/api-keys?create=1')
+    expect(hrefOf(commands, 'Invite member')).toBe('/app/acme/settings/invites?invite=1')
+    expect(hrefOf(commands, 'Add site')).toBe('/app/acme/sites/new')
+    expect(hrefOf(commands, 'Change language')).toBe('/app/account/profile')
+    const viewer = labels(run({ membership: { ...acme, role: 'viewer' } }), 'actions')
+    for (const hidden of ['Create API key', 'Invite member', 'Add site']) expect(viewer).not.toContain(hidden)
+  })
+
+  it('derives settings destinations from the route tree, so a new settings route appears', () => {
+    const routePaths = [
+      '/app/$org/settings', '/app/$org/settings/', '/app/$org/settings/members', '/app/$org/settings/api-keys',
+      '/app/$org/settings/developers/webhooks', '/app/$org/settings/tokens/$id', '/app/$org/$site/settings/tracking',
+      '/app/account/security', '/app/account/organizations/new', '/app/admin/security', '/app/$org/$site/funnels',
+    ]
+    const commands = run({ routePaths })
+    expect(labels(commands, 'settings')).toEqual([
+      'Organization settings: Members', 'Organization settings: API keys', 'Organization settings: Developers · Webhooks',
+      'Site settings: Tracking', 'Account: Security',
+    ])
+    expect(hrefOf(commands, 'Organization settings: Developers · Webhooks')).toBe('/app/acme/settings/developers/webhooks')
+    expect(hrefOf(commands, 'Site settings: Tracking')).toBe('/app/acme/docs/settings/tracking')
+    // Instance administration only for instance admins.
+    const admin = run({ routePaths, me: { ...me, user: { ...me.user, instance_admin: true } } })
+    expect(labels(admin, 'settings')).toContain('Admin: Security')
+    expect(labels(commands, 'settings')).not.toContain('Admin: Security')
+    // Viewers cannot open site settings.
+    expect(labels(run({ routePaths, membership: { ...acme, role: 'viewer' } }), 'settings')).not.toContain('Site settings: Tracking')
+  })
+
+  it('humanises a segment without a known label', () => {
+    const [command] = settingsCommandsFromRoutes(['/app/$org/settings/data-retention'], { org: 'acme', canSite: false, instanceAdmin: false })
+    expect(command.label).toBe('Organization settings: Data retention')
+  })
+
+  it('puts recent commands first and keeps ids unique', () => {
+    const commands = run({ recent: ['action:theme', 'page:/events', 'page:gone'] })
+    expect(commands.slice(0, 2).map((command) => [command.id, command.group])).toEqual([['action:theme', 'recent'], ['page:/events', 'recent']])
+    expect(new Set(commands.map((command) => command.id)).size).toBe(commands.length)
+    expect(withRecent(commands, []).length).toBe(commands.length)
   })
 })
 
