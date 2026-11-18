@@ -8,6 +8,7 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ### Added
 
+- App releases have a page of their own: adoption and crash-free sessions per day, deploys, new and regressed issues and commit count, plus a side-by-side comparison of two releases. Deploys show as markers on the overview chart. The `sentry-cli releases` and `deploys` commands (including `set-commits --auto` from a local checkout) work against Supermetry, with a live acceptance run in `make sdk-compat-releases`. See [Releases and deploys](docs/guide/apps.md#releases-and-deploys).
 - App releases show adoption, crash-free sessions and users, and session counts, computed from real session lifecycles; the release view adds a daily crash-free sessions chart, the healthy, errored, abnormal and crashed split, and handled versus unhandled errors. Releases without sessions are marked as computed from error events.
 - App issues can be merged into one another and split apart again by fingerprint. Events, daily and hourly counts move with the merge, new events with a merged fingerprint land on the kept issue, and unmerging recomputes both issues from their events.
 - App event detail now shows attachments sent by Sentry SDKs: screenshots as thumbnails, text and JSON files in a viewer, each with a download. Text is scrubbed of personal data; files are capped at 1 MiB (5 MiB per event) and kept for 30 days. Downloads are never rendered as pages.
