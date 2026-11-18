@@ -119,14 +119,15 @@ func (q *Querier) Issues(ctx context.Context, scope Scope, in IssueQuery) (Issue
 	args = append(args, searchArgs...)
 	rows, err := q.pool.Query(ctx, `
 with agg as (
-  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users
+  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users,
+         max(exit_reason) filter (where exit_reason in ('oom', 'watchdog_termination')) as term
   from app_events where `+eventWhere+` and issue_id is not null and kind <> 'session'
   group by issue_id
 )
-select i.id, i.title, i.kind, i.error_type, i.status, i.first_seen, i.last_seen, i.first_release, i.last_release,
+select i.id, i.title, `+displayKind+`, i.error_type, i.status, i.first_seen, i.last_seen, i.first_release, i.last_release,
        a.events, a.users, i.assignee_user_id, coalesce(u.name, ''), i.priority, count(*) over ()
 from app_issues i join agg a on a.issue_id = i.id left join users u on u.id = i.assignee_user_id
-where i.site_id = $1 and i.merged_into is null and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8)
+where i.site_id = $1 and i.merged_into is null and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8 or `+termKind+` = $8)
   and ($9 = '' or i.title ilike $10 escape '\' or i.error_type ilike $10 escape '\')
   and (`+searchSQL+`)
 order by `+order+`
@@ -523,12 +524,13 @@ func (q *Querier) MatchIssues(ctx context.Context, scope Scope, in IssueQuery, m
 	args = append(args, searchArgs...)
 	rows, err := q.pool.Query(ctx, `
 with agg as (
-  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users
+  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users,
+         max(exit_reason) filter (where exit_reason in ('oom', 'watchdog_termination')) as term
   from app_events where `+eventWhere+` and issue_id is not null and kind <> 'session'
   group by issue_id
 )
 select i.id from app_issues i join agg a on a.issue_id = i.id
-where i.site_id = $1 and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8)
+where i.site_id = $1 and ($7 = '' or i.status = $7) and ($8 = '' or i.kind = $8 or `+termKind+` = $8)
   and ($9 = '' or i.title ilike $10 escape '\' or i.error_type ilike $10 escape '\')
   and (`+searchSQL+`)
 order by i.id
@@ -575,7 +577,8 @@ func (q *Querier) SearchEvents(ctx context.Context, scope Scope, in IssueQuery, 
 	args = append(args, searchArgs...)
 	rows, err := q.pool.Query(ctx, `
 with agg as (
-  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users
+  select issue_id, sum(occurrences) as events, count(distinct install_hash) as users,
+         max(exit_reason) filter (where exit_reason in ('oom', 'watchdog_termination')) as term
   from app_events where `+eventWhere+` and issue_id is not null and kind <> 'session'
   group by issue_id
 ), hit as (
@@ -598,3 +601,13 @@ order by ts desc, event_id limit $7`, args...)
 	}
 	return out, rows.Err()
 }
+
+// termKind is the issue kind a termination is exposed as: an out-of-memory or
+// watchdog kill is a crash issue whose events carry an exit reason (2c-D1).
+// It reads the agg CTE of the issue queries.
+const termKind = `(case a.term when 'oom' then 'oom' when 'watchdog_termination' then 'watchdog' end)`
+
+// displayKind is the kind column of the issue list: the termination kind when
+// there is one, else the issue's own kind. A crash filter still matches
+// terminations, since they are crashes.
+const displayKind = `coalesce(` + termKind + `, i.kind)`
