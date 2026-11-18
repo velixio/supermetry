@@ -73,6 +73,7 @@ import { Route as AppOrgSiteIssuesIssueRouteImport } from './routes/app.$org.$si
 import { Route as AppOrgSiteLinksIndexRouteImport } from './routes/app.$org.$site.links.index'
 import { Route as AppOrgSiteLinksIdRouteImport } from './routes/app.$org.$site.links.$id'
 import { Route as AppOrgSiteLinksPixelRouteImport } from './routes/app.$org.$site.links.pixel'
+import { Route as AppOrgSiteObsLogsRouteImport } from './routes/app.$org.$site.obs.logs'
 import { Route as AppOrgSiteObsMetricsRouteImport } from './routes/app.$org.$site.obs.metrics'
 import { Route as AppOrgSitePerformanceIndexRouteImport } from './routes/app.$org.$site.performance.index'
 import { Route as AppOrgSitePerformanceTransactionRouteImport } from './routes/app.$org.$site.performance.$transaction'
@@ -425,6 +426,11 @@ const AppOrgSiteLinksPixelRoute = AppOrgSiteLinksPixelRouteImport.update({
   path: '/$site/links/pixel',
   getParentRoute: () => AppOrgRoute,
 } as any)
+const AppOrgSiteObsLogsRoute = AppOrgSiteObsLogsRouteImport.update({
+  id: '/$site/obs/logs',
+  path: '/$site/obs/logs',
+  getParentRoute: () => AppOrgRoute,
+} as any)
 const AppOrgSiteObsMetricsRoute = AppOrgSiteObsMetricsRouteImport.update({
   id: '/$site/obs/metrics',
   path: '/$site/obs/metrics',
@@ -647,6 +653,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/obs/logs': typeof AppOrgSiteObsLogsRoute
   '/app/$org/$site/obs/metrics': typeof AppOrgSiteObsMetricsRoute
   '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
@@ -738,6 +745,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/obs/logs': typeof AppOrgSiteObsLogsRoute
   '/app/$org/$site/obs/metrics': typeof AppOrgSiteObsMetricsRoute
   '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
@@ -833,6 +841,7 @@ export interface FileRoutesById {
   '/app/$org/$site/issues/$issue': typeof AppOrgSiteIssuesIssueRoute
   '/app/$org/$site/links/$id': typeof AppOrgSiteLinksIdRoute
   '/app/$org/$site/links/pixel': typeof AppOrgSiteLinksPixelRoute
+  '/app/$org/$site/obs/logs': typeof AppOrgSiteObsLogsRoute
   '/app/$org/$site/obs/metrics': typeof AppOrgSiteObsMetricsRoute
   '/app/$org/$site/performance/$transaction': typeof AppOrgSitePerformanceTransactionRoute
   '/app/$org/$site/profiles/$id': typeof AppOrgSiteProfilesIdRoute
@@ -929,6 +938,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/obs/logs'
     | '/app/$org/$site/obs/metrics'
     | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
@@ -1020,6 +1030,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/obs/logs'
     | '/app/$org/$site/obs/metrics'
     | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
@@ -1114,6 +1125,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/issues/$issue'
     | '/app/$org/$site/links/$id'
     | '/app/$org/$site/links/pixel'
+    | '/app/$org/$site/obs/logs'
     | '/app/$org/$site/obs/metrics'
     | '/app/$org/$site/performance/$transaction'
     | '/app/$org/$site/profiles/$id'
@@ -1610,6 +1622,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteLinksPixelRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/obs/logs': {
+      id: '/app/$org/$site/obs/logs'
+      path: '/$site/obs/logs'
+      fullPath: '/app/$org/$site/obs/logs'
+      preLoaderRoute: typeof AppOrgSiteObsLogsRouteImport
+      parentRoute: typeof AppOrgRoute
+    }
     '/app/$org/$site/obs/metrics': {
       id: '/app/$org/$site/obs/metrics'
       path: '/$site/obs/metrics'
@@ -1913,6 +1932,7 @@ interface AppOrgRouteChildren {
   AppOrgSiteIssuesIssueRoute: typeof AppOrgSiteIssuesIssueRoute
   AppOrgSiteLinksIdRoute: typeof AppOrgSiteLinksIdRoute
   AppOrgSiteLinksPixelRoute: typeof AppOrgSiteLinksPixelRoute
+  AppOrgSiteObsLogsRoute: typeof AppOrgSiteObsLogsRoute
   AppOrgSiteObsMetricsRoute: typeof AppOrgSiteObsMetricsRoute
   AppOrgSitePerformanceTransactionRoute: typeof AppOrgSitePerformanceTransactionRoute
   AppOrgSiteProfilesIdRoute: typeof AppOrgSiteProfilesIdRoute
@@ -1955,6 +1975,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgSiteIssuesIssueRoute: AppOrgSiteIssuesIssueRoute,
   AppOrgSiteLinksIdRoute: AppOrgSiteLinksIdRoute,
   AppOrgSiteLinksPixelRoute: AppOrgSiteLinksPixelRoute,
+  AppOrgSiteObsLogsRoute: AppOrgSiteObsLogsRoute,
   AppOrgSiteObsMetricsRoute: AppOrgSiteObsMetricsRoute,
   AppOrgSitePerformanceTransactionRoute: AppOrgSitePerformanceTransactionRoute,
   AppOrgSiteProfilesIdRoute: AppOrgSiteProfilesIdRoute,

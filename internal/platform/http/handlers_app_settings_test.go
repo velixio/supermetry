@@ -33,6 +33,24 @@ func TestAppSettingsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAppSettingsLogLimits(t *testing.T) {
+	f := newAppKeyFixture(t)
+	path := fmt.Sprintf("/api/private/sites/%d/app-settings", f.siteID)
+	put := f.request(t, "owner", http.MethodPut, path, `{"log_retention_days":3,"log_daily_quota":1000,"metric_daily_quota":0}`)
+	if put.Code != http.StatusOK || !strings.Contains(put.Body.String(), `"log_retention_days":3`) || !strings.Contains(put.Body.String(), `"log_daily_quota":1000,"metric_daily_quota":0`) {
+		t.Fatalf("put = %d %s", put.Code, put.Body)
+	}
+	site, _ := f.registry.Site(f.siteID)
+	if site.App.LogDailyQuota != 1000 || site.App.MetricDailyQuota != 0 {
+		t.Fatalf("registry limits = %+v", site.App)
+	}
+	for _, body := range []string{`{"log_retention_days":31}`, `{"log_daily_quota":-1}`} {
+		if res := f.request(t, "owner", http.MethodPut, path, body); res.Code != http.StatusBadRequest {
+			t.Fatalf("%s = %d %s", body, res.Code, res.Body)
+		}
+	}
+}
+
 func TestAppSettingsFilterToggles(t *testing.T) {
 	f := newAppKeyFixture(t)
 	path := fmt.Sprintf("/api/private/sites/%d/app-settings", f.siteID)

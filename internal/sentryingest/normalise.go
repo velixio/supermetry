@@ -120,6 +120,7 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 	body.DebugImages = parseDebugImages(m["debug_meta"], platform)
 	ev.Environment = clip(str(m["environment"]), 32)
 	ev.Build = clip(str(asMap(contexts["app"])["app_build"]), 64)
+	ev.TraceID, ev.SpanID = traceContextIDs(asMap(contexts["trace"]))
 	osCtx, dev, rt := body.Contexts["os"], body.Contexts["device"], body.Contexts["runtime"]
 	ev.Platform = platformOf(str(osCtx["name"]), platform, client != nil, ctx.SDKName+str(sdk["name"]))
 	ev.OSVersion = clip(strings.TrimSpace(fmt.Sprint(valueOr(osCtx["version"]))), 32)
@@ -743,4 +744,17 @@ func processTag(tags map[string]string, contexts map[string]map[string]any) stri
 		return "" // an app's own process tag keeps its own values
 	}
 	return "other"
+}
+
+// traceContextIDs reads the 16-byte trace id and 8-byte span id of a
+// contexts.trace entry. Wrong lengths, non-hex text and an all-zero trace id
+// give nil, so a malformed context never blocks the event.
+func traceContextIDs(trace map[string]any) (traceID, spanID []byte) {
+	if b, err := hex.DecodeString(str(trace["trace_id"])); err == nil && len(b) == 16 && !allZero(b) {
+		traceID = b
+		if s, err := hex.DecodeString(str(trace["span_id"])); err == nil && len(s) == 8 && !allZero(s) {
+			spanID = s
+		}
+	}
+	return traceID, spanID
 }
