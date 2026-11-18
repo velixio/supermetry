@@ -679,6 +679,12 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
 	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	ruleEvaluator := alerts.NewRuleEvaluator(alertService, alertService, appAlertStore, appAlertStore, alertDispatcher, registry, settings.clock.Now,
+		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
+			health.AlertDeliveryFailures.Add(1)
+			slog.Warn("alert delivery failed", "alert_id", alertID, "channel_id", channelID, "channel_kind", kind, "error", deliveryErr)
+		})
+	jobs = append(jobs, ruleEvaluator.Job())
 	jobs = append(jobs,
 		appissues.NewWaker(pool, settings.clock.Now).Job(),
 		appissues.NewNotifier(pool, sender, cfg.BaseURL, settings.clock.Now).Job())
