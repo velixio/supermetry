@@ -53,6 +53,8 @@ type alertRequest struct {
 	Threshold  float64             `json:"threshold"`
 	GoalID     *int64              `json:"goal_id,omitempty"`
 	Config     *alerts.AlertConfig `json:"config,omitempty"`
+	Name       string              `json:"name,omitempty"`
+	Rule       *alerts.Rule        `json:"rule,omitempty"`
 	ChannelIDs []int64             `json:"channel_ids"`
 	Enabled    *bool               `json:"enabled,omitempty"`
 }
@@ -452,19 +454,19 @@ func decodeAlertInput(w http.ResponseWriter, r *http.Request, siteKind string) (
 	}
 	input := alerts.AlertInput{
 		Kind: request.Kind, Threshold: request.Threshold, GoalID: request.GoalID,
-		Config: request.Config, ChannelIDs: request.ChannelIDs, Enabled: request.Enabled,
+		Config: request.Config, Name: request.Name, Rule: request.Rule, ChannelIDs: request.ChannelIDs, Enabled: request.Enabled,
+	}
+	if input.Kind.IsApp() {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "use kind app_rule")
+		return alerts.AlertInput{}, false
 	}
 	if !input.Kind.AllowedOnSiteKind(siteKind) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "this alert kind is not available for this project type")
 		return alerts.AlertInput{}, false
 	}
-	if input.Kind.IsApp() {
-		normalized, valid := alerts.NormalizeAppInput(input)
-		if !valid {
-			writeProblem(w, http.StatusBadRequest, "Bad request", "alert fields are invalid")
-			return alerts.AlertInput{}, false
-		}
-		input = normalized
+	if input.Kind == alerts.AlertRule {
+		// The service validates the rule document and names the bad field.
+		return input, true
 	}
 	if !validAlertInput(input) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "alert fields are invalid")
@@ -490,8 +492,6 @@ func validAlertInput(input alerts.AlertInput) bool {
 		return input.GoalID != nil && *input.GoalID > 0
 	case alerts.AlertTrafficSpike, alerts.AlertTrafficDrop:
 		return input.GoalID == nil && input.Config == nil
-	case alerts.AlertAppNewIssue, alerts.AlertAppIssueRegressed, alerts.AlertAppCrashFreeBelow, alerts.AlertAppIssueSpike:
-		return true
 	default:
 		return false
 	}

@@ -24,7 +24,8 @@ var (
 	ErrInvalidTemplate = errors.New("invalid notification template")
 	secretErrorPattern = regexp.MustCompile(`(?i)(?:bearer|token|secret|authorization)[\s=:]+[^\s,;]+`)
 	TemplateVariables  = []string{"alert_id", "alert_kind", "site_id", "value", "threshold", "from", "to", "fired_at",
-		"app_name", "issue_title", "issue_kind", "release", "events", "installs", "crash_free", "metric", "baseline", "issue_url"}
+		"app_name", "issue_title", "issue_kind", "release", "events", "installs", "crash_free", "metric", "baseline", "issue_url",
+		"rule_name", "rule_trigger", "severity", "status"}
 )
 
 type TemplateInput struct {
@@ -71,6 +72,9 @@ func DefaultTemplateFor(kind ChannelKind, alert AlertKind) TemplateInput {
 	case AlertAppIssueSpike:
 		subject = "Spike in {{.app_name}}"
 		body = "Spike in {{.app_name}} ({{.issue_kind}}, release {{.release}}): {{.issue_title}}\n{{.events}} events in the last full hour against an average of {{.baseline}} for this hour of the day\n{{.issue_url}}"
+	case AlertRule:
+		subject = "{{.rule_name}} in {{.app_name}}"
+		body = "{{.rule_name}} ({{.status}}) in {{.app_name}}: {{.issue_title}} {{.release}}\nvalue {{.value}}, threshold {{.threshold}}\n{{.issue_url}}"
 	default:
 		return DefaultTemplate(kind)
 	}
@@ -132,6 +136,12 @@ func templateValues(kind ChannelKind, notification Notification) map[string]stri
 		"release": escape(app.Release), "events": strconv.FormatInt(app.Events, 10), "installs": strconv.FormatInt(app.Installs, 10),
 		"crash_free": crashFree, "metric": escape(app.Metric), "baseline": fmt.Sprintf("%.2f", app.Baseline), "issue_url": escape(app.IssueURL),
 	}
+	rule := RuleNotification{}
+	if notification.Rule != nil {
+		rule = *notification.Rule
+	}
+	values["rule_name"], values["rule_trigger"] = escape(rule.Name), escape(rule.TriggerType)
+	values["severity"], values["status"] = escape(rule.Severity), escape(rule.Status)
 	if notification.App == nil {
 		values["events"], values["installs"], values["baseline"] = "", "", ""
 	}
