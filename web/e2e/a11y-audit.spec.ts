@@ -56,7 +56,7 @@ async function waitForSessions(page: Page) {
 
 async function waitForSettings(page: Page) {
   await expect(page.getByRole('heading', { level: 1, name: 'Project settings' })).toBeVisible()
-  await expect(page.getByLabel('Revenue currency')).toBeVisible()
+  await expect(page.getByLabel('Revenue currency', { exact: true })).toBeVisible()
 }
 
 async function audit(page: Page, name: string): Promise<AxePageReport> {
@@ -162,7 +162,7 @@ test('account recovery, invitation, first-run, account security and admin pages 
   reports.push(await expectNoSeriousViolations(page, 'forgot'))
   await page.getByLabel('Email').fill('nobody@supermetry.test')
   await page.getByRole('button', { name: 'Send reset link' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'If an account exists' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'has an account, a reset link is on its way' })).toBeVisible()
   reports.push(await expectNoSeriousViolations(page, 'forgot-sent'))
 
   await page.goto('/reset/not-a-real-token')

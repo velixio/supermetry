@@ -223,7 +223,7 @@ INSERT INTO profiles(site_id,external_id,first_seen_at,last_seen_at) VALUES (:si
   await expect((await navLink(page, 'Profiles'))).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Export CSV', exact: true })).toHaveCount(0)
   expect(reads).toEqual([])
-  await page.getByRole('button', { name: /Restricted organization$/ }).click()
+  await page.getByRole('complementary', { name: 'Application sidebar' }).getByRole('button', { name: /Restricted organization$/ }).click()
   await page.getByRole('menuitem', { name: 'Acme', exact: true }).click()
   await (await navLink(page, 'Profiles')).click()
   await expect(page.getByText('Acme-only-profile', { exact: true })).toBeVisible()

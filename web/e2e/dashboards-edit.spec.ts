@@ -35,7 +35,7 @@ async function seed(request: APIRequestContext, owner: Owner, name: string): Pro
 }
 
 const order = (page: Page) => page.locator('[data-widget-id]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-widget-id')))
-const live = (page: Page) => page.locator('p[aria-live="polite"]')
+const live = (page: Page) => page.getByRole('main').locator('p[aria-live="polite"]')
 
 test.beforeEach(({ request, owner }) => removeSavedDashboards(request, owner))
 test.afterEach(({ request, owner }) => removeSavedDashboards(request, owner))

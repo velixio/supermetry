@@ -23,6 +23,9 @@ test('sites overview filters, remembers its view, exposes keyboard actions, and 
       const body = (await created.json()) as { id?: number; ID?: number }
       seeded.push(Number(body.id ?? body.ID))
     }
+    // Signing in opens the last visited project by default; this test is about the overview, so ask for it.
+    const preference = await api.patch('/api/private/me', { data: { preferences: { landing_page: 'overview' } } })
+    expect(preference.ok(), await preference.text()).toBe(true)
     await runOverview(page, owner)
   } finally {
     for (const id of seeded) await api.delete(`/api/private/sites/${id}`)

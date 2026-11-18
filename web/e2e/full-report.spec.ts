@@ -51,7 +51,8 @@ test('full report dialog searches, sorts, traps focus, restores focus and export
   const csvPromise = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Download CSV' }).click()
   const csv = await csvPromise
-  expect(csv.suggestedFilename()).toContain(owner.siteSlug)
+  // The server names the file after the project's public id.
+  expect(csv.suggestedFilename()).toContain(owner.sitePublicID)
   expect(csv.suggestedFilename()).toContain(range.from)
   expect(csv.suggestedFilename()).toContain(range.to)
   const csvText = readFileSync((await csv.path())!, 'utf8')

@@ -13,7 +13,7 @@ test('describes the live definition for assistive tech at every required viewpor
   await expect(page.getByRole('heading', { name: 'Realtime' })).toBeVisible()
   // The definition is no longer printed on the page; it stays as the accessible description of the live count.
   await expect(page.getByRole('region', { name: 'Live now' })).toHaveAccessibleDescription(
-    'Distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and project exclusions are not counted.',
+    'Visitors with a pageview or event in the last 5 minutes. Bots, privacy signals and exclusions are not counted.',
   )
   await page.screenshot({ path: `${output}/1440-light.png`, fullPage: true })
 

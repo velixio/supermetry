@@ -18,7 +18,8 @@ test('the pseudo-locale lengthens text without breaking layouts at 390 px', asyn
   await owner.login(page, root)
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   // Catalogue text is accented, padded and bracketed, so untranslated spots stand out.
-  await expect(page.getByRole('heading', { level: 1 }).first()).toHaveText(/^\[/)
+  // The dashboard h1 is the project name (user data), so check the header's page label, which comes from the catalogue.
+  await expect(page.getByRole('banner')).toContainText('[')
   for (const [path, label] of [
     ['', 'dashboard'], ['/sessions', 'sessions'], ['/settings/general', 'site settings'], ['/settings/notifications', 'notifications'],
     ['/revenue', 'revenue'], ['/links', 'links'], ['/cohorts', 'cohorts'],

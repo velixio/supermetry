@@ -42,6 +42,6 @@ test('notification templates and history are responsive and accessible', async (
   await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/settings/notification-history`)
   await expect(page.getByRole('heading', { level: 1, name: 'Notification history' })).toBeVisible()
   await expect(page.getByLabel('Status')).toBeVisible()
-  await expect(page.getByText('No deliveries match these filters.')).toBeVisible()
+  await expect(page.getByText('No deliveries match.')).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })

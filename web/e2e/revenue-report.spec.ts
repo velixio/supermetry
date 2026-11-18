@@ -58,12 +58,15 @@ test('revenue breakdown, attribution and customers', async ({ page, owner }) => 
   await page.getByLabel('Break down by').focus()
   await page.keyboard.press('Tab')
   await expect(page.getByLabel('Attribution')).toBeFocused()
+  // Desktop controls are compact; touch targets grow to 44px below the sm breakpoint.
+  await page.setViewportSize({ width: 390, height: 900 })
   for (const name of ['Break down by', 'Attribution', 'Lookback days']) {
     const box = await page.getByLabel(name).boundingBox()
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
   }
   const exportBox = await page.getByRole('button', { name: 'Export CSV' }).boundingBox()
   expect(exportBox?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await page.setViewportSize({ width: 1440, height: 1000 })
 
   const dir = 'e2e/screenshots/revenue-report'
   mkdirSync(dir, { recursive: true })
@@ -82,7 +85,7 @@ test('revenue breakdown, attribution and customers', async ({ page, owner }) => 
 
 test('revenue breakdown handles forbidden customers and currency conflict', async ({ page, owner }) => {
   await page.route('**/api/private/query', (route) => route.fulfill({ json: {
-    columns: ['time', 'total_revenue', 'average_revenue'], rows: [], totals: { total_revenue: 0, average_revenue: 0 },
+    columns: ['time', 'total_revenue', 'average_revenue'], rows: [{ time: '2026-09-28', total_revenue: 40, average_revenue: 20 }], totals: { total_revenue: 40, average_revenue: 20 },
     meta: { sources_used: ['closed'], cached: false, imported_included: true },
   } }))
   await page.route('**/revenue/report?*', (route) => route.fulfill({ json: { ...report, truncated: false } }))

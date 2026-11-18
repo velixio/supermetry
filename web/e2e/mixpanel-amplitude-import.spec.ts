@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
+import type { Page } from '@playwright/test'
+
 import { expect, test, type Owner } from './fixtures'
 
 function sql(owner: Owner, statement: string) {
@@ -16,6 +18,15 @@ function sql(owner: Owner, statement: string) {
 // (the same visits in two formats): 1 March has two visitors with three
 // pageviews and one bounce, 2 March one bounced visitor with one pageview.
 // Total visitors 3, visits 3, pageviews 4, bounces 2.
+// The import wizard: choose the method and file, then step through the data range to the preview.
+async function previewFile(page: Page, source: string, file: string | { name: string; mimeType: string; buffer: Buffer }) {
+  await page.getByRole('tab', { name: 'Upload a file' }).click()
+  await page.getByLabel('File type').selectOption(source)
+  await page.getByLabel('Import file').setInputFiles(file)
+  await page.getByRole('button', { name: 'Next' }).click()
+  await page.getByRole('button', { name: 'Next' }).click()
+}
+
 test('mixpanel and amplitude imports: preview, confirm, history and undo', async ({ page, owner }) => {
   const base = `/app/${owner.orgSlug}/${owner.siteSlug}/settings/imports`
   const shots = 'e2e/screenshots/mixpanel-amplitude'
@@ -25,18 +36,19 @@ test('mixpanel and amplitude imports: preview, confirm, history and undo', async
 
   // Mixpanel JSON lines: 6 rows, line 6 is not JSON, line 7 has no distinct_id,
   // line 5 repeats an insert id.
-  await page.getByLabel('Import source').selectOption('mixpanel')
+  await page.getByRole('tab', { name: 'Upload a file' }).click()
+  await page.getByLabel('File type').selectOption('mixpanel')
   await expect(page.getByText('What the file needs')).toBeVisible()
-  await page.getByLabel('Import file').setInputFiles(resolve('e2e/data/mixpanel-events.jsonl'))
-  await page.getByRole('button', { name: 'Preview import' }).click()
-  const preview = page.getByRole('region', { name: /Preview: nothing has been imported yet/ })
+  await previewFile(page, 'mixpanel', resolve('e2e/data/mixpanel-events.jsonl'))
+  const preview = page.getByRole('region', { name: 'Import historical data' })
+  await expect(preview.getByRole('heading', { name: /Preview: nothing has been imported yet/ })).toBeVisible()
   await expect(preview).toBeVisible()
   await expect(preview.getByText('Row 6: invalid JSON')).toBeVisible()
   await expect(preview.getByText('Row 7: missing distinct_id')).toBeVisible()
   await expect(preview.getByText('2024-03-01 – 2024-03-02')).toBeVisible()
   expect(sql(owner, `select count(*) from imports where site_id=${owner.siteId}`)).toBe('0')
   await page.screenshot({ path: `${shots}/1440-light-mixpanel-preview.png`, fullPage: true })
-  await preview.getByRole('button', { name: 'Confirm import' }).click()
+  await preview.getByRole('button', { name: 'Import this range' }).click()
   const mixpanelRow = page.getByRole('row', { name: /mixpanel-events\.jsonl/ })
   await expect(mixpanelRow.getByText('Completed')).toBeVisible({ timeout: 30_000 })
   const totals = `select sum(visitors)||'/'||sum(visits)||'/'||sum(pageviews)||'/'||sum(bounces) from imported_day where site_id=${owner.siteId}`
@@ -44,18 +56,20 @@ test('mixpanel and amplitude imports: preview, confirm, history and undo', async
 
   // Amplitude export as a gzip (an hourly file), overlapping the same days:
   // the newer import wins per day, so the totals stay 3/3/4/2 and are not doubled.
-  await page.getByLabel('Import source').selectOption('amplitude')
-  await page.getByLabel('Import file').setInputFiles({
+  await expect(mixpanelRow.getByText('Completed')).toBeVisible()
+  await page.getByRole('button', { name: 'Review the result' }).click()
+  await page.getByRole('button', { name: 'Import more data' }).click()
+  await previewFile(page, 'amplitude', {
     name: 'amplitude-events.json.gz',
     mimeType: 'application/gzip',
     buffer: gzipSync(readFileSync(resolve('e2e/data/amplitude-events.json'))),
   })
-  await page.getByRole('button', { name: 'Preview import' }).click()
-  const second = page.getByRole('region', { name: /Preview: nothing has been imported yet/ })
+  const second = page.getByRole('region', { name: 'Import historical data' })
+  await expect(second.getByRole('heading', { name: /Preview: nothing has been imported yet/ })).toBeVisible()
   await expect(second.getByText('Row 7: missing event_time')).toBeVisible()
   await expect(second.getByText('2 of these days are already covered by an earlier import.')).toBeVisible()
   await page.screenshot({ path: `${shots}/1440-light-amplitude-preview.png`, fullPage: true })
-  await second.getByRole('button', { name: 'Confirm import' }).click()
+  await second.getByRole('button', { name: 'Replace the earlier import' }).click()
   const amplitudeRow = page.getByRole('row', { name: /amplitude-events\.json\.gz/ })
   await expect(amplitudeRow.getByText('Completed')).toBeVisible({ timeout: 30_000 })
   expect(sql(owner, `select count(*) from imports where site_id=${owner.siteId} and source='amplitude' and status='completed'`)).toBe('1')

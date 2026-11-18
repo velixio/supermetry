@@ -69,7 +69,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
 
   seedConnection(owner)
   await page.goto(`${settings(owner)}?integration=search-console&status=connected`)
-  await expect(page.getByRole('status').filter({ hasText: 'Google Search Console is connected' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Connected. The first import runs shortly.' })).toBeVisible()
   await expect(page.getByText('sc-domain:example.test')).toBeVisible()
   await expect(page.getByText(/^Status: Connected$/)).toBeVisible()
   await expect(page.getByText('Synced through')).toBeVisible()
@@ -106,7 +106,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
   await disconnect.focus()
   await page.keyboard.press('Enter')
   const dialog = page.getByRole('alertdialog')
-  await expect(dialog).toContainText('deletes the stored access tokens and every imported Search Console row')
+  await expect(dialog).toContainText('Deletes the stored tokens and all imported Search Console rows')
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   expect(syntheticSQL(owner, `select count(*) from search_console_rows where site_id=${owner.siteId}`)).toBe('3')

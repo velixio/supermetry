@@ -77,7 +77,7 @@ test('sidebar settings links and account menu work on desktop and mobile with ke
   await expect(page.getByRole('main')).toHaveCount(1)
   const accountLinks = page.getByRole('complementary', { name: 'Application sidebar' }).getByRole('navigation', { name: 'Account', exact: true })
   await expect(accountLinks.getByRole('link', { name: 'Account settings', exact: true })).toHaveAttribute('aria-current', 'page')
-  await page.getByRole('link', { name: 'Security', exact: true }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Security', exact: true }).click()
   await expect(page).toHaveURL('/app/account/security')
   await page.screenshot({ path: 'e2e/screenshots/account-mobile.png', fullPage: true })
 })
