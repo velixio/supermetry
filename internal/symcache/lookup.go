@@ -19,6 +19,7 @@ type Cache struct {
 	r    io.ReaderAt
 	h    header
 	arch string
+	size int64
 }
 
 // maxInlineScan bounds how many inline records one lookup walks backwards.
@@ -50,9 +51,17 @@ func Open(r io.ReaderAt, size int64) (*Cache, error) {
 		!fits(h.inlOff, h.inlN, inlRecSize) {
 		return nil, ErrFormat
 	}
-	c := &Cache{r: r, h: h}
+	c := &Cache{r: r, h: h, size: size}
 	c.arch = c.str(h.arch)
 	return c, nil
+}
+
+// Tail reports where the cache's own tables end and how large the file is.
+// Bytes between end and size are an optional trailing section written by the
+// builder of the object kind (Breakpad caches append call-frame rules there).
+func (c *Cache) Tail() (r io.ReaderAt, end, size int64) {
+	end = int64(c.h.inlOff + c.h.inlN*inlRecSize)
+	return c.r, end, c.size
 }
 
 // Arch is the architecture the cache was built for.
