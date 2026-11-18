@@ -12,3 +12,12 @@ describe('app search', () => {
     expect(query.toString()).toBe('from=2026-11-09&to=2026-11-15&release=1.2.0&platform=ios&status=open')
   })
 })
+
+describe('issue query parameter', () => {
+  it('keeps the search text, trimmed and capped at 200 characters', () => {
+    expect(parseAppIssuesSearch({ query: '  is:unresolved level:fatal ' }).query).toBe('is:unresolved level:fatal')
+    expect(parseAppIssuesSearch({ query: 'a'.repeat(300) }).query).toHaveLength(200)
+    expect(parseAppIssuesSearch({ query: '' }).query).toBeUndefined()
+    expect(parseAppIssuesSearch({ query: 7 }).query).toBeUndefined()
+  })
+})

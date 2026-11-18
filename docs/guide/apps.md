@@ -32,8 +32,11 @@ belongs to one app project.
 
 An issue lists its latest events. **Full event detail** shows the exception
 chain with in-app frames highlighted, breadcrumbs, contexts (OS, device, app,
-runtime, browser), tags and attachment names. Event detail is kept for 30 days;
-the issue and its counts are kept longer. Messages, emails, tokens, IP addresses,
+runtime, browser), tags and attachments. Screenshots (PNG, JPEG, WebP) show as
+thumbnails and text or JSON files open in a viewer, both with a download link;
+text is scrubbed like the rest of the event. Files over 1 MiB, anything past 5 MiB
+per event and other file types keep their name and size only. Event detail and
+attachments are kept for 30 days; the issue and its counts are kept longer. Messages, emails, tokens, IP addresses,
 cookies and query strings are scrubbed before storage. See
 [Migrate from Sentry](migrate-from-sentry.md) for what is and is not supported.
 
@@ -281,12 +284,67 @@ Open an issue to triage it. Owners, admins and editors can change an issue; view
 - **Priority:** high, medium (the default) or low.
 - **Status:** resolve, resolve in the next release, ignore or reopen, as before. New events from a later release regress a resolved issue.
 - **Snooze:** ignores the issue until a time passes, or until it has had a number of more events or affected users. Reopening an issue ends the snooze.
-- **Archive until escalating:** removes the issue from the open list and keeps it out of the way. Unarchive it to return it to open.
+- **Archive until escalating:** removes the issue from the open list and keeps it out of the way. Unarchive it to return it to open, or let Supermetry do it: see below.
 - **GitHub link:** the API can link an existing GitHub issue (`https://github.com/<owner>/<repo>/issues/<number>`). Supermetry only stores the link and never calls GitHub.
 - **Comments:** up to 10,000 characters each. You can edit or delete your own comments; owners and admins can edit or delete anyone's. Comments are visible to everyone in the project, so keep secrets and personal data out of them.
 - **Activity:** a timeline of every change (status, assignee, priority, snooze, archive, comments) plus system rows for the first sighting and for regressions. It records the member who acted, or "System".
 
 Through the private API, `PATCH /api/private/sites/{site}/app/issues/{issue}` takes any of `status`, `resolved_in_release`, `assignee` (a user id, `0` to unassign), `priority`, `snooze` (`until`, `events`, `users`), `archive` and `github_url`. Comments live under `.../issues/{issue}/comments` and the timeline at `.../issues/{issue}/activity`. A change that alters nothing writes no activity row.
+
+### Snooze, archive and wake-ups
+
+A job checks once a minute. A snoozed issue returns to open (activity "status", by System) when its time passes, when it has had the chosen number of more events since the snooze began, or when it has affected the chosen number of more users. Users are counted from events that carry a user; events without a user never count towards "N more users", so an issue snoozed until 100 users does not wake on anonymous events. An issue that someone resolved or reopened in the meantime is left alone.
+
+An archived issue escalates back to open (activity "escalated", by System) when it had more than 10 events in the last hour and more than 5 times its hourly average over the 7 days before that hour. A steady issue that runs at 5 times its average but never passes 10 events an hour stays archived. The thresholds are fixed for now.
+
+### Email notifications
+
+Supermetry emails the person an issue is assigned to when someone else assigns it to them, when an issue assigned to them regresses, and (off by default) when someone else resolves it. You never get an email about your own change. Choose what you receive per project under Account, Notifications; assigned and regressed are on by default. Only members who can read the project are emailed. The emails are plain notices with one ordinary link to the issue: no tracking pixels and no tracked links. A notification that cannot be delivered is retried for up to 24 hours, then dropped. There is no weekly digest yet.
+
+### Merging and unmerging issues
+
+Two issues that are really the same bug can be merged. Open the issue you want to keep, type the ids of the others in "Merged issues" and choose Merge. Owners, admins and editors can merge; viewers can read the list.
+
+- The merged issues' events, fingerprints and daily and hourly counts move to the kept issue, whose counts are recomputed from its events. The merged issues disappear from the issue list, and their detail page says which issue they were merged into.
+- New events that arrive with a merged issue's fingerprint land on the kept issue; they never create the old issue again. Merging a kept issue into a third one moves everything to the third, so a merge is always one level deep.
+- All issues must belong to the same project. A merged issue cannot be merged again until it is unmerged.
+- **Unmerge** splits one merged issue back out by its fingerprint hash, shown beside it in the list. Its events, including those that arrived after the merge, return to it, it reappears in the list, and both issues' counts and rollups are recomputed from events. Counts older than your retention period cannot be attributed to a fingerprint and stay with the kept issue.
+- Both issues get a "merged" or "unmerged" row on their activity timeline.
+
+Through the private API: `POST .../issues/{issue}/merge` with `{"source_ids": [..]}`, `GET .../issues/{issue}/merged`, and `POST .../issues/{issue}/unmerge` with `{"hashes": ["<64 hex characters>"]}`.
+
+## Ownership and grouping rules
+
+Project settings have two ordered rule lists. Owners, admins and editors can change them; viewers can read them. Each list holds up to 200 rules, and a value is a glob of at most 200 characters: `*` matches any run of characters (including `/`), `?` matches one character, and a backslash makes the next character literal. Matching is case-sensitive. The first matching rule wins, so order matters.
+
+**Ownership rules** route a new issue to a member. A rule matches the file path or module of an in-app frame, or a tag (`path`, `module`, `tag:<key>`), and names the owner. The rule runs once, when an issue is first created: the issue is assigned and the timeline shows an `assigned` row by "System". It never changes the assignee of an existing issue, so unassigning stays unassigned, and an owner who has since left the project is skipped. Matching sees the original file names of symbolicated frames.
+
+**Grouping rules** decide which events share an issue. A rule matches the error type, the message, a frame path or module, or a tag (`error_type`, `message`, `path`, `module`, `tag:<key>`) and gives a fingerprint of 1 to 64 characters. Matching events are grouped by that fingerprint instead of the computed one (an SDK fingerprint included), so different stacks can land in one issue. Put `{{ default }}` in the fingerprint to keep the default grouping and add to it, for example `{{ default }}-acme` splits the default groups by customer. Rules apply to new events only: issues that already exist are not regrouped.
+
+Through the private API, `GET` and `PUT /api/private/sites/{site}/app/rules` read and replace both lists as `{"ownership": [{"matcher", "value", "owner_user_id"}], "grouping": [{"matcher", "value", "fingerprint"}]}`. A bad rule is a 400 that names its position, such as `ownership[1]`. Changes reach ingestion with the next site refresh, which the save triggers; no database lookup happens per event.
+
+## Searching issues, saved views and bulk actions
+
+The query bar above the issue list takes a search. Terms are separated by spaces and all must match.
+
+| Term | Matches |
+|---|---|
+| `timeout`, `"null pointer"` | A bare word or quoted phrase in the title or culprit (case-insensitive substring) |
+| `is:unresolved` | `unresolved` (open or regressed), `resolved`, `ignored`, `archived`, `snoozed`, `assigned`, `unassigned` |
+| `assigned:me`, `assigned:none`, `assigned:ann@example.com` | Assignee. Owners, admins and editors can search by a member's email; for viewers an email never matches, so emails are not revealed |
+| `release:1.4.0`, `environment:prod`, `platform:linux`, `level:fatal` | Issues that had at least one event with that value (`"quoted value"` if it has spaces) |
+| `kind:crash`, `priority:high` | Issue kind and priority |
+| `first-seen:-24h`, `last-seen:+30d`, `first-seen:2026-11-01` | `-` is within the last, `+` is older than that (units `m`, `h`, `d`, `w`); a date is that UTC day |
+| `events:>10`, `users:<=3`, `events:7` | Events or affected users in the selected date range (`>`, `<`, `>=`, `<=`, or equal) |
+| `!is:ignored`, `!release:1.0.0`, `!flaky` | A leading `!` negates any term |
+
+An unknown key is an error that names the key and where it is; it is never ignored. A search can have at most 20 terms and 200 characters. Special characters are plain text: `%`, quotes and unicode only ever match literally. The search combines with the status tabs, kind, text and date filters of the page.
+
+**Saved views** keep a search under a name (up to 80 characters). A private view is visible only to you; a shared view is visible to everyone who can open the project. You can delete your own views, and owners and admins can change or delete shared ones. Viewers can use shared views but cannot save any.
+
+**Bulk actions:** tick issues in the list (or "Select all N matching issues") and resolve, ignore, archive, assign or set a priority in one step. Each change appears on every issue's activity timeline. At most 1,000 issues change at once, and a bulk change only ever touches issues of the project you are in. The private API is `POST /api/private/sites/{site}/app/issues/bulk` with `{"ids": [...], "change": {...}}` or `{"query": "...", "change": {...}}`; the reply lists `updated` ids and `skipped` ids that are not issues of this project. Saved views live under `.../app/views`. The search itself is the `query` parameter of `GET .../app/issues`; a syntax error is a 400 whose `position` is the character offset of the problem.
+
+The issue list filters by the tags each issue's events carried (release, environment, platform, level, OS version, browser and device class). Those per-issue tag counts are rebuilt by the same rollup as the daily counts, which runs every ten minutes, so a very new event can take up to about ten minutes to be found by a `release:` or `level:` term.
 
 ## Exporting your data
 
@@ -298,6 +356,7 @@ An app project's ZIP export (`GET /api/private/sites/{site}/export?from=YYYY-MM-
 | `app_events.csv` | Stored events in the range: event id, timestamp, issue id, kind, level, release, dist, environment, platform, SDK name and version, OS version, architecture, device class, runtime, symbolication status, occurrences |
 | `app_releases.csv`, `app_deploys.csv` | Releases and deploys created in the range that apply to the project |
 | `app_artifacts.csv` | Source map bundle metadata only: bundle id, release, dist, state, debug IDs, file count, size, created. File contents and storage keys are never exported |
+| `app_saved_views.csv` | Shared saved searches: id, name, query, owner id, created. Private views are not exported |
 | `app_issue_activity.csv`, `app_issue_comments.csv` | The issue timeline and the comments written in the range (deleted comments are left out). Authors and actors appear as organisation member ids |
 | `app_client_reports.csv` | Daily counts of events the SDKs report they discarded, by reason and category. No event data |
 
@@ -308,4 +367,4 @@ The export never includes end-user identifiers or hashes, install or session has
 An AI assistant connected to the [MCP server](../api.md#mcp-for-ai-assistants) can read
 an app's health with an API key that has the `stats:read` scope: the overview, open
 issues, one issue with its latest events, the compatibility matrix and the releases.
-The tools are read-only, so an assistant cannot resolve or ignore issues.
+The tools are read-only, so an assistant cannot resolve or ignore issues. `list_app_issues` takes an optional `query` in the search syntax above (without `assigned:me` or emails, which need a signed-in user), and `search_app_events` returns the newest events of the issues a query matches: event ids, times, issue ids, release and platform, up to 50, and never event bodies or user identifiers.

@@ -13,6 +13,7 @@ import { fmt } from '@/lib/format'
 import { useAppIssue, useSetIssueStatus, useUpdateIssue, type AppIssueDetailData } from './api'
 import { IssueActivity } from './IssueActivity'
 import { IssueComments } from './IssueComments'
+import { IssueMerge } from './IssueMerge'
 import { IssueWorkflow } from './IssueWorkflow'
 import { formatDay } from './format'
 import type { AppSearch } from './search'
@@ -151,6 +152,7 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
           {data.latest_events.length === 0 ? <p className="text-sm text-muted-foreground">No events in this period.</p> : <ul>{data.latest_events.map((event) => <EventRow key={event.ts + event.release} event={event} org={org} site={site} issueId={issueId} />)}</ul>}
         </CardContent>
       </Card>
+      <IssueMerge siteId={siteId} issueId={issueId} canEdit={canEdit} />
       <IssueComments siteId={siteId} issueId={issueId} canEdit={canEdit} />
       <IssueActivity siteId={siteId} issueId={issueId} />
     </PageContainer>

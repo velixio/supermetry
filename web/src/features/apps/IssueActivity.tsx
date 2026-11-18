@@ -25,8 +25,8 @@ export function describeActivity(a: AppIssueActivity, nameOf: (id: unknown) => s
     case 'archived': return d.archived === false ? 'unarchived the issue' : 'archived the issue until it escalates'
     case 'escalated': return 'reopened the archived issue because it escalated'
     case 'commented': return 'commented'
-    case 'merged': return 'merged an issue into this one'
-    case 'unmerged': return 'unmerged an issue'
+    case 'merged': return d.into ? `merged this issue into issue ${text(d.into)}` : `merged ${Array.isArray(d.sources) ? d.sources.length : 'an'} issue(s) into this one`
+    case 'unmerged': return d.from ? `unmerged this issue from issue ${text(d.from)}` : `unmerged ${Array.isArray(d.sources) ? d.sources.length : 'an'} issue(s) from this one`
     case 'github_linked': return d.url ? `linked ${text(d.url)}` : 'removed the GitHub link'
     case 'regressed': return `regressed${d.release ? ` in ${text(d.release)}` : ''}`
     case 'first_seen': return `first seen${d.release ? ` in ${text(d.release)}` : ''}`

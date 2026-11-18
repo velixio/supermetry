@@ -3,9 +3,12 @@ package sentryingest
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -110,7 +113,7 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 	ev.Handled = handled(body.Exceptions, ev.Kind)
 	ev.Release = clip(str(m["release"]), 64)
 	body.Release = ev.Release
-	body.DebugImages = parseDebugImages(m["debug_meta"])
+	body.DebugImages = parseDebugImages(m["debug_meta"], platform)
 	ev.Environment = clip(str(m["environment"]), 32)
 	ev.Build = clip(str(asMap(contexts["app"])["app_build"]), 64)
 	osCtx, dev, rt := body.Contexts["os"], body.Contexts["device"], body.Contexts["runtime"]
@@ -152,7 +155,11 @@ func Normalise(raw []byte, ctx EventContext, site sites.Site, now time.Time) (ap
 		ev.ErrorType = "message"
 	}
 	ex.SDKFingerprint = sdkFingerprint(m["fingerprint"])
-	ev.Fingerprint, ex.GroupingVersion = appingest.GroupingKey(ev, body, ex.SDKFingerprint)
+	if site.App != nil {
+		ex.Rules = site.App.Rules
+	}
+	ev.Fingerprint, ex.GroupingVersion = appingest.GroupingKeyRules(ev, body, ex.SDKFingerprint, ex.Rules)
+	ev.OwnerUserID = appingest.OwnerOf(body, ex.Rules)
 	if len(body.Contexts) == 0 {
 		body.Contexts = nil
 	}
@@ -597,8 +604,18 @@ func stripQuery(s string) string {
 	return s
 }
 
-// parseDebugImages keeps the debug_meta images symbolication can use.
-func parseDebugImages(v any) []appingest.DebugImage {
+const (
+	maxDebugImages       = 50
+	maxNativeDebugImages = 500 // iOS crashes list every loaded image
+)
+
+// parseDebugImages keeps the debug_meta images symbolication can use. Native
+// platforms may carry up to 500 images, everything else 50.
+func parseDebugImages(v any, platform string) []appingest.DebugImage {
+	limit := maxDebugImages
+	if platform == "native" || platform == "cocoa" {
+		limit = maxNativeDebugImages
+	}
 	var out []appingest.DebugImage
 	for _, x := range asList(asMap(v)["images"]) {
 		im := asMap(x)
@@ -606,13 +623,56 @@ func parseDebugImages(v any) []appingest.DebugImage {
 			continue
 		}
 		out = append(out, appingest.DebugImage{
-			Type:     clip(str(im["type"]), 32),
-			CodeFile: stripQuery(clip(str(im["code_file"]), 1024)),
-			DebugID:  clip(firstNonEmpty(str(im["debug_id"]), str(im["debugId"])), 64),
+			Type:        clip(str(im["type"]), 32),
+			CodeFile:    stripQuery(clip(str(im["code_file"]), 1024)),
+			DebugID:     clip(firstNonEmpty(str(im["debug_id"]), str(im["debugId"])), 64),
+			CodeID:      clip(str(im["code_id"]), 128),
+			DebugFile:   stripQuery(clip(str(im["debug_file"]), 1024)),
+			Arch:        clip(str(im["arch"]), 32),
+			UUID:        clip(str(im["uuid"]), 64),
+			ImageAddr:   parseAddr(im["image_addr"]),
+			ImageSize:   parseAddr(im["image_size"]),
+			ImageVMAddr: parseAddr(im["image_vmaddr"]),
 		})
-		if len(out) == 50 {
+		if len(out) == limit {
 			break
 		}
 	}
 	return out
+}
+
+// parseAddr reads an address or size that SDKs send as a "0x" hex string, a
+// decimal string or a JSON number. Anything else, or a value that does not fit
+// in 64 bits, is 0.
+func parseAddr(v any) uint64 {
+	switch x := v.(type) {
+	case float64:
+		if x < 0 || x >= 1<<63 || x != math.Trunc(x) {
+			return 0
+		}
+		return uint64(x)
+	case json.Number:
+		n, err := strconv.ParseUint(x.String(), 10, 64)
+		if err != nil {
+			return 0
+		}
+		return n
+	case string:
+		if len(x) > 20 {
+			return 0
+		}
+		if h, ok := strings.CutPrefix(strings.ToLower(x), "0x"); ok {
+			n, err := strconv.ParseUint(h, 16, 64)
+			if err != nil {
+				return 0
+			}
+			return n
+		}
+		n, err := strconv.ParseUint(x, 10, 64)
+		if err != nil {
+			return 0
+		}
+		return n
+	}
+	return 0
 }

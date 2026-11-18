@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"supermetry/internal/appquery"
+	"supermetry/internal/appquery/search"
 	"supermetry/internal/sites"
 )
 
@@ -18,6 +19,7 @@ type appHealthReader interface {
 	Overview(ctx context.Context, scope appquery.Scope, f appquery.Filter) (appquery.Overview, error)
 	Issues(ctx context.Context, scope appquery.Scope, in appquery.IssueQuery) (appquery.IssueList, error)
 	Issue(ctx context.Context, scope appquery.Scope, id int64, f appquery.Filter) (appquery.IssueDetail, error)
+	SearchEvents(ctx context.Context, scope appquery.Scope, in appquery.IssueQuery, limit int) ([]appquery.EventHit, error)
 	Compatibility(ctx context.Context, scope appquery.Scope, f appquery.Filter) ([]appquery.CompatRow, error)
 	Releases(ctx context.Context, scope appquery.Scope, f appquery.Filter) ([]appquery.ReleaseRow, error)
 }
@@ -37,7 +39,7 @@ const (
 var (
 	mcpAppToolNames = map[string]bool{
 		"get_app_overview": true, "list_app_issues": true, "get_app_issue": true,
-		"get_app_compatibility": true, "list_app_releases": true,
+		"get_app_compatibility": true, "list_app_releases": true, "search_app_events": true,
 	}
 	mcpWebToolNames = map[string]bool{
 		"get_summary": true, "get_timeseries": true, "get_breakdown": true, "get_realtime": true, "run_funnel": true,
@@ -63,9 +65,17 @@ type mcpAppIssuesInput struct {
 	Status string `json:"status,omitempty"`
 	Kind   string `json:"kind,omitempty"`
 	Q      string `json:"q,omitempty"`
+	// Query is the issue search syntax (see the dashboard's search help).
+	Query  string `json:"query,omitempty"`
 	Sort   string `json:"sort,omitempty"`
 	Limit  int    `json:"limit,omitempty"`
 	Offset int    `json:"offset,omitempty"`
+}
+
+type mcpAppSearchInput struct {
+	mcpAppFilterInput
+	Query string `json:"query"`
+	Limit int    `json:"limit,omitempty"`
 }
 
 type mcpAppIssueInput struct {
@@ -86,7 +96,7 @@ type mcpAppReleasesInput struct {
 
 // mcpAppScope is the appquery scope of a site: its time zone and retention.
 func mcpAppScope(site sites.Site) appquery.Scope {
-	return appquery.Scope{SiteID: site.ID, TZ: site.TZ, RetentionDays: int(site.Retention)}
+	return appquery.Scope{SiteID: site.ID, OrgID: site.OrgID, TZ: site.TZ, RetentionDays: int(site.Retention)}
 }
 
 // filter turns the period or date inputs into an inclusive date range in the
@@ -168,6 +178,7 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 		rng                            mcpAppRange
 		release, environment, platform string
 		issues                         mcpAppIssuesInput
+		searchIn                       mcpAppSearchInput
 		issueID                        int64
 	)
 	switch name {
@@ -193,6 +204,11 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 			return nil, invalidMCPParams{err.Error()}
 		}
 		rng, release, environment, platform = issues.mcpAppRange, issues.Release, issues.Environment, issues.Platform
+	case "search_app_events":
+		if err := decodeMCPParams(arguments, &searchIn); err != nil {
+			return nil, invalidMCPParams{err.Error()}
+		}
+		rng, release, environment, platform = searchIn.mcpAppRange, searchIn.Release, searchIn.Environment, searchIn.Platform
 	case "get_app_compatibility":
 		var in mcpAppCompatInput
 		if err := decodeMCPParams(arguments, &in); err != nil {
@@ -239,6 +255,8 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 		out, err = h.deps.AppHealth.Overview(ctx, scope, f)
 	case "list_app_issues":
 		out, err = h.listAppIssues(ctx, scope, f, issues)
+	case "search_app_events":
+		out, err = h.searchAppEvents(ctx, scope, f, searchIn)
 	case "get_app_issue":
 		var detail appquery.IssueDetail
 		if detail, err = h.deps.AppHealth.Issue(ctx, scope, issueID, f); err == nil {
@@ -270,7 +288,7 @@ func (h *mcpHandler) runAppTool(ctx context.Context, r *http.Request, name strin
 
 func (h *mcpHandler) listAppIssues(ctx context.Context, scope appquery.Scope, f appquery.Filter, in mcpAppIssuesInput) (any, error) {
 	switch in.Status {
-	case "", "open", "regressed", "resolved", "ignored", "all":
+	case "", "open", "regressed", "resolved", "ignored", "archived", "all":
 	default:
 		return nil, invalidMCPParams{detail: "status is invalid"}
 	}
@@ -286,6 +304,10 @@ func (h *mcpHandler) listAppIssues(ctx context.Context, scope appquery.Scope, f 
 		return nil, invalidMCPParams{detail: "limit must be 1-100 and offset at least 0"}
 	}
 	query := appquery.IssueQuery{Filter: f, Status: in.Status, Kind: in.Kind, Q: in.Q, Sort: in.Sort, Limit: in.Limit, Offset: in.Offset}
+	var err error
+	if query.Search, err = mcpParseSearch(in.Query); err != nil {
+		return nil, err
+	}
 	if query.Status == "" {
 		query.Status = "open"
 	}
@@ -293,6 +315,40 @@ func (h *mcpHandler) listAppIssues(ctx context.Context, scope appquery.Scope, f 
 		query.Limit = 25
 	}
 	return h.deps.AppHealth.Issues(ctx, scope, query)
+}
+
+// mcpParseSearch parses the search syntax. API keys have no signed-in user and
+// no member directory, so assigned:me and assigned:<email> do not apply.
+func mcpParseSearch(raw string) (*search.Query, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	q, err := search.Parse(raw)
+	if err != nil {
+		return nil, invalidMCPParams{detail: "query: " + err.Error()}
+	}
+	return &q, nil
+}
+
+func (h *mcpHandler) searchAppEvents(ctx context.Context, scope appquery.Scope, f appquery.Filter, in mcpAppSearchInput) (any, error) {
+	if in.Query == "" {
+		return nil, invalidMCPParams{detail: "query is required"}
+	}
+	if in.Limit == 0 {
+		in.Limit = 25
+	}
+	if in.Limit < 1 || in.Limit > 50 {
+		return nil, invalidMCPParams{detail: "limit must be 1-50"}
+	}
+	q, err := mcpParseSearch(in.Query)
+	if err != nil {
+		return nil, err
+	}
+	hits, err := h.deps.AppHealth.SearchEvents(ctx, scope, appquery.IssueQuery{Filter: f, Search: q}, in.Limit)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"events": hits}, nil
 }
 
 // mcpAppError maps appquery errors onto tool errors; anything else is hidden.
@@ -330,18 +386,24 @@ func mcpAppTools() []MCPTool {
 	filters := map[string]any{"release": str(mcpAppMaxRelease), "environment": str(mcpAppMaxEnvironment), "platform": str(mcpAppMaxPlatform)}
 	issueProps := map[string]any{
 		"release": filters["release"], "environment": filters["environment"], "platform": filters["platform"],
-		"status": map[string]any{"type": "string", "enum": []string{"open", "regressed", "resolved", "ignored", "all"}},
-		"kind":   str(mcpAppMaxKind), "q": str(mcpAppMaxQuery),
+		"status": map[string]any{"type": "string", "enum": []string{"open", "regressed", "resolved", "ignored", "archived", "all"}},
+		"kind":   str(mcpAppMaxKind), "q": str(mcpAppMaxQuery), "query": str(200),
 		"sort":   map[string]any{"type": "string", "enum": []string{"last_seen", "events", "users"}},
 		"limit":  map[string]any{"type": "integer", "minimum": 1, "maximum": 100},
 		"offset": map[string]any{"type": "integer", "minimum": 0},
 	}
 	return []MCPTool{
 		{Name: "get_app_overview", Description: "App projects only. Crash-free users and sessions, event and issue counts, and release health for a period.", InputSchema: schema(rangeProps(filters))},
-		{Name: "list_app_issues", Description: "App projects only. List grouped errors and crashes (issues), by default the open ones, newest first.", InputSchema: schema(rangeProps(issueProps))},
+		{Name: "list_app_issues", Description: "App projects only. List grouped errors and crashes (issues), by default the open ones, newest first. The optional query uses the issue search syntax: space-separated terms such as is:unresolved, !is:ignored, release:1.4.0, level:fatal, priority:high, first-seen:-24h, events:>10, or bare words matching the title.", InputSchema: schema(rangeProps(issueProps))},
 		{Name: "get_app_issue", Description: "App projects only. One issue with its daily series, breakdowns and up to 5 latest events.", InputSchema: func() map[string]any {
 			s := schema(rangeProps(map[string]any{"issue_id": map[string]any{"type": "integer", "minimum": 1}, "release": filters["release"], "environment": filters["environment"], "platform": filters["platform"]}))
 			s["required"] = []string{"site", "issue_id"}
+			return s
+		}()},
+		{Name: "search_app_events", Description: "App projects only. Newest events of the issues a search matches: event ids, times, issue ids, release and platform, no event bodies. The query uses the issue search syntax, e.g. is:unresolved level:fatal release:1.4.0 events:>10.", InputSchema: func() map[string]any {
+			s := schema(rangeProps(map[string]any{"query": str(200), "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 50},
+				"release": filters["release"], "environment": filters["environment"], "platform": filters["platform"]}))
+			s["required"] = []string{"site", "query"}
 			return s
 		}()},
 		{Name: "get_app_compatibility", Description: "App projects only. Crash and error rates by OS version, architecture and device class.", InputSchema: schema(rangeProps(map[string]any{"platform": filters["platform"]}))},

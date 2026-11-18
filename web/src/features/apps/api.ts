@@ -12,7 +12,10 @@ export type AppIssueDetailData = components['schemas']['AppIssueDetail']
 export type AppIssueStatus = components['schemas']['AppIssueStatus']
 export type AppIssueChange = components['schemas']['AppIssueChange']
 export type AppIssueComment = components['schemas']['AppIssueComment']
+export type AppIssueBulkResult = components['schemas']['AppIssueBulkResult']
+export type AppSavedView = components['schemas']['AppSavedView']
 export type AppIssueActivity = components['schemas']['AppIssueActivity']
+export type AppMergedIssue = components['schemas']['AppMergedIssue']
 export type AppCompatibilityData = components['schemas']['AppCompatibility']
 export type AppReleasesData = components['schemas']['AppReleases']
 
@@ -118,6 +121,37 @@ export function useCommentMutations(siteId: number, issueId: number) {
   }
 }
 
+/** What a bulk action applies to: the checked rows, or everything a search matches (range and filters ride in the URL). */
+export type BulkTarget = { ids: number[] } | { query: string; params: string }
+
+export function useBulkIssues(siteId: number) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ target, change }: { target: BulkTarget; change: AppIssueChange }) => {
+      if ('ids' in target) return privateRequest<AppIssueBulkResult>('POST', `${base(siteId)}/issues/bulk`, { body: { ids: target.ids, change } })
+      return privateRequest<AppIssueBulkResult>('POST', `${base(siteId)}/issues/bulk?${target.params}`, { body: { query: target.query, change } })
+    },
+    onSettled: () => Promise.all([
+      client.invalidateQueries({ queryKey: ['app-issues', siteId] }),
+      client.invalidateQueries({ queryKey: ['app-overview', siteId] }),
+      client.invalidateQueries({ queryKey: ['app-issue', siteId] }),
+    ]),
+  })
+}
+
+export function useSavedViews(siteId: number) {
+  return useQuery({ queryKey: ['app-views', siteId], queryFn: () => privateRequest<{ views: AppSavedView[] }>('GET', `${base(siteId)}/views`) })
+}
+
+export function useSavedViewMutations(siteId: number) {
+  const client = useQueryClient()
+  const refresh = () => client.invalidateQueries({ queryKey: ['app-views', siteId] })
+  return {
+    create: useMutation({ mutationFn: (view: { name: string; query: string; shared: boolean }) => privateRequest<AppSavedView>('POST', `${base(siteId)}/views`, { body: view }), onSuccess: refresh }),
+    remove: useMutation({ mutationFn: (id: number) => privateRequest<void>('DELETE', `${base(siteId)}/views/${id}`), onSuccess: refresh }),
+  }
+}
+
 export const ACTIVITY_PAGE = 50
 
 /** The timeline, newest first; older pages continue from the last row's time. */
@@ -128,4 +162,25 @@ export function useIssueActivity(siteId: number, issueId: number) {
     queryFn: ({ pageParam }) => privateRequest<{ activity: AppIssueActivity[] }>('GET', `${base(siteId)}/issues/${issueId}/activity?limit=${ACTIVITY_PAGE}${pageParam ? `&before=${encodeURIComponent(pageParam)}` : ''}`),
     getNextPageParam: (last) => (last.activity.length === ACTIVITY_PAGE ? last.activity[last.activity.length - 1].at : undefined),
   })
+}
+
+export function useMergedIssues(siteId: number, issueId: number) {
+  return useQuery({ queryKey: ['app-issue-merged', siteId, issueId], queryFn: () => privateRequest<{ merged: AppMergedIssue[] }>('GET', `${base(siteId)}/issues/${issueId}/merged`) })
+}
+
+/** Merge other issues into this one, or split merged ones back out by fingerprint hash. */
+export function useMergeMutations(siteId: number, issueId: number) {
+  const client = useQueryClient()
+  const refresh = () => Promise.all([
+    client.invalidateQueries({ queryKey: ['app-issue', siteId] }),
+    client.invalidateQueries({ queryKey: ['app-issues', siteId] }),
+    client.invalidateQueries({ queryKey: ['app-overview', siteId] }),
+    client.invalidateQueries({ queryKey: ['app-issue-merged', siteId, issueId] }),
+    client.invalidateQueries({ queryKey: ['app-issue-activity', siteId, issueId] }),
+  ])
+  const path = `${base(siteId)}/issues/${issueId}`
+  return {
+    merge: useMutation({ mutationFn: (sourceIds: number[]) => privateRequest<{ merged: number[] }>('POST', `${path}/merge`, { body: { source_ids: sourceIds } }), onSuccess: refresh }),
+    unmerge: useMutation({ mutationFn: (hash: string) => privateRequest<{ issue_id: number }>('POST', `${path}/unmerge`, { body: { hashes: [hash] } }), onSuccess: refresh }),
+  }
 }

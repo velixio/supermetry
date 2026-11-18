@@ -27,6 +27,7 @@ import { Route as ShareSlugRouteImport } from './routes/share.$slug'
 import { Route as AppOrgGithubStarsRouteImport } from './routes/app.$org.github-stars'
 import { Route as AppOrgHealthRouteImport } from './routes/app.$org.health'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.$org.settings'
+import { Route as AppAccountNotificationsRouteImport } from './routes/app.account.notifications'
 import { Route as AppAccountProfileRouteImport } from './routes/app.account.profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/app.account.security'
 import { Route as AppAccountSessionsRouteImport } from './routes/app.account.sessions'
@@ -181,6 +182,11 @@ const AppOrgSettingsRoute = AppOrgSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AppOrgRoute,
+} as any)
+const AppAccountNotificationsRoute = AppAccountNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppAccountRoute,
 } as any)
 const AppAccountProfileRoute = AppAccountProfileRouteImport.update({
   id: '/profile',
@@ -538,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/github-stars': typeof AppOrgGithubStarsRouteWithChildren
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
+  '/app/account/notifications': typeof AppAccountNotificationsRoute
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
@@ -619,6 +626,7 @@ export interface FileRoutesByTo {
   '/share/$slug': typeof ShareSlugRoute
   '/app': typeof AppIndexRoute
   '/app/$org/health': typeof AppOrgHealthRoute
+  '/app/account/notifications': typeof AppAccountNotificationsRoute
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
@@ -704,6 +712,7 @@ export interface FileRoutesById {
   '/app/$org/github-stars': typeof AppOrgGithubStarsRouteWithChildren
   '/app/$org/health': typeof AppOrgHealthRoute
   '/app/$org/settings': typeof AppOrgSettingsRouteWithChildren
+  '/app/account/notifications': typeof AppAccountNotificationsRoute
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
@@ -790,6 +799,7 @@ export interface FileRouteTypes {
     | '/app/$org/github-stars'
     | '/app/$org/health'
     | '/app/$org/settings'
+    | '/app/account/notifications'
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
@@ -871,6 +881,7 @@ export interface FileRouteTypes {
     | '/share/$slug'
     | '/app'
     | '/app/$org/health'
+    | '/app/account/notifications'
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
@@ -955,6 +966,7 @@ export interface FileRouteTypes {
     | '/app/$org/github-stars'
     | '/app/$org/health'
     | '/app/$org/settings'
+    | '/app/account/notifications'
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
@@ -1161,6 +1173,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/$org/settings'
       preLoaderRoute: typeof AppOrgSettingsRouteImport
       parentRoute: typeof AppOrgRoute
+    }
+    '/app/account/notifications': {
+      id: '/app/account/notifications'
+      path: '/notifications'
+      fullPath: '/app/account/notifications'
+      preLoaderRoute: typeof AppAccountNotificationsRouteImport
+      parentRoute: typeof AppAccountRoute
     }
     '/app/account/profile': {
       id: '/app/account/profile'
@@ -1762,6 +1781,7 @@ const AppOrgRouteWithChildren =
   AppOrgRoute._addFileChildren(AppOrgRouteChildren)
 
 interface AppAccountRouteChildren {
+  AppAccountNotificationsRoute: typeof AppAccountNotificationsRoute
   AppAccountProfileRoute: typeof AppAccountProfileRoute
   AppAccountSecurityRoute: typeof AppAccountSecurityRoute
   AppAccountSessionsRoute: typeof AppAccountSessionsRoute
@@ -1769,6 +1789,7 @@ interface AppAccountRouteChildren {
 }
 
 const AppAccountRouteChildren: AppAccountRouteChildren = {
+  AppAccountNotificationsRoute: AppAccountNotificationsRoute,
   AppAccountProfileRoute: AppAccountProfileRoute,
   AppAccountSecurityRoute: AppAccountSecurityRoute,
   AppAccountSessionsRoute: AppAccountSessionsRoute,

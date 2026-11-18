@@ -56,3 +56,19 @@ func TestNormalizeSkipsBlankEntries(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestAppSettingsPerformanceDefaults(t *testing.T) {
+	got, err := sites.ParseAppSettings(nil)
+	if err != nil || got.PerformanceEnabled == nil || !*got.PerformanceEnabled || got.SpanRetentionDays != 14 {
+		t.Fatalf("defaults %+v err=%v", got, err)
+	}
+	off, err := sites.ParseAppSettings([]byte(`{"performance_enabled":false,"span_retention_days":3}`))
+	if err != nil || *off.PerformanceEnabled || off.SpanRetentionDays != 3 {
+		t.Fatalf("explicit %+v err=%v", off, err)
+	}
+	for _, days := range []string{"-1", "15"} {
+		if _, err := sites.ParseAppSettings([]byte(`{"span_retention_days":` + days + `}`)); err == nil {
+			t.Fatalf("span_retention_days %s accepted", days)
+		}
+	}
+}

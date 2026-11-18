@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { privateRequest } from '@/features/settings/privateApi'
 import type { components } from '@/lib/api.gen'
 
+import { Attachments, type AttachmentSource } from './Attachments'
 import { crumbTime, frameLabel, readBody, show, type BodyException, type BodyFrame } from './eventBody'
 
 export type AppEventBody = components['schemas']['AppEventBody']
@@ -80,7 +81,7 @@ function KeyValues({ entries }: { entries: [string, unknown][] }) {
   )
 }
 
-export function EventBodyView({ body }: { body: unknown }) {
+export function EventBodyView({ body, source }: { body: unknown; source?: AttachmentSource }) {
   const view = readBody(body)
   const nothing = !view.message && view.exceptions.length === 0 && view.breadcrumbs.length === 0 && view.contexts.length === 0 && view.tags.length === 0
   return (
@@ -118,10 +119,7 @@ export function EventBodyView({ body }: { body: unknown }) {
           <CardContent><ul className="flex flex-wrap gap-2" aria-label="Tags">{view.tags.map(([key, value]) => <li key={key}><Badge variant="outline">{key}: {show(value)}</Badge></li>)}</ul></CardContent>
         </Card>
       ) : null}
-      {view.attachments.length > 0 ? (
-        <Card><CardHeader><CardTitle className="text-base">Attachments</CardTitle><CardDescription>Names and sizes only; contents are not stored.</CardDescription></CardHeader>
-          <CardContent><ul className="text-sm">{view.attachments.map((a, i) => <li key={i}>{a.name || 'attachment'} {a.size !== undefined ? <span className="text-muted-foreground">({a.size} bytes)</span> : null}</li>)}</ul></CardContent></Card>
-      ) : null}
+      <Attachments attachments={view.attachments} source={source} />
       {view.sdk?.name ? <p className="text-xs text-muted-foreground">Sent by {view.sdk.name}{view.sdk.version ? ` ${view.sdk.version}` : ''}</p> : null}
       {nothing ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">This event has no stored detail.</p> : null}
     </div>
@@ -143,7 +141,7 @@ export function EventDetail({ org, site, siteId, issueId, eventId }: { org: stri
     <PageContainer>
       <PageHeader title="Event" description={<span>{event.data.ts.slice(0, 19).replace('T', ' ')} · <span className="font-mono">{event.data.event_id}</span></span>} />
       {back}
-      <EventBodyView body={event.data.body} />
+      <EventBodyView body={event.data.body} source={{ siteId, eventId: event.data.event_id }} />
     </PageContainer>
   )
 }

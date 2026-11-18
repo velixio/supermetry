@@ -233,3 +233,82 @@ func TestAppAssigneesListsMembersWithSiteAccess(t *testing.T) {
 		t.Fatalf("foreign = %d", res.Code)
 	}
 }
+
+func TestAppIssueMergeEndpointsGuardRoleAndTenant(t *testing.T) {
+	f := newAppIssuesFixture(t)
+	merge := fmt.Sprintf(`{"source_ids":[%d]}`, f.errorIssue)
+	unmerge := `{"hashes":["` + strings.Repeat("ab", 32) + `"]}`
+	for _, w := range []struct{ method, suffix, body string }{
+		{http.MethodPost, "/merge", merge},
+		{http.MethodPost, "/unmerge", unmerge},
+	} {
+		if res := f.request(t, "viewer", w.method, f.path(w.suffix), w.body); res.Code != http.StatusForbidden {
+			t.Errorf("viewer %s = %d, want 403", w.suffix, res.Code)
+		}
+		if res := f.request(t, "foreign-owner", w.method, f.path(w.suffix), w.body); res.Code != http.StatusNotFound {
+			t.Errorf("foreign %s = %d, want 404", w.suffix, res.Code)
+		}
+		if res := f.request(t, "key", w.method, f.path(w.suffix), w.body); res.Code != http.StatusForbidden {
+			t.Errorf("api key %s = %d, want 403", w.suffix, res.Code)
+		}
+	}
+	if res := f.request(t, "foreign-owner", http.MethodGet, f.path("/merged"), ``); res.Code != http.StatusNotFound {
+		t.Errorf("foreign GET merged = %d, want 404", res.Code)
+	}
+	// An issue of another site cannot be merged in, or merged into.
+	var foreign int64
+	if err := f.pool.QueryRow(context.Background(), `insert into app_issues(site_id,fingerprint,kind,first_seen,last_seen) values($1,'zm','crash',now(),now()) returning id`, f.otherSite).Scan(&foreign); err != nil {
+		t.Fatal(err)
+	}
+	if res := f.request(t, "owner", http.MethodPost, f.path("/merge"), fmt.Sprintf(`{"source_ids":[%d]}`, foreign)); res.Code != http.StatusNotFound {
+		t.Errorf("merge of another site's issue = %d, want 404", res.Code)
+	}
+	other := fmt.Sprintf("/api/private/sites/%d/app/issues/%d/merge", f.siteID, foreign)
+	if res := f.request(t, "owner", http.MethodPost, other, merge); res.Code != http.StatusNotFound {
+		t.Errorf("merge into another site's issue = %d, want 404", res.Code)
+	}
+	var merged *int64
+	if err := f.pool.QueryRow(context.Background(), `select merged_into from app_issues where id=$1`, f.errorIssue).Scan(&merged); err != nil || merged != nil {
+		t.Fatalf("a refused merge was applied: %v %v", merged, err)
+	}
+	for name, body := range map[string]string{"empty": `{"source_ids":[]}`, "self": fmt.Sprintf(`{"source_ids":[%d]}`, f.crashIssue)} {
+		if res := f.request(t, "editor", http.MethodPost, f.path("/merge"), body); res.Code != http.StatusBadRequest {
+			t.Errorf("%s = %d, want 400", name, res.Code)
+		}
+	}
+	if res := f.request(t, "editor", http.MethodPost, f.path("/unmerge"), `{"hashes":["zz"]}`); res.Code != http.StatusBadRequest {
+		t.Errorf("bad hash = %d, want 400", res.Code)
+	}
+}
+
+func TestAppIssueMergeListUnmergeRoundTrip(t *testing.T) {
+	f := newAppIssuesFixture(t)
+	f.json(t, "editor", http.MethodPost, f.path("/merge"), fmt.Sprintf(`{"source_ids":[%d]}`, f.errorIssue), http.StatusOK)
+	// The merged source is gone from the list and points at the target.
+	list := f.json(t, "viewer", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/app/issues", f.siteID), ``, http.StatusOK)
+	for _, row := range list["issues"].([]any) {
+		if row.(map[string]any)["id"] == float64(f.errorIssue) {
+			t.Fatal("merged source still listed")
+		}
+	}
+	if d := f.json(t, "viewer", http.MethodGet, fmt.Sprintf("/api/private/sites/%d/app/issues/%d", f.siteID, f.errorIssue), ``, http.StatusOK); d["merged_into"] != float64(f.crashIssue) {
+		t.Fatalf("source detail merged_into = %v", d["merged_into"])
+	}
+	out := f.json(t, "viewer", http.MethodGet, f.path("/merged"), ``, http.StatusOK)
+	items := out["merged"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["issue_id"] != float64(f.errorIssue) {
+		t.Fatalf("merged = %v", out)
+	}
+	hash := items[0].(map[string]any)["hash"].(string)
+	res := f.json(t, "editor", http.MethodPost, f.path("/unmerge"), `{"hashes":["`+hash+`"]}`, http.StatusOK)
+	if res["issue_id"] != float64(f.errorIssue) {
+		t.Fatalf("unmerge = %v", res)
+	}
+	if out := f.json(t, "viewer", http.MethodGet, f.path("/merged"), ``, http.StatusOK); len(out["merged"].([]any)) != 0 {
+		t.Fatalf("still merged: %v", out)
+	}
+	var audits int
+	if err := f.pool.QueryRow(context.Background(), `select count(*) from audit_log where action in ('app.issues_merged','app.issues_unmerged')`).Scan(&audits); err != nil || audits != 2 {
+		t.Fatalf("audit rows = %d %v", audits, err)
+	}
+}

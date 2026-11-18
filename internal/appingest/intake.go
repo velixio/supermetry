@@ -134,6 +134,19 @@ func (in *Intake) Admit(site sites.Site, budgetKey string, now time.Time) Outcom
 	return Outcome{}
 }
 
+// TakeBudget takes one unit of the key's budget for an item that is not an
+// event (a session update). An exhausted budget is recorded as a drop.
+func (in *Intake) TakeBudget(site sites.Site, budgetKey string, now time.Time) Outcome {
+	if site.App == nil {
+		return Outcome{Reason: ReasonInvalid}
+	}
+	if !in.budgets.take(budgetKey, now) {
+		in.Drop(site, now, dropstats.AppRateLimited)
+		return Outcome{Reason: ReasonRateLimited}
+	}
+	return Outcome{}
+}
+
 // Accept applies the per-event checks to one parsed event for an app site.
 // budgetKey identifies the ingest key (or the app, for mapped events).
 func (in *Intake) Accept(site sites.Site, budgetKey string, now time.Time, ev Event) Outcome {

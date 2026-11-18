@@ -2,11 +2,13 @@ package platformhttp
 
 import (
 	"errors"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"supermetry/internal/appattach"
 	"supermetry/internal/appquery"
 	"supermetry/internal/platform/authz"
 	coresites "supermetry/internal/sites"
@@ -44,7 +46,7 @@ func (h *handler) appQuerier() *appquery.Querier {
 }
 
 func appScope(site coresites.Site) appquery.Scope {
-	return appquery.Scope{SiteID: site.ID, TZ: siteLocation(site), RetentionDays: int(site.Retention)}
+	return appquery.Scope{SiteID: site.ID, OrgID: site.OrgID, TZ: siteLocation(site), RetentionDays: int(site.Retention)}
 }
 
 // appFilter reads from, to, release, environment and platform.
@@ -110,28 +112,22 @@ func (h *handler) getAppOverview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) listAppIssues(w http.ResponseWriter, r *http.Request) {
-	site, ok := h.appReadSite(w, r)
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionStatsRead, linkRoles()...)
 	if !ok {
 		return
 	}
-	f, ok := appFilter(w, r, site, h.deps.Now())
+	in, ok := h.appIssueQuery(w, r, principal, site)
 	if !ok {
-		return
-	}
-	query := r.URL.Query()
-	in := appquery.IssueQuery{Filter: f, Status: query.Get("status"), Kind: query.Get("kind"), Q: query.Get("q"), Sort: query.Get("sort")}
-	if len(in.Kind) > 32 || len(in.Q) > maxIssueQuery {
-		writeProblem(w, http.StatusBadRequest, "Bad request", "kind or q is too long")
 		return
 	}
 	var err error
-	if raw := query.Get("limit"); raw != "" {
+	if raw := r.URL.Query().Get("limit"); raw != "" {
 		if in.Limit, err = strconv.Atoi(raw); err != nil || in.Limit < 1 {
 			writeProblem(w, http.StatusBadRequest, "Bad request", "limit must be a positive integer")
 			return
 		}
 	}
-	if raw := query.Get("offset"); raw != "" {
+	if raw := r.URL.Query().Get("offset"); raw != "" {
 		if in.Offset, err = strconv.Atoi(raw); err != nil || in.Offset < 0 {
 			writeProblem(w, http.StatusBadRequest, "Bad request", "offset must be a non-negative integer")
 			return
@@ -183,6 +179,64 @@ func (h *handler) getAppEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// getAppEventAttachment serves one stored attachment of an event. The bytes
+// are attacker-controlled, so: only PNG, JPEG and WebP are shown inline, every
+// other type goes out as an opaque download, and nosniff plus a sandboxing CSP
+// keep a browser from ever treating the response as a page.
+func (h *handler) getAppEventAttachment(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	id := r.PathValue("event_id")
+	idx, err := strconv.Atoi(r.PathValue("idx"))
+	if len(id) == 0 || len(id) > 64 || err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "attachment not found")
+		return
+	}
+	a, err := appattach.Get(r.Context(), h.deps.Store.Pool, site.ID, id, idx)
+	if err != nil {
+		if errors.Is(err, appattach.ErrNotFound) {
+			writeProblem(w, http.StatusNotFound, "Not found", "attachment not found")
+			return
+		}
+		serviceError(w, err)
+		return
+	}
+	contentType, disposition := "application/octet-stream", "attachment"
+	switch {
+	case appattach.Inline(a.ContentType):
+		contentType, disposition = a.ContentType, "inline"
+	case a.ContentType == appattach.TypeText:
+		contentType = "text/plain; charset=utf-8"
+	case a.ContentType == appattach.TypeJSON:
+		contentType = "application/json"
+	}
+	name := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || r == '"' || r == '\\' || r == '/' {
+			return -1
+		}
+		return r
+	}, a.Name)
+	if name == "" {
+		name = "attachment"
+	}
+	cd := mime.FormatMediaType(disposition, map[string]string{"filename": name})
+	if cd == "" {
+		cd = disposition
+	}
+	hdr := w.Header()
+	hdr.Set("Content-Type", contentType)
+	hdr.Set("Content-Disposition", cd)
+	hdr.Set("Content-Length", strconv.Itoa(len(a.Data)))
+	hdr.Set("X-Content-Type-Options", "nosniff")
+	hdr.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	hdr.Set("Cross-Origin-Resource-Policy", "same-origin")
+	hdr.Set("Cache-Control", "private, no-store")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(a.Data)
 }
 
 func (h *handler) getAppCompatibility(w http.ResponseWriter, r *http.Request) {

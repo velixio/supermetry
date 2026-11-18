@@ -14,12 +14,6 @@ import (
 // the open day computed live from events by the same SELECT the rollup runs.
 // Counts of distinct installs are never summed across days.
 
-// DayCount is a count on one site-local day.
-type DayCount struct {
-	Day   time.Time `json:"day"`
-	Count int64     `json:"count"`
-}
-
 // ActivePoint is one day of the active-install series. WAU and MAU are the
 // distinct installs active in the 7 and 30 local days ending that day.
 type ActivePoint struct {

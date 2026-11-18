@@ -1,6 +1,7 @@
 package platformhttp
 
 import (
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -24,6 +25,8 @@ func appIssueError(w http.ResponseWriter, err error) {
 		writeProblem(w, http.StatusNotFound, "Not found", "not found")
 	case errors.Is(err, appissues.ErrForbidden):
 		writeProblem(w, http.StatusForbidden, "Forbidden", err.Error())
+	case errors.Is(err, appissues.ErrViewExists):
+		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, appissues.ErrInvalidAssignee):
 		writeProblem(w, http.StatusBadRequest, "Bad request", err.Error())
 	case errors.Is(err, appissues.ErrInvalid):
@@ -246,4 +249,146 @@ where m.org_id = $1 and (m.site_ids is null or $2 = any(m.site_ids)) order by lo
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"members": out})
+}
+
+type appMergeBody struct {
+	SourceIDs []int64 `json:"source_ids"`
+}
+
+// mergeAppIssues folds other issues of the project into the issue in the path.
+func (h *handler) mergeAppIssues(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	var in appMergeBody
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		if err := h.appIssues().MergeTx(r.Context(), tx, site.ID, id, in.SourceIDs, appIssueActor(principal)); err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "app.issues_merged", "app_issue", id, map[string]any{"site_id": site.ID, "sources": in.SourceIDs})
+	})
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"merged": in.SourceIDs})
+}
+
+func (h *handler) listMergedAppIssues(w http.ResponseWriter, r *http.Request) {
+	site, ok := h.appReadSite(w, r)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	list, err := h.appIssues().Merged(r.Context(), site.ID, id)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"merged": list})
+}
+
+type appUnmergeBody struct {
+	Hashes []string `json:"hashes"`
+}
+
+// unmergeAppIssue splits merged issues back out by fingerprint hash.
+func (h *handler) unmergeAppIssue(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.appHealthSite(w, r, authz.ActionSiteEdit, authz.RoleOwner, authz.RoleAdmin, authz.RoleEditor)
+	if !ok {
+		return
+	}
+	id, err := parseInt64(r.PathValue("issue"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "issue not found")
+		return
+	}
+	var in appUnmergeBody
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	hashes := make([][]byte, 0, len(in.Hashes))
+	for _, s := range in.Hashes {
+		b, err := hex.DecodeString(s)
+		if err != nil || len(b) != 32 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "each hash must be 64 hex characters")
+			return
+		}
+		hashes = append(hashes, b)
+	}
+	var newID int64
+	err = h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		var err error
+		newID, err = h.appIssues().UnmergeTx(r.Context(), tx, site.ID, id, hashes, appIssueActor(principal))
+		if err != nil {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "app.issues_unmerged", "app_issue", id, map[string]any{"site_id": site.ID, "hashes": len(hashes)})
+	})
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"issue_id": newID})
+}
+
+// listAppNotificationPrefs returns the caller's own workflow-notification
+// switches for every app project they can read.
+func (h *handler) listAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	sites, err := appissues.ListPrefs(r.Context(), h.deps.Store.Pool, principal.UserID)
+	if err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sites": sites})
+}
+
+// putAppNotificationPrefs saves the caller's own switches for one project. A
+// project the caller cannot read (another organisation's) is a 404.
+func (h *handler) putAppNotificationPrefs(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.privatePrincipal(w, r)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("site"), 10, 32)
+	if err != nil || id < 1 {
+		writeProblem(w, http.StatusNotFound, "Not found", "not found")
+		return
+	}
+	var in struct {
+		Assigned  *bool `json:"assigned"`
+		Resolved  *bool `json:"resolved"`
+		Regressed *bool `json:"regressed"`
+	}
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if in.Assigned == nil || in.Resolved == nil || in.Regressed == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "assigned, resolved and regressed are required")
+		return
+	}
+	prefs := appissues.Prefs{Assigned: *in.Assigned, Resolved: *in.Resolved, Regressed: *in.Regressed}
+	if err := appissues.SetPrefs(r.Context(), h.deps.Store.Pool, principal.UserID, int32(id), prefs); err != nil {
+		appIssueError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, prefs)
 }
