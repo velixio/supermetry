@@ -89,6 +89,13 @@ export const ui = {
     pinned: 'Pinned',
     pin: (label: string) => `Pin ${label} to the top`,
     unpin: (label: string) => `Unpin ${label}`,
+    filterLabel: 'Filter menu',
+    noMatches: 'No matches',
+    searchEverything: 'Search everything',
+    matchCount: (n: number) => `${n} ${n === 1 ? 'match' : 'matches'}`,
+    expand: (label: string) => `Expand ${label}`,
+    collapse: (label: string) => `Collapse ${label}`,
+    subPages: { symbols: 'Symbols', 'alert-silences': 'Silences', monitors: 'Cron monitors', app: 'App' } as Record<string, string>,
   },
   help: {
     menu: 'Help',

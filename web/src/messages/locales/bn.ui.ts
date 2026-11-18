@@ -53,6 +53,13 @@ const messages: MessageTree = {
     pinned: 'পিন করা',
     pin: (label: string) => `${label} উপরে পিন করুন`,
     unpin: (label: string) => `${label} আনপিন করুন`,
+    filterLabel: 'মেনু ফিল্টার করুন',
+    noMatches: 'কোনো মিল পাওয়া যায়নি',
+    searchEverything: 'সবকিছুতে খুঁজুন',
+    matchCount: (n: number) => `${n}টি মিল`,
+    expand: (label: string) => `${label} প্রসারিত করুন`,
+    collapse: (label: string) => `${label} সংকুচিত করুন`,
+    subPages: { symbols: 'সিম্বল', 'alert-silences': 'নীরবকরণ', monitors: 'ক্রন মনিটর', app: 'অ্যাপ' },
   },
   help: {
     menu: 'সহায়তা', shortcuts: 'কিবোর্ড শর্টকাট', about: 'Supermetry সম্পর্কে',

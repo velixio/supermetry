@@ -151,7 +151,7 @@ export function AppShell({
           {en.a11y2.skipToMain}
         </SkipLink>
         {membership ? (
-          <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} resolvedSite={resolvedSite} />
+          <SupermetrySidebar me={me} membership={membership} requestedSite={requestedSite} resolvedSite={resolvedSite} onOpenPalette={openPalette} />
         ) : (
           <AccountSidebar me={me} />
         )}
@@ -204,6 +204,7 @@ export function AppShell({
             <li>{en.shortcuts.help}</li>
             <li>{en.shortcuts.sidebar}</li>
             <li>{en.shortcuts.palette}</li>
+            <li>{en.shortcuts.menuFilter}</li>
             <li>{en.shortcuts.period}</li>
             <li>{en.shortcuts.compare}</li>
           </ul>

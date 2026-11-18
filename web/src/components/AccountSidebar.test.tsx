@@ -47,7 +47,10 @@ describe('AccountSidebar', () => {
   it('links account settings, marks it current, and keeps the brand link and account menu', async () => {
     const sidebar = await show('/app/account/security')
     const nav = within(sidebar).getByRole('navigation', { name: 'Account' })
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Account settings'])
+    // The section on screen opens its second level: Account settings, then its four pages.
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Account settings', 'Profile', 'Security', 'Sessions', 'Notifications'])
+    expect(within(nav).getByRole('link', { name: 'Security' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Profile' })).not.toHaveAttribute('aria-current')
     const link = within(nav).getByRole('link', { name: 'Account settings' })
     expect(link).toHaveAttribute('href', '/app/account/profile')
     expect(link).toHaveAttribute('aria-current', 'page')

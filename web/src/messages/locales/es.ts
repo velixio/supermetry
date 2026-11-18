@@ -287,7 +287,7 @@ const messages: MessageTree = {
     theme: 'D — Alternar modo oscuro',
     help: '? — Mostrar esta ayuda',
     sidebar: 'Ctrl/⌘ B — Contraer o expandir la barra lateral',
-    palette: 'Ctrl/⌘ K — Abrir la paleta de comandos',
+    palette: 'Ctrl/⌘ K — Abrir la paleta de comandos', menuFilter: '/ — Filtrar el menú lateral',
     period: 'M — Mostrar los últimos 30 días (panel)',
     compare: 'C — Activar o desactivar la comparación de periodos (panel)',
   },

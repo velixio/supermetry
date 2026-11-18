@@ -90,6 +90,13 @@ const messages: MessageTree = {
     pinned: 'Angeheftet',
     pin: (label: string) => `${label} oben anheften`,
     unpin: (label: string) => `${label} lösen`,
+    filterLabel: 'Menü filtern',
+    noMatches: 'Keine Treffer',
+    searchEverything: 'Alles durchsuchen',
+    matchCount: (n: number) => `${n} Treffer`,
+    expand: (label: string) => `${label} aufklappen`,
+    collapse: (label: string) => `${label} zuklappen`,
+    subPages: { symbols: 'Symbole', 'alert-silences': 'Stummschaltungen', monitors: 'Cron-Monitore', app: 'App' },
   },
   help: {
     menu: 'Hilfe',

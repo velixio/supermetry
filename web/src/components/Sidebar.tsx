@@ -7,7 +7,6 @@ import {
   Building2Icon,
   ChartNoAxesCombinedIcon,
   CircleDollarSignIcon,
-  ChevronDownIcon,
   ChevronsUpDownIcon,
   CircleGaugeIcon,
   CodeXmlIcon,
@@ -35,8 +34,8 @@ import {
   UserRoundIcon,
   UsersRoundIcon,
 } from 'lucide-react'
-import { useEffect, type ComponentType, type ReactNode } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 
 import { SiteIcon } from '@/components/SiteIcon'
 import { BrandLogo } from '@/components/BrandLogo'
@@ -61,10 +60,13 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuAction,
   SidebarMenuItem,
+  SidebarMenuSubButton,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { settingsGroups } from '@/features/settings/SettingsNav'
+import { FILTER_SHORTCUT, filterGroups, flattenRows, NoMatches, SidebarFilterField } from './sidebar/filter'
+import { MenuEntry, MenuGroup, optionId, rowClass, subRowClass, type MenuGroupData, type MenuRow } from './sidebar/menu'
 import { matchesSite, siteSlug } from '@/lib/matchSite'
 import type { Me, Membership, Site } from '@/lib/me'
 import { en } from '@/messages/en'
@@ -247,6 +249,7 @@ function navigationLink(
   site: string,
   active: boolean,
   closeMobile: () => void,
+  label: ReactNode = item.label,
 ) {
   const props = {
     'aria-current': active ? ('page' as const) : undefined,
@@ -255,7 +258,7 @@ function navigationLink(
   const content = (
     <>
       <item.icon />
-      <span>{item.label}</span>
+      <span>{label}</span>
     </>
   )
 
@@ -335,9 +338,9 @@ function navigationLink(
 /** The brand link at the top of every sidebar. It leads to the sites overview. */
 export function SidebarBrandLink({ onClick }: { onClick: () => void }) {
   return (
-    <Link aria-label="Supermetry home" className="mb-1 flex h-8 items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={onClick}>
-      <BrandLogo className="h-7 w-7" decorative mark />
-      <span className="truncate text-base font-semibold group-data-[collapsible=icon]:hidden">{en.navigation.brand}</span>
+    <Link aria-label="Supermetry home" className="flex h-8 items-center gap-2 rounded-md px-2 outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0" to="/app" onClick={onClick}>
+      <BrandLogo className="h-5 w-5" decorative mark />
+      <span className="truncate text-sm font-semibold group-data-[collapsible=icon]:hidden">{en.navigation.brand}</span>
     </Link>
   )
 }
@@ -413,8 +416,9 @@ export const githubStarsPath = '/app/github-stars'
 /** The account menu in the footer of both sidebars. */
 export function SidebarAccountFooter({ me }: { me: Me }) {
   const { isMobile } = useSidebar()
+  const name = me.user.name?.trim() || me.user.email
   return (
-    <SidebarFooter>
+    <SidebarFooter className="p-2">
       <SidebarMenu>
         <SidebarMenuItem>
           <AccountMenu
@@ -422,9 +426,11 @@ export function SidebarAccountFooter({ me }: { me: Me }) {
             me={me}
             side={isMobile ? 'top' : 'right'}
             trigger={
-              <SidebarMenuButton className="h-11 md:h-8" tooltip={ui.menus.account}>
-                <UserRoundIcon aria-hidden="true" />
-                <span>{ui.menus.account}</span>
+              <SidebarMenuButton aria-label={ui.menus.account} className={`${rowClass} group-data-[collapsible=icon]:p-1.5!`} tooltip={ui.menus.account}>
+                <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                  {name.charAt(0).toUpperCase()}
+                </span>
+                <span>{name}</span>
               </SidebarMenuButton>
             }
           />
@@ -434,26 +440,44 @@ export function SidebarAccountFooter({ me }: { me: Me }) {
   )
 }
 
-type NavEntry = { key: string; label: string; active: boolean; button: ReactNode }
+/** Sub-destinations of project settings, in the order of the settings tabs. Mirrors the tabs on the settings page. */
+const siteSettingsPages = ['general', 'installation', 'symbols', 'integrations', 'tracking', 'replay', 'goals', 'funnels', 'shares', 'reports', 'alerts', 'alert-silences', 'monitors', 'notification-history', 'imports', 'app'] as const
+const appSettingsPages: readonly string[] = ['general', 'installation', 'symbols', 'alerts', 'alert-silences', 'monitors', 'app']
+
+export const subPageLabel = (page: string): string => ui.sidebar.subPages[page] ?? ui.crumbs.segments[page] ?? page
+
+/** The settings sub-pages offered for a project, following the same rules as the tabs on the settings page. */
+export function siteSettingsSubPages(site: Site | undefined, showReplay: boolean): string[] {
+  const restricted = isAnonymousTracking(site)
+  return siteSettingsPages.filter((page) =>
+    (site?.kind === 'app' ? appSettingsPages.includes(page) : page !== 'app') &&
+    (page !== 'replay' || showReplay) &&
+    (!restricted || !['imports', 'goals', 'funnels'].includes(page)))
+}
 
 export function SupermetrySidebar({
   me,
   membership,
   requestedSite,
   resolvedSite,
+  onOpenPalette,
 }: {
   me: Me
   membership: Membership
   requestedSite?: string
   resolvedSite?: Site
+  /** Opens the command palette from "Search everything". Without it the sidebar presses the palette's own shortcut. */
+  onOpenPalette?: () => void
 }) {
   const site = activeSite(membership, requestedSite)
   const navigationSite = resolvedSite ?? site
   const currentSite = site ? siteSlug(site) : ''
+  const org = membership.org.slug
   const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const router = useRouter()
   // The site list keeps the current page (and its portable search) for the chosen site.
   const current = useCurrentRoute()
-  const { setOpenMobile, state: sidebarState, isMobile } = useSidebar()
+  const { setOpenMobile, setOpen, state: sidebarState, isMobile } = useSidebar()
   const closeMobile = () => setOpenMobile(false)
   const { prefs, setGroupOpen, togglePin } = useSidebarPrefs(me.user.id)
   const orgScope = isOrgScopedPath(pathname)
@@ -464,97 +488,187 @@ export function SupermetrySidebar({
   // On the icon rail every group shows, so no item is hidden behind a collapsed heading.
   const rail = sidebarState === 'collapsed' && !isMobile
 
-  const sections = navigationSections.map((section) => {
+  const [query, setQuery] = useState('')
+  const [cursorKey, setCursorKey] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const focusAfterExpand = useRef(false)
+  const filtering = query.trim() !== ''
+
+  const sections: MenuGroupData[] = navigationSections.map((section) => {
     const suffixes = new Set<string>(section.suffixes)
-    const entries: NavEntry[] = []
+    const entries: MenuRow[] = []
     for (const item of visibleItems.filter((candidate) => suffixes.has(candidate.suffix))) {
-      const active = navigationIsActive(item, pathname, membership.org.slug, currentSite)
+      const active = navigationIsActive(item, pathname, org, currentSite)
       entries.push({
         key: `nav:${item.suffix || '/'}`,
         label: item.label,
+        href: navigationUrl(item, org, currentSite),
         active,
-        button: (
-          <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={item.label}>
-            {navigationLink(item, membership.org.slug, currentSite, active, closeMobile)}
+        pinnable: true,
+        render: ({ label, id, kbd }) => (
+          <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} id={id} isActive={active} tooltip={item.label}>
+            {navigationLink(item, org, currentSite, active, closeMobile, label)}
           </SidebarMenuButton>
         ),
       })
       if (item.suffix === '/realtime' && showReplays) {
-        const replayActive = pathname.startsWith(`/app/${membership.org.slug}/${currentSite}/replays`)
+        const replayActive = pathname.startsWith(`/app/${org}/${currentSite}/replays`)
         entries.push({
           key: 'nav:/replays',
           label: 'Replays',
+          href: replaysUrl(org, currentSite),
           active: replayActive,
-          button: (
-            <SidebarMenuButton asChild className="h-11 md:h-8" isActive={replayActive} tooltip="Replays">
-              <ReplayNavLink enabled org={membership.org.slug} site={currentSite} onClick={closeMobile} />
+          pinnable: true,
+          // ReplayNavLink draws its own fixed label, so the filter match is not highlighted on this row.
+          render: ({ id, kbd }) => (
+            <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} id={id} isActive={replayActive} tooltip="Replays">
+              <ReplayNavLink enabled org={org} site={currentSite} onClick={closeMobile} />
             </SidebarMenuButton>
           ),
         })
       }
     }
-    return { ...section, entries }
+    const label = section.key === 'analyze' && site?.kind === 'app' ? en.a11y2.sidebarSections.appMonitoring : section.label
+    return { key: section.key, label, entries }
   })
+
+  // Settings: one collapsible row per destination, with the pages inside it as a second level.
+  const subRow = (key: string, label: string, href: string, active: boolean): MenuRow => ({
+    key,
+    label,
+    href,
+    active,
+    render: ({ label: text, id, kbd }) => (
+      <SidebarMenuSubButton asChild className={subRowClass} data-kbd={kbd || undefined} id={id} isActive={active}>
+        <Link aria-current={active ? 'page' : undefined} onClick={closeMobile} to={href as never}>
+          <span>{text}</span>
+        </Link>
+      </SidebarMenuSubButton>
+    ),
+  })
+  const managers = membership.role === 'owner' || membership.role === 'admin'
+  const settingsEntries: MenuRow[] = settingsDestinations(membership.role, site).map((destination) => {
+    const active = settingsIsActive(destination, pathname, org, site)
+    const isSite = destination === 'site' && site
+    const label = isSite ? ui.menus.siteSettings : ui.menus.organizationSettings
+    const href = isSite ? siteSettingsHref(org, siteSlug(site)) : organizationSettingsHref(org)
+    const children = isSite
+      ? siteSettingsSubPages(navigationSite, showReplays).map((page) => {
+          const to = `/app/${org}/${siteSlug(site)}/settings/${page}`
+          return subRow(`settings:site:${page}`, subPageLabel(page), to, pathname === to || pathname.startsWith(`${to}/`))
+        })
+      : settingsGroups({ showReplay: false, canManage: managers }, org)
+          .flatMap((group) => group.items)
+          .flatMap((item) => (item.kind === 'org' && item.value !== 'settings' ? [subRow(`settings:org:${item.value}`, item.label, item.to, pathname === item.to || pathname.startsWith(`${item.to}/`))] : []))
+    return {
+      key: `settings:${destination}`,
+      label,
+      href,
+      active,
+      children,
+      render: ({ label: text, id, kbd }) => (
+        <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} id={id} isActive={active} tooltip={label}>
+          <Link
+            aria-current={active ? 'page' : undefined}
+            onClick={closeMobile}
+            {...(isSite
+              ? { params: { org, site: siteSlug(site) }, to: '/app/$org/$site/settings/general' as const }
+              : { params: { org }, to: '/app/$org/settings' as const })}
+          >
+            {isSite ? <SettingsIcon /> : <Building2Icon />}
+            <span>{text}</span>
+          </Link>
+        </SidebarMenuButton>
+      ),
+    }
+  })
+
   const allEntries = sections.flatMap((section) => section.entries)
-  const pinnedEntries = prefs.pinned.flatMap((key) => allEntries.filter((entry) => entry.key === key))
-  const pinnedKeys = new Set(pinnedEntries.map((entry) => entry.key))
+  const pinnedRows = prefs.pinned.flatMap((key) => allEntries.filter((entry) => entry.key === key))
+  const pinnedKeys = new Set(pinnedRows.map((entry) => entry.key))
   const activeSection = sections.find((section) => section.entries.some((entry) => entry.active && !pinnedKeys.has(entry.key)))?.key
+  const activeSettings = settingsEntries.find((entry) => entry.active)?.key
+
+  const baseGroups: MenuGroupData[] = [
+    ...(pinnedRows.length > 0 ? [{ key: 'pinned', label: ui.sidebar.pinned, entries: pinnedRows }] : []),
+    ...sections.map((section) => ({ ...section, entries: section.entries.filter((entry) => !pinnedKeys.has(entry.key)) })).filter((section) => section.entries.length > 0),
+    { key: 'settings', label: ui.menus.settings, entries: settingsEntries, className: 'mt-auto' },
+  ]
+  const groups = filterGroups(baseGroups, query)
+  const rows = useMemo(() => flattenRows(groups), [groups])
+  // The cursor stays on its row while the results change, and falls back to the first result.
+  const cursor = filtering ? (rows.some((row) => row.key === cursorKey) ? cursorKey : (rows[0]?.key ?? null)) : null
+
   // Every group starts open so the whole product is visible; a group someone collapses stays collapsed.
-  const groupOpen = (key: string) => rail || (prefs.open[key] ?? true)
+  const groupOpen = (key: string) => rail || filtering || (prefs.open[key] ?? true)
 
   // Landing on a page inside a collapsed group (palette, link, back button) opens that group.
   useEffect(() => {
     if (activeSection && prefs.open[activeSection] !== true && prefs.open[activeSection] !== undefined) setGroupOpen(activeSection, true)
+    if (activeSettings && prefs.open[activeSettings] === false) setGroupOpen(activeSettings, true)
     // Only a change of the active group should reopen it, not the user collapsing it afterwards.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection, pathname])
+  }, [activeSection, activeSettings, pathname])
 
-  const renderEntry = (entry: NavEntry) => {
-    const pinned = pinnedKeys.has(entry.key)
-    return (
-      <SidebarMenuItem key={entry.key}>
-        {entry.button}
-        <SidebarMenuAction
-          aria-label={pinned ? ui.sidebar.unpin(entry.label) : ui.sidebar.pin(entry.label)}
-          aria-pressed={pinned}
-          showOnHover={!pinned}
-          onClick={() => togglePin(entry.key)}
-          type="button"
-        >
-          {pinned ? <PinOffIcon aria-hidden="true" /> : <PinIcon aria-hidden="true" />}
-        </SidebarMenuAction>
-      </SidebarMenuItem>
-    )
+  useEffect(() => {
+    if (cursor) document.getElementById(optionId(cursor))?.scrollIntoView?.({ block: 'nearest' })
+  }, [cursor])
+
+  const focusFilter = () => {
+    if (isMobile || document.querySelector('[role="dialog"]')) return
+    if (rail) {
+      focusAfterExpand.current = true
+      setOpen(true)
+    } else inputRef.current?.focus()
   }
+  useEffect(() => {
+    if (!rail && focusAfterExpand.current) {
+      focusAfterExpand.current = false
+      inputRef.current?.focus()
+    }
+  }, [rail])
+  // Own listener rather than useShortcuts: the shell registers that hook too, and `/` belongs to the sidebar.
+  const focusFilterRef = useRef(focusFilter)
+  focusFilterRef.current = focusFilter
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== FILTER_SHORTCUT || event.ctrlKey || event.metaKey || event.altKey) return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      event.preventDefault()
+      focusFilterRef.current()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
 
-  const renderGroup = (key: string, label: string, entries: NavEntry[]) => {
-    const headingId = `sidebar-${key}-heading`
-    const contentId = `sidebar-${key}-content`
-    const open = groupOpen(key)
-    return (
-      <SidebarGroup key={key} className="py-1">
-        <SidebarGroupLabel asChild>
-          <h2 id={headingId}>
-            <button
-              aria-controls={contentId}
-              aria-expanded={open}
-              className="flex h-full w-full items-center justify-between rounded-md text-left outline-hidden focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50"
-              onClick={() => setGroupOpen(key, !open)}
-              tabIndex={rail ? -1 : undefined}
-              type="button"
-            >
-              <span>{label}</span>
-              <ChevronDownIcon aria-hidden="true" className={`size-4 transition-transform motion-reduce:transition-none ${open ? '' : '-rotate-90'}`} />
-            </button>
-          </h2>
-        </SidebarGroupLabel>
-        <SidebarGroupContent hidden={!open} id={contentId}>
-          <nav aria-labelledby={headingId}>
-            <SidebarMenu>{entries.map(renderEntry)}</SidebarMenu>
-          </nav>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    )
+  const clearFilter = () => {
+    setQuery('')
+    inputRef.current?.blur()
+  }
+  const onFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      clearFilter()
+      return
+    }
+    if (!filtering || rows.length === 0) return
+    const at = Math.max(0, rows.findIndex((row) => row.key === cursor))
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const step = event.key === 'ArrowDown' ? 1 : -1
+      setCursorKey(rows[(at + step + rows.length) % rows.length].key)
+    } else if (event.key === 'Enter') {
+      event.preventDefault()
+      router.history.push(rows[at].href)
+      closeMobile()
+      clearFilter()
+    }
+  }
+  const searchEverything = () => {
+    closeMobile()
+    if (onOpenPalette) onOpenPalette()
+    else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }))
   }
 
   const switcherTooltip = orgScope
@@ -563,24 +677,26 @@ export function SupermetrySidebar({
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
-      <SidebarHeader className="sticky top-0 z-10 border-b bg-sidebar">
+      <SidebarHeader className="sticky top-0 z-10 h-12 flex-row items-center border-b bg-sidebar p-0 px-2">
         <SidebarBrandLink onClick={closeMobile} />
+      </SidebarHeader>
+      <div className="flex flex-col gap-1.5 px-2 pt-2 pb-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" tooltip={switcherTooltip}>
-              {orgScope ? <Building2Icon aria-hidden="true" /> : site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={24} /> : null}
+            <SidebarMenuButton size="lg" className="h-11 gap-2 px-2 text-sm md:h-9 data-[state=open]:bg-accent data-[state=open]:text-foreground hover:bg-accent/60 hover:text-foreground" tooltip={switcherTooltip}>
+              {orgScope ? <Building2Icon aria-hidden="true" /> : site ? <SiteIcon iconUrl={site.icon_url} name={site.name} size={20} className="rounded-md" /> : null}
               {orgScope ? (
-                <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="org">
-                  <span className="truncate">{ui.sidebar.organizationScope}: {membership.org.name}</span>
+                <span className="flex min-w-0 flex-col text-left leading-4" data-scope="org">
+                  <span className="truncate font-medium">{ui.sidebar.organizationScope}: {membership.org.name}</span>
                   {site ? <span className="truncate text-xs text-muted-foreground" data-testid="switcher-site-dimmed">{site.name}</span> : null}
                 </span>
               ) : (
-                <span className="flex min-w-0 flex-col text-left leading-tight" data-scope="site">
-                  <span className="truncate">{site?.name ?? en.navigation.site}</span>
+                <span className="flex min-w-0 flex-col text-left leading-4" data-scope="site">
+                  <span className="truncate font-medium">{site?.name ?? en.navigation.site}</span>
                   <span className="truncate text-xs text-muted-foreground">{membership.org.name}</span>
                 </span>
               )}
-              <ChevronsUpDownIcon aria-hidden="true" className="ml-auto group-data-[collapsible=icon]:hidden" />
+              <ChevronsUpDownIcon aria-hidden="true" className="ml-auto size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-(--radix-dropdown-menu-trigger-width) min-w-64 max-w-80">
@@ -616,55 +732,47 @@ export function SupermetrySidebar({
             <OrganizationMenuGroup currentOrgId={membership.org.id} me={me} onSelect={closeMobile} />
           </DropdownMenuContent>
         </DropdownMenu>
-      </SidebarHeader>
-      <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
-        {pinnedEntries.length > 0 ? renderGroup('pinned', ui.sidebar.pinned, pinnedEntries) : null}
-        {sections.map((section) => {
-          const entries = section.entries.filter((entry) => !pinnedKeys.has(entry.key))
-          if (entries.length === 0) return null
-          const label = section.key === 'analyze' && site?.kind === 'app' ? en.a11y2.sidebarSections.appMonitoring : section.label
-          return renderGroup(section.key, label, entries)
-        })}
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel asChild><h2 id="sidebar-settings-heading">{ui.menus.settings}</h2></SidebarGroupLabel>
-          <SidebarGroupContent>
-            <nav aria-labelledby="sidebar-settings-heading">
-              <SidebarMenu>
-                {settingsDestinations(membership.role, site).map((destination) => {
-                  const active = settingsIsActive(destination, pathname, membership.org.slug, site)
-                  const label = destination === 'site' ? ui.menus.siteSettings : ui.menus.organizationSettings
-                  return (
-                    <SidebarMenuItem key={destination}>
-                      <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={label}>
-                        {destination === 'site' && site ? (
-                          <Link
-                            aria-current={active ? 'page' : undefined}
-                            onClick={closeMobile}
-                            params={{ org: membership.org.slug, site: siteSlug(site) }}
-                            to="/app/$org/$site/settings/general"
-                          >
-                            <SettingsIcon />
-                            <span>{label}</span>
-                          </Link>
-                        ) : (
-                          <Link
-                            aria-current={active ? 'page' : undefined}
-                            onClick={closeMobile}
-                            params={{ org: membership.org.slug }}
-                            to="/app/$org/settings"
-                          >
-                            <Building2Icon />
-                            <span>{label}</span>
-                          </Link>
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </nav>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarFilterField
+          activeId={cursor ? optionId(cursor) : undefined}
+          count={rows.length}
+          inputRef={inputRef}
+          listId="sidebar-menu-results"
+          onExpand={focusFilter}
+          onKeyDown={onFilterKeyDown}
+          onQueryChange={setQuery}
+          query={query}
+          rail={rail}
+        />
+        <p aria-live="polite" className="sr-only" role="status">{filtering ? ui.sidebar.matchCount(rows.length) : ''}</p>
+      </div>
+      <SidebarContent className="gap-2 px-2 pt-1 group-data-[collapsible=icon]:overflow-auto" id="sidebar-menu-results">
+        {filtering && groups.length === 0 ? <NoMatches onSearchEverything={searchEverything} /> : null}
+        {groups.map((group) => (
+          <MenuGroup
+            key={group.key}
+            className={group.className}
+            id={group.key}
+            label={group.label}
+            onToggle={() => setGroupOpen(group.key, !groupOpen(group.key))}
+            open={groupOpen(group.key)}
+            rail={rail}
+          >
+            {group.entries.map((entry) => {
+              const subOpen = filtering || (prefs.open[entry.key] ?? (entry.active || Boolean(entry.children?.some((child) => child.active))))
+              return (
+                <MenuEntry
+                  key={entry.key}
+                  cursor={cursor}
+                  entry={entry}
+                  onToggle={() => setGroupOpen(entry.key, !subOpen)}
+                  open={subOpen}
+                  pin={entry.pinnable ? { pinned: pinnedKeys.has(entry.key), toggle: () => togglePin(entry.key) } : undefined}
+                  query={query}
+                />
+              )
+            })}
+          </MenuGroup>
+        ))}
       </SidebarContent>
       <SidebarAccountFooter me={me} />
     </Sidebar>

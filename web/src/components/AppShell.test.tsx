@@ -398,7 +398,9 @@ describe('AppShell live visitor badge', () => {
     const header = await screen.findByRole('banner', { name: 'Application header' })
     expect(header).toHaveClass('top-0')
     const settings = screen.getByRole('navigation', { name: 'Settings' })
-    expect(within(settings).getAllByRole('link').map((link) => link.textContent)).toEqual(['Organization settings'])
+    // Organization settings is the section on screen, so its pages are listed under it.
+    expect(within(settings).getAllByRole('link')[0]).toHaveTextContent('Organization settings')
+    expect(within(settings).getAllByRole('link')).toHaveLength(9)
     fireEvent.pointerDown(screen.getByRole('button', { name: /Organization: Acme/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
     expect(await screen.findByRole('menuitem', { name: /Add project/ })).toHaveAttribute('href', '/app/acme/sites/new')
   })
@@ -425,6 +427,7 @@ describe('AppShell live visitor badge', () => {
       '? — Show this help',
       'Ctrl/⌘ B — Collapse or expand the sidebar',
       'Ctrl/⌘ K — Open the command palette',
+      '/ — Filter the sidebar menu',
       'M — Show the last 30 days (dashboard)',
       'C — Turn period comparison on or off (dashboard)',
     ])

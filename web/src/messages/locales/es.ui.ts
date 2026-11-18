@@ -90,6 +90,13 @@ const messages: MessageTree = {
     pinned: 'Fijados',
     pin: (label: string) => `Fijar ${label} arriba`,
     unpin: (label: string) => `Desfijar ${label}`,
+    filterLabel: 'Filtrar menú',
+    noMatches: 'Sin coincidencias',
+    searchEverything: 'Buscar en todo',
+    matchCount: (n: number) => `${n} ${n === 1 ? 'coincidencia' : 'coincidencias'}`,
+    expand: (label: string) => `Expandir ${label}`,
+    collapse: (label: string) => `Contraer ${label}`,
+    subPages: { symbols: 'Símbolos', 'alert-silences': 'Silencios', monitors: 'Monitores cron', app: 'App' },
   },
   help: {
     menu: 'Ayuda',
