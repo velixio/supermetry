@@ -50,6 +50,27 @@ function cleanTags(tags: Record<string, TagValue> | undefined): Record<string, T
   return n ? out : undefined;
 }
 
+const EVENT_NAME = /^[A-Za-z0-9_.:$ -]+$/;
+
+function clipBytes(s: string, max: number): string {
+  while (enc.encode(s).length > max) s = s.slice(0, s.length - 1);
+  return s;
+}
+
+/** Custom event props: string values only, no "$" keys (reserved), at most 20 keys. */
+function cleanProps(props: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!props) return undefined;
+  const out: Record<string, string> = {};
+  let n = 0;
+  for (const [k, v] of Object.entries(props)) {
+    if (n >= 20) break;
+    if (typeof v !== "string" || !k || k.startsWith("$") || enc.encode(k).length > 64) continue;
+    out[k] = clipBytes(v, 200);
+    n++;
+  }
+  return n ? out : undefined;
+}
+
 export class Client {
   private opts: Required<Pick<Options, "maxQueue" | "flushIntervalMs" | "maxAgeDays">> & Options;
   private queue: WireEvent[] = [];
@@ -125,6 +146,24 @@ export class Client {
     this.enqueue(kind, fields);
   }
 
+  /**
+   * Records a custom product event. The name (1 to 64 characters of letters,
+   * digits and _.:$ - space, not starting with "$") and the install id are
+   * required: a call the server would reject is ignored. Props are strings.
+   * No user id is ever sent; the install id is the one given in the options.
+   */
+  track(name: string, props?: Record<string, string>): void {
+    if (typeof name !== "string" || name.length > 64 || name.startsWith("$") || !EVENT_NAME.test(name)) return;
+    if (!this.opts.installId) return;
+    this.enqueue("event", { name, props: cleanProps(props) });
+  }
+
+  /** Records a screen view (1 to 200 bytes). Needs the install id, like track(). */
+  screen(name: string, props?: Record<string, string>): void {
+    if (typeof name !== "string" || !name || !this.opts.installId) return;
+    this.enqueue("screen", { screen: clipBytes(name, 200), props: cleanProps(props) });
+  }
+
   async flush(timeoutMs = 10_000): Promise<void> {
     await this.ready;
     if (!this.enabled) return;
@@ -169,7 +208,12 @@ export class Client {
     if (this.sessionId) e.session_id = this.sessionId;
     const dc = f.deviceClass ?? o.deviceClass;
     if (dc) e.device_class = clip(dc, 32);
-    if (kind !== "session") {
+    const product = kind === "screen" || kind === "event";
+    if (product) {
+      if (f.screen) e.screen = f.screen;
+      if (f.name) e.name = f.name;
+      if (f.props) e.props = f.props;
+    } else if (kind !== "session") {
       e.level = f.level ?? (kind === "crash" ? "fatal" : "error");
       e.handled = f.handled ?? kind !== "crash";
     }
