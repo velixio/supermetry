@@ -3046,10 +3046,18 @@ type AppIssueDetail struct {
 	FirstSeen    time.Time                 `json:"first_seen"`
 	GithubUrl    string                    `json:"github_url"`
 	Id           int64                     `json:"id"`
-	Kind         string                    `json:"kind"`
-	LastRelease  string                    `json:"last_release"`
-	LastSeen     time.Time                 `json:"last_seen"`
-	LatestEvents []AppEventSample          `json:"latest_events"`
+
+	// IntroducedIn The release the issue first appeared in; null when the issue has no release.
+	IntroducedIn struct {
+		// DeployAt First deploy of that release to the site
+		DeployAt  time.Time `json:"deploy_at"`
+		FirstSeen time.Time `json:"first_seen"`
+		Release   string    `json:"release"`
+	} `json:"introduced_in"`
+	Kind         string           `json:"kind"`
+	LastRelease  string           `json:"last_release"`
+	LastSeen     time.Time        `json:"last_seen"`
+	LatestEvents []AppEventSample `json:"latest_events"`
 
 	// MergedInto Set when this issue was merged into another; its events and counts now belong to that issue.
 	MergedInto        *int64                 `json:"merged_into,omitempty"`
@@ -3067,7 +3075,18 @@ type AppIssueDetail struct {
 
 	// Status open, resolved, ignored, regressed or archived.
 	Status string `json:"status"`
-	Title  string `json:"title"`
+
+	// SuspectCommits Commits of the introducing release that changed a file on the stack of the newest event, best match first. Author emails are never returned.
+	SuspectCommits []struct {
+		At         time.Time `json:"at"`
+		AuthorName string    `json:"author_name"`
+		Message    string    `json:"message"`
+		Path       string    `json:"path"`
+		Repository string    `json:"repository"`
+		Score      int       `json:"score"`
+		Sha        string    `json:"sha"`
+	} `json:"suspect_commits"`
+	Title string `json:"title"`
 }
 
 // AppIssueDetailPriority defines model for AppIssueDetail.Priority.
