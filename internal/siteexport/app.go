@@ -3,11 +3,16 @@ package siteexport
 import (
 	"archive/zip"
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"supermetry/internal/csvsafe"
 )
 
 // utc renders a timestamptz column as an RFC 3339 UTC string (” when null).
@@ -40,14 +45,14 @@ func (e *Exporter) writeApp(ctx context.Context, archive *zip.Writer, siteID int
 	issues := `
 select i.id,i.title,i.culprit,i.level,i.status,i.kind,i.error_type,` + utc("i.first_seen") + `,` + utc("i.last_seen") + `,
  i.event_count,i.first_release,i.last_release,coalesce(i.resolved_in_release,''),
- i.priority,coalesce(i.assignee_user_id::text,''),coalesce(i.github_url,'')
+ i.priority,coalesce(i.assignee_user_id::text,''),coalesce(i.github_url,''),coalesce(i.merged_into::text,'')
 from app_issues i
 where i.site_id=$1 and i.last_seen >= ($2::date)::timestamp at time zone $4
   and i.first_seen < (($3::date)+1)::timestamp at time zone $4
 order by i.id`
 	if err := e.writeRows(ctx, archive, "app_issues.csv", []string{
 		"issue_id", "title", "culprit", "level", "status", "kind", "error_type", "first_seen", "last_seen",
-		"occurrences", "first_release", "last_release", "resolved_in_release", "priority", "assignee_id", "github_url",
+		"occurrences", "first_release", "last_release", "resolved_in_release", "priority", "assignee_id", "github_url", "merged_into",
 	}, issues, siteID, f, t, tz); err != nil {
 		return err
 	}
@@ -210,17 +215,32 @@ order by c.day,c.reason,c.category`
 		return err
 	}
 
-	// Metric series registry: names, kinds, units and (privacy-filtered)
-	// attributes; the points themselves are not exported.
+	// Metric series registry: names, kinds, units, histogram bounds and
+	// (privacy-filtered) attributes. The hourly rollups follow; raw points are
+	// not exported (like raw spans: high volume, short retention).
 	series := `
-select s.id,s.name,s.kind,s.unit,s.attrs::text,` + utc("s.first_seen") + `,` + utc("s.last_seen") + `
+select s.id,s.name,s.kind,s.unit,coalesce(array_to_string(s.bounds,' '),''),s.attrs::text,` + utc("s.first_seen") + `,` + utc("s.last_seen") + `
 from metric_series s
 where s.site_id=$1 and s.last_seen >= ($2::date)::timestamp at time zone $4
   and s.first_seen < (($3::date)+1)::timestamp at time zone $4
 order by s.id`
 	if err := e.writeRows(ctx, archive, "metric_series.csv",
-		[]string{"series_id", "name", "kind", "unit", "attributes", "first_seen", "last_seen"},
+		[]string{"series_id", "name", "kind", "unit", "bounds", "attributes", "first_seen", "last_seen"},
 		series, siteID, f, t, tz); err != nil {
+		return err
+	}
+	// Hourly metric rollups in the site's local hours; floats as text so they
+	// round-trip exactly. bucket_counts pairs with the series bounds.
+	metricHourly := `
+select h.series_id,to_char(h.hour,'YYYY-MM-DD"T"HH24:MI'),h.samples,coalesce(h.value_sum::text,''),coalesce(h.value_min::text,''),
+ coalesce(h.value_max::text,''),coalesce(h.value_last::text,''),coalesce(h.count::text,''),coalesce(h.sum::text,''),
+ coalesce(array_to_string(h.bucket_counts,' '),'')
+from metric_hourly h
+where h.site_id=$1 and h.hour >= $2::date and h.hour < ($3::date)+1
+order by h.hour,h.series_id`
+	if err := e.writeRows(ctx, archive, "metric_hourly.csv", []string{
+		"series_id", "local_hour", "samples", "value_sum", "value_min", "value_max", "value_last", "count", "sum", "bucket_counts",
+	}, metricHourly, siteID, f, t); err != nil {
 		return err
 	}
 
@@ -267,6 +287,23 @@ where g.site_id=$1
 order by g.group_hash`
 	if err := e.writeRows(ctx, archive, "app_span_groups.csv",
 		[]string{"group_id", "op", "label", "first_seen"}, groups, siteID); err != nil {
+		return err
+	}
+
+	// Attachments of stored events (scrubbed at ingest; the stored bytes are
+	// exactly what was kept). Listing first, then the bytes under a stable path.
+	attachments := `
+select a.event_id,a.idx,a.name,a.content_type,a.size,` + utc("a.ts") + `
+from app_event_attachments a
+where a.site_id=$1 and ` + inWindow("a.ts") + `
+order by a.ts,a.event_id,a.idx`
+	if err := e.writeAttachmentList(ctx, archive, attachments, siteID, f, t, tz); err != nil {
+		return err
+	}
+	if err := e.writeAttachmentFiles(ctx, archive, `
+select a.event_id,a.idx,a.name,a.data from app_event_attachments a
+where a.site_id=$1 and `+inWindow("a.ts")+`
+order by a.ts,a.event_id,a.idx`, siteID, f, t, tz); err != nil {
 		return err
 	}
 
@@ -317,4 +354,70 @@ order by l.ts,l.rid`
 	return e.writeRows(ctx, archive, "logs.csv", []string{
 		"timestamp", "severity", "service", "environment", "release", "trace_id", "body", "attributes",
 	}, logs, siteID, f, t, tz, e.clock())
+}
+
+var unsafePathChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
+
+// attachmentPath is the stable archive path of one attachment. Event ids and
+// names come from SDKs, so both are reduced to a safe character set.
+func attachmentPath(eventID string, idx int16, name string) string {
+	clean := func(v string) string { return unsafePathChars.ReplaceAllString(v, "_") }
+	return fmt.Sprintf("app_attachments/%s/%d-%s", clean(eventID), idx, clean(name))
+}
+
+func (e *Exporter) writeAttachmentList(ctx context.Context, archive *zip.Writer, query string, args ...any) error {
+	entry, err := archive.Create("app_event_attachments.csv")
+	if err != nil {
+		return fmt.Errorf("create app_event_attachments.csv: %w", err)
+	}
+	w := csv.NewWriter(entry)
+	if err := w.Write([]string{"event_id", "index", "name", "content_type", "size_bytes", "created", "file"}); err != nil {
+		return err
+	}
+	rows, err := e.pool.Query(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("query attachments: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var eventID, name, contentType, created string
+		var idx int16
+		var size int32
+		if err := rows.Scan(&eventID, &idx, &name, &contentType, &size, &created); err != nil {
+			return fmt.Errorf("read attachments: %w", err)
+		}
+		if err := w.Write([]string{csvsafe.Cell(eventID), strconv.Itoa(int(idx)), csvsafe.Cell(name), csvsafe.Cell(contentType),
+			strconv.Itoa(int(size)), created, attachmentPath(eventID, idx, name)}); err != nil {
+			return err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate attachments: %w", err)
+	}
+	w.Flush()
+	return w.Error()
+}
+
+func (e *Exporter) writeAttachmentFiles(ctx context.Context, archive *zip.Writer, query string, args ...any) error {
+	rows, err := e.pool.Query(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("query attachment bytes: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var eventID, name string
+		var idx int16
+		var data []byte
+		if err := rows.Scan(&eventID, &idx, &name, &data); err != nil {
+			return fmt.Errorf("read attachment bytes: %w", err)
+		}
+		entry, err := archive.Create(attachmentPath(eventID, idx, name))
+		if err != nil {
+			return err
+		}
+		if _, err := entry.Write(data); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
