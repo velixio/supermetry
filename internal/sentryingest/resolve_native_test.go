@@ -57,33 +57,33 @@ func fixtureCache(t testing.TB, name string) nativeFixture {
 	return nativeFixture{}
 }
 
-type fakeDebugFiles struct{ keys map[string]string }
+type nativeDebugFiles struct{ keys map[string]string }
 
-func (f fakeDebugFiles) CacheFor(_ context.Context, _ int32, kind, id string) (string, bool, error) {
+func (f nativeDebugFiles) CacheFor(_ context.Context, _ int32, kind, id string) (string, bool, error) {
 	k, ok := f.keys[kind+"|"+id]
 	return k, ok, nil
 }
 
-type missRecorder struct {
+type nativeMissRecorder struct {
 	mu   sync.Mutex
 	seen []appingest.DebugImage
 }
 
-func (m *missRecorder) Missing(_ int32, _ string, im appingest.DebugImage, _ time.Time) {
+func (m *nativeMissRecorder) Missing(_ int32, _ string, im appingest.DebugImage, _ time.Time) {
 	m.mu.Lock()
 	m.seen = append(m.seen, im)
 	m.mu.Unlock()
 }
 
-func nativeSymbolicator(t *testing.T, fixes ...nativeFixture) (*Symbolicator, *collector, *missRecorder) {
+func nativeSymbolicator(t *testing.T, fixes ...nativeFixture) (*Symbolicator, *collector, *nativeMissRecorder) {
 	t.Helper()
-	blobs, df := newMemBlobs(), fakeDebugFiles{keys: map[string]string{}}
+	blobs, df := newMemBlobs(), nativeDebugFiles{keys: map[string]string{}}
 	for _, f := range fixes {
 		key := "difcache/1/" + f.obj.DebugID + "/" + f.obj.Kind + "-v1"
 		blobs.files[key] = f.cache
 		df.keys[f.obj.Kind+"|"+f.obj.DebugID] = key
 	}
-	miss := &missRecorder{}
+	miss := &nativeMissRecorder{}
 	s, col := newSymb(t, newFakeArtifacts(), blobs, func(c *SymbolicatorConfig) {
 		c.Resolvers = []Resolver{JSResolver(), NativeResolver()}
 		c.DebugFiles = df
