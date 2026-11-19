@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { copyText } from '@/lib/clipboard'
 import { fmt } from '@/lib/format'
+import { en } from '@/messages/en'
 
 import { useAppIssue, useSetIssueStatus, useUpdateIssue, type AppIssueDetailData } from './api'
 import { IssueActivity } from './IssueActivity'
@@ -53,7 +54,7 @@ function EventRow({ event, org, site, issueId }: { event: AppIssueDetailData['la
   return (
     <li className="border-b last:border-0">
       <button type="button" aria-expanded={open} className="flex w-full items-center justify-between gap-3 py-2 text-left text-sm" onClick={() => setOpen(!open)}>
-        <span>{label}</span>
+        <span>{label}{event.sdk_name === 'otlp-logs' ? <Badge variant="outline" className="ml-2">{en.issueSourceLogs}</Badge> : null}</span>
         <span aria-hidden className="text-muted-foreground">{open ? '−' : '+'}</span>
       </button>
       {open ? (

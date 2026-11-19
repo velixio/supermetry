@@ -1,0 +1,30 @@
+# Put next to the app's compose file and start with:
+#   docker compose -f docker-compose.yml -f compose.override.yml up -d --build
+# Replace `app` with the service name, and the <...> placeholders with your
+# project's values (Settings, Installation). Keep the key out of git: put it in
+# a .env file next to this one (SUPERMETRY_DSN_KEY=...).
+services:
+  app:
+    build:
+      context: ./python-otel   # the directory holding this example's Dockerfile
+      args:
+        BASE_IMAGE: <the image the service ran before>
+    environment:
+      OTEL_SERVICE_NAME: voicestudio
+      OTEL_RESOURCE_ATTRIBUTES: service.version=<release>,deployment.environment.name=production
+      OTEL_EXPORTER_OTLP_ENDPOINT: https://<your host>/api/<project id>/otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_EXPORTER_OTLP_HEADERS: authorization=Bearer ${SUPERMETRY_DSN_KEY:?set SUPERMETRY_DSN_KEY}
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      # Send Python logging records (every ERROR becomes an issue) as OTLP logs.
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+      # Trace sampling. An exception that escapes a request is reported through
+      # its span (uvicorn's own error log does not reach the OTLP handler), so a
+      # sampled-out request loses that issue. 1.0 keeps every error; lower it
+      # (e.g. "0.2") only if span volume matters more than catching each one.
+      # Errors your code logs with logging.exception() are sent regardless.
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: "1.0"
+      OTEL_PYTHON_EXCLUDED_URLS: health

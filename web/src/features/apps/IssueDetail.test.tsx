@@ -86,6 +86,22 @@ describe('IssueDetail', () => {
     expect(list).toHaveTextContent('src/pay.ts')
   })
 
+  it('labels an event made from an error log record using the API sdk_name', async () => {
+    mockApi(() => Promise.resolve({}))
+    const base = detail()
+    privateRequest.mockImplementation((method: string, path: string) => {
+      if (method !== 'GET') return Promise.resolve({})
+      if (path.includes('/releases')) return Promise.resolve({ releases: [] })
+      if (path.includes('/assignees')) return Promise.resolve({ members: [] })
+      if (path.includes('/feedback')) return Promise.resolve({ feedback: [] })
+      if (path.includes('/comments')) return Promise.resolve({ comments: [] })
+      if (path.includes('/activity')) return Promise.resolve({ activity: [] })
+      return Promise.resolve({ ...base, latest_events: [{ ...base.latest_events[0], sdk_name: 'otlp-logs' }] })
+    })
+    renderWithQuery(<IssueDetail {...props} canEdit />)
+    expect(await screen.findByText('From logs')).toBeInTheDocument()
+  })
+
   it('shows no introduced-in line or suspect card when there is nothing to show', async () => {
     mockApi(() => Promise.resolve({}))
     renderWithQuery(<IssueDetail {...props} canEdit />)

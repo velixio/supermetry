@@ -15,6 +15,7 @@ beforeEach(() => {
   request.mockImplementation(async (method: string, path: string) => {
     if (path.endsWith('/app/dsn-keys')) return method === 'GET' ? { keys: [dsnKey] } : dsnKey
     if (method === 'DELETE') return undefined
+    if (method === 'PATCH') return dsnKey
     return {
       keys: [
         { prefix: 'abcd1234', created_at: '2026-11-15T00:00:00Z', expires_at: null },
@@ -130,6 +131,33 @@ describe('AppInstallationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revoke key aaaaaaaa' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke key' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('DELETE', '/api/private/sites/19/app/dsn-keys/aaaaaaaa', { orgId: 1 }))
+  })
+
+  it("edits a key's allowed origins and shows the server error on a rejected edit", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AppInstallationPage org="acme" site="desktop" orgId={1} siteId={19} publicId="6quqxuelthfz" timezone="UTC" />
+      </QueryClientProvider>,
+    )
+    await screen.findByLabelText('DSN')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit origins for key aaaaaaaa' }))
+    const box = screen.getByLabelText('Allowed origins for key aaaaaaaa')
+    expect(box).toHaveValue('https://app.example.com')
+    fireEvent.change(box, { target: { value: 'https://a.example.com, https://b.example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save origins' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('PATCH', '/api/private/sites/19/app/dsn-keys/aaaaaaaa', { orgId: 1, body: { allowed_origins: ['https://a.example.com', 'https://b.example.com'] } }))
+    await waitFor(() => expect(screen.queryByLabelText('Allowed origins for key aaaaaaaa')).not.toBeInTheDocument())
+
+    request.mockImplementation(async (method: string, path: string) => {
+      if (method === 'PATCH') throw new Error('allowed_origins must be at most 20 scheme://host[:port] origins')
+      if (path.endsWith('/app/dsn-keys')) return { keys: [dsnKey] }
+      return { keys: [] }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit origins for key aaaaaaaa' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save origins' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('allowed_origins must be at most 20')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByLabelText('Allowed origins for key aaaaaaaa')).not.toBeInTheDocument()
   })
 
   it('shows the OTLP endpoint and key beside the DSN with the tracing instructions', async () => {

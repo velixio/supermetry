@@ -30,6 +30,35 @@ function parseOrigins(text: string): string[] {
   return text.split(/[\s,]+/).map((origin) => origin.trim()).filter(Boolean)
 }
 
+/** Inline editor for one key's allowed origins; an empty list lets any origin send. */
+function EditOrigins({ orgId, siteId, dsnKey, onSaved }: { orgId: number; siteId: number; dsnKey: DsnKey; onSaved: () => unknown }) {
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState('')
+  const save = useMutation({
+    mutationFn: () => privateRequest<DsnKey>('PATCH', `${path(siteId)}/${dsnKey.prefix}`, { orgId, body: { allowed_origins: parseOrigins(text) } }),
+    onSuccess: async () => { await onSaved(); setEditing(false) },
+  })
+  if (!editing) {
+    return (
+      <div>
+        <Button type="button" variant="outline" size="sm" aria-label={`Edit origins for key ${dsnKey.prefix}`} onClick={() => { setText(dsnKey.allowed_origins.join('\n')); save.reset(); setEditing(true) }}>Edit origins</Button>
+      </div>
+    )
+  }
+  return (
+    <form className="flex min-w-0 flex-col gap-2" onSubmit={(event) => { event.preventDefault(); save.mutate() }}>
+      <Label htmlFor={`dsn-origins-${dsnKey.prefix}`} className="sr-only">Allowed origins for key {dsnKey.prefix}</Label>
+      <Textarea id={`dsn-origins-${dsnKey.prefix}`} value={text} onChange={(event) => setText(event.target.value)} placeholder="https://app.example.com" rows={3} />
+      <p className="text-xs text-muted-foreground">One scheme://host[:port] per line. Browsers from other origins are refused. Leave empty for apps and servers.</p>
+      {save.isError ? <p role="alert" className="text-sm text-destructive">{save.error.message}</p> : null}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={save.isPending}>Save origins</Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+      </div>
+    </form>
+  )
+}
+
 /** DSN keys: create with optional allowed origins, revoke. The key is public by design, so it is always shown in full. */
 export function DsnKeys({ orgId, siteId, keys }: { orgId: number; siteId: number; keys: DsnKey[] }) {
   const client = useQueryClient()
@@ -71,6 +100,7 @@ export function DsnKeys({ orgId, siteId, keys }: { orgId: number; siteId: number
                 {key.allowed_origins.length > 0 ? <>Allowed origins: {key.allowed_origins.join(', ')}</> : 'Any origin may send with this key.'}
                 {key.expires_at ? <> · expires {new Date(key.expires_at).toLocaleDateString()}</> : null}
               </p>
+              <EditOrigins orgId={orgId} siteId={siteId} dsnKey={key} onSaved={refresh} />
             </li>
           ))}
         </ul>

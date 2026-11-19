@@ -3412,6 +3412,12 @@ type AppDSNKeyList struct {
 	Keys []AppDSNKey `json:"keys"`
 }
 
+// AppDSNKeyUpdate At least one field is required.
+type AppDSNKeyUpdate struct {
+	AllowedOrigins *[]string `json:"allowed_origins,omitempty"`
+	Label          *string   `json:"label,omitempty"`
+}
+
 // AppDayCount defines model for AppDayCount.
 type AppDayCount struct {
 	Count int64     `json:"count"`
@@ -3554,17 +3560,20 @@ type AppEventSample struct {
 	DeviceClass string `json:"device_class"`
 
 	// EventId Present for the dashboard; absent in MCP tool output.
-	EventId    *string                `json:"event_id,omitempty"`
-	ExitCode   int32                  `json:"exit_code"`
-	ExitReason string                 `json:"exit_reason"`
-	Frames     string                 `json:"frames"`
-	OsVersion  string                 `json:"os_version"`
-	Platform   string                 `json:"platform"`
-	Release    string                 `json:"release"`
-	Runtime    string                 `json:"runtime"`
-	Signal     string                 `json:"signal"`
-	Tags       map[string]interface{} `json:"tags"`
-	Ts         time.Time              `json:"ts"`
+	EventId    *string `json:"event_id,omitempty"`
+	ExitCode   int32   `json:"exit_code"`
+	ExitReason string  `json:"exit_reason"`
+	Frames     string  `json:"frames"`
+	OsVersion  string  `json:"os_version"`
+	Platform   string  `json:"platform"`
+	Release    string  `json:"release"`
+	Runtime    string  `json:"runtime"`
+
+	// SdkName Sender of the event; otlp-logs when the issue was created from an error log record. Absent when empty.
+	SdkName *string                `json:"sdk_name,omitempty"`
+	Signal  string                 `json:"signal"`
+	Tags    map[string]interface{} `json:"tags"`
+	Ts      time.Time              `json:"ts"`
 }
 
 // AppEventsRequest defines model for AppEventsRequest.
@@ -7814,6 +7823,9 @@ type UpdateAppSettingsJSONRequestBody = AppSettings
 // CreateAppDSNKeyJSONRequestBody defines body for CreateAppDSNKey for application/json ContentType.
 type CreateAppDSNKeyJSONRequestBody = AppDSNKeyCreate
 
+// UpdateAppDSNKeyJSONRequestBody defines body for UpdateAppDSNKey for application/json ContentType.
+type UpdateAppDSNKeyJSONRequestBody = AppDSNKeyUpdate
+
 // UpdateAppIssueWebhooksJSONRequestBody defines body for UpdateAppIssueWebhooks for application/json ContentType.
 type UpdateAppIssueWebhooksJSONRequestBody = AppIssueWebhooks
 
@@ -8778,6 +8790,9 @@ type ServerInterface interface {
 	// RevokeAppDSNKey Revoke a DSN key
 	// (DELETE /api/private/sites/{site}/app/dsn-keys/{prefix})
 	RevokeAppDSNKey(w http.ResponseWriter, r *http.Request, site int32, prefix string)
+	// UpdateAppDSNKey Edit a DSN key's allowed origins and label
+	// (PATCH /api/private/sites/{site}/app/dsn-keys/{prefix})
+	UpdateAppDSNKey(w http.ResponseWriter, r *http.Request, site int32, prefix string)
 	// GetAppEvent The scrubbed body of one stored event
 	// (GET /api/private/sites/{site}/app/events/{event_id})
 	GetAppEvent(w http.ResponseWriter, r *http.Request, site int32, eventId string)
@@ -13052,6 +13067,41 @@ func (siw *ServerInterfaceWrapper) RevokeAppDSNKey(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeAppDSNKey(w, r, site, prefix)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAppDSNKey operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAppDSNKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "site" -------------
+	var site int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "site", r.PathValue("site"), &site, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "site", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "prefix" -------------
+	var prefix string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "prefix", r.PathValue("prefix"), &prefix, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "prefix", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAppDSNKey(w, r, site, prefix)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20917,6 +20967,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys", wrapper.ListAppDSNKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys", wrapper.CreateAppDSNKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys/{prefix}", wrapper.RevokeAppDSNKey)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/sites/{site}/app/dsn-keys/{prefix}", wrapper.UpdateAppDSNKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erase", wrapper.EraseAppUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/users/erasures/{erasure}", wrapper.GetAppUserErasure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/app/overview", wrapper.GetAppOverview)

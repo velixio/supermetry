@@ -95,6 +95,11 @@ func TestWebhookFiresOncePerSubscribedKindWithCleanPayload(t *testing.T) {
 	if err := tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// RecordSystem stamps wall-clock time while the service clock is fixed at
+	// testNow, so rows written after that date would never be due.
+	if _, err := f.pool.Exec(ctx, `update app_issue_webhook_outbox set next_at = least(next_at, $1)`, testNow); err != nil {
+		t.Fatal(err)
+	}
 	snd := &fakeSender{}
 	// RecordSystem stamps rows with the wall clock, while f.svc runs on the fixed
 	// testNow. Deliver with a clock past both so the test does not depend on the

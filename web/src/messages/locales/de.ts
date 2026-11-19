@@ -1071,6 +1071,8 @@ const messages: MessageTree = {
   uiFix: {
     realtimeEmpty: 'Keine Besucher in den letzten 30 Minuten.',
   },
+  // Issue detail: the issue was created from an OTLP error log record.
+  issueSourceLogs: 'Aus Logs',
   // Journeys page.
   journeyUi: {
     title: 'Nutzerpfade',

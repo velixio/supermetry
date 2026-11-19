@@ -23,6 +23,8 @@ import (
 	"supermetry/internal/obsquota"
 	"supermetry/internal/sentryingest"
 	"supermetry/internal/sites"
+
+	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
 const pathLogs42 = "/api/42/otlp/v1/logs"
@@ -259,12 +261,13 @@ func (s *logSink) count() int {
 }
 
 type logRig struct {
-	h     *Handler
-	sink  *logSink
-	quota *obsquota.Tracker
-	stats *countStats
-	now   *time.Time
-	site  *sites.AppConfig
+	h      *Handler
+	sink   *logSink
+	quota  *obsquota.Tracker
+	stats  *countStats
+	now    *time.Time
+	site   *sites.AppConfig
+	intake *appingest.Intake
 }
 
 func newLogRig(t *testing.T, limit int64) *logRig {
@@ -274,7 +277,8 @@ func newLogRig(t *testing.T, limit int64) *logRig {
 	now := testNow
 	r := &logRig{sink: &logSink{}, stats: &countStats{}, now: &now, site: site.App}
 	r.quota = obsquota.New(nil, func() time.Time { return now })
-	r.h = NewHandler(registry{[]sites.Site{site}}, appingest.NewIntake(appingest.Config{}), &sink{}, nil, &stats{}, func() time.Time { return now }).
+	r.intake = appingest.NewIntake(appingest.Config{})
+	r.h = NewHandler(registry{[]sites.Site{site}}, r.intake, &sink{}, nil, &stats{}, func() time.Time { return now }).
 		WithLogs(r.sink, r.quota, r.stats)
 	return r
 }
@@ -497,5 +501,116 @@ func TestOldRecordsArePartialSuccess(t *testing.T) {
 	w := r.post(marshalLogs(t, logsReq(nil, logRec(logspb.SeverityNumber_SEVERITY_NUMBER_INFO, "ok"), old)), ctProto, nil)
 	if w.Code != 200 || r.sink.count() != 1 || w.Body.Len() == 0 {
 		t.Fatalf("%d records=%d body=%d", w.Code, r.sink.count(), w.Body.Len())
+	}
+}
+
+func drainIntake(in *appingest.Intake) []appingest.Queued {
+	var out []appingest.Queued
+	for {
+		select {
+		case q := <-in.Queue():
+			out = append(out, q)
+		default:
+			return out
+		}
+	}
+}
+
+func errRecords(n int) *LogsRequest {
+	recs := make([]*logspb.LogRecord, n)
+	for i := range recs {
+		recs[i] = logRec(logspb.SeverityNumber_SEVERITY_NUMBER_ERROR, fmt.Sprintf("failure %d", i))
+	}
+	return logsReq([]*commonpb.KeyValue{kv("service.name", "svc")}, recs...)
+}
+
+func TestErrorLogBecomesIssue(t *testing.T) {
+	r := newLogRig(t, 0)
+	if w := r.post(marshalLogs(t, javaAgentLogs()), ctProto, nil); w.Code != 200 {
+		t.Fatalf("status %d", w.Code)
+	}
+	got := drainIntake(r.intake)
+	if len(got) != 1 || got[0].SiteID != 42 || got[0].Event.Kind != "error" || got[0].Event.ErrorType != "java.io.IOException" {
+		t.Fatalf("queued=%+v", got)
+	}
+	if r.sink.count() != 2 {
+		t.Fatalf("logs stored %d, want 2", r.sink.count())
+	}
+}
+
+func TestInfoLogsQueueNoIssue(t *testing.T) {
+	r := newLogRig(t, 0)
+	if w := r.post(marshalLogs(t, nRecords(5, "x")), ctProto, nil); w.Code != 200 {
+		t.Fatalf("status %d", w.Code)
+	}
+	if got := drainIntake(r.intake); len(got) != 0 {
+		t.Fatalf("queued %d issue events for INFO logs", len(got))
+	}
+}
+
+func TestIssueSurvivesLogQuota(t *testing.T) {
+	r := newLogRig(t, 1)
+	if w := r.post(marshalLogs(t, nRecords(1, "info")), ctProto, nil); w.Code != 200 {
+		t.Fatalf("status %d", w.Code)
+	}
+	if w := r.post(marshalLogs(t, errRecords(1)), ctProto, nil); w.Code != 200 {
+		t.Fatalf("status %d", w.Code)
+	}
+	if r.sink.count() != 1 {
+		t.Fatalf("logs stored %d, want 1 (error over quota)", r.sink.count())
+	}
+	if got := drainIntake(r.intake); len(got) != 1 {
+		t.Fatalf("issue events %d, want 1", len(got))
+	}
+}
+
+func TestIssueCapCountsAndSucceeds(t *testing.T) {
+	r := newLogRig(t, 0)
+	if w := r.post(marshalLogs(t, errRecords(150)), ctProto, nil); w.Code != 200 {
+		t.Fatalf("status %d", w.Code)
+	}
+	if got := drainIntake(r.intake); len(got) != 100 {
+		t.Fatalf("issue events %d, want 100", len(got))
+	}
+	if n := r.stats.m["log_issue_capped"]; n != 50 {
+		t.Fatalf("log_issue_capped=%d, want 50", n)
+	}
+}
+
+func TestNoIssueOnQueueFull(t *testing.T) {
+	r := newLogRig(t, 0)
+	r.sink.full = true
+	if w := r.post(marshalLogs(t, errRecords(1)), ctProto, nil); w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status %d, want 503", w.Code)
+	}
+	if got := drainIntake(r.intake); len(got) != 0 {
+		t.Fatalf("issue created on the 503 path: %d", len(got))
+	}
+}
+
+func TestSpanAndLogExceptionShareIssue(t *testing.T) {
+	site := testSite()
+	span := mkSpan(1, 1, 0, "GET /x", tracepb.Span_SPAN_KIND_SERVER, 5*time.Second, 80*time.Millisecond)
+	span.Events = []*tracepb.Span_Event{{
+		Name: "exception", TimeUnixNano: span.StartTimeUnixNano + 1_000_000,
+		Attributes: []*commonpb.KeyValue{kvStr("exception.type", "ValueError"), kvStr("exception.message", "bad id 7")},
+	}}
+	_, errs, _ := Convert(request([]*commonpb.KeyValue{kvStr("service.name", "api")}, span), site, testNow)
+	if len(errs) != 1 {
+		t.Fatalf("span exceptions %d", len(errs))
+	}
+	rec := logRec(logspb.SeverityNumber_SEVERITY_NUMBER_ERROR, "Exception in ASGI application",
+		kv("exception.type", "ValueError"), kv("exception.message", "bad id 7"))
+	rec.TraceId, rec.SpanId = id16(1), id8(1)
+	r := newLogRig(t, 0)
+	if w := r.post(marshalLogs(t, logsReq([]*commonpb.KeyValue{kv("service.name", "api")}, rec)), ctProto, nil); w.Code != 200 {
+		t.Fatalf("status %d", w.Code)
+	}
+	got := drainIntake(r.intake)
+	if len(got) != 1 {
+		t.Fatalf("log issue events %d", len(got))
+	}
+	if got[0].Event.Fingerprint != errs[0].Fingerprint || got[0].Event.ID != errs[0].ID {
+		t.Fatalf("span %q/%q vs log %q/%q", errs[0].Fingerprint, errs[0].ID, got[0].Event.Fingerprint, got[0].Event.ID)
 	}
 }

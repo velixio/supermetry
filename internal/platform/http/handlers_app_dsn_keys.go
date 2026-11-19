@@ -28,6 +28,11 @@ type dsnKeyBody struct {
 	ExpiresAt      *time.Time `json:"expires_at"`
 }
 
+type dsnKeyUpdateBody struct {
+	Label          *string   `json:"label"`
+	AllowedOrigins *[]string `json:"allowed_origins"`
+}
+
 type dsnKeyItem struct {
 	PublicKey      string     `json:"public_key"`
 	Prefix         string     `json:"prefix"`
@@ -177,6 +182,70 @@ func (h *handler) revokeAppDSNKey(w http.ResponseWriter, r *http.Request) {
 	}
 	h.refreshSites(site.ID, "dsn key revocation")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) updateAppDSNKey(w http.ResponseWriter, r *http.Request) {
+	principal, site, ok := h.appSite(w, r)
+	if !ok {
+		return
+	}
+	prefix := r.PathValue("prefix")
+	if len(prefix) != 8 {
+		writeProblem(w, http.StatusNotFound, "Not found", "no such DSN key")
+		return
+	}
+	var in dsnKeyUpdateBody
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "invalid JSON body")
+		return
+	}
+	if in.AllowedOrigins == nil && in.Label == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "send allowed_origins, label or both")
+		return
+	}
+	fields := []string{}
+	audited := map[string]any{"prefix": prefix}
+	var origins *[]string
+	if in.AllowedOrigins != nil {
+		normalized, valid := normalizeOrigins(*in.AllowedOrigins)
+		if !valid {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "allowed_origins must be at most 20 scheme://host[:port] origins")
+			return
+		}
+		origins = &normalized
+		fields = append(fields, "allowed_origins")
+		audited["origin_count"] = len(normalized)
+	}
+	var label *string
+	if in.Label != nil {
+		trimmed := strings.TrimSpace(*in.Label)
+		if len(trimmed) > maxDSNLabel {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "label is too long")
+			return
+		}
+		label = &trimmed
+		fields = append(fields, "label")
+	}
+	audited["fields"] = fields
+	var row store.DSNKeyRow
+	var found bool
+	err := h.deps.Store.Tx(r.Context(), func(tx pgx.Tx) error {
+		var err error
+		if row, found, err = h.deps.Store.UpdateDSNKeyTx(r.Context(), tx, site.ID, prefix, origins, label, h.deps.Now()); err != nil || !found {
+			return err
+		}
+		return audit.Write(r.Context(), tx, principal, "site.dsn_key_updated", "site", int64(site.ID), audited)
+	})
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	if !found {
+		writeProblem(w, http.StatusNotFound, "Not found", "no such DSN key")
+		return
+	}
+	h.refreshSites(site.ID, "dsn key update")
+	writeJSON(w, http.StatusOK, h.dsnItem(row))
 }
 
 func (h *handler) refreshSites(siteID int32, what string) {

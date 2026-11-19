@@ -542,6 +542,7 @@ const messages: MessageTree = {
     label: 'ইন্টারফেসের ভাষা', browserDefault: 'ব্রাউজারের ডিফল্ট', machineTranslated: '(যন্ত্র-সহায়িত)',
     note: 'আপনার ডেটা থেকে আসা চার্ট লেবেলের মতো কিছু পাঠ্য এখনও অনুবাদ করা হয়নি।',
   },
+  issueSourceLogs: 'লগ থেকে',
   uiFix: { realtimeEmpty: 'গত 30 মিনিটে কোনো দর্শনার্থী নেই।' },
   journeyUi: {
     title: 'ব্যবহারকারীর যাত্রাপথ',

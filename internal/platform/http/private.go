@@ -441,6 +441,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/private/sites/{site}/ingest-keys", h.rotateAppIngestKey)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/dsn-keys", h.listAppDSNKeys)
 	mux.HandleFunc("POST /api/private/sites/{site}/app/dsn-keys", h.createAppDSNKey)
+	mux.HandleFunc("PATCH /api/private/sites/{site}/app/dsn-keys/{prefix}", h.updateAppDSNKey)
 	mux.HandleFunc("DELETE /api/private/sites/{site}/app/dsn-keys/{prefix}", h.revokeAppDSNKey)
 	mux.HandleFunc("POST /api/private/sites/{site}/app/users/erase", h.eraseAppUser)
 	mux.HandleFunc("GET /api/private/sites/{site}/app/users/erasures/{erasure}", h.getAppUserErasure)

@@ -2321,7 +2321,12 @@ export interface paths {
         delete: operations["revokeAppDSNKey"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit a DSN key's allowed origins and label
+         * @description Absent fields stay unchanged; `allowed_origins: []` clears the list so any origin may send. Only active
+         *     (unrevoked, unexpired) keys can be edited. Ingest picks the change up at once.
+         */
+        patch: operations["updateAppDSNKey"];
         trace?: never;
     };
     "/api/private/sites/{site}/app/users/erase": {
@@ -4924,6 +4929,11 @@ export interface components {
             /** Format: date-time */
             expires_at?: string | null;
         };
+        /** @description At least one field is required. */
+        AppDSNKeyUpdate: {
+            label?: string;
+            allowed_origins?: string[];
+        };
         AppDSNKey: {
             public_key: string;
             prefix: string;
@@ -6346,6 +6356,8 @@ export interface components {
             tags: {
                 [key: string]: unknown;
             };
+            /** @description Sender of the event; otlp-logs when the issue was created from an error log record. Absent when empty. */
+            sdk_name?: string;
         };
         AppEventBody: {
             event_id: string;
@@ -13301,6 +13313,36 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAppDSNKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                site: number;
+                /** @description The first 8 characters of the public key. */
+                prefix: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppDSNKeyUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDSNKey"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };

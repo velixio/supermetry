@@ -1,0 +1,143 @@
+# OpenTelemetry Collector (contrib) config: ship systemd journal logs of Go
+# services (slog text or JSON) to Supermetry as OTLP logs. ERROR lines and Go
+# panics then become Issues. No change to the services is needed.
+#
+# Placeholders, read from the environment (see docs/guide/collect-without-code.md):
+#   SUPERMETRY_OTLP_ENDPOINT  https://<your host>/api/<project id>/otlp
+#   SUPERMETRY_DSN_KEY        <dsn public key>
+#
+# Check it with: deploy/examples/zero-code/check.sh
+
+extensions:
+  file_storage:
+    # Remembers the journal cursor so a restart resumes instead of replaying.
+    directory: /var/lib/otelcol-contrib/storage
+    create_directory: true
+
+receivers:
+  journald:
+    units:
+      - vssaas-api.service
+      - vssaas-api-gateway.service
+      - vssaas-worker.service
+      - vssaas-sync.service
+      - vssaas-admin.service
+      - vssaas-dashboard.service
+      - vssaas-node-ca.service
+    priority: info
+    storage: file_storage
+    # BEGIN operators (check.sh reuses this block verbatim against a fixture)
+    operators:
+      # Unit name becomes service.name ("vssaas-api.service" -> "vssaas-api").
+      - type: add
+        id: service_name
+        field: resource["service.name"]
+        value: EXPR(trimSuffix(body._SYSTEMD_UNIT, ".service"))
+      - type: move
+        id: message_to_body
+        from: body.MESSAGE
+        to: body
+      # Join continuation lines (a Go panic is many journal lines) onto the line
+      # that starts the entry. A new entry starts at a slog text line (time=),
+      # a slog JSON line ({), the std log prefix (2006/01/02), or a panic.
+      - type: recombine
+        id: join_multiline
+        combine_field: body
+        source_identifier: resource["service.name"]
+        is_first_entry: 'body matches "^(panic: |fatal error: |time=|\\{|\\d{4}/\\d{2}/\\d{2} )"'
+        combine_with: "\n"
+        max_log_size: 64KiB
+        force_flush_period: 2s
+      - type: router
+        id: route_format
+        routes:
+          - expr: 'body matches "^\\{"'
+            output: parse_json
+          - expr: 'body matches "^time="'
+            output: parse_logfmt
+          - expr: 'body matches "^(panic: |fatal error: )"'
+            output: panic_type
+        default: after_parse
+      - type: json_parser
+        id: parse_json
+        parse_from: body
+        parse_to: attributes
+        on_error: send_quiet
+        output: after_parse
+      - type: key_value_parser
+        id: parse_logfmt
+        parse_from: body
+        parse_to: attributes
+        delimiter: "="
+        pair_delimiter: " "
+        on_error: send_quiet
+        output: after_parse
+      # Go panic / fatal error: whole text is the stack, first line is the message.
+      - type: add
+        id: panic_type
+        field: attributes["exception.type"]
+        value: 'EXPR(hasPrefix(body, "panic: ") ? "panic" : "fatal error")'
+      - type: add
+        field: attributes["exception.message"]
+        value: 'EXPR(trimPrefix(trimPrefix(split(body, "\n")[0], "panic: "), "fatal error: "))'
+      - type: add
+        field: attributes["exception.stacktrace"]
+        value: EXPR(body)
+      - type: severity_parser
+        parse_from: attributes["exception.type"]
+        mapping:
+          fatal:
+            - panic
+            - fatal error
+        output: done
+      - type: noop
+        id: after_parse
+      - type: severity_parser
+        id: slog_level
+        if: 'attributes?.level != nil'
+        parse_from: attributes.level
+        on_error: send_quiet
+      # slog puts the message in msg; use it as the log body.
+      - type: move
+        if: 'attributes?.msg != nil'
+        from: attributes.msg
+        to: body
+      - type: noop
+        id: done
+    # END operators
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 128
+    spike_limit_mib: 32
+  resourcedetection:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+  resource:
+    attributes:
+      - key: deployment.environment.name
+        value: production
+        action: upsert
+  batch:
+    timeout: 5s
+
+exporters:
+  otlphttp:
+    logs_endpoint: ${env:SUPERMETRY_OTLP_ENDPOINT}/v1/logs
+    headers:
+      authorization: Bearer ${env:SUPERMETRY_DSN_KEY}
+    compression: gzip
+    sending_queue:
+      enabled: true
+    retry_on_failure:
+      enabled: true
+
+service:
+  extensions: [file_storage]
+  pipelines:
+    logs:
+      receivers: [journald]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]
