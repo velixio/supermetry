@@ -51,6 +51,8 @@ type UserPatch struct {
 type Service struct {
 	store        *store.Store
 	resetStarter ResetStarter
+	// passwordResetStarter sends the reset an admin starts for an existing user.
+	passwordResetStarter ResetStarter
 }
 
 func New(data *store.Store) *Service { return &Service{store: data} }

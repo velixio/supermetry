@@ -293,14 +293,16 @@ func TestAdminStorageQueriesReadPublishedSnapshots(t *testing.T) {
 	_, data, _, _ := newFixture(t)
 	ctx := context.Background()
 	for name, query := range map[string]string{
-		"organizations":      listOrganizationsSQL,
+		"organizations":      listOrganizationsHead + ", o.id sk " + listOrganizationsTail,
 		"organization":       getOrganizationSQL,
-		"sites":              listSitesSQL,
+		"sites":              listSitesHead + ", s.id sk " + listSitesTail,
 		"organization sites": getOrganizationSitesSQL,
 	} {
 		t.Run(name, func(t *testing.T) {
-			args := []any{"", 10}
+			args := []any{""}
 			switch name {
+			case "sites":
+				args = []any{"", int64(0)}
 			case "organization":
 				args = []any{int64(1)}
 			case "organization sites":
