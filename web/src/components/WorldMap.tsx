@@ -10,6 +10,7 @@ import { en } from '@/messages/en'
 
 import { Flag } from './Flag'
 import { activeLocale } from '@/lib/i18n/intl'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 const WORLD_MAP_LABEL = 'World map'
 const TABLE_LABEL = 'Country visitors'
@@ -143,10 +144,10 @@ export function WorldMap({ rows, metric = 'visitors', selectedCountry, activeCou
         <span>{metricLabel}</span>
         <span className="tabular-nums">{fullNumber.format(maximum)}</span>
       </div> : null}
-      <table aria-label={TABLE_LABEL} className="sr-only">
+      <ScreenReaderTable aria-label={TABLE_LABEL}>
         <thead><tr><th scope="col">{COUNTRY_HEADING}</th><th scope="col">{showLegend ? metricLabel : VISITORS_HEADING}</th></tr></thead>
         <tbody>{data.map((row) => <tr key={row.country}><th scope="row">{countryLabel(row.country)}</th><td>{fmt.number(row[metric])}</td></tr>)}</tbody>
-      </table>
+      </ScreenReaderTable>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { fmt } from '@/lib/format'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 type ChartStep = { label: string; count: number }
 
@@ -31,7 +32,7 @@ export function FunnelChart({ steps, countLabel }: { steps: ChartStep[]; countLa
           )
         })}
       </div>
-      <table className="sr-only">
+      <ScreenReaderTable>
         <caption>Funnel step {countDescription} and conversion from the previous step</caption>
         <thead><tr><th>Step</th><th>{countLabel}</th><th>Conversion</th><th>Drop-off</th></tr></thead>
         <tbody>
@@ -41,7 +42,7 @@ export function FunnelChart({ steps, countLabel }: { steps: ChartStep[]; countLa
             return <tr key={`${step.label}:table:${index}`}><th>{step.label}</th><td>{step.count}</td><td>{fmt.percent(conversion)}</td><td>{index > 0 ? `${fmt.percent(100 - conversion)} drop-off` : '—'}</td></tr>
           })}
         </tbody>
-      </table>
+      </ScreenReaderTable>
     </section>
   )
 }

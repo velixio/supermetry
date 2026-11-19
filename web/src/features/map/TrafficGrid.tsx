@@ -9,6 +9,7 @@ import { fmt } from '@/lib/format'
 import { inspectTargetFor, sameInspect, type InspectControl } from '@/lib/inspect'
 import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 import { ui } from '@/messages/ui'
 
 import {
@@ -276,10 +277,10 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
                 <div><p>Weekends {weekparts.weekends}%</p><span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-chart-2" style={{ width: `${weekparts.weekends}%` }} /></span></div>
               </div>
             </section>
-            <table className="sr-only" aria-label="Weekly traffic data">
+            <ScreenReaderTable aria-label="Weekly traffic data">
               <thead><tr><th>Weekday</th><th>Hour</th><th>{metric === 'visitors' ? en.map.visitors : en.map.pageviews}</th></tr></thead>
               <tbody>{cells.map((cell, index) => <tr key={`${cell.weekday}:${cell.hour}`}><th>{weekdays[Math.floor(index / 24)].name}</th><td>{hourLabel(cell.hour, locale)}</td><td>{cell.value}</td></tr>)}</tbody>
-            </table>
+            </ScreenReaderTable>
           </>
         )}
       </CardContent>

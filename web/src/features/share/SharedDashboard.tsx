@@ -15,6 +15,7 @@ import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 import { PoweredBySupermetry } from '@/components/PoweredBySupermetry'
 import { BrandLogo } from '@/components/BrandLogo'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 import {
   loadShareSummary,
@@ -76,11 +77,11 @@ function TrafficChart({ result }: { result: ShareQueryResult }) {
           </div>
         ))}
       </div>
-      <table className="sr-only">
+      <ScreenReaderTable>
         <caption>Traffic trend values</caption>
         <thead><tr><th>Time</th><th>Visitors</th><th>Pageviews</th></tr></thead>
         <tbody>{rows.map((row, index) => <tr key={index}><td>{displayValue(row.time)}</td><td>{displayValue(row.visitors)}</td><td>{displayValue(row.pageviews)}</td></tr>)}</tbody>
-      </table>
+      </ScreenReaderTable>
     </figure>
   )
 }

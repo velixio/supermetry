@@ -4,6 +4,7 @@ import { fmt } from '@/lib/format'
 import { activeLocale } from '@/lib/i18n/intl'
 import { en } from '@/messages/en'
 import type { StarsAnnotation, StarsGranularity, StarsPoint } from './githubStarsApi'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 const stepMs: Record<StarsGranularity, number> = { hour: 3_600_000, day: 86_400_000, month: 31 * 86_400_000 }
 
@@ -72,7 +73,7 @@ export function StarsChart({ points, granularity, timeZone, annotations }: Props
         <li className="flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: 'var(--destructive)' }} />{en.githubStars.lost}</li>
         <li className="flex items-center gap-1"><span className="size-2.5 rounded-sm" style={{ background: 'var(--chart-1)' }} />{en.githubStars.cumulative}</li>
       </ul>
-      <table className="sr-only">
+      <ScreenReaderTable>
         <caption>{en.githubStars.chartTable}</caption>
         <thead><tr><th scope="col">{en.githubStars.bucket}</th><th scope="col">{en.githubStars.gained}</th><th scope="col">{en.githubStars.lost}</th><th scope="col">{en.githubStars.cumulative}</th></tr></thead>
         <tbody>
@@ -86,7 +87,7 @@ export function StarsChart({ points, granularity, timeZone, annotations }: Props
             )
           })}
         </tbody>
-      </table>
+      </ScreenReaderTable>
     </div>
   )
 }

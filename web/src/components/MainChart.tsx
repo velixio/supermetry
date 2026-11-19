@@ -38,6 +38,7 @@ import { activeLocale } from '@/lib/i18n/intl'
 import { lastBucketIsPartial, splitSeries } from '@/lib/chart-ranges'
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion'
 import { dashboardView } from '@/messages/dashboardView'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 export { autoInterval, type ChartInterval } from '@/lib/chart'
 
@@ -542,7 +543,7 @@ export function MainChart({
         </div>
       </ChartContainer>
 
-      <table className="sr-only" aria-label={label}>
+      <ScreenReaderTable aria-label={label}>
         <thead>
           <tr>
             <th scope="col">time</th>
@@ -561,7 +562,7 @@ export function MainChart({
             </tr>
           ))}
         </tbody>
-      </table>
+      </ScreenReaderTable>
     </section>
   )
 }

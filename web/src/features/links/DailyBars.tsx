@@ -3,6 +3,7 @@ import { en } from '@/messages/en'
 
 import { bucketKey, type Granularity } from '../pixels/buckets'
 import type { DayCount, HourCount } from './types'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 const t = en.linksUi
 
@@ -101,7 +102,7 @@ export function DailyBars({ from, to, daily, hourly = [], unit, title, granulari
         <span>{granularity === 'hour' ? days[0].day : from}</span>
         <span>{granularity === 'hour' ? days[days.length - 1].day : to}</span>
       </div>
-      <table className="sr-only">
+      <ScreenReaderTable>
         <caption>{title}</caption>
         <thead>
           <tr><th scope="col">{granularity === 'hour' ? t.hour : t.day}</th><th scope="col">{unit}</th></tr>
@@ -111,7 +112,7 @@ export function DailyBars({ from, to, daily, hourly = [], unit, title, granulari
             <tr key={item.day}><th scope="row">{item.day}</th><td>{item.count}</td></tr>
           ))}
         </tbody>
-      </table>
+      </ScreenReaderTable>
     </figure>
   )
 }
