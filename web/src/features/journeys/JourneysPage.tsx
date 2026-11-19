@@ -66,7 +66,7 @@ export function JourneysPage({
       {report.isError ? (
         <ErrorState level="page" detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
-        <div aria-label={t.loading} className="flex flex-col gap-3 rounded-lg border p-4">
+        <div aria-label={t.loading} className="flex flex-col gap-3 rounded-lg bg-card p-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-4/5" />
           <Skeleton className="h-16 w-3/5" />

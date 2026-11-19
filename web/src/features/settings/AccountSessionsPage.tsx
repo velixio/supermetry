@@ -83,7 +83,7 @@ export function AccountSessionsPage() {
   return (
     <PageContainer width="narrow" className="max-w-3xl">
       <PageHeader title={uiAccount.sessions.title} />
-      <section aria-label={uiAccount.sessions.sectionLabel} className="min-w-0 rounded-lg border bg-card p-4 text-card-foreground">
+      <section aria-label={uiAccount.sessions.sectionLabel} className="min-w-0 rounded-lg bg-card p-4 text-card-foreground">
         <div className="mb-4 flex items-center justify-between gap-3">
           <InfoTip label={uiAccount.sessions.title}>{uiAccount.sessions.note}</InfoTip>
           <Button className="shrink-0 max-md:min-h-11" variant="secondary" size="sm" disabled={!sessions.isSuccess || otherSessionCount === 0 || revokeOthers.isPending} onClick={() => setConfirmOthers(true)}>
@@ -109,7 +109,7 @@ export function AccountSessionsPage() {
         {sessions.isError && <div role="alert" className="flex flex-wrap items-center gap-3"><p>{uiAccount.sessions.loadFailed}</p><Button variant="outline" size="sm" onClick={() => void sessions.refetch()}>{uiAccount.sessions.tryAgain}</Button></div>}
         {revoke.isError && <p role="alert" className="mb-4 text-sm text-destructive">{uiAccount.sessions.revokeFailed}</p>}
         {sessions.isSuccess && ordered.length === 0 && <p className="text-sm text-muted-foreground">{uiAccount.sessions.none}</p>}
-        <ul className="divide-y" aria-label={uiAccount.sessions.listLabel}>
+        <ul aria-label={uiAccount.sessions.listLabel}>
           {ordered.map((session) => (
             <li key={session.ID} className="min-w-0 py-4 first:pt-0 last:pb-0">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">

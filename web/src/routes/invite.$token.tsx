@@ -124,7 +124,7 @@ export function InvitationPage({ token, preview, previewFailed, loading, user, a
   const invited = preview.email.toLowerCase()
   const description = preview.invited_by ? uiFlows.auth.invitedBy(preview.invited_by, preview.org_name) : uiFlows.auth.invitedTo(preview.org_name)
   const details = (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border bg-muted/30 p-3 text-sm">
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg bg-muted/30 p-3 text-sm">
       <dt className="text-muted-foreground">{en.auth.email}</dt><dd className="break-all">{preview.email}</dd>
       <dt className="text-muted-foreground">{uiFlows.auth.role}</dt><dd>{uiFlows.auth.roles[preview.role] ?? preview.role}</dd>
       <dd className="col-span-2 text-xs text-muted-foreground">{uiFlows.auth.expires(formatExpiry(preview.expires_at))}</dd>

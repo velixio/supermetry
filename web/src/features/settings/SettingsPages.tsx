@@ -167,7 +167,7 @@ function Page({
 
 function Surface({ children }: { children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-card-foreground">
+    <section className="flex flex-col gap-3 rounded-lg bg-card p-4 text-card-foreground">
       {children}
     </section>
   );
@@ -717,7 +717,7 @@ export function SharesPage({
             ) : null}
           </div>
         ) : null}
-        <ul className="flex flex-col divide-y">
+        <ul className="flex flex-col">
           {shares.data?.data.map((share) => (
             <li
               className="flex items-center justify-between gap-3 py-2"
@@ -823,7 +823,7 @@ export function ReportsPage({
             Subscribe monthly
           </Button>
         </div>
-        <ul className="flex flex-col divide-y">
+        <ul className="flex flex-col">
           {reports.data?.data.map((report) => (
             <li
               className="flex items-center justify-between py-2"
@@ -883,7 +883,7 @@ export function AuditPage({ orgId }: { orgId: number }) {
         <div className="overflow-x-auto" tabIndex={0}>
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b">
+              <tr>
                 <th className="py-2">When</th>
                 <th>Action</th>
                 <th>Target</th>
@@ -891,7 +891,7 @@ export function AuditPage({ orgId }: { orgId: number }) {
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr className="border-b" key={entry.id}>
+                <tr key={entry.id}>
                   <td className="py-3 pr-4">
                     {fmt.date(entry.created_at, "UTC")}
                   </td>

@@ -123,7 +123,7 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
   )
 
   return (
-    <section aria-labelledby="recent-activity-title" className="border-y py-4">
+    <section aria-labelledby="recent-activity-title" className="py-4">
       <header className="mb-3 flex items-center justify-between gap-3">
         <div>
           <h2 id="recent-activity-title" className="font-medium">Recent activity</h2>
@@ -134,7 +134,7 @@ function ActivityFeed({ items }: { items: ActivityItem[] }) {
       {activity.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Waiting for the next pageview or event.</p>
       ) : (
-        <ol className="divide-y">
+        <ol>
           {activity.map((item, index) => (
             <li aria-label="Recent activity item" className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-3" key={`${item.timestamp}:${item.kind}:${index}`}>
               <span className="flex items-center gap-2 text-muted-foreground">

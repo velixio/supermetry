@@ -209,7 +209,7 @@ function WizardBody({ orgId, sites, initialPurpose, onClose }: { orgId: number; 
                 </Field>
               ) : null}
               {expiry === 'never' ? (
-                <p role="note" className="flex items-start gap-2 rounded-lg border border-warning bg-warning/10 p-3 text-sm text-warning">
+                <p role="note" className="flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
                   <AlertTriangleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                   <span>{t.noExpiryWarning}</span>
                 </p>
@@ -225,7 +225,7 @@ function WizardBody({ orgId, sites, initialPurpose, onClose }: { orgId: number; 
 
         {step === 2 && created ? (
           <div className="flex flex-col gap-5">
-            <div role="alert" className="rounded-lg border border-warning bg-warning/10 p-3 text-sm">
+            <div role="alert" className="rounded-lg bg-warning/10 p-3 text-sm">
               <p className="font-medium text-warning">{t.wontSeeAgain}</p>
               <p className="text-muted-foreground">{t.wontSeeAgainBody}</p>
             </div>

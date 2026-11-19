@@ -66,14 +66,14 @@ export function SearchConsoleReport({ siteId, orgId }: { siteId: number; orgId: 
   }
 
   return (
-    <section aria-labelledby={`${ids}-heading`} className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
+    <section aria-labelledby={`${ids}-heading`} className="flex min-w-0 flex-col gap-4 rounded-lg bg-card p-5 text-card-foreground">
       <header className="flex flex-col gap-1">
         <h2 className="font-semibold" id={`${ids}-heading`}>{t.reportHeading}</h2>
         <p className="text-sm text-muted-foreground">{t.reportIntro}</p>
       </header>
 
       <div className="flex flex-wrap items-end gap-3">
-        <div aria-label={t.reportHeading} className="inline-flex rounded-lg border p-0.5" role="group">
+        <div aria-label={t.reportHeading} className="inline-flex rounded-lg bg-muted p-0.5" role="group">
           {([['query', t.tabQueries], ['page', t.tabPages]] as const).map(([value, label]) => (
             <button
               aria-pressed={dimension === value}

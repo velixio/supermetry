@@ -160,7 +160,7 @@ function FeatureSetup({ currency }: { currency?: string }) {
   return (
     <section aria-label="Feature setup" className="flex flex-col gap-3">
       <h3 className="text-sm font-medium">Feature setup</h3>
-      <ul className="divide-y text-sm">
+      <ul className="text-sm">
         {featureSetup.map((item) => (
           <li key={item.feature} className="flex flex-col gap-1 py-3 first:pt-0">
             <span className="font-medium">{item.feature}</span>

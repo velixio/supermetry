@@ -133,7 +133,7 @@ function SiteCard({ site, multipleOrganizations, onDelete }: { site: OverviewSit
 
 function SitesTable({ sites, multipleOrganizations, onDelete }: { sites: OverviewSite[]; multipleOrganizations: boolean; onDelete(site: OverviewSite): void }) {
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg bg-card">
       <Table aria-label="Projects overview"><TableHeader><TableRow>
         <TableHead>Project</TableHead>{multipleOrganizations ? <TableHead>Organization</TableHead> : null}<TableHead>Created</TableHead><TableHead>Visitors</TableHead><TableHead>Change</TableHead><TableHead>Traffic</TableHead><TableHead>Live</TableHead><TableHead>Last event</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead>
       </TableRow></TableHeader><TableBody>{sites.map((site) => (

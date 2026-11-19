@@ -8,7 +8,7 @@ const t = en.ga4Import
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border bg-background p-3">
+    <div className="flex flex-col gap-0.5 rounded-lg bg-muted/40 p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="text-lg font-semibold tabular-nums">{value}</dd>
     </div>
@@ -17,7 +17,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function Ga4Format() {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4 text-sm">
+    <div className="flex flex-col gap-2 rounded-lg bg-muted/40 p-4 text-sm">
       <h3 className="font-medium">{t.formatTitle}</h3>
       <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
         <li>{t.formatDate}</li>
@@ -50,7 +50,7 @@ export function Ga4ImportPreview({
   return (
     <section
       aria-labelledby="import-preview-heading"
-      className="flex flex-col gap-4 rounded-lg border bg-card p-4"
+      className="flex flex-col gap-4 rounded-lg bg-card p-4"
     >
       <h3 id="import-preview-heading" className="font-medium">
         {t.previewHeading}

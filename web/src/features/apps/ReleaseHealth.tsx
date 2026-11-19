@@ -32,7 +32,7 @@ export function ReleaseHealth({ data }: { data: AppOverviewData }) {
           <CardDescription>Daily rate{fromEvents ? ` (${EVENTS_NOTE})` : ''}.</CardDescription>
         </CardHeader>
         <CardContent>
-          {data.series.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No sessions in this period.</p> : (
+          {data.series.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No sessions in this period.</p> : (
             <div className="h-56" role="img" aria-label="Daily crash-free sessions">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart accessibilityLayer data={data.series}>

@@ -30,7 +30,7 @@ export function AdoptionCard({ siteId, search, timezone }: { siteId: number; sea
       <CardContent>
         {adoption.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading adoption…</p> : null}
         {adoption.isError ? <p role="alert" className="text-sm text-destructive">{adoption.error.message}</p> : null}
-        {adoption.data && rows.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No installs in this period.</p> : null}
+        {adoption.data && rows.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No installs in this period.</p> : null}
         {rows.length > 0 ? (
           <Table aria-label={`Adoption by ${by}`}>
             <TableHeader><TableRow><TableHead>{DIMENSIONS.find(([value]) => value === by)?.[1]}</TableHead><TableHead className="text-right">Installs</TableHead><TableHead className="text-right">Share</TableHead></TableRow></TableHeader>

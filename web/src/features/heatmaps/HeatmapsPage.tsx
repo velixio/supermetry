@@ -90,7 +90,7 @@ function ScrollOverlay({ bands }: { bands: ScrollBand[] }) {
         return (
           <div
             key={item.band}
-            className="absolute inset-x-0 border-t border-background/60 bg-chart-1/10"
+            className="absolute inset-x-0 bg-chart-1/10"
             style={{ top: `${Math.max(0, item.band - 10)}%`, height: '10%' }}
           >
             <span className="absolute right-2 top-1 rounded-md bg-background/90 px-2 py-1 text-xs font-medium">

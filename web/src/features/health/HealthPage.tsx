@@ -81,7 +81,7 @@ export function HealthPage({ orgId, version = "dev", appSites = [] }: { orgId?: 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {counters.map((counter) => (
             <section
-              className="rounded-lg border bg-card p-5"
+              className="rounded-lg bg-card p-5"
               key={counter.key}
             >
               <h2 className="text-sm font-medium text-muted-foreground">
@@ -111,7 +111,7 @@ export function HealthPage({ orgId, version = "dev", appSites = [] }: { orgId?: 
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             {collectionCounters.map((counter) => (
-              <div className="rounded-lg border bg-card p-5" key={counter.key}>
+              <div className="rounded-lg bg-card p-5" key={counter.key}>
                 <h3 className="text-sm font-medium text-muted-foreground">
                   {counter.label}
                 </h3>

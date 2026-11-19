@@ -90,7 +90,7 @@ type DialogState = { mode: 'add' | 'edit'; widget: ReturnType<typeof makeWidget>
 
 export function DashboardEditor(props: DashboardEditorProps) {
   const dashboards = useDashboards(props.siteId)
-  if (!props.canWrite) return <p className="rounded-lg border bg-card p-4 text-sm" role="status">{t.readOnly}</p>
+  if (!props.canWrite) return <p className="rounded-lg bg-card p-4 text-sm" role="status">{t.readOnly}</p>
   if (dashboards.isError) return <ErrorState level="page" detail={dashboards.error?.detail ?? t.loadError} onRetry={() => void dashboards.refetch()} />
   if (dashboards.isPending) {
     return (
@@ -106,7 +106,7 @@ export function DashboardEditor(props: DashboardEditorProps) {
     const found = dashboards.data.find((item) => item.id === id && !item.builtin)
     if (!found) {
       return (
-        <section className="flex flex-col items-start gap-3 rounded-lg border bg-card p-5" role="status">
+        <section className="flex flex-col items-start gap-3 rounded-lg bg-card p-5" role="status">
           <p className="text-sm">{t.gone}</p>
           <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={props.onExit}>{t.done}</Button>
         </section>
@@ -322,7 +322,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
 
   if (gone) {
     return (
-      <section className="flex flex-col items-start gap-3 rounded-lg border bg-card p-5" role="status">
+      <section className="flex flex-col items-start gap-3 rounded-lg bg-card p-5" role="status">
         <p className="text-sm">{t.gone}</p>
         <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={() => { bypass.current = true; onDeleted() }}>{t.done}</Button>
       </section>
@@ -334,7 +334,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
       <UnsavedGuard active={dirty} bypass={bypass} />
       <p aria-live="polite" className="sr-only" role="status">{announcement}</p>
 
-      <section aria-labelledby="dash-edit-title" className="dash-edit-bar flex flex-col gap-3 rounded-lg border p-4">
+      <section aria-labelledby="dash-edit-title" className="dash-edit-bar flex flex-col gap-3 rounded-lg bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="min-w-0 break-words font-medium" id="dash-edit-title">{title}</h2>
           <p className="text-sm text-muted-foreground" data-testid="edit-status">
@@ -365,7 +365,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
       </section>
 
       {conflict ? (
-        <section className="flex flex-col items-start gap-3 rounded-lg border bg-card p-4" role="alert">
+        <section className="flex flex-col items-start gap-3 rounded-lg bg-card p-4" role="alert">
           <h2 className="font-medium">{t.conflictTitle}</h2>
           <p className="text-sm text-muted-foreground">{t.conflictBody}</p>
           <div className="flex flex-wrap gap-2">
@@ -376,7 +376,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
       ) : null}
 
       {issues.length > 0 || serverIssues.length > 0 ? (
-        <section className="rounded-lg border bg-card p-4" role="alert">
+        <section className="rounded-lg bg-card p-4" role="alert">
           <h2 className="mb-2 font-medium">{serverIssues.length > 0 ? t.serverProblemsTitle : t.problemsTitle}</h2>
           <ul className="list-disc pl-5 text-sm text-destructive outline-none" ref={issuesRef} tabIndex={-1}>
             {[...issues, ...serverIssues].map((message, index) => <li key={`${message}-${index}`}>{message}</li>)}
@@ -428,7 +428,7 @@ function EditorBody({ siteId, siteKind, orgId, anonymous, base, timezone, dashbo
       </section>
 
       {current.id !== undefined ? (
-        <section aria-labelledby="dash-edit-manage" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+        <section aria-labelledby="dash-edit-manage" className="flex flex-col gap-3 rounded-lg bg-card p-4">
           <h2 className="text-sm font-medium" id="dash-edit-manage">{t.manage}</h2>
           <div className="flex flex-wrap items-center gap-2">
             <Button aria-describedby={dirty ? 'dash-edit-save-first' : undefined} className="max-sm:min-h-11" disabled={busy || dirty} type="button" variant="outline" onClick={() => void doDuplicate()}>{t.duplicate}</Button>

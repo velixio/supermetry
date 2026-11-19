@@ -63,7 +63,7 @@ export function SwitchOverPanel({ siteId, orgId, today = new Date() }: { siteId:
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">{t.heading}</caption>
-              <thead className="border-b text-muted-foreground">
+              <thead className="text-muted-foreground">
                 <tr>
                   <th scope="col" className="py-2 pr-4 font-medium">{t.day}</th>
                   <th scope="col" className="py-2 pr-4 text-right font-medium">{t.oldVisitors}</th>
@@ -76,7 +76,7 @@ export function SwitchOverPanel({ siteId, orgId, today = new Date() }: { siteId:
               </thead>
               <tbody>
                 {days.map((day) => (
-                  <tr key={day.day} className="border-b last:border-0">
+                  <tr key={day.day} className="">
                     <th scope="row" className="py-2 pr-4 font-medium tabular-nums">{day.day}</th>
                     <td className="py-2 pr-4 text-right tabular-nums">{fmt.number(day.imported.visitors)}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{fmt.number(day.native?.visitors ?? 0)}</td>

@@ -49,7 +49,7 @@ export function AccountNotificationsPage() {
       {prefs.isSuccess && sites.length === 0 && <p className="text-sm text-muted-foreground">{t.accountNotifications.noProjects}</p>}
       <div className="flex flex-col gap-3">
         {sites.map((site) => (
-          <section key={site.site_id} aria-label={`${site.org_name}, ${site.site_name}`} className="min-w-0 rounded-lg border bg-card p-4 text-card-foreground">
+          <section key={site.site_id} aria-label={`${site.org_name}, ${site.site_name}`} className="min-w-0 rounded-lg bg-card p-4 text-card-foreground">
             <h2 className="mb-1 break-words text-sm font-medium">{site.site_name}</h2>
             <p className="mb-3 break-words text-xs text-muted-foreground">{site.org_name}</p>
             <ul className="flex flex-col gap-3">

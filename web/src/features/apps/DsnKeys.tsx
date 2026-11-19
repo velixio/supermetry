@@ -78,7 +78,7 @@ export function DsnKeys({ orgId, siteId, keys }: { orgId: number; siteId: number
       {keys.length > 0 ? (
         <ul className="flex min-w-0 flex-col gap-3" aria-label="DSN keys">
           {keys.map((key) => (
-            <li key={key.public_key} className="flex min-w-0 flex-col gap-2 rounded-lg border p-3">
+            <li key={key.public_key} className="flex min-w-0 flex-col gap-2 rounded-lg bg-card p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium">{key.label || `Key ${key.prefix}`}</span>
                 <AlertDialog>
@@ -107,7 +107,7 @@ export function DsnKeys({ orgId, siteId, keys }: { orgId: number; siteId: number
       ) : null}
       {revoke.isError ? <p role="alert" className="text-sm text-destructive">{revoke.error.message}</p> : null}
       <form
-        className="flex min-w-0 flex-col gap-3 rounded-lg border border-dashed p-3"
+        className="flex min-w-0 flex-col gap-3 rounded-lg bg-muted/30 p-3"
         onSubmit={(event) => { event.preventDefault(); create.mutate() }}
       >
         <h3 className="text-sm font-medium">Create a DSN key</h3>

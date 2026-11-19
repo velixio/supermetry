@@ -46,7 +46,7 @@ export function LoginForm({ login, next, onSuccess, signup, notice }: {
   }
 
   return <AuthScreen title={en.auth.signInHeading} description={needsTOTP ? en.auth.totpDescription : en.auth.signInDescription}>
-    {notice && !error ? <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">{noticeText(notice)}</p> : null}
+    {notice && !error ? <p role="status" className="rounded-lg bg-muted/40 p-3 text-sm">{noticeText(notice)}</p> : null}
     <form onSubmit={submit}><FieldGroup>
       {!needsTOTP ? <>
         <Field><FieldLabel htmlFor="email">{en.auth.email}</FieldLabel><Input id="email" name="email" type="email" autoComplete="email" spellCheck={false} autoCapitalize="none" required value={email} onChange={(event) => setEmail(event.target.value)} /></Field>

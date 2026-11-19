@@ -81,7 +81,7 @@ function Page({ title, description, children }: { title: string; description: st
 }
 
 function Surface({ children, label }: { children: ReactNode; label?: string }) {
-  return <section aria-label={label} className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-5 text-card-foreground">{children}</section>
+  return <section aria-label={label} className="flex flex-col gap-4 rounded-lg bg-card p-4 md:p-5 text-card-foreground">{children}</section>
 }
 
 function ErrorLine({ error }: { error: unknown }) {
@@ -159,7 +159,7 @@ function MemberRow({ member, isSelf, actorRole, sites, orgId, onSaved, onRemoved
   // Role changes are step-up protected: on "reauth_required" the password dialog opens and the call is retried once.
   const saveChanges = () => withReauth(() => update.mutateAsync(changes)).catch(() => undefined)
   return (
-    <li className="flex flex-col gap-4 border-b pb-6 last:border-0 last:pb-0">
+    <li className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-medium">{member.name}{isSelf ? <span className="ml-1 font-normal text-muted-foreground">{uiFlows.members.you}</span> : null}</p>
@@ -221,7 +221,7 @@ export function LeaveOrganization({ orgId, orgName, onLeft = () => window.locati
   })
   const lastOwner = leave.error && typeof leave.error === 'object' && 'status' in leave.error && (leave.error as { status?: number }).status === 409
   return (
-    <section aria-labelledby="leave-org-title" className="flex flex-col gap-3 rounded-lg border p-5">
+    <section aria-labelledby="leave-org-title" className="flex flex-col gap-3 rounded-lg bg-muted/40 p-5">
       <h2 id="leave-org-title" className="text-base font-semibold">{uiFlows.members.leaveTitle}</h2>
       <p className="text-sm text-muted-foreground">{uiFlows.members.leaveDescription}</p>
       <Button type="button" variant="outline" className="self-start" onClick={() => { leave.reset(); setOpen(true) }}>{uiFlows.members.leave}</Button>
@@ -419,7 +419,7 @@ export function InvitationsPage({ orgId, actorRole = 'viewer', sites = [], now =
             {list.map((invitation) => {
               const state = invitationState(invitation, now)
               return (
-                <li className="flex flex-wrap items-center justify-between gap-3 border-t pt-3 first:border-0 first:pt-0" key={invitation.id}>
+                <li className="flex flex-wrap items-center justify-between gap-3" key={invitation.id}>
                   <div className="min-w-0 text-sm">
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="break-all">{invitation.email} · {invitation.role}</span>

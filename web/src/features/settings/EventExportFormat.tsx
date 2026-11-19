@@ -16,7 +16,7 @@ export const eventExportAccept: Record<EventExportSource, string> = {
 export function EventExportFormat({ source }: { source: EventExportSource }) {
   const copy = t[source]
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4 text-sm">
+    <div className="flex flex-col gap-2 rounded-lg bg-muted/40 p-4 text-sm">
       <h3 className="font-medium">{t.formatTitle}</h3>
       <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
         <li>{copy.file}</li>

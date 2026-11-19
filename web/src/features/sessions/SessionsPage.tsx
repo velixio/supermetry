@@ -213,11 +213,11 @@ export function SessionsPage({
               />
             ))}
           </ol>
-          <div className="hidden min-w-0 max-w-full overflow-hidden rounded-lg border bg-card md:block">
+          <div className="hidden min-w-0 max-w-full overflow-hidden rounded-lg bg-card md:block">
             <Table aria-label="Sessions" className="min-w-[680px] lg:min-w-[980px] xl:min-w-[1450px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 bg-card after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border">Started</TableHead>
+                  <TableHead className="sticky left-0 bg-card">Started</TableHead>
                   {canReplay ? <TableHead>Replay</TableHead> : null}
                   <TableHead>Entry → exit</TableHead>
                   <TableHead className="hidden xl:table-cell">Source</TableHead>
@@ -233,7 +233,7 @@ export function SessionsPage({
               <TableBody>
                 {sessions.data.data.map((session) => (
                   <TableRow key={`${session.started_at}:${session.id}`}>
-                    <TableCell className="sticky left-0 bg-card after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border">
+                    <TableCell className="sticky left-0 bg-card">
                       <Button aria-label={`View session ${session.id}`} className="h-auto p-0" variant="link" onClick={() => onSelect(session.id)}>
                         <time dateTime={session.started_at}>{formatDate(session.started_at)}</time>
                       </Button>

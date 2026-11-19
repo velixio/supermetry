@@ -49,7 +49,7 @@ export function ActiveUsersPage({ siteId, timezone, search, onSearch, canEdit }:
       <Card>
         <CardHeader><CardTitle>Active installs <InfoTip label="About active installs">Distinct installs per day, over the last 7 days and over the last 30 days.</InfoTip></CardTitle></CardHeader>
         <CardContent>
-          {chart.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No activity in this period.</p> : (
+          {chart.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No activity in this period.</p> : (
             <div className="h-64" role="img" aria-label="Daily, weekly and monthly active installs">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart accessibilityLayer data={chart}>

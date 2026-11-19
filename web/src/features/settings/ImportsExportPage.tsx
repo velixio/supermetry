@@ -35,7 +35,7 @@ function Surface({
   children: React.ReactNode
 }) {
   return (
-    <section className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-5 text-card-foreground">
+    <section className="flex flex-col gap-4 rounded-lg bg-card p-4 md:p-5 text-card-foreground">
       <header className="flex flex-col gap-1">
         <h2 className="font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -80,10 +80,10 @@ export function ImportsExportPage({ siteId, orgId, search, onSearchChange }: Pag
       <PageHeader title="Imports &amp; export" description="Bring historical aggregate data into this project or download a portable ZIP." />
 
       <ImportWizard siteId={siteId} orgId={orgId} search={search} onSearchChange={onSearchChange} reviewTarget={reviewTarget} />
-      <div className="rounded-lg border bg-card p-4 text-card-foreground md:p-5">
+      <div className="rounded-lg bg-card p-4 text-card-foreground md:p-5">
         <ImportHistory siteId={siteId} orgId={orgId} items={imports.data} loading={imports.isLoading} onReview={setReviewTarget} />
       </div>
-      <div className="rounded-lg border bg-card p-4 text-card-foreground md:p-5">
+      <div className="rounded-lg bg-card p-4 text-card-foreground md:p-5">
         <SwitchOverPanel siteId={siteId} orgId={orgId} />
       </div>
 

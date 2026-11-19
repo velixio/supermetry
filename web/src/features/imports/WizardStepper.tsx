@@ -21,9 +21,9 @@ export function WizardStepper({ current }: { current: WizardStep }) {
               <span
                 aria-hidden="true"
                 className={cn(
-                  'flex size-6 items-center justify-center rounded-full border text-xs font-medium',
-                  active && 'border-primary bg-primary text-primary-foreground',
-                  done && 'border-success/40 bg-success/10 text-success',
+                  'flex size-6 items-center justify-center rounded-full bg-muted text-xs font-medium',
+                  active && 'bg-primary text-primary-foreground',
+                  done && 'bg-success/10 text-success',
                 )}
               >
                 {done ? <CheckIcon className="size-3" /> : position + 1}

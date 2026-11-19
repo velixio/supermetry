@@ -76,7 +76,7 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
       {report.isError ? (
         <ErrorState level="page" detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
-        <div aria-label="Loading retention" className="flex flex-col gap-3 rounded-lg border p-4">
+        <div aria-label="Loading retention" className="flex flex-col gap-3 rounded-lg bg-card p-4">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-4/5" />
           <Skeleton className="h-10 w-3/5" />

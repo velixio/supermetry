@@ -88,7 +88,7 @@ function TrafficChart({ result }: { result: ShareQueryResult }) {
 function SectionPanel({ section, result, pending }: { section: Exclude<ShareSection, 'kpis'>; result?: ShareQueryResult; pending: boolean }) {
   const columns = result?.columns ?? []
   return (
-    <section className="min-w-0 rounded-lg border bg-card p-4" aria-busy={pending}>
+    <section className="min-w-0 rounded-lg bg-card p-4" aria-busy={pending}>
       <h2 className="text-base font-semibold">{sectionLabels[section]}</h2>
       {pending ? <Skeleton className="mt-4 h-28 w-full" /> : result?.rows.length && section === 'chart' ? (
         <TrafficChart result={result} />
@@ -97,7 +97,7 @@ function SectionPanel({ section, result, pending }: { section: Exclude<ShareSect
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{sectionLabels[section]} data</caption>
             <thead><tr>{columns.map((column) => <th className="pb-2 pr-4 font-medium text-muted-foreground" key={column}>{column.replaceAll('_', ' ')}</th>)}</tr></thead>
-            <tbody>{result.rows.slice(0, 8).map((row, index) => <tr className="border-t" key={index}>{columns.map((column) => <td className="py-2 pr-4 tabular-nums" key={column}>{displayValue(row[column])}</td>)}</tr>)}</tbody>
+            <tbody>{result.rows.slice(0, 8).map((row, index) => <tr key={index}>{columns.map((column) => <td className="py-2 pr-4 tabular-nums" key={column}>{displayValue(row[column])}</td>)}</tr>)}</tbody>
           </table>
         </div>
       ) : <p className="mt-3 text-sm text-muted-foreground">No data in this range.</p>}
@@ -245,7 +245,7 @@ export function SharedDashboard({
 
   return (
     <main className={`mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 ${summary.data?.transparent_background ? 'bg-transparent' : 'bg-background'}`}>
-      <header className="flex items-end justify-between gap-4 border-b pb-5">
+      <header className="flex items-end justify-between gap-4">
         <div className="flex flex-col items-start gap-1">
           <BrandLogo className="h-6 w-auto" />
           <h1 className="text-2xl font-semibold tracking-tight">Shared dashboard</h1>
@@ -255,10 +255,10 @@ export function SharedDashboard({
       {summary.data?.sections.includes('kpis') || summary.isPending ? <section
         aria-busy={summary.isPending}
         aria-label="Analytics summary"
-        className="grid grid-cols-2 border-y sm:grid-cols-4 lg:grid-cols-7"
+        className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7"
       >
         {metrics.map(([metric, label]) => (
-          <div key={metric} className="flex min-w-0 flex-col gap-1 border-b px-3 py-4 sm:border-r lg:border-b-0">
+          <div key={metric} className="flex min-w-0 flex-col gap-1 px-3 py-4">
             <span className="truncate text-xs text-muted-foreground">{label}</span>
             {summary.isPending ? (
               <Skeleton className="h-7 w-16" />

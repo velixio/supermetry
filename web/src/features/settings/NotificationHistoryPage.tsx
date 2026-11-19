@@ -34,7 +34,7 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
   return (
     <PageContainer width="narrow">
       <PageHeader title={en.notify.historyTitle} description={en.notify.historyDescription} />
-      <section aria-label={t.history.filters} className="grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-3">
+      <section aria-label={t.history.filters} className="grid gap-3 rounded-lg bg-card p-4 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm font-medium">
           {t.history.status}
           <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={filters.status ?? ''} onChange={(event) => onFilters({ ...filters, status: event.target.value as DeliveryStatus || undefined })}>
@@ -53,8 +53,8 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
         </label>
       </section>
       {history.error || retry.error ? <p role="alert" className="text-sm text-destructive">{history.error?.message ?? retry.error?.message}</p> : null}
-      {history.isPending ? <p role="status" className="rounded-lg border p-5 text-sm text-muted-foreground">{t.history.loading}</p> : null}
-      {!history.isPending && items.length === 0 ? <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">{t.history.empty}</p> : null}
+      {history.isPending ? <p role="status" className="rounded-lg bg-card p-5 text-sm text-muted-foreground">{t.history.loading}</p> : null}
+      {!history.isPending && items.length === 0 ? <p className="rounded-lg bg-card p-5 text-sm text-muted-foreground">{t.history.empty}</p> : null}
       {incidents.data && incidents.data.data.length > 0 ? (
         <section aria-label={t.history.incidentsRegion} className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">{t.history.incidentsOf(filters.alertId ?? 0)}</h2>
@@ -65,7 +65,7 @@ export function NotificationHistoryPage({ siteId, orgId, filters, onFilters }: {
         {items.map((item) => {
           const Icon = statusIcon[item.status]
           return (
-            <li key={item.id} className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <li key={item.id} className="grid gap-3 rounded-lg bg-card p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
               <div className="min-w-0 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={item.status === 'failed' ? 'destructive' : 'secondary'} className="gap-1 capitalize"><Icon aria-hidden className="size-3.5" />{t.history.statuses[item.status].toLocaleLowerCase()}</Badge>

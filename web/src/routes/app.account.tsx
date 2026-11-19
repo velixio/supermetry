@@ -28,7 +28,7 @@ function AccountLayout() {
 
 export function AccountSettingsNavigation() {
   return (
-    <nav aria-label="Account settings" className="flex flex-wrap gap-1 border-b pb-3">
+    <nav aria-label="Account settings" className="flex flex-wrap gap-1">
       {([
         ['/app/account/profile', 'Profile'], ['/app/account/security', 'Security'], ['/app/account/sessions', 'Sessions'], ['/app/account/notifications', 'Notifications'],
       ] as const).map(([to, label]) => (

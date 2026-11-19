@@ -186,17 +186,17 @@ export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search
       {users.isPending ? <p role="status" className="text-sm text-muted-foreground">{en.admin.loading}</p> : null}
       {users.data && users.data.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.admin.empty}</p> : null}
       {users.data && users.data.data.length > 0 ? (
-        <div className="relative overflow-x-auto rounded-lg border" tabIndex={0}>
+        <div className="relative overflow-x-auto rounded-lg" tabIndex={0}>
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.users}</caption>
-            <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr><th scope="col" className={cellClass}>User</th><th scope="col" className={cellClass}>Status</th><th scope="col" className={cellClass}>Last sign-in</th><th scope="col" className={cellClass}>Actions</th></tr>
             </thead>
             <tbody>
               {users.data.data.map((user) => {
                 const self = user.id === currentUserId
                 return (
-                  <tr key={user.id} className="border-b last:border-0" data-testid="admin-user-row">
+                  <tr key={user.id} data-testid="admin-user-row">
                     <td className={cellClass}><div className="font-medium">{user.name}</div><div className="break-all text-muted-foreground">{user.email}</div></td>
                     <td className={cellClass}>
                       <div className="flex flex-wrap gap-1">

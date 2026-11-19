@@ -33,7 +33,7 @@ export function TraceWaterfall({ org, site, trace }: { org: string; site: string
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {trace.truncated ? <p role="status" className="rounded-md bg-muted/50 px-3 py-2 text-sm">Showing the first 10,000 spans.</p> : null}
-      <ol className="flex min-w-0 flex-col divide-y rounded-lg border" aria-label="Spans">
+      <ol className="flex min-w-0 flex-col rounded-lg bg-card" aria-label="Spans">
         {trace.spans.map((span) => {
           const failed = spanFailed(span) || errorsBySpan.has(span.span_id)
           const { left, width } = barGeometry(span, total)

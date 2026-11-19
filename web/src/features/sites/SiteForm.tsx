@@ -144,7 +144,7 @@ export function SiteForm({
         </Field>
         <TimezoneSelect error={errorFor('timezone')} hint={uiFlows.site.timezoneHint} />
         <details
-          className="group rounded-lg border px-3 py-2"
+          className="group rounded-lg bg-muted/40 px-3 py-2"
           open={advancedOpen}
           onToggle={(event) => setAdvancedOpen((event.currentTarget as HTMLDetailsElement).open)}
         >

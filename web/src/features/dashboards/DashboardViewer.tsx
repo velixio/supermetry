@@ -45,7 +45,7 @@ export function DashboardViewer(props: DashboardViewerProps) {
   const dashboard = dashboards.data.find((item) => item.id === props.dashboardId)
   if (!dashboard) {
     return (
-      <section className="flex flex-col items-start gap-3 rounded-lg border bg-card p-5" role="status">
+      <section className="flex flex-col items-start gap-3 rounded-lg bg-card p-5" role="status">
         <h2 className="font-medium">{t.missingTitle}</h2>
         <p className="text-sm text-muted-foreground">{t.missingBody}</p>
         <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={props.onOpenStandard}>{t.openStandard}</Button>
@@ -55,7 +55,7 @@ export function DashboardViewer(props: DashboardViewerProps) {
   const layout = dashboard.layout
   if (layout.widgets.length === 0) {
     return (
-      <section className="flex flex-col items-start gap-2 rounded-lg border bg-card p-5" role="status">
+      <section className="flex flex-col items-start gap-2 rounded-lg bg-card p-5" role="status">
         <h2 className="font-medium">{t.emptyTitle}</h2>
         <p className="text-sm text-muted-foreground">{t.emptyBody}</p>
       </section>

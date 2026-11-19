@@ -61,10 +61,10 @@ export function LogSearch({ org, site, siteId, timezone, initialQuery = '', onQu
       {logs.isPending ? <Skeleton className="h-40 w-full" aria-label={t.loading} /> : null}
       {logs.isError && !problem ? <ErrorState detail={logs.error.message} onRetry={() => void logs.refetch()} /> : null}
       {logs.isSuccess && rows.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{q.trim() ? t.emptyFiltered : t.emptyNone}</p>
+        <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">{q.trim() ? t.emptyFiltered : t.emptyNone}</p>
       ) : null}
       {rows.length > 0 ? (
-        <ul className="rounded-lg border bg-card" aria-label={t.title}>
+        <ul className="rounded-lg bg-card" aria-label={t.title}>
           {rows.map((log, index) => <LogRow key={`${log.ts}-${index}`} log={log} org={org} site={site} timezone={timezone} />)}
         </ul>
       ) : null}

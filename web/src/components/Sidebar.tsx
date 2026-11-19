@@ -388,7 +388,7 @@ function SwitcherGlyph({ children, dashed = false }: { children: ReactNode; dash
   return (
     <span
       aria-hidden="true"
-      className={`flex size-5 shrink-0 items-center justify-center rounded-md border text-[0.6875rem] font-semibold text-muted-foreground ${dashed ? 'border-dashed' : 'bg-muted'}`}
+      className={`flex size-5 shrink-0 items-center justify-center rounded-md text-[0.6875rem] font-semibold text-muted-foreground ${dashed ? 'bg-muted/50' : 'bg-muted'}`}
     >
       {children}
     </span>
@@ -724,7 +724,7 @@ export function SupermetrySidebar({
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
-      <SidebarHeader className="sticky top-0 z-10 h-12 flex-row items-center border-b bg-sidebar p-0 px-2">
+      <SidebarHeader className="sticky top-0 z-10 h-12 flex-row items-center bg-sidebar p-0 px-2">
         <SidebarBrandLink onClick={closeMobile} />
       </SidebarHeader>
       <div className="flex flex-col gap-1.5 px-2 pt-2 pb-1" onFocusCapture={(event) => { filterButtonFocused.current = rail && event.target instanceof HTMLElement && event.target.hasAttribute('data-filter-trigger') }}>

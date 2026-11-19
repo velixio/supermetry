@@ -108,7 +108,7 @@ export function MenuEntry({
         </SidebarMenuAction>
       ) : null}
       {kids.length > 0 && open ? (
-        <SidebarMenuSub className="mx-0 ml-4 gap-0.5 border-sidebar-border py-0.5 pr-0 pl-2" id={subId}>
+        <SidebarMenuSub className="mx-0 ml-4 gap-0.5 py-0.5 pr-0 pl-2" id={subId}>
           {kids.map((child) => (
             <SidebarMenuSubItem key={child.key}>{row(child)}</SidebarMenuSubItem>
           ))}
@@ -140,7 +140,7 @@ export function MenuGroup({
   const headingId = `sidebar-${id}-heading`
   const contentId = `sidebar-${id}-content`
   return (
-    <SidebarGroup className={`p-0 group-data-[collapsible=icon]:not-first:border-t group-data-[collapsible=icon]:not-first:pt-2 ${className ?? ''}`}>
+    <SidebarGroup className={`p-0 group-data-[collapsible=icon]:not-first:pt-2 ${className ?? ''}`}>
       <SidebarGroupLabel asChild className="group/label h-6 px-2 text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:-mt-6">
         <h2 id={headingId}>
           {fixed ? <span>{label}</span> : <button

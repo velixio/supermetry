@@ -41,7 +41,7 @@ export default function LinkQr({ url, name }: { url: string; name: string }) {
     <div className="flex flex-col items-center gap-3">
       <svg
         aria-label={en.linksUi.qrAlt.replace('{url}', url)}
-        className="size-56 rounded-md border bg-white"
+        className="size-56 rounded-md bg-white"
         role="img"
         viewBox={`0 0 ${total} ${total}`}
         xmlns="http://www.w3.org/2000/svg"

@@ -145,7 +145,7 @@ export function ReplayPlayer({
       <div
         ref={target}
         data-testid="replay-stage"
-        className="replay-player min-h-72 w-full flex-1 overflow-hidden rounded-lg border bg-muted"
+        className="replay-player min-h-72 w-full flex-1 overflow-hidden rounded-lg bg-muted"
       />
     </div>
   )

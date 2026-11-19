@@ -30,7 +30,7 @@ export function DeployList({ deploys, timezone }: { deploys: readonly AppDeployR
     <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="Deploys">
       {deploys.map((deploy) => (
         <li key={deploy.id}>
-          <span aria-hidden className="mr-1 inline-block h-3 border-l border-dashed align-middle" style={{ borderColor: 'var(--chart-5)' }} />
+          <span aria-hidden className="mr-1 inline-block h-3 w-0.5 bg-chart-5 align-middle" />
           <span className="font-medium text-foreground">{deploy.release}</span> {dayInZone(deploy.at, timezone)}
           {deploy.environment ? ` · ${deploy.environment}` : ''}
           {deploy.name ? ` · ${deploy.name}` : ''}

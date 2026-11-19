@@ -107,10 +107,10 @@ function ValueBody({ target, query, anonymous, onFilter, applied, filter }: Insp
           </div>
         ))}
       </section>
-      <div className="flex flex-col gap-4 border-t p-4 empty:hidden">
+      <div className="flex flex-col gap-4 p-4 empty:hidden">
         {inspectCrossDimensions(target, anonymous).map((dimension) => <CrossBreakdown key={dimension} dimension={dimension} query={scoped} />)}
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-t p-4">
+      <div className="flex flex-wrap items-center gap-2 p-4">
         {applied
           ? <p className="text-sm text-muted-foreground">{ui.inspector.filterApplied}</p>
           : <Button size="sm" type="button" onClick={() => onFilter(filter)}>{ui.inspector.addFilter}</Button>}

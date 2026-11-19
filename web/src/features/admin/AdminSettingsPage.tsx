@@ -10,7 +10,7 @@ export function AdminSettingsPage() {
       <ErrorLine error={settings.error ?? update.error} />
       {settings.isPending ? <p role="status" className="text-sm text-muted-foreground">{en.admin.loading}</p> : null}
       {settings.data ? (
-        <div className="flex max-w-xl flex-col gap-5 rounded-lg border bg-card p-4">
+        <div className="flex max-w-xl flex-col gap-5 rounded-lg bg-card p-4">
           <label className="flex flex-col gap-1 text-sm font-medium">
             {en.admin.signupMode}
             <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={settings.data.signup_mode} disabled={update.isPending}

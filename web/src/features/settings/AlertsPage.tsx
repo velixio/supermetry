@@ -40,7 +40,7 @@ export function AlertsPage({ orgId, orgSlug, siteId }: { orgId: number; orgSlug?
         </p>
       ) : null}
       {alerts.data?.data.length === 0 ? <p className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">{t.alerts.empty}</p> : null}
-      {alerts.data && alerts.data.data.length > 0 ? <ul className="flex flex-col divide-y rounded-lg border bg-card px-4">
+      {alerts.data && alerts.data.data.length > 0 ? <ul className="flex flex-col rounded-lg bg-card px-4">
         {alerts.data.data.map((alert) => (
           <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={alert.id}>
             <div>

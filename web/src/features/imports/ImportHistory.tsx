@@ -37,7 +37,7 @@ export function ImportHistory({ siteId, orgId, items, loading, onReview }: Props
       {items?.length ? (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b text-muted-foreground">
+            <thead className="text-muted-foreground">
               <tr>
                 <th scope="col" className="py-2 pr-4 font-medium">{t.file}</th>
                 <th scope="col" className="hidden py-2 pr-4 font-medium sm:table-cell">{t.source}</th>
@@ -49,7 +49,7 @@ export function ImportHistory({ siteId, orgId, items, loading, onReview }: Props
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="border-b last:border-0">
+                <tr key={item.id} className="">
                   <td className="py-3 pr-4">
                     <p className="break-all font-medium">{item.file_name}</p>
                     {item.progress && (item.status === 'running' || item.status === 'pending') ? (

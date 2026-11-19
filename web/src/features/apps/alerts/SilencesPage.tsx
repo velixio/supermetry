@@ -51,10 +51,10 @@ export function SilencesPage({ siteId, orgId, siteTimezone, canEdit }: { siteId:
     <PageContainer width="narrow">
       <PageHeader title={t.silences.title} description={t.silences.description} />
       {failure ? <p role="alert" className="text-sm text-destructive">{failure.message}</p> : null}
-      {silences.data && items.length === 0 ? <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">{t.silences.empty}</p> : null}
+      {silences.data && items.length === 0 ? <p className="rounded-lg bg-card p-5 text-sm text-muted-foreground">{t.silences.empty}</p> : null}
       <ul aria-label={t.silences.title} className="flex flex-col gap-3">
         {items.map((s) => (
-          <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4" key={s.id}>
+          <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card p-4" key={s.id}>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{s.kind === 'silence' ? t.silences.silence : t.silences.maintenance}</Badge>
@@ -101,7 +101,7 @@ function SilenceForm({ rules, siteTimezone, error, pending, onCreate }: {
   }
 
   return (
-    <form aria-label={t.silences.form} className="flex flex-col gap-4 rounded-lg border bg-card p-4" onSubmit={submit}>
+    <form aria-label={t.silences.form} className="flex flex-col gap-4 rounded-lg bg-card p-4" onSubmit={submit}>
       <FieldGroup>
         <FieldLegend>{t.silences.form}</FieldLegend>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -159,7 +159,7 @@ function SilenceForm({ rules, siteTimezone, error, pending, onCreate }: {
               <FieldLabel htmlFor="silence-until">{t.silences.until}</FieldLabel>
               <Input id="silence-until" type="datetime-local" value={ends} onChange={(e) => setEnds(e.target.value)} />
             </Field>
-            <div aria-label={t.silences.next} role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
+            <div aria-label={t.silences.next} role="status" className="rounded-lg bg-muted/40 p-3 text-sm">
               <p className="font-medium">{t.silences.nextTz(tz)}</p>
               {preview.length === 0 ? <p className="text-muted-foreground">{t.silences.nextEmpty}</p> : (
                 <ul>{preview.map((o) => <li key={o.start.toISOString()}>{formatInZone(o.start, tz)} {t.silences.to} {formatInZone(o.end, tz)}</li>)}</ul>

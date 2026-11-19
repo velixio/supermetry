@@ -100,7 +100,7 @@ export function AppHeader({
   toolbarRef?: Ref<HTMLDivElement>
 }) {
   return (
-    <header aria-label={en.a11y2.applicationHeader} className="group/header sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
+    <header aria-label={en.a11y2.applicationHeader} className="group/header sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 bg-background px-4">
       <div className="flex min-w-0 shrink items-center gap-2">
         <SidebarTrigger aria-label={en.navigation.collapse} />
         <Breadcrumbs membership={membership} />
@@ -133,7 +133,7 @@ export function AppHeader({
             <SearchIcon aria-hidden="true" />
             <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">{ui.palette.searchField}</span>
           </Button>
-          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded-sm border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">
+          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded-sm bg-muted px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
         </span>

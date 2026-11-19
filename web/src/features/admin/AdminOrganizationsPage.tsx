@@ -19,7 +19,7 @@ function DeleteOrganization({ organization, onDeleted }: { organization: AdminOr
   const remove = useDeleteAdminOrganization()
   const matches = typed.trim() === organization.name
   return (
-    <section aria-labelledby="admin-org-danger" className="flex flex-col gap-2 rounded-lg border p-3">
+    <section aria-labelledby="admin-org-danger" className="flex flex-col gap-2 rounded-lg bg-muted/40 p-3">
       <h3 id="admin-org-danger" className="text-sm font-semibold text-destructive">{uiFlows.admin.dangerZone}</h3>
       <p className="text-sm text-muted-foreground">{uiFlows.admin.deleteOrgBody(organization.sites.length, organization.members.length)}</p>
       <Button type="button" variant="destructive" className="max-sm:min-h-11 self-start" onClick={() => { remove.reset(); setTyped(''); setOpen(true) }}>{uiFlows.admin.deleteOrg}</Button>
@@ -63,7 +63,7 @@ function OrganizationDetail({ id, onClose, onDeleted, onRestored }: { id: number
   // Opening the panel moves focus to it, so keyboard and screen-reader users land on the details.
   useEffect(() => { heading.current?.focus() }, [id])
   return (
-    <section aria-labelledby="admin-org-detail-title" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <section aria-labelledby="admin-org-detail-title" className="flex flex-col gap-3 rounded-lg bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 id="admin-org-detail-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{detail.data ? `${detail.data.name} ${en.admin.details}` : en.admin.loading}</h2>
         <Button variant="outline" className="max-sm:min-h-11" onClick={onClose}>{en.admin.close}</Button>
@@ -120,15 +120,15 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
       {organizations.isPending ? <p role="status" className="text-sm text-muted-foreground">{en.admin.loading}</p> : null}
       {organizations.data && organizations.data.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.admin.empty}</p> : null}
       {organizations.data && organizations.data.data.length > 0 ? (
-        <div className="relative overflow-x-auto rounded-lg border" tabIndex={0}>
+        <div className="relative overflow-x-auto rounded-lg" tabIndex={0}>
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.organizations}</caption>
-            <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr><th scope="col" className={cellClass}>Organization</th><th scope="col" className={cellClass}>{en.admin.members}</th><th scope="col" className={cellClass}>{en.admin.quota}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}><span className="sr-only">{en.admin.details}</span></th></tr>
             </thead>
             <tbody>
               {organizations.data.data.map((org) => (
-                <tr key={org.id} className="border-b last:border-0">
+                <tr key={org.id}>
                   <td className={cellClass}><div className="font-medium">{org.name}</div><div className="text-muted-foreground">{org.slug}</div>{deletionAttribution(org) ? <div className="text-muted-foreground">{deletionAttribution(org)}</div> : null}</td>
                   <td className={cellClass}>{org.member_count}</td>
                   <td className={cellClass}>{org.site_count} / {org.site_limit}</td>

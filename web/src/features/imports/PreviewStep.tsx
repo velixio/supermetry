@@ -22,7 +22,7 @@ type Props = {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col rounded-lg border p-3">
+    <div className="flex flex-col rounded-lg bg-muted/40 p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="text-lg font-semibold tabular-nums">{value}</dd>
     </div>
@@ -64,7 +64,7 @@ export function PreviewStep({ preview, loading, error, partial, starting, startE
         {found.length === 0 ? <p className="text-sm text-muted-foreground">{t.nothingFound}</p> : (
           <ul className="grid gap-1 text-sm sm:grid-cols-2">
             {found.map(([name, count]) => (
-              <li key={name} className="flex justify-between gap-4 border-b py-1">
+              <li key={name} className="flex justify-between gap-4 py-1">
                 <span>{t.breakdowns[name] ?? name}</span>
                 <span className="tabular-nums text-muted-foreground">{fmt.number(count)}</span>
               </li>
@@ -83,7 +83,7 @@ export function PreviewStep({ preview, loading, error, partial, starting, startE
         </section>
       ) : null}
 
-      <section aria-labelledby="preview-overlap" className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4 text-sm">
+      <section aria-labelledby="preview-overlap" className="flex flex-col gap-2 rounded-lg bg-muted/40 p-4 text-sm">
         <h4 id="preview-overlap" className="font-medium">{t.overlapHeading}</h4>
         {overlap.imported_days === 0 && overlap.live_days === 0 && !overlap.same_file ? <p>{t.overlapNone}</p> : null}
         {overlap.same_file ? <p>{t.sameFile(overlap.same_file.imported_at.slice(0, 10))}</p> : null}

@@ -142,7 +142,7 @@ export function SourceStep({ siteId, orgId, draft, onChange, onConnectGoogle, co
             </>
           ) : null}
           {draft.apiMethod === 'ga4_api' && capability?.available ? (
-            <section aria-labelledby={`${id}-ga4`} className="flex flex-col gap-4 rounded-lg border bg-muted/40 p-4">
+            <section aria-labelledby={`${id}-ga4`} className="flex flex-col gap-4 rounded-lg bg-muted/40 p-4">
               <h4 id={`${id}-ga4`} className="font-medium">{t.ga4Heading}</h4>
               {ga4Outcome === 'connected' ? <p role="status" className="text-sm text-success">{t.ga4Connected}</p> : null}
               {ga4Outcome === 'denied' ? <p role="alert" className="text-sm text-destructive">{t.ga4Denied}</p> : null}

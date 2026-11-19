@@ -35,7 +35,7 @@ const stateLabel: Record<StripeState, string> = {
 }
 
 const stateClass: Record<StripeState, string> = {
-  off: 'border-border text-muted-foreground',
+  off: 'bg-muted text-muted-foreground',
   pending: 'text-amber-700 dark:text-amber-300',
   active: 'text-emerald-700 dark:text-emerald-300',
   error: 'text-destructive',
@@ -154,7 +154,7 @@ function EventList({ events }: { events: string[] }) {
   return (
     <ul className="flex flex-wrap gap-2">
       {events.map((event) => (
-        <li className="rounded-md border px-2 py-1 font-mono text-xs" key={event}>{event}</li>
+        <li className="rounded-md bg-muted px-2 py-1 font-mono text-xs" key={event}>{event}</li>
       ))}
     </ul>
   )
@@ -198,11 +198,11 @@ export function StripeCard({ siteId, orgId, canManage }: { siteId: number; orgId
   const state = stripeState(status)
 
   return (
-    <section aria-labelledby="provider-stripe" className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
+    <section aria-labelledby="provider-stripe" className="flex min-w-0 flex-col gap-4 rounded-lg bg-card p-5 text-card-foreground">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold" id="provider-stripe">{s.title}</h3>
         {status ? (
-          <span className={`inline-flex min-h-7 items-center rounded-sm border px-3 text-sm font-medium ${stateClass[state]}`}>
+          <span className={`inline-flex min-h-7 items-center rounded-sm bg-muted px-3 text-sm font-medium ${stateClass[state]}`}>
             <span className="sr-only">{t.statusLabel}: </span>
             {stateLabel[state]}
           </span>

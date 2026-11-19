@@ -14,7 +14,7 @@ export function KindChoice({ value, onChange }: { value: SiteKind; onChange: (ki
       <legend className="sr-only">{en.pixels.measureTitle}</legend>
       <RadioGroup value={value} onValueChange={(next) => onChange(next as SiteKind)} className="grid gap-2 sm:grid-cols-3">
         {options.map((option) => (
-          <Label key={option.kind} htmlFor={`kind-${option.kind}`} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 has-[[data-state=checked]]:bg-muted/50">
+          <Label key={option.kind} htmlFor={`kind-${option.kind}`} className="flex cursor-pointer items-start gap-3 rounded-lg bg-muted/40 p-3 has-[[data-state=checked]]:bg-muted/50">
             <RadioGroupItem id={`kind-${option.kind}`} value={option.kind} aria-label={`${option.title}: ${option.hint}`} />
             <span className="flex flex-col gap-0.5">
               <span className="font-medium">{option.title}</span>

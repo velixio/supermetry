@@ -52,7 +52,7 @@ export function RangeStep({ draft, onChange }: { draft: Draft; onChange: (patch:
 
 function IncludedList() {
   return (
-    <section className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4 text-sm">
+    <section className="flex flex-col gap-2 rounded-lg bg-muted/40 p-4 text-sm">
       <h4 className="font-medium">{t.includedHeading}</h4>
       <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
         {Object.values(t.included).map((line) => <li key={line}>{line}</li>)}

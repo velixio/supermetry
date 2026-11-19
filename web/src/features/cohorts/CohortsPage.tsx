@@ -53,7 +53,7 @@ function formatDate(value: string): string {
 function ResultPanel({ siteId, subject, title }: { siteId: number; subject: EvaluationSubject; title: string }) {
   const evaluation = useCohortEvaluation(siteId, subject)
   return (
-    <section aria-labelledby="cohort-result-title" className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
+    <section aria-labelledby="cohort-result-title" className="flex min-w-0 flex-col gap-3 rounded-lg bg-card p-4">
       <h2 className="text-base font-semibold" id="cohort-result-title">{t.resultTitle}: {title}</h2>
       <div aria-live="polite" role="status">
         {evaluation.isPending || evaluation.isFetching ? (
@@ -179,7 +179,7 @@ function CohortsTab({
       </div>
 
       {builder ? (
-        <form aria-labelledby="cohort-builder-title" className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-4" noValidate onSubmit={submit}>
+        <form aria-labelledby="cohort-builder-title" className="flex min-w-0 flex-col gap-4 rounded-lg bg-card p-4" noValidate onSubmit={submit}>
           <h2 className="text-base font-semibold" id="cohort-builder-title">{builder.id ? t.builderTitleEdit : t.builderTitleNew}</h2>
           <ConditionBuilder draft={builder.draft} onChange={(draft) => setBuilder({ ...builder, draft })} />
           {problems.length > 0 || save.error ? (
@@ -211,7 +211,7 @@ function CohortsTab({
       ) : cohorts.data.length === 0 ? (
         builder ? null : <FeatureEmptyState kind="cohorts" noAction={!canEdit} onAction={() => open({ draft: blankDraft() })} />
       ) : (
-        <div className="min-w-0 overflow-x-auto rounded-lg border bg-card" tabIndex={0}>
+        <div className="min-w-0 overflow-x-auto rounded-lg bg-card" tabIndex={0}>
           <Table aria-label={t.title}>
             <TableHeader>
               <TableRow>

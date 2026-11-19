@@ -116,10 +116,10 @@ function Breakdown({
       {limited ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground" role="status">Partial: legacy events are excluded.</p> : null}
       <div className="overflow-x-auto" tabIndex={0}>
         <table className="w-full min-w-72 text-sm">
-          <thead><tr className="border-b text-left text-muted-foreground"><th className="pb-2 font-medium" scope="col">{title}</th><th className="pb-2 text-right font-medium" scope="col">Revenue</th><th className="pb-2 text-right font-medium" scope="col">Average</th></tr></thead>
+          <thead><tr className="text-left text-muted-foreground"><th className="pb-2 font-medium" scope="col">{title}</th><th className="pb-2 text-right font-medium" scope="col">Revenue</th><th className="pb-2 text-right font-medium" scope="col">Average</th></tr></thead>
           <tbody>{(query.data?.rows ?? []).map((row, index) => {
             const label = typeof row[dimension] === 'string' && row[dimension] ? String(row[dimension]) : 'Unknown'
-            return <tr className="border-b last:border-0" key={`${label}-${index}`}><th className="py-2 text-left font-normal" scope="row">{label}</th><td className="py-2 text-right tabular-nums">{formatter.format(numeric(row.total_revenue))}</td><td className="py-2 text-right tabular-nums">{formatter.format(numeric(row.average_revenue))}</td></tr>
+            return <tr key={`${label}-${index}`}><th className="py-2 text-left font-normal" scope="row">{label}</th><td className="py-2 text-right tabular-nums">{formatter.format(numeric(row.total_revenue))}</td><td className="py-2 text-right tabular-nums">{formatter.format(numeric(row.average_revenue))}</td></tr>
           })}</tbody>
         </table>
       </div>
@@ -150,7 +150,7 @@ export function RevenueReport(props: RevenueReportProps) {
   if (trend.isPending && !trend.data) {
     return <PageContainer>
       <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
-      <section className="rounded-lg border bg-card p-5" role="status">Loading revenue report…</section>
+      <section className="rounded-lg bg-card p-5" role="status">Loading revenue report…</section>
     </PageContainer>
   }
 

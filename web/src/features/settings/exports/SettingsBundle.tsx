@@ -126,7 +126,7 @@ export function SettingsBundle({ orgId }: { orgId: number }) {
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {message ? <p role="status" className="text-sm text-success">{message}</p> : null}
       {report ? (
-        <div className="flex flex-col gap-3 rounded-lg border p-4" aria-label={t.reportTitle} role="region">
+        <div className="flex flex-col gap-3 rounded-lg bg-muted/40 p-4" aria-label={t.reportTitle} role="region">
           <h3 className="text-sm font-medium">{t.reportTitle}</h3>
           {nothing ? <p className="text-sm text-muted-foreground">{t.noChanges}</p> : null}
           {report.sites.length ? (

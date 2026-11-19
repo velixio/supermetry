@@ -81,7 +81,7 @@ export function IssueSearchBar({ siteId, value, error, canEdit, onSubmit }: {
       {problem ? <ErrorPointer text={value} position={problem.position!} message={problem.message} /> : null}
       {error && !problem ? <p role="alert" className="text-sm text-destructive">{error.message}</p> : null}
       {help ? (
-        <dl className="grid gap-x-4 gap-y-1 rounded-lg border p-3 text-sm sm:grid-cols-[max-content_1fr]" aria-label="Search syntax">
+        <dl className="grid gap-x-4 gap-y-1 rounded-lg bg-muted/40 p-3 text-sm sm:grid-cols-[max-content_1fr]" aria-label="Search syntax">
           {SYNTAX.map(([example, hint]) => (
             <div key={example} className="contents"><dt className="font-mono text-xs">{example}</dt><dd className="text-muted-foreground">{hint}</dd></div>
           ))}

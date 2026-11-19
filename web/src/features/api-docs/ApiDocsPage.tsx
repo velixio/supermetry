@@ -375,7 +375,7 @@ function OperationReference({
         <section className="flex flex-col gap-3">
           <h3 className="font-semibold">Schemas</h3>
           {operation.schemaNames.map((name) => (
-            <details className="rounded-lg border p-3" key={name}>
+            <details className="rounded-lg bg-muted/40 p-3" key={name}>
               <summary className="cursor-pointer font-mono text-sm">
                 {name}
               </summary>
@@ -480,7 +480,7 @@ export function ApiDocsPage({
     <PageContainer width="narrow">
       <PageHeader title={t.title} description={t.description} />
       <Card className="min-h-[36rem] lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-0">
-        <CardHeader className="min-w-0 content-start border-b lg:border-r lg:border-b-0">
+        <CardHeader className="min-w-0 content-start">
           <CardTitle>{t.endpoints}</CardTitle>
           <CardDescription>{t.grouped}</CardDescription>
           <Input

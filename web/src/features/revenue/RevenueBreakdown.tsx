@@ -40,7 +40,7 @@ function money(currency: string): Intl.NumberFormat {
 }
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return <div className="rounded-lg border bg-card p-3">
+  return <div className="rounded-lg bg-card p-3">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="text-xl font-semibold tabular-nums">{value}</p>
     {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
@@ -72,14 +72,14 @@ function Customers({ siteId, orgId, currency, timezone, from, to }: Props) {
   else body = <div className="overflow-x-auto" tabIndex={0}>
     <table className="w-full min-w-96 text-sm">
       <caption className="sr-only">{t.customersTitle}</caption>
-      <thead><tr className="border-b text-left text-muted-foreground">
+      <thead><tr className="text-left text-muted-foreground">
         <th className="pb-2 font-medium" scope="col">{t.customer}</th>
         <th className="pb-2 text-right font-medium" scope="col">{t.orders}</th>
         <th className="pb-2 text-right font-medium" scope="col">{t.revenue}</th>
         <th className="pb-2 text-right font-medium" scope="col">{t.firstOrder}</th>
         <th className="pb-2 text-right font-medium" scope="col">{t.lastOrder}</th>
       </tr></thead>
-      <tbody>{query.data.map((customer) => <tr className="border-b last:border-0" key={customer.profile_id}>
+      <tbody>{query.data.map((customer) => <tr key={customer.profile_id}>
         <th className="max-w-48 truncate py-2 text-left font-normal" scope="row" title={customer.external_id}>{customer.external_id}</th>
         <td className="py-2 text-right tabular-nums">{fmt.number(customer.orders)}</td>
         <td className="py-2 text-right tabular-nums">{formatter.format(customer.revenue)}</td>
@@ -153,7 +153,7 @@ export function RevenueBreakdown(props: Props) {
       <div className="overflow-x-auto" tabIndex={0}>
         <table className="w-full min-w-96 text-sm">
           <caption className="sr-only">{`${t.title}: ${t.breakdowns[breakdown]}`}</caption>
-          <thead><tr className="border-b text-left text-muted-foreground">
+          <thead><tr className="text-left text-muted-foreground">
             <th className="pb-2 font-medium" scope="col">{t.breakdowns[breakdown]}</th>
             <th className="pb-2 text-right font-medium" scope="col">{t.orders}</th>
             <th className="pb-2 text-right font-medium" scope="col">{t.revenue}</th>
@@ -161,7 +161,7 @@ export function RevenueBreakdown(props: Props) {
             {data.unique_customers !== undefined ? <th className="pb-2 text-right font-medium" scope="col">{t.uniqueCustomers}</th> : null}
             {data.repeat_rate !== undefined ? <th className="pb-2 text-right font-medium" scope="col">{t.repeatRate}</th> : null}
           </tr></thead>
-          <tbody>{rows.map((row) => <tr className="border-b last:border-0" key={row.key}>
+          <tbody>{rows.map((row) => <tr key={row.key}>
             <th className="max-w-56 py-2 text-left font-normal" scope="row">
               <span className="block truncate" title={label(row.key)}>{label(row.key)}</span>
               <span aria-hidden="true" className="mt-1 block h-1.5 rounded bg-chart-1" style={{ width: `${Math.max(2, row.revenue / maximum * 100)}%` }} />

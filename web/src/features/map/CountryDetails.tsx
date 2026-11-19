@@ -119,7 +119,7 @@ function CountryDetailsBody({ country, query, onClear, onFilter, sticky = false 
           </div>
         ))}
       </div>
-      <div className="grid gap-4 border-t p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
         {detailDimensions.map(([dimension, title], index) => {
           const rows = breakdowns[index].data?.rows ?? []
           if (rows.length === 0) return null
@@ -142,8 +142,8 @@ function CountryDetailsBody({ country, query, onClear, onFilter, sticky = false 
       <div
         className={
           sticky
-            ? 'sticky bottom-0 flex flex-wrap gap-2 border-t bg-popover px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
-            : 'flex flex-wrap gap-2 border-t p-4'
+            ? 'sticky bottom-0 flex flex-wrap gap-2 bg-popover px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'
+            : 'flex flex-wrap gap-2 p-4'
         }
         data-testid="country-actions"
       >
@@ -186,7 +186,7 @@ export function CountryDetails(props: CountryDetailsProps) {
     )
   }
   return (
-    <section className="min-w-0 border-t bg-card" aria-label={en.map.details}>
+    <section className="min-w-0 bg-card" aria-label={en.map.details}>
       <header className="p-4"><h3 className="text-sm font-medium">{title}</h3></header>
       <CountryDetailsBody {...props} />
     </section>

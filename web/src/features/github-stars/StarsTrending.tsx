@@ -21,7 +21,7 @@ function windowName(s: TrendingSighting) {
 function Episode({ s, language }: { s: TrendingSighting; language: string }) {
   const name = listName(s, language)
   return (
-    <li className="flex flex-wrap border-b last:border-b-0 items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
       <Badge variant="secondary" className="tabular-nums" aria-label={t.rankLabel(name, windowName(s), s.last_rank)}>
         {t.rank(s.last_rank)}
       </Badge>

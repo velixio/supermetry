@@ -43,9 +43,9 @@ export function GoalsPage({ siteId, orgId, dateRange, timezone = 'UTC', revenueC
     <PageContainer>
       <PageHeader title="Goals" description="Track the pages and events that matter." />
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
-        <section className="overflow-hidden rounded-lg border bg-card">
+        <section className="overflow-hidden rounded-lg bg-card">
           <table className="w-full text-sm">
-            <thead className="border-b text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Goal</th><th className="px-4 py-3 text-right font-medium">Conversions</th><th className="px-4 py-3 text-right font-medium">Rate</th><th className="px-4 py-3 text-right font-medium">Revenue</th><th className="px-4 py-3 text-right font-medium">Average revenue</th><th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead className="text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Goal</th><th className="px-4 py-3 text-right font-medium">Conversions</th><th className="px-4 py-3 text-right font-medium">Rate</th><th className="px-4 py-3 text-right font-medium">Revenue</th><th className="px-4 py-3 text-right font-medium">Average revenue</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {(goals.data ?? []).map((goal) => <GoalRow
                 conversionsQuery={conversions}
@@ -95,7 +95,7 @@ function GoalRow({ goal, siteId, dateRange, timezone, conversionsQuery, conversi
     ? undefined : visits > 0 ? (conversions / visits) * 100 : 0
   const description = goal.kind === 'scroll' ? `Scroll ≥ ${goal.scroll_threshold}% on ${goal.value}` : null
   return (
-    <tr className="border-b last:border-0">
+    <tr >
       <th className="max-w-56 px-4 py-3 text-left font-medium" title={goal.name}>
         <span className="block truncate">{goal.name}</span>
         {description ? <span className="block truncate text-xs font-normal text-muted-foreground">{description}</span> : null}

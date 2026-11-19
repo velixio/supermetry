@@ -117,10 +117,10 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
             >
               <aside
                 aria-labelledby={headingId}
-                className="sticky top-[calc(3rem+var(--dashboard-filter-h,3.75rem)+0.5rem)] flex max-h-[calc(100dvh-3rem-var(--dashboard-filter-h,3.75rem)-1rem)] min-w-0 flex-col overflow-y-auto rounded-lg border bg-card text-card-foreground"
+                className="sticky top-[calc(3rem+var(--dashboard-filter-h,3.75rem)+0.5rem)] flex max-h-[calc(100dvh-3rem-var(--dashboard-filter-h,3.75rem)-1rem)] min-w-0 flex-col overflow-y-auto rounded-lg bg-card text-card-foreground"
                 onKeyDown={closeOnEscape}
               >
-                <header className="flex items-start justify-between gap-2 border-b p-4">
+                <header className="flex items-start justify-between gap-2 p-4">
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <p className="text-xs text-muted-foreground">{inspector.dimension}</p>
                     <h2 ref={headingRef} className="break-words text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring" id={headingId} tabIndex={-1}>
@@ -154,7 +154,7 @@ export function DashboardPanels({ main, inspector, returnFocusRef }: DashboardPa
           >
             {shown ? (
               <>
-                <SheetHeader className="flex-row items-start justify-between gap-2 border-b">
+                <SheetHeader className="flex-row items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <SheetDescription className="text-xs">{shown.dimension}</SheetDescription>
                     <SheetTitle className="break-words">{shown.title}</SheetTitle>

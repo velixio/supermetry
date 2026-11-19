@@ -22,7 +22,7 @@ function Frame({ frame }: { frame: BodyFrame }) {
   const inApp = frame.in_app === true
   const context = frame.context_line
   return (
-    <li data-in-app={inApp ? 'true' : 'false'} className={`rounded-md border px-3 py-2 font-mono text-xs ${inApp ? 'bg-chart-1/10' : 'text-muted-foreground'}`}>
+    <li data-in-app={inApp ? 'true' : 'false'} className={`rounded-md px-3 py-2 font-mono text-xs ${inApp ? 'bg-chart-1/10' : 'bg-muted/40 text-muted-foreground'}`}>
       <div className="flex flex-wrap items-center gap-2">
         <span className={inApp ? 'font-semibold text-foreground' : ''}>{frameLabel(frame)}</span>
         {frame.function ? <span>in {frame.function}</span> : null}
@@ -121,7 +121,7 @@ export function EventBodyView({ body, source, settings }: { body: unknown; sourc
         <Card>
           <CardHeader><CardTitle className="text-base">Breadcrumbs <InfoTip label="About breadcrumbs">What happened before the event, oldest first.</InfoTip></CardTitle></CardHeader>
           <CardContent>
-            <ol className="flex flex-col divide-y text-sm" aria-label="Breadcrumbs">
+            <ol className="flex flex-col text-sm" aria-label="Breadcrumbs">
               {view.breadcrumbs.map((crumb, i) => (
                 <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
                   <time className="font-mono text-xs text-muted-foreground">{crumbTime(crumb.timestamp)}</time>
@@ -149,7 +149,7 @@ export function EventBodyView({ body, source, settings }: { body: unknown; sourc
       ) : null}
       <Attachments attachments={view.attachments} source={source} />
       {view.sdk?.name ? <p className="text-xs text-muted-foreground">Sent by {view.sdk.name}{view.sdk.version ? ` ${view.sdk.version}` : ''}</p> : null}
-      {nothing ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">This event has no stored detail.</p> : null}
+      {nothing ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">This event has no stored detail.</p> : null}
     </div>
   )
 }

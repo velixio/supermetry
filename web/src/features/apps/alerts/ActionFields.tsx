@@ -35,7 +35,7 @@ export function ActionFields({ actions, onChange, incidental, error, channels, a
         const setPicks = (ids: number[]) => update(index, action.type === 'notify_owner' ? { ...action, fallback_channel_ids: ids } : { ...action, channel_ids: ids })
         const list = action.type === 'webhook' ? channels.filter((c) => c.kind === 'webhook') : channels
         return (
-          <div className="flex flex-col gap-2 rounded-lg border p-3" key={index} role="group" aria-label={t.rules.actions.group(index + 1)}>
+          <div className="flex flex-col gap-2 rounded-lg bg-muted/40 p-3" key={index} role="group" aria-label={t.rules.actions.group(index + 1)}>
             <div className="flex items-center gap-2">
               <select aria-label={t.rules.actions.type(index + 1)} className={selectClass} value={action.type}
                 onChange={(e) => {

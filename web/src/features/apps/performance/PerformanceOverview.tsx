@@ -42,7 +42,7 @@ export function PerformanceOverview({ org, site, siteId, timezone, search, onSea
     return (
       <PageContainer>
         {header}
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">
           <p>No transactions in this period.</p>
           <p className="mt-1">Set <code>tracesSampleRate</code> in a Sentry SDK, or send OpenTelemetry traces. <Link className="font-medium text-foreground underline" to="/app/$org/$site/settings/installation" params={{ org, site }}>Setup instructions</Link></p>
         </div>

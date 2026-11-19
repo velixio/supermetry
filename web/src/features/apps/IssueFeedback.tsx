@@ -19,7 +19,7 @@ export function IssueFeedback({ siteId, issueId }: { siteId: number; issueId: nu
         {feedback.isSuccess && rows.length === 0 ? <p className="text-sm text-muted-foreground">No feedback for this issue yet.</p> : null}
         <ul aria-label="User feedback" className="flex flex-col gap-3">
           {rows.map((item) => (
-            <li key={item.id} className="rounded-lg border p-3 text-sm">
+            <li key={item.id} className="rounded-lg bg-card p-3 text-sm">
               <div className="mb-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                 <time dateTime={item.at} className="tabular-nums">{item.at.slice(0, 16).replace('T', ' ')}</time>
                 {item.url ? <span>on {item.url}</span> : null}

@@ -120,7 +120,7 @@ function KeysManager({ orgId, sites, createRequested, onCreateClosed, initialPur
       {keys.isSuccess && list.length === 0 ? <p className="text-sm text-muted-foreground">{t.empty}</p> : null}
       {list.length > 0 ? (
         <TooltipProvider>
-        <div className="rounded-lg border bg-card text-card-foreground">
+        <div className="rounded-lg bg-card text-card-foreground">
           <Table aria-label={t.tableLabel}>
             <TableHeader>
               <TableRow>
