@@ -242,14 +242,22 @@ func (h *handler) adminGetOrganization(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad request", "organization is invalid")
 		return
 	}
-	item, err := h.deps.Admin.GetOrganization(r.Context(), orgID, h.deps.MaxSitesPerOrg)
+	query := r.URL.Query()
+	paged := query.Has("members_limit") || query.Has("members_cursor")
+	var item admin.OrganizationDetail
+	var err error
+	if paged {
+		item, err = h.deps.Admin.GetOrganizationWithoutMembers(r.Context(), orgID, h.deps.MaxSitesPerOrg)
+	} else {
+		item, err = h.deps.Admin.GetOrganization(r.Context(), orgID, h.deps.MaxSitesPerOrg)
+	}
 	if err != nil {
 		adminError(w, err)
 		return
 	}
 	// members_limit / members_cursor page the member list; without them the
 	// detail carries up to 1000 members and members_next_cursor when there are more.
-	if query := r.URL.Query(); query.Has("members_limit") || query.Has("members_cursor") {
+	if paged {
 		limit := 50
 		if raw := query.Get("members_limit"); raw != "" {
 			n, err := strconv.Atoi(raw)

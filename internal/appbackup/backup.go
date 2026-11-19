@@ -272,7 +272,7 @@ func defaultRuntime() Runtime {
 			}
 			return schemaVersion, size, nil
 		},
-		FreeBytes: freeBytes,
+		FreeBytes: FreeBytes,
 		Now:       time.Now,
 	}
 }
@@ -491,7 +491,7 @@ func extractArchive(ctx context.Context, archiveName, tempDir string, freeBytes 
 			if haveDump || hdr.Size < 0 || hdr.Size > maxDumpSize {
 				return Manifest{}, "", errors.New("read backup archive: invalid database.dump")
 			}
-			free, err := freeBytes(tempDir)
+			free, err := FreeBytes(tempDir)
 			if err != nil {
 				return Manifest{}, "", fmt.Errorf("check verification free space: %w", err)
 			}

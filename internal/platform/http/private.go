@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/sync/singleflight"
 
 	"supermetry/internal/api"
 	"supermetry/internal/config"
@@ -271,6 +272,7 @@ type handler struct {
 	adminLimitMu    sync.Mutex
 	adminLimits     map[int64]adminRateWindow
 	systemMu        sync.Mutex
+	systemFlight    singleflight.Group
 	systemCache     adminSystemResponse
 	systemCachedAt  time.Time
 	emailTests      map[int64]adminRateWindow

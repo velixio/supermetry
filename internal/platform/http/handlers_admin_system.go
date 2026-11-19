@@ -1,9 +1,11 @@
 package platformhttp
 
 import (
+	"context"
 	"net/http"
 	"time"
 
+	"supermetry/internal/appbackup"
 	"supermetry/internal/db"
 	"supermetry/internal/health"
 	"supermetry/internal/platform/admin"
@@ -56,15 +58,36 @@ func (h *handler) adminSystem(w http.ResponseWriter, r *http.Request) {
 	}
 	now := h.deps.Now()
 	h.systemMu.Lock()
-	defer h.systemMu.Unlock()
 	if !h.systemCachedAt.IsZero() && now.Sub(h.systemCachedAt) < adminSystemCacheTTL && !now.Before(h.systemCachedAt) {
-		writeJSON(w, http.StatusOK, h.systemCache)
+		cached := h.systemCache
+		h.systemMu.Unlock()
+		writeJSON(w, http.StatusOK, cached)
 		return
 	}
-	info, err := h.deps.Admin.SystemInfo(r.Context())
+	h.systemMu.Unlock()
+	// The queries and the update check run outside the lock; concurrent misses
+	// share one computation.
+	value, err, _ := h.systemFlight.Do("system", func() (any, error) {
+		response, err := h.buildAdminSystem(context.WithoutCancel(r.Context()), now)
+		if err != nil {
+			return nil, err
+		}
+		h.systemMu.Lock()
+		h.systemCache, h.systemCachedAt = response, now
+		h.systemMu.Unlock()
+		return response, nil
+	})
 	if err != nil {
 		serviceError(w, err)
 		return
+	}
+	writeJSON(w, http.StatusOK, value.(adminSystemResponse))
+}
+
+func (h *handler) buildAdminSystem(ctx context.Context, now time.Time) (adminSystemResponse, error) {
+	info, err := h.deps.Admin.SystemInfo(ctx)
+	if err != nil {
+		return adminSystemResponse{}, err
 	}
 	response := adminSystemResponse{
 		Version:       h.deps.Version,
@@ -87,17 +110,16 @@ func (h *handler) adminSystem(w http.ResponseWriter, r *http.Request) {
 		Accepted:   int64(snapshot["ingest_accepted_total"]),
 	}
 	if h.deps.Mail != nil {
-		if status, err := h.deps.Mail.Status(r.Context()); err == nil {
+		if status, err := h.deps.Mail.Status(ctx); err == nil {
 			response.SMTPConfigured = status.Settings.Host != ""
 		}
 	}
 	if h.deps.UpdateChecker != nil {
-		checked := h.deps.UpdateChecker.Check(r.Context())
+		checked := h.deps.UpdateChecker.Check(ctx)
 		response.Update = adminSystemUpdate{CurrentVersion: checked.CurrentVersion, LatestVersion: checked.LatestVersion,
 			UpdateAvailable: checked.UpdateAvailable, CheckedAt: checked.CheckedAt, CheckError: checked.CheckError}
 	}
-	h.systemCache, h.systemCachedAt = response, now
-	writeJSON(w, http.StatusOK, response)
+	return response, nil
 }
 
 // diskStatus is nil for an unset path; free_bytes is null when it cannot be read.
@@ -106,7 +128,7 @@ func diskStatus(path string) *adminSystemDisk {
 		return nil
 	}
 	disk := &adminSystemDisk{Path: path}
-	if free, err := diskFreeBytes(path); err == nil {
+	if free, err := appbackup.FreeBytes(path); err == nil {
 		disk.FreeBytes = &free
 	}
 	return disk

@@ -274,6 +274,16 @@ func (s *Service) ListOrganizationsPage(ctx context.Context, p ListParams, siteL
 }
 
 func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) (OrganizationDetail, error) {
+	return s.getOrganization(ctx, id, siteLimit, true)
+}
+
+// GetOrganizationWithoutMembers is GetOrganization with Members left empty, for
+// callers that page the member list themselves.
+func (s *Service) GetOrganizationWithoutMembers(ctx context.Context, id int64, siteLimit int) (OrganizationDetail, error) {
+	return s.getOrganization(ctx, id, siteLimit, false)
+}
+
+func (s *Service) getOrganization(ctx context.Context, id int64, siteLimit int, withMembers bool) (OrganizationDetail, error) {
 	var detail OrganizationDetail
 	storage, targets := storageScanTargets(false)
 	err := s.store.Pool.QueryRow(ctx, getOrganizationSQL, id).Scan(
@@ -296,7 +306,7 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 	// Every member, not just those among the first users overall: page through
 	// the membership list up to maxDetailMembers and point at the rest.
 	var cursor string
-	for pages := 0; pages < maxDetailMemberPages; pages++ {
+	for pages := 0; withMembers && pages < maxDetailMemberPages; pages++ {
 		page, err := s.listUsersPage(ctx, s.store.Pool, userFilter{orgID: id}, ListParams{Limit: MaxListLimit, Cursor: cursor})
 		if err != nil {
 			return OrganizationDetail{}, err
