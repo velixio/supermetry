@@ -69,11 +69,18 @@ describe('AppOverview', () => {
     expect(na).toHaveAttribute('title', 'Send a session event at app start to measure this')
   })
 
-  it('shows the empty state when there are no events and no filters', async () => {
-    mock(overview({ events: 0, crashes: 0, series: [] }))
+  it('shows the empty state when there are no events, no sessions and no filters', async () => {
+    mock(overview({ events: 0, crashes: 0, sessions: 0, users: 0, series: [] }))
     renderWithQuery(<AppOverview {...props} />)
     expect(await screen.findByText('No reports yet')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Set up this app' })).toBeInTheDocument()
+  })
+
+  it('shows the overview for a healthy app that sends sessions but no error events', async () => {
+    mock(overview({ events: 0, crashes: 0, sessions: 525, users: 28, crash_free_users: 1, crash_free_sessions: 1 }))
+    renderWithQuery(<AppOverview {...props} />)
+    expect((await screen.findAllByText('Crash-free sessions')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('No reports yet')).not.toBeInTheDocument()
   })
 
   it('shows session status and handled split, and the events note on v1 data', async () => {

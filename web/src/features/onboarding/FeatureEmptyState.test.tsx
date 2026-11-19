@@ -9,6 +9,9 @@ import { uiOnboarding } from '@/messages/uiOnboarding'
 
 import { FeatureEmptyState, type EmptyKind } from './FeatureEmptyState'
 
+const installed = vi.hoisted(() => ({ value: false }))
+vi.mock('./useSiteInstalled', () => ({ useSiteInstalled: () => installed.value }))
+
 async function renderAt(ui: React.ReactNode) {
   const root = createRootRoute({ component: Outlet })
   const page = createRoute({ getParentRoute: () => root, path: '/app/$org/$site/page', component: () => <>{ui}</> })
@@ -20,7 +23,10 @@ async function renderAt(ui: React.ReactNode) {
 const kinds = Object.keys(uiOnboarding.empty).filter((key) => key !== 'docs') as EmptyKind[]
 
 describe('FeatureEmptyState', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    installed.value = false
+  })
 
   it.each(kinds)('renders %s with a purpose, one action and a docs link', async (kind) => {
     await renderAt(<FeatureEmptyState kind={kind} />)
@@ -42,5 +48,21 @@ describe('FeatureEmptyState', () => {
     expect(await screen.findByText('See where visitors drop off between steps.')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Create funnel' }))
     expect(create).toHaveBeenCalledOnce()
+  })
+
+  it.each(['events', 'journeys', 'retention'] as const)('explains an empty %s page without the install action once the site receives data', async (kind) => {
+    installed.value = true
+    await renderAt(<FeatureEmptyState kind={kind} />)
+    const copy = uiOnboarding.empty[kind]
+    expect(await screen.findByRole('heading', { name: copy.title })).toBeVisible()
+    expect(screen.getByText(copy.installed)).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Install the tracker' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Read the docs' })).toBeVisible()
+  })
+
+  it('keeps the settings action for features that must be turned on, even when data arrives', async () => {
+    installed.value = true
+    await renderAt(<FeatureEmptyState kind="heatmaps" />)
+    expect(await screen.findByRole('link', { name: 'Turn on heatmaps' })).toBeVisible()
   })
 })
