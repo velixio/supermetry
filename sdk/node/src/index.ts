@@ -19,7 +19,7 @@ import {
 export type { PropValue, Props, Revenue, Traits } from "./validate.js";
 export { sanitizeProps, sanitizeRevenue, sanitizeTraits } from "./validate.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 export const DEFAULT_USER_AGENT = `supermetry-node/${VERSION}`;
 export const EVENTS_PATH = "/api/public/v1/events";
 /** Supermetry Cloud, used when `host` is omitted. */
@@ -50,7 +50,7 @@ export interface SupermetryOptions {
   endpoint?: string;
   /** Default page URL for events that do not pass one. Relative event URLs resolve against it. */
   url?: string;
-  /** User-Agent used when no visitor UA is forwarded. Defaults to `supermetry-node/0.2.0`. */
+  /** User-Agent used when no visitor UA is forwarded. Defaults to `supermetry-node/0.2.1`. */
   userAgent?: string;
   /** Send nothing (every call resolves immediately). */
   disabled?: boolean;

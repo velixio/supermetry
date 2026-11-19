@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/node",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Server-side Node.js SDK for Supermetry self-hosted web analytics",
   "license": "Apache-2.0",
   "repository": {

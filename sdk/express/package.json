@@ -1,6 +1,6 @@
 {
   "name": "@supermetry/express",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Express middleware for Supermetry self-hosted web analytics",
   "license": "Apache-2.0",
   "repository": {
