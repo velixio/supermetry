@@ -1,4 +1,4 @@
-import { DEFAULT_HOST } from "./host";
+import { DEFAULT_HOST } from "./host.js";
 
 export { DEFAULT_HOST };
 

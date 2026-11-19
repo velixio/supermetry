@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +35,21 @@ function exportTargets(value) {
   if (typeof value === "string") return value.startsWith("./") ? [value] : [];
   if (!value || typeof value !== "object") return [];
   return Object.values(value).flatMap(exportTargets);
+}
+
+// Node ESM resolves relative imports literally: "./host" fails where "./host.js" works.
+// Bundlers hide this, so check every published ES module file directly.
+async function assertRelativeImportsResolve(packageName, root) {
+  const files = (await readdir(root, { recursive: true })).filter((f) => /\.m?js$/.test(f));
+  const pattern = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.{1,2}\/[^"']+)["']/g;
+  for (const file of files) {
+    const source = await readFile(path.join(root, file), "utf8");
+    for (const [, specifier] of source.matchAll(pattern)) {
+      assert(/\.(m?js|cjs|json)$/.test(specifier), `${packageName} ${file} imports "${specifier}" without a file extension`);
+      const target = path.resolve(path.dirname(path.join(root, file)), specifier);
+      assert(existsSync(target), `${packageName} ${file} imports missing "${specifier}"`);
+    }
+  }
 }
 
 function archiveName(packageName, version) {
@@ -88,6 +104,8 @@ try {
       const entry = `package/${target.slice(2)}`;
       assert(entries.has(entry), `${manifest.name} export points to missing ${entry}`);
     }
+
+    await assertRelativeImportsResolve(manifest.name, extractedRoot);
 
     const readme = await readFile(path.join(extractedRoot, "README.md"), "utf8");
     assert(readme.length >= 500, `${manifest.name} README is unexpectedly short`);

@@ -1,4 +1,4 @@
-import { DEFAULT_HOST } from "./host";
+import { DEFAULT_HOST } from "./host.js";
 
 export interface ProxyOptions {
   /** Supermetry origin to forward to. Defaults to Supermetry Cloud. */
