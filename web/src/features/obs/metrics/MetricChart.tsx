@@ -6,6 +6,7 @@ import {
 import { obsMetrics as t } from '@/messages/obsMetrics'
 
 import { seriesLabel, type ObsMetricSeries } from './metricQuery'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 type Props = {
   series: ObsMetricSeries[]
@@ -51,7 +52,7 @@ export function chartData(series: ObsMetricSeries[], name: string) {
 /** Last non-null value per series, shown in a visually hidden table so the chart has a text equivalent. */
 function Summary({ series, name }: { series: ObsMetricSeries[]; name: string }) {
   return (
-    <table className="sr-only">
+    <ScreenReaderTable>
       <caption>{t.summary(name)}</caption>
       <tbody>
         {series.map((entry, index) => {
@@ -64,7 +65,7 @@ function Summary({ series, name }: { series: ObsMetricSeries[]; name: string }) 
           )
         })}
       </tbody>
-    </table>
+    </ScreenReaderTable>
   )
 }
 

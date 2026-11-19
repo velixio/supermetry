@@ -10,6 +10,7 @@ import { useStats, type StatsQuery } from '@/lib/stats'
 
 import { RevenueBreakdown } from './RevenueBreakdown'
 import { activeLocale } from '@/lib/i18n/intl'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 type RevenueReportProps = {
   siteId: number
@@ -86,10 +87,10 @@ function Trend({ query, currency }: { query: ReturnType<typeof useStats>; curren
       </div>
       {comparisonRows.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">Muted bars: comparison range.</p> : null}
       <div className="overflow-x-auto" tabIndex={0}>
-        <table className="sr-only" aria-label="Revenue over time">
+        <ScreenReaderTable aria-label="Revenue over time">
           <thead><tr><th scope="col">Date</th><th scope="col">Revenue</th>{comparisonRows.length > 0 ? <th scope="col">Comparison revenue</th> : null}</tr></thead>
           <tbody>{rows.map((row, index) => <tr key={String(row.time)}><th scope="row">{fmt.date(String(row.time), 'UTC')}</th><td>{formatter.format(numeric(row.total_revenue))}</td>{comparisonRows.length > 0 ? <td>{formatter.format(numeric(comparisonRows[index]?.total_revenue))}</td> : null}</tr>)}</tbody>
-        </table>
+        </ScreenReaderTable>
       </div>
     </CardContent>
   </Card>

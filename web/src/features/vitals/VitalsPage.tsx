@@ -28,6 +28,7 @@ import type { Filter } from '@/lib/search'
 
 import { useVitals, type VitalMetric, type VitalMetricName, type VitalsDimension, type VitalsResponse } from './api'
 import { activeLocale } from '@/lib/i18n/intl'
+import { ScreenReaderTable } from '@/components/ScreenReaderTable'
 
 type VitalsPageProps = {
   siteId: number
@@ -169,10 +170,10 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
           <span className="flex flex-wrap items-center gap-3"><span><i className="mr-1 inline-block h-0.5 w-3 bg-chart-3 align-middle" />p50</span><span><i className="mr-1 inline-block h-0.5 w-3 bg-chart-1 align-middle" />p75</span><span><i className="mr-1 inline-block h-0.5 w-3 bg-chart-4 align-middle" />p95</span><span><span className="font-medium text-chart-2">Good</span> ≤ {formatP75(metric, good)} · <span className="font-medium text-destructive">Poor</span> &gt; {formatP75(metric, poor)}</span></span>
           <span>{points.reduce((sum, point) => sum + point.samples, 0).toLocaleString()} samples shown</span>
         </div>
-        <table className="sr-only" aria-label={`${definition.name} daily trend data`}>
+        <ScreenReaderTable aria-label={`${definition.name} daily trend data`}>
           <thead><tr><th>Date</th><th>p50</th><th>p75</th><th>p95</th><th>Samples</th></tr></thead>
           <tbody>{points.map((point) => <tr key={point.date}><th>{point.date}</th><td>{formatP75(metric, point.p50)}</td><td>{formatP75(metric, point.p75)}</td><td>{formatP75(metric, point.p95)}</td><td>{point.samples}</td></tr>)}</tbody>
-        </table>
+        </ScreenReaderTable>
       </CardContent>
     </Card>
   )
