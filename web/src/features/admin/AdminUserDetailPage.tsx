@@ -1,18 +1,22 @@
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/features/auth/PasswordInput'
 import { useCopyStatus } from '@/features/settings/InstallRecipes'
 import { en } from '@/messages/en'
 import { uiFlows } from '@/messages/uiFlows'
 import { useAdminUser, useRevokeUserSessions, useSendPasswordReset, type AdminPasswordReset } from './adminApi'
 import { AdminPage, ErrorLine, formatDate } from './AdminCommon'
 
-export function AdminUserDetailPage({ userId }: { userId: number }) {
+export function AdminUserDetailPage({ userId, adminTotpEnabled = false }: { userId: number; adminTotpEnabled?: boolean }) {
   const user = useAdminUser(userId)
   const revoke = useRevokeUserSessions()
   const reset = useSendPasswordReset()
@@ -23,8 +27,20 @@ export function AdminUserDetailPage({ userId }: { userId: number }) {
   const u = user.data
   const busy = revoke.isPending || reset.isPending
   const run = () => {
-    if (confirm === 'revoke') revoke.mutate(userId, { onSuccess: () => { setConfirm(null); setNotice('Sessions revoked.') } })
-    else reset.mutate(userId, { onSuccess: (r) => { setConfirm(null); setResult(r); setNotice(r.sent ? 'Password reset email sent.' : '') } })
+    revoke.mutate(userId, { onSuccess: () => { setConfirm(null); setNotice('Sessions revoked.') } })
+  }
+  const closeReset = () => {
+    if (reset.isPending) return
+    reset.reset()
+    setConfirm(null)
+  }
+  const submitReset = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    reset.mutate(
+      { id: userId, password: String(data.get('password') ?? ''), totpCode: String(data.get('totp_code') ?? '') || undefined },
+      { onSuccess: (r) => { setConfirm(null); setResult(r); setNotice(r.sent ? 'Password reset email sent.' : '') } },
+    )
   }
   return (
     <AdminPage title={u ? u.name || u.email : en.admin.users}>
@@ -61,19 +77,47 @@ export function AdminUserDetailPage({ userId }: { userId: number }) {
           ) : null}
         </div>
       ) : null}
-      <AlertDialog open={confirm !== null} onOpenChange={(open) => { if (!open && !busy) setConfirm(null) }}>
+      <AlertDialog open={confirm === 'revoke'} onOpenChange={(open) => { if (!open && !busy) setConfirm(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirm === 'revoke' ? 'Revoke all sessions?' : 'Send a password reset?'}</AlertDialogTitle>
-            <AlertDialogDescription>{confirm === 'revoke' ? 'The user is signed out everywhere and must sign in again.' : 'A one-time link to set a new password is emailed, or shown here when no email is configured.'}</AlertDialogDescription>
+            <AlertDialogTitle>Revoke all sessions?</AlertDialogTitle>
+            <AlertDialogDescription>The user is signed out everywhere and must sign in again.</AlertDialogDescription>
           </AlertDialogHeader>
-          <ErrorLine error={revoke.error ?? reset.error} />
+          <ErrorLine error={revoke.error} />
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{uiFlows.common.cancel}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" disabled={busy} onClick={(event) => { event.preventDefault(); run() }}>{busy ? uiFlows.common.saving : uiFlows.admin.confirm}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={confirm === 'reset'} onOpenChange={(open) => { if (!open) closeReset() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send a password reset?</DialogTitle>
+            <DialogDescription>A one-time link to set a new password is emailed, or shown here when no email is configured. Confirm it is you first.</DialogDescription>
+          </DialogHeader>
+          <form className="flex flex-col gap-4" onSubmit={submitReset}>
+            <FieldGroup>
+              <Field data-invalid={Boolean(reset.error) || undefined}>
+                <FieldLabel htmlFor="reset-password">{uiFlows.admin.yourPassword}</FieldLabel>
+                <PasswordInput id="reset-password" name="password" autoComplete="current-password" required aria-invalid={Boolean(reset.error) || undefined} aria-describedby={reset.error ? 'reset-error' : undefined} />
+              </Field>
+              {adminTotpEnabled ? (
+                <Field>
+                  <FieldLabel htmlFor="reset-totp">{uiFlows.admin.yourCode}</FieldLabel>
+                  <Input id="reset-totp" name="totp_code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required aria-describedby="reset-totp-hint" />
+                  <FieldDescription id="reset-totp-hint">{uiFlows.admin.yourCodeHint}</FieldDescription>
+                </Field>
+              ) : null}
+              {reset.error ? <FieldError id="reset-error">{reset.error instanceof Error ? reset.error.message : String(reset.error)}</FieldError> : null}
+            </FieldGroup>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={reset.isPending} onClick={closeReset}>{uiFlows.common.cancel}</Button>
+              <Button type="submit" disabled={reset.isPending}>{reset.isPending ? uiFlows.common.saving : uiFlows.admin.confirm}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AdminPage>
   )
 }

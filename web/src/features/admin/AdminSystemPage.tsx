@@ -1,17 +1,11 @@
 import type { ReactNode } from 'react'
 
+import { fmt } from '@/lib/format'
 import { en } from '@/messages/en'
 import { useAdminSystem } from './adminApi'
 import { AdminPage, ErrorLine, formatDate } from './AdminCommon'
 
-export function formatBytes(value: number | null | undefined) {
-  if (value === null || value === undefined) return 'n/a'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let n = value
-  let i = 0
-  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++ }
-  return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}
+const formatBytes = (value: number | null | undefined) => (value === null || value === undefined ? 'n/a' : fmt.bytes(value))
 
 export function formatUptime(seconds: number) {
   const d = Math.floor(seconds / 86400)

@@ -32,10 +32,7 @@ const base = '/api/private/admin'
 
 export const adminKeys = {
   all: ['admin'] as const,
-  users: (search: string) => ['admin', 'users', search] as const,
-  organizations: (search: string) => ['admin', 'organizations', search] as const,
   organization: (id: number) => ['admin', 'organization', id] as const,
-  sites: (search: string) => ['admin', 'sites', search] as const,
   settings: ['admin', 'settings'] as const,
   email: ['admin', 'email'] as const,
   policy: ['admin', 'policy'] as const,
@@ -217,7 +214,8 @@ export function useRevokeUserSessions() {
 
 export function useSendPasswordReset() {
   return useMutation({
-    mutationFn: (id: number) => privateRequest<AdminPasswordReset>('POST', `${base}/users/${id}/password-reset`),
+    mutationFn: ({ id, password, totpCode }: { id: number; password: string; totpCode?: string }) =>
+      privateRequest<AdminPasswordReset>('POST', `${base}/users/${id}/password-reset`, { body: { password, ...(totpCode ? { totp_code: totpCode } : {}) } }),
   })
 }
 
@@ -252,7 +250,7 @@ export function useApplyUpdate() {
     onSuccess: (job) => {
       client.setQueryData<AdminUpdateStatus>(adminKeys.update, (current) => current ? { ...current, job } : current)
       void client.invalidateQueries({ queryKey: adminKeys.update, exact: true })
-      void client.invalidateQueries({ queryKey: adminKeys.audit, exact: true })
+      void client.invalidateQueries({ queryKey: adminKeys.audit })
     },
   })
 }
