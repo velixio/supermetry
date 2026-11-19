@@ -259,6 +259,9 @@ jobs:
         working-directory: web
         run: bun install --frozen-lockfile
 
+      - name: Generate deterministic test fixtures
+        run: make fixtures
+
       - name: Build web
         working-directory: web
         run: bun run build
