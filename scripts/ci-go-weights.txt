@@ -1,0 +1,17 @@
+# <seconds> <package path relative to the module root>
+# Seeded from a CI run; unknown packages weigh 5. Used by scripts/ci-go-shard.sh.
+156 test/golden
+148 internal/platform/http
+142 test/privacy
+127 internal/query
+111 internal/api
+103 test/platform
+81 internal/ingest
+80 test/storage
+67 internal/appquery
+51 internal/db
+40 internal/alerts
+35 internal/platform/auth
+35 internal/ghstars
+34 internal/demo
+29 internal/approllup

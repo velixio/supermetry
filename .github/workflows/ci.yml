@@ -54,8 +54,48 @@ jobs:
         working-directory: sdk/node
         run: bun run package:check
 
-  test:
+  lint:
+    name: Lint and checks
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            printf 'The following files need gofmt:\n%s\n' "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet Go packages
+        run: go vet ./...
+
+      - name: Verify Go test sharding
+        run: scripts/ci-go-shard.sh --verify 4
+
+      - name: Check Go vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
+      - name: Test tracker size budgets
+        run: go test -count=1 ./internal/tracker -run 'TestMinified(Tracker|FullTracker)GzipSize$'
+
+  go-test:
+    name: Go tests (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:18
@@ -103,32 +143,66 @@ jobs:
           echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
           /usr/lib/postgresql/18/bin/pg_dump --version
 
-      - name: Check Go formatting
-        shell: bash
-        run: |
-          unformatted="$(gofmt -l .)"
-          if [[ -n "$unformatted" ]]; then
-            printf 'The following files need gofmt:\n%s\n' "$unformatted"
-            exit 1
-          fi
-
-      - name: Vet Go packages
-        run: go vet ./...
-
       - name: Generate deterministic test fixtures
         run: make fixtures
 
-      - name: Test Go packages
-        run: SUPERMETRY_SKIP_PERFORMANCE_GUARDS=1 GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration ./...
+      - name: Test Go packages (shard ${{ matrix.shard }}/4)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t pkgs < <(scripts/ci-go-shard.sh "${{ matrix.shard }}" 4)
+          printf '%s\n' "${pkgs[@]}"
+          SUPERMETRY_SKIP_PERFORMANCE_GUARDS=1 GOMAXPROCS=6 go test -p 3 -timeout 25m -skip TestBackupRestoreIntegration "${pkgs[@]}"
+
+  go-perf:
+    name: Go query performance guard
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: supermetry
+          POSTGRES_PASSWORD: supermetry
+          POSTGRES_DB: supermetry
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U supermetry -d supermetry"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SUPERMETRY_TEST_DSN: postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
 
       - name: Test Go query performance guards
         run: GOMAXPROCS=2 go test -p 1 -count=1 -timeout 5m ./internal/query -run '^TestEngine_VitalsFilteredQueryTiming$'
 
-      - name: Check Go vulnerabilities
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+  web-unit:
+    name: Web typecheck and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Test tracker size budgets
-        run: go test -count=1 ./internal/tracker -run 'TestMinified(Tracker|FullTracker)GzipSize$'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Cache bun downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
 
       - name: Install web dependencies
         working-directory: web
@@ -142,6 +216,56 @@ jobs:
         working-directory: web
         run: bun run test --run --maxWorkers=3
 
+  e2e:
+    name: End-to-end (Playwright ${{ matrix.group }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [a, b]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: supermetry
+          POSTGRES_PASSWORD: supermetry
+          POSTGRES_DB: supermetry
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U supermetry -d supermetry"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SUPERMETRY_TEST_DSN: postgres://supermetry:supermetry@127.0.0.1:5432/supermetry?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Cache bun downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Generate deterministic test fixtures
+        run: make fixtures
+
       - name: Build web
         working-directory: web
         run: bun run build
@@ -149,33 +273,78 @@ jobs:
       - name: Build server with embedded web
         run: CGO_ENABLED=0 go build -tags embedui -o bin/supermetry ./cmd/supermetry
 
+      - name: Resolve Playwright version
+        id: playwright
+        shell: bash
+        run: |
+          version="$(sed -nE 's/^    "playwright": \["playwright@([^"]+)".*/\1/p' web/bun.lock | head -n 1)"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
       - name: Install browser
         working-directory: web
         run: bunx playwright install --with-deps chromium
 
       - name: End-to-end authentication and authorization
+        if: matrix.group == 'a'
         working-directory: web
         env:
           SUPERMETRY_E2E_PORT: "18090"
         run: bunx playwright test e2e/account-navigation.spec.ts e2e/authorization.spec.ts --reporter=list --workers=1
 
       - name: End-to-end login navigation and privacy
+        if: matrix.group == 'a'
         working-directory: web
         env:
           SUPERMETRY_E2E_PORT: "18090"
         run: bunx playwright test e2e/not-found.spec.ts e2e/privacy-navigation.spec.ts --reporter=list --workers=1
 
       - name: End-to-end dashboard
+        if: matrix.group == 'b'
         working-directory: web
         env:
           SUPERMETRY_E2E_PORT: "18090"
         run: bunx playwright test e2e/a11y-audit.spec.ts e2e/api-docs.spec.ts e2e/dashboard.spec.ts e2e/dashboard-where-when.spec.ts e2e/navigation.spec.ts e2e/privacy.spec.ts e2e/revenue.spec.ts e2e/sessions.spec.ts e2e/settings.spec.ts e2e/vitals.spec.ts --reporter=list --workers=1
 
       - name: End-to-end account and extended features
+        if: matrix.group == 'a'
         working-directory: web
         env:
           SUPERMETRY_E2E_PORT: "18090"
         run: bunx playwright test e2e/account-sessions.spec.ts e2e/accuracy-live.spec.ts e2e/notifications.spec.ts e2e/project-currency.spec.ts e2e/replay-fit.spec.ts e2e/share.spec.ts --reporter=list --workers=1
+
+  ci-ok:
+    name: CI OK
+    if: ${{ always() }}
+    needs:
+      - sdk
+      - lint
+      - go-test
+      - go-perf
+      - web-unit
+      - e2e
+      - web-build
+      - binary-build
+      - docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every CI job to succeed
+        shell: bash
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -Eq '"result": "(failure|cancelled|skipped)"'; then
+            echo "At least one required job did not succeed" >&2
+            exit 1
+          fi
 
   web-build:
     name: Build embedded web assets
