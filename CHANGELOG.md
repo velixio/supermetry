@@ -6,6 +6,22 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.32 (2026-11-19)
+
+### Added
+
+- Instance administration: Users, Organizations and Sites lists sort by column and page through every row (no 100-row cap). A user detail page shows memberships and active sessions, with "Revoke sessions" and "Send password reset" (asks for your password again; never allowed for another administrator). A System page shows version, schema, uptime, database size and connections, free disk space, ingest queue, background jobs, email and update status. The audit log has its own tab with filters (actor, action, organization, date range).
+- Admin API: cursor paging and sorting on the admin lists, `GET /admin/users/{user}`, session revoke, password reset, `GET /admin/system`, and audit filters.
+
+### Changed
+
+- Cards, tables, badges and the sidebar drop their borders; a light page tone separates surfaces.
+
+### Fixed
+
+- An organization's member list in the admin API now includes every member, not only those among the first 100 users of the instance.
+- The Node, Express and React Native SDKs load the tracker under Node ESM.
+
 ## v0.1.31 (2026-11-19)
 
 ### Added
