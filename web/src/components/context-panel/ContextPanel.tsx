@@ -174,7 +174,7 @@ export function ContextPanel({ membership }: { membership?: Membership }) {
   if (!open) return null
   if (wide) {
     return (
-      <aside aria-label={t.label} className="sticky top-12 h-[calc(100svh-3rem)] w-[280px] shrink-0 self-start overflow-y-auto border-l bg-background" id={panelId}>
+      <aside aria-label={t.label} className="sticky top-12 h-[calc(100svh-3rem)] w-[280px] shrink-0 self-start overflow-y-auto bg-sidebar" id={panelId}>
         <ContextPanelBody membership={membership} onNavigate={() => undefined} />
       </aside>
     )
