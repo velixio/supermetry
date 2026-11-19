@@ -113,6 +113,29 @@ func adminLimit(r *http.Request) (int, bool) {
 	return limit, err == nil && limit >= 1 && limit <= admin.MaxListLimit
 }
 
+// adminListParams reads the shared paging query: limit, cursor, sort, order
+// and the search text (`search`, or `q` as an alias).
+func adminListParams(r *http.Request) (admin.ListParams, bool) {
+	limit, ok := adminLimit(r)
+	query := r.URL.Query()
+	search := query.Get("search")
+	if search == "" {
+		search = query.Get("q")
+	}
+	if !ok || len(search) > 200 || len(query.Get("cursor")) > 512 || len(query.Get("sort")) > 32 {
+		return admin.ListParams{}, false
+	}
+	return admin.ListParams{Search: search, Limit: limit, Cursor: query.Get("cursor"), Sort: query.Get("sort"), Order: query.Get("order")}, true
+}
+
+// nextCursor is the JSON value of a page's next_cursor: null on the last page.
+func nextCursor(cursor string) any {
+	if cursor == "" {
+		return nil
+	}
+	return cursor
+}
+
 func adminID(r *http.Request, name string) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue(name), 10, 64)
 	return id, err == nil && id > 0
@@ -122,17 +145,17 @@ func (h *handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.adminPrincipal(w, r); !ok {
 		return
 	}
-	limit, ok := adminLimit(r)
-	if !ok || len(r.URL.Query().Get("search")) > 200 {
-		writeProblem(w, http.StatusBadRequest, "Bad request", "search or limit is invalid")
+	params, ok := adminListParams(r)
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "search, limit or cursor is invalid")
 		return
 	}
-	items, err := h.deps.Admin.ListUsers(r.Context(), r.URL.Query().Get("search"), limit)
+	page, err := h.deps.Admin.ListUsersPage(r.Context(), params)
 	if err != nil {
 		adminError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+	writeJSON(w, http.StatusOK, map[string]any{"data": page.Items, "next_cursor": nextCursor(page.NextCursor)})
 }
 
 func (h *handler) adminCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -197,17 +220,17 @@ func (h *handler) adminListOrganizations(w http.ResponseWriter, r *http.Request)
 	if _, ok := h.adminPrincipal(w, r); !ok {
 		return
 	}
-	limit, ok := adminLimit(r)
-	if !ok || len(r.URL.Query().Get("search")) > 200 {
-		writeProblem(w, http.StatusBadRequest, "Bad request", "search or limit is invalid")
+	params, ok := adminListParams(r)
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "search, limit or cursor is invalid")
 		return
 	}
-	items, err := h.deps.Admin.ListOrganizations(r.Context(), r.URL.Query().Get("search"), limit, h.deps.MaxSitesPerOrg)
+	page, err := h.deps.Admin.ListOrganizationsPage(r.Context(), params, h.deps.MaxSitesPerOrg)
 	if err != nil {
 		adminError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+	writeJSON(w, http.StatusOK, map[string]any{"data": page.Items, "next_cursor": nextCursor(page.NextCursor)})
 }
 
 func (h *handler) adminGetOrganization(w http.ResponseWriter, r *http.Request) {
@@ -223,6 +246,25 @@ func (h *handler) adminGetOrganization(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		adminError(w, err)
 		return
+	}
+	// members_limit / members_cursor page the member list; without them the
+	// detail carries up to 1000 members and members_next_cursor when there are more.
+	if query := r.URL.Query(); query.Has("members_limit") || query.Has("members_cursor") {
+		limit := 50
+		if raw := query.Get("members_limit"); raw != "" {
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < 1 || n > admin.MaxListLimit {
+				writeProblem(w, http.StatusBadRequest, "Bad request", "members_limit is invalid")
+				return
+			}
+			limit = n
+		}
+		page, err := h.deps.Admin.GetOrganizationMembers(r.Context(), orgID, admin.ListParams{Limit: limit, Cursor: query.Get("members_cursor")})
+		if err != nil {
+			adminError(w, err)
+			return
+		}
+		item.Members, item.MembersNextCursor = page.Items, page.NextCursor
 	}
 	writeJSON(w, http.StatusOK, item)
 }
@@ -337,17 +379,25 @@ func (h *handler) adminListSites(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.adminPrincipal(w, r); !ok {
 		return
 	}
-	limit, ok := adminLimit(r)
-	if !ok || len(r.URL.Query().Get("search")) > 200 {
-		writeProblem(w, http.StatusBadRequest, "Bad request", "search or limit is invalid")
+	params, ok := adminListParams(r)
+	if !ok {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "search, limit or cursor is invalid")
 		return
 	}
-	items, err := h.deps.Admin.ListSites(r.Context(), r.URL.Query().Get("search"), limit)
+	if raw := r.URL.Query().Get("org"); raw != "" {
+		orgID, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || orgID < 1 {
+			writeProblem(w, http.StatusBadRequest, "Bad request", "org is invalid")
+			return
+		}
+		params.OrgID = orgID
+	}
+	page, err := h.deps.Admin.ListSitesPage(r.Context(), params)
 	if err != nil {
 		adminError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+	writeJSON(w, http.StatusOK, map[string]any{"data": page.Items, "next_cursor": nextCursor(page.NextCursor)})
 }
 
 func (h *handler) adminGetSettings(w http.ResponseWriter, r *http.Request) {
@@ -461,16 +511,44 @@ func (h *handler) adminListAudit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit, ok := adminLimit(r)
-	if !ok {
-		writeProblem(w, http.StatusBadRequest, "Bad request", "limit is invalid")
+	query := r.URL.Query()
+	filter := admin.AuditFilter{Limit: limit, Cursor: query.Get("cursor"), Action: query.Get("action")}
+	if !ok || len(filter.Cursor) > 512 || len(filter.Action) > 200 {
+		writeProblem(w, http.StatusBadRequest, "Bad request", "limit, cursor or action is invalid")
 		return
 	}
-	items, err := h.deps.Admin.ListAudit(r.Context(), limit)
+	for _, id := range []struct {
+		name string
+		dst  *int64
+	}{{"actor", &filter.ActorUserID}, {"org", &filter.OrgID}} {
+		if raw := query.Get(id.name); raw != "" {
+			n, err := strconv.ParseInt(raw, 10, 64)
+			if err != nil || n < 1 {
+				writeProblem(w, http.StatusBadRequest, "Bad request", id.name+" is invalid")
+				return
+			}
+			*id.dst = n
+		}
+	}
+	for _, bound := range []struct {
+		name string
+		dst  **time.Time
+	}{{"from", &filter.From}, {"to", &filter.To}} {
+		if raw := query.Get(bound.name); raw != "" {
+			t, err := time.Parse(time.RFC3339, raw)
+			if err != nil {
+				writeProblem(w, http.StatusBadRequest, "Bad request", bound.name+" must be an RFC 3339 time")
+				return
+			}
+			*bound.dst = &t
+		}
+	}
+	page, err := h.deps.Admin.ListAuditPage(r.Context(), filter)
 	if err != nil {
 		adminError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": items})
+	writeJSON(w, http.StatusOK, map[string]any{"data": page.Items, "next_cursor": nextCursor(page.NextCursor)})
 }
 
 // adminImpersonateUser signs the caller in as another user for support. With a
