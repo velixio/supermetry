@@ -2865,6 +2865,9 @@ type AdminAuditEntry struct {
 // AdminAuditResponse defines model for AdminAuditResponse.
 type AdminAuditResponse struct {
 	Data []AdminAuditEntry `json:"data"`
+
+	// NextCursor Cursor of the next page; null on the last page.
+	NextCursor *string `json:"next_cursor"`
 }
 
 // AdminDeleteUserInput defines model for AdminDeleteUserInput.
@@ -3030,7 +3033,10 @@ type AdminOrganizationDetail struct {
 	Id              int64       `json:"id"`
 	MemberCount     int64       `json:"member_count"`
 	Members         []AdminUser `json:"members"`
-	Name            string      `json:"name"`
+
+	// MembersNextCursor Present when more members exist; pass it as members_cursor.
+	MembersNextCursor *string `json:"members_next_cursor,omitempty"`
+	Name              string  `json:"name"`
 
 	// RestorableUntil End of the restore grace period
 	RestorableUntil *time.Time  `json:"restorable_until,omitempty"`
@@ -3049,6 +3055,18 @@ type AdminOrganizationDetailDeletedByKind string
 // AdminOrganizationsResponse defines model for AdminOrganizationsResponse.
 type AdminOrganizationsResponse struct {
 	Data []AdminOrganization `json:"data"`
+
+	// NextCursor Cursor of the next page; null on the last page.
+	NextCursor *string `json:"next_cursor"`
+}
+
+// AdminPasswordReset defines model for AdminPasswordReset.
+type AdminPasswordReset struct {
+	// ResetUrl One-time link
+	ResetUrl *string `json:"reset_url,omitempty"`
+
+	// Sent True when the link was emailed.
+	Sent bool `json:"sent"`
 }
 
 // AdminSettings defines model for AdminSettings.
@@ -3104,6 +3122,9 @@ type AdminSiteStorageUsage struct {
 // AdminSitesResponse defines model for AdminSitesResponse.
 type AdminSitesResponse struct {
 	Data []AdminSite `json:"data"`
+
+	// NextCursor Cursor of the next page; null on the last page.
+	NextCursor *string `json:"next_cursor"`
 }
 
 // AdminStorageUsage defines model for AdminStorageUsage.
@@ -3116,6 +3137,46 @@ type AdminStorageUsage struct {
 
 	// UnmeasuredSites Number of included sites without a snapshot yet. Present only when positive, meaning the total is at least this value.
 	UnmeasuredSites *int64 `json:"unmeasured_sites,omitempty"`
+}
+
+// AdminSystem defines model for AdminSystem.
+type AdminSystem struct {
+	DataDir  *AdminSystemDisk `json:"data_dir"`
+	Database struct {
+		Connections    int   `json:"connections"`
+		MaxConnections int   `json:"max_connections"`
+		SizeBytes      int64 `json:"size_bytes"`
+	} `json:"database"`
+	GeneratedAt time.Time `json:"generated_at"`
+	Ingest      struct {
+		AcceptedTotal int64 `json:"accepted_total"`
+		Drops503      int64 `json:"drops_503"`
+		QueueDepth    int64 `json:"queue_depth"`
+	} `json:"ingest"`
+	Jobs []struct {
+		LastRunAt *time.Time `json:"last_run_at"`
+		Name      string     `json:"name"`
+	} `json:"jobs"`
+	LatestSchemaVersion int64            `json:"latest_schema_version"`
+	ReplayDir           *AdminSystemDisk `json:"replay_dir"`
+	SchemaVersion       int64            `json:"schema_version"`
+	SmtpConfigured      bool             `json:"smtp_configured"`
+	StartedAt           time.Time        `json:"started_at"`
+	Update              struct {
+		CheckError      *string    `json:"check_error"`
+		CheckedAt       *time.Time `json:"checked_at"`
+		CurrentVersion  string     `json:"current_version"`
+		LatestVersion   *string    `json:"latest_version"`
+		UpdateAvailable bool       `json:"update_available"`
+	} `json:"update"`
+	UptimeSeconds int64  `json:"uptime_seconds"`
+	Version       string `json:"version"`
+}
+
+// AdminSystemDisk defines model for AdminSystemDisk.
+type AdminSystemDisk struct {
+	FreeBytes *int64 `json:"free_bytes"`
+	Path      string `json:"path"`
 }
 
 // AdminTwoFactorExemption defines model for AdminTwoFactorExemption.
@@ -3217,6 +3278,23 @@ type AdminUserCreated struct {
 	TotpEnabled bool    `json:"totp_enabled"`
 }
 
+// AdminUserDetail defines model for AdminUserDetail.
+type AdminUserDetail struct {
+	// ActiveSessions Unexpired sessions.
+	ActiveSessions        int                 `json:"active_sessions"`
+	CreatedAt             time.Time           `json:"created_at"`
+	Disabled              bool                `json:"disabled"`
+	Email                 openapi_types.Email `json:"email"`
+	Id                    int64               `json:"id"`
+	InstanceAdmin         bool                `json:"instance_admin"`
+	LastLoginAt           *time.Time          `json:"last_login_at,omitempty"`
+	Memberships           []AdminMembership   `json:"memberships"`
+	Name                  string              `json:"name"`
+	PasswordResetRequired bool                `json:"password_reset_required"`
+	TotpEnabled           bool                `json:"totp_enabled"`
+	TwoFactorExempt       bool                `json:"two_factor_exempt"`
+}
+
 // AdminUserPatch defines model for AdminUserPatch.
 type AdminUserPatch struct {
 	Disabled              *bool `json:"disabled,omitempty"`
@@ -3227,6 +3305,9 @@ type AdminUserPatch struct {
 // AdminUsersResponse defines model for AdminUsersResponse.
 type AdminUsersResponse struct {
 	Data []AdminUser `json:"data"`
+
+	// NextCursor Cursor of the next page; null on the last page.
+	NextCursor *string `json:"next_cursor"`
 }
 
 // AlertIncident defines model for AlertIncident.
@@ -6747,8 +6828,14 @@ type VitalsTrendPoint struct {
 	Ttfb VitalTrendMetric   `json:"ttfb"`
 }
 
+// AdminCursor defines model for AdminCursor.
+type AdminCursor = string
+
 // AdminLimit defines model for AdminLimit.
 type AdminLimit = int
+
+// AdminOrder defines model for AdminOrder.
+type AdminOrder = string
 
 // AdminUserID defines model for AdminUserID.
 type AdminUserID = int64
@@ -6852,12 +6939,47 @@ type Unauthorized = Problem
 // AdminListAuditParams defines parameters for AdminListAudit.
 type AdminListAuditParams struct {
 	Limit *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque next_cursor of the previous page.
+	Cursor *AdminCursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Actor Actor user id.
+	Actor *int64 `form:"actor,omitempty" json:"actor,omitempty"`
+
+	// Action Exact action
+	Action *string `form:"action,omitempty" json:"action,omitempty"`
+
+	// Org Entries about this organization.
+	Org *int64 `form:"org,omitempty" json:"org,omitempty"`
+
+	// From Inclusive lower bound.
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Exclusive upper bound.
+	To *time.Time `form:"to,omitempty" json:"to,omitempty"`
 }
 
 // AdminListOrganizationsParams defines parameters for AdminListOrganizations.
 type AdminListOrganizationsParams struct {
+	// Search Case-insensitive substring match; q is an alias.
 	Search *string     `form:"search,omitempty" json:"search,omitempty"`
+	Q      *string     `form:"q,omitempty" json:"q,omitempty"`
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque next_cursor of the previous page.
+	Cursor *AdminCursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Sort One of id, created_at, name, members, storage. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for.
+	Sort *string `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order asc (default) or desc.
+	Order *AdminOrder `form:"order,omitempty" json:"order,omitempty"`
+}
+
+// AdminGetOrganizationParams defines parameters for AdminGetOrganization.
+type AdminGetOrganizationParams struct {
+	MembersLimit  *int    `form:"members_limit,omitempty" json:"members_limit,omitempty"`
+	MembersCursor *string `form:"members_cursor,omitempty" json:"members_cursor,omitempty"`
 }
 
 // AdminRestoreOrganization409JSONResponseBodyError defines parameters for AdminRestoreOrganization.
@@ -6865,8 +6987,22 @@ type AdminRestoreOrganization409JSONResponseBodyError string
 
 // AdminListSitesParams defines parameters for AdminListSites.
 type AdminListSitesParams struct {
+	// Search Case-insensitive substring match; q is an alias.
 	Search *string     `form:"search,omitempty" json:"search,omitempty"`
+	Q      *string     `form:"q,omitempty" json:"q,omitempty"`
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque next_cursor of the previous page.
+	Cursor *AdminCursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Sort One of id, created_at, name, storage. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for.
+	Sort *string `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order asc (default) or desc.
+	Order *AdminOrder `form:"order,omitempty" json:"order,omitempty"`
+
+	// Org Only sites of this organization.
+	Org *int64 `form:"org,omitempty" json:"org,omitempty"`
 }
 
 // AdminSetSiteRetentionJSONBody defines parameters for AdminSetSiteRetention.
@@ -6882,12 +7018,29 @@ type AdminSetSiteRetention200JSONResponseBodyRetentionDays int
 
 // AdminListUsersParams defines parameters for AdminListUsers.
 type AdminListUsersParams struct {
+	// Search Case-insensitive substring match; q is an alias.
 	Search *string     `form:"search,omitempty" json:"search,omitempty"`
+	Q      *string     `form:"q,omitempty" json:"q,omitempty"`
 	Limit  *AdminLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque next_cursor of the previous page.
+	Cursor *AdminCursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Sort One of id, created_at, email, name. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for.
+	Sort *string `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Order asc (default) or desc.
+	Order *AdminOrder `form:"order,omitempty" json:"order,omitempty"`
 }
 
 // AdminImpersonateUserJSONBody defines parameters for AdminImpersonateUser.
 type AdminImpersonateUserJSONBody struct {
+	Password string  `json:"password"`
+	TotpCode *string `json:"totp_code,omitempty"`
+}
+
+// AdminStartPasswordResetJSONBody defines parameters for AdminStartPasswordReset.
+type AdminStartPasswordResetJSONBody struct {
 	Password string  `json:"password"`
 	TotpCode *string `json:"totp_code,omitempty"`
 }
@@ -7733,6 +7886,9 @@ type AdminUpdateUserJSONRequestBody = AdminUserPatch
 // AdminImpersonateUserJSONRequestBody defines body for AdminImpersonateUser for application/json ContentType.
 type AdminImpersonateUserJSONRequestBody AdminImpersonateUserJSONBody
 
+// AdminStartPasswordResetJSONRequestBody defines body for AdminStartPasswordReset for application/json ContentType.
+type AdminStartPasswordResetJSONRequestBody AdminStartPasswordResetJSONBody
+
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
 type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
 
@@ -8424,7 +8580,7 @@ func (t *ManagedTrackingPixelInput_Tag) UnmarshalJSON(b []byte) error {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// AdminListAudit List instance administration audit entries
+	// AdminListAudit List instance administration audit entries, newest first, with filters and keyset paging
 	// (GET /api/private/admin/audit)
 	AdminListAudit(w http.ResponseWriter, r *http.Request, params AdminListAuditParams)
 	// AdminDeleteEmail Remove the saved SMTP settings, which turns email off
@@ -8447,7 +8603,7 @@ type ServerInterface interface {
 	AdminDeleteOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
 	// AdminGetOrganization Get an organization with its members, sites, quota and storage total
 	// (GET /api/private/admin/organizations/{org})
-	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	AdminGetOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID, params AdminGetOrganizationParams)
 	// AdminEraseOrganization Erase an organization permanently, without the deletion grace period
 	// (POST /api/private/admin/organizations/{org}/erase)
 	AdminEraseOrganization(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -8496,6 +8652,9 @@ type ServerInterface interface {
 	// AdminSetSiteRetention Set a site's retention class
 	// (PATCH /api/private/admin/sites/{site_id})
 	AdminSetSiteRetention(w http.ResponseWriter, r *http.Request, siteId int32)
+	// AdminSystem Instance health at a glance
+	// (GET /api/private/admin/system)
+	AdminSystem(w http.ResponseWriter, r *http.Request)
 	// AdminGetUpdateStatus Check whether a newer stable Supermetry release is available
 	// (GET /api/private/admin/update)
 	AdminGetUpdateStatus(w http.ResponseWriter, r *http.Request)
@@ -8505,7 +8664,7 @@ type ServerInterface interface {
 	// AdminCheckUpdate Check for a newer stable release now
 	// (POST /api/private/admin/update/check)
 	AdminCheckUpdate(w http.ResponseWriter, r *http.Request)
-	// AdminListUsers List and search instance users
+	// AdminListUsers List and search instance users with keyset paging
 	// (GET /api/private/admin/users)
 	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
 	// AdminCreateUser Create a user with an unusable password, optionally with an organization they own
@@ -8514,12 +8673,21 @@ type ServerInterface interface {
 	// AdminDeleteUser Delete a user account without their password
 	// (DELETE /api/private/admin/users/{user})
 	AdminDeleteUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
+	// AdminGetUser Get a user with memberships, last login, 2FA status and active session count
+	// (GET /api/private/admin/users/{user})
+	AdminGetUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
 	// AdminUpdateUser Enable, disable, force password reset, promote or demote a user
 	// (PATCH /api/private/admin/users/{user})
 	AdminUpdateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
 	// AdminImpersonateUser Sign in as a user for support
 	// (POST /api/private/admin/users/{user}/impersonate)
 	AdminImpersonateUser(w http.ResponseWriter, r *http.Request, user AdminUserID)
+	// AdminStartPasswordReset Send a password reset, or return the one-time link when mail is not configured
+	// (POST /api/private/admin/users/{user}/password-reset)
+	AdminStartPasswordReset(w http.ResponseWriter, r *http.Request, user AdminUserID)
+	// AdminRevokeUserSessions Sign a user out of every session
+	// (POST /api/private/admin/users/{user}/sessions/revoke)
+	AdminRevokeUserSessions(w http.ResponseWriter, r *http.Request, user AdminUserID)
 	// ConfirmCurrentUserEmailChangeLink Confirm an email change from a link
 	// (GET /api/private/auth/email-change/confirm)
 	ConfirmCurrentUserEmailChangeLink(w http.ResponseWriter, r *http.Request, params ConfirmCurrentUserEmailChangeLinkParams)
@@ -9303,6 +9471,84 @@ func (siw *ServerInterfaceWrapper) AdminListAudit(w http.ResponseWriter, r *http
 		return
 	}
 
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "actor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "actor", r.URL.Query(), &params.Actor, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "actor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "actor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action", r.URL.Query(), &params.Action, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "action"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "action", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "org" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "org", r.URL.Query(), &params.Org, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "org"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminListAudit(w, r, params)
 	}))
@@ -9392,6 +9638,19 @@ func (siw *ServerInterfaceWrapper) AdminListOrganizations(w http.ResponseWriter,
 		return
 	}
 
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "limit" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -9401,6 +9660,45 @@ func (siw *ServerInterfaceWrapper) AdminListOrganizations(w http.ResponseWriter,
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sort"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "order", r.URL.Query(), &params.Order, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "order"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "order", Err: err})
 		}
 		return
 	}
@@ -9457,8 +9755,37 @@ func (siw *ServerInterfaceWrapper) AdminGetOrganization(w http.ResponseWriter, r
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminGetOrganizationParams
+
+	// ------------- Optional query parameter "members_limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "members_limit", r.URL.Query(), &params.MembersLimit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "members_limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "members_limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "members_cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "members_cursor", r.URL.Query(), &params.MembersCursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "members_cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "members_cursor", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminGetOrganization(w, r, org)
+		siw.Handler.AdminGetOrganization(w, r, org, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9806,6 +10133,19 @@ func (siw *ServerInterfaceWrapper) AdminListSites(w http.ResponseWriter, r *http
 		return
 	}
 
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "limit" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -9815,6 +10155,58 @@ func (siw *ServerInterfaceWrapper) AdminListSites(w http.ResponseWriter, r *http
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sort"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "order", r.URL.Query(), &params.Order, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "order"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "order", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "org" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "org", r.URL.Query(), &params.Org, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "org"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
 		}
 		return
 	}
@@ -9847,6 +10239,20 @@ func (siw *ServerInterfaceWrapper) AdminSetSiteRetention(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminSetSiteRetention(w, r, siteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminSystem operation middleware
+func (siw *ServerInterfaceWrapper) AdminSystem(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminSystem(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9920,6 +10326,19 @@ func (siw *ServerInterfaceWrapper) AdminListUsers(w http.ResponseWriter, r *http
 		return
 	}
 
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "limit" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -9929,6 +10348,45 @@ func (siw *ServerInterfaceWrapper) AdminListUsers(w http.ResponseWriter, r *http
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sort"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "order", r.URL.Query(), &params.Order, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "order"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "order", Err: err})
 		}
 		return
 	}
@@ -9984,6 +10442,32 @@ func (siw *ServerInterfaceWrapper) AdminDeleteUser(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// AdminGetUser operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetUser(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AdminUpdateUser operation middleware
 func (siw *ServerInterfaceWrapper) AdminUpdateUser(w http.ResponseWriter, r *http.Request) {
 
@@ -10027,6 +10511,58 @@ func (siw *ServerInterfaceWrapper) AdminImpersonateUser(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminImpersonateUser(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminStartPasswordReset operation middleware
+func (siw *ServerInterfaceWrapper) AdminStartPasswordReset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminStartPasswordReset(w, r, user)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminRevokeUserSessions operation middleware
+func (siw *ServerInterfaceWrapper) AdminRevokeUserSessions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "user" -------------
+	var user AdminUserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", r.PathValue("user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminRevokeUserSessions(w, r, user)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20814,7 +21350,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminListUsers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users", wrapper.AdminCreateUser)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminDeleteUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminGetUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/admin/users/{user}", wrapper.AdminUpdateUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users/{user}/sessions/revoke", wrapper.AdminRevokeUserSessions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users/{user}/password-reset", wrapper.AdminStartPasswordReset)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/system", wrapper.AdminSystem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/admin/users/{user}/impersonate", wrapper.AdminImpersonateUser)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations", wrapper.AdminListOrganizations)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}", wrapper.AdminDeleteOrganization)

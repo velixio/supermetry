@@ -72,7 +72,10 @@ func TestAdminRouteAuthorizationMatrix(t *testing.T) {
 		{http.MethodPut, "/api/private/admin/security/2fa-policy", `{"scope":"off","grace_days":7}`},
 		{http.MethodPut, fmt.Sprintf("/api/private/admin/security/2fa-exemptions/%d", ids["member"]), `{"reason":"temporary recovery"}`},
 		{http.MethodDelete, fmt.Sprintf("/api/private/admin/security/2fa-exemptions/%d", ids["member"]), ""},
-		{http.MethodGet, "/api/private/admin/audit?limit=10", ""},
+		{http.MethodGet, "/api/private/admin/audit?limit=10&action=instance.*", ""},
+		{http.MethodGet, fmt.Sprintf("/api/private/admin/users/%d", ids["member"]), ""},
+		{http.MethodPost, fmt.Sprintf("/api/private/admin/users/%d/sessions/revoke", ids["member"]), `{}`},
+		{http.MethodGet, "/api/private/admin/system", ""},
 	}
 	for _, route := range routes {
 		for _, actor := range []string{"anonymous", "member", "owner", "instance-admin"} {
@@ -125,7 +128,7 @@ func TestAdminRoutesRateLimitAndValidateInputs(t *testing.T) {
 	data := &store.Store{Pool: pool}
 	handler := platformhttp.New(platformhttp.Deps{Authenticator: actorAuthenticator{"admin": {UserID: userID, SiteIDs: []int32{}}}, Store: data, Admin: admin.New(data), Signup: "invite"})
 
-	invalid := httptest.NewRequest(http.MethodGet, "/api/private/admin/users?limit=101", nil)
+	invalid := httptest.NewRequest(http.MethodGet, "/api/private/admin/users?limit=201", nil)
 	invalid.Header.Set("X-Test-Actor", "admin")
 	invalidResponse := httptest.NewRecorder()
 	handler.ServeHTTP(invalidResponse, invalid)

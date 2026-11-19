@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,8 +11,6 @@ import (
 	"supermetry/internal/platform/lifecycle"
 	"supermetry/internal/platform/store"
 )
-
-const MaxListLimit = 100
 
 type Membership struct {
 	OrgID   int64  `json:"org_id"`
@@ -52,8 +49,16 @@ type Organization struct {
 type OrganizationDetail struct {
 	Organization
 	Members []User `json:"members"`
-	Sites   []Site `json:"sites"`
+	// MembersNextCursor is set when the organization has more members than the
+	// detail carries (maxDetailMembers); pass it to the members endpoint.
+	MembersNextCursor string `json:"members_next_cursor,omitempty"`
+	Sites             []Site `json:"sites"`
 }
+
+const (
+	maxDetailMemberPages = 5
+	maxDetailMembers     = maxDetailMemberPages * MaxListLimit
+)
 
 type Site struct {
 	ID            int32         `json:"id"`
@@ -105,76 +110,148 @@ type AuditEntry struct {
 	CreatedAt   time.Time      `json:"created_at"`
 }
 
-func normalizeLimit(limit int) int {
-	if limit <= 0 {
-		return 50
-	}
-	if limit > MaxListLimit {
-		return MaxListLimit
-	}
-	return limit
+// ListUsers is the first page of ListUsersPage, kept for callers that do not page.
+func (s *Service) ListUsers(ctx context.Context, search string, limit int) ([]User, error) {
+	page, err := s.ListUsersPage(ctx, ListParams{Search: search, Limit: limit})
+	return page.Items, err
 }
 
-func (s *Service) ListUsers(ctx context.Context, search string, limit int) ([]User, error) {
-	search = strings.TrimSpace(search)
-	if len(search) > 200 {
-		return nil, ErrInvalid
+var userSorts = map[string]sortSpec{
+	"id":         {"u.id", "bigint"},
+	"created_at": {"u.created_at", "timestamptz"},
+	"email":      {"u.email", "text"},
+	"name":       {"u.name", "text"},
+}
+
+// ListUsersPage lists visible (non-system) users with keyset paging.
+func (s *Service) ListUsersPage(ctx context.Context, p ListParams) (Page[User], error) {
+	search, err := cleanSearch(p.Search)
+	if err != nil {
+		return Page[User]{}, err
 	}
-	return s.listUsers(ctx, s.store.Pool, search, 0, limit)
+	return s.listUsersPage(ctx, s.store.Pool, userFilter{search: search}, p)
 }
 
 type userQuerier interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
+// userFilter narrows the user list: a non-zero onlyID selects that user, a
+// non-zero orgID the members of that organization.
+type userFilter struct {
+	search string
+	onlyID int64
+	orgID  int64
+}
+
 // listUsers lists visible (non-system) users; a non-zero onlyID restricts it to
 // that user. db may be a transaction so a just-written user can be read back.
 func (s *Service) listUsers(ctx context.Context, db userQuerier, search string, onlyID int64, limit int) ([]User, error) {
-	rows, err := db.Query(ctx, `
-		select u.id,u.email,u.name,u.is_admin,u.disabled_at is not null,u.password_reset_required,
+	page, err := s.listUsersPage(ctx, db, userFilter{search: search, onlyID: onlyID}, ListParams{Limit: limit})
+	return page.Items, err
+}
+
+func (s *Service) listUsersPage(ctx context.Context, db userQuerier, f userFilter, p ListParams) (Page[User], error) {
+	k, err := newKeyset(p, userSorts)
+	if err != nil {
+		return Page[User]{}, err
+	}
+	inner := `
+		select u.id,u.email,u.name,u.is_admin,u.disabled_at is not null disabled,u.password_reset_required,
 		       u.totp_enabled,u.created_at,u.last_login_at,
 		       coalesce(jsonb_agg(jsonb_build_object('org_id',m.org_id,'org_name',o.name,'role',m.role)
-		         order by o.name,o.id) filter(where m.org_id is not null),'[]'::jsonb)
+		         order by o.name,o.id) filter(where m.org_id is not null),'[]'::jsonb) memberships,
+		       ` + k.spec.expr + ` sk
 		from users u
 		left join memberships m on m.user_id=u.id
 		left join orgs o on o.id=m.org_id and o.deleted_at is null
-		where u.deleted_at is null and not u.is_system and ($3::bigint=0 or u.id=$3) and ($1='' or lower(u.email) like '%'||lower($1)||'%' or lower(u.name) like '%'||lower($1)||'%')
-		group by u.id order by u.id limit $2`, search, normalizeLimit(limit), onlyID)
+		where u.deleted_at is null and not u.is_system and ($2::bigint=0 or u.id=$2)
+		  and ($3::bigint=0 or exists(select 1 from memberships mo where mo.user_id=u.id and mo.org_id=$3))
+		  and ($1='' or lower(u.email) like '%'||lower($1)||'%' or lower(u.name) like '%'||lower($1)||'%')
+		group by u.id`
+	query, args := k.wrap(inner, []any{f.search, f.onlyID, f.orgID})
+	rows, err := db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return Page[User]{}, err
 	}
 	defer rows.Close()
 	users := make([]User, 0)
+	var keys []string
 	for rows.Next() {
 		var user User
 		var memberships []byte
-		if err := rows.Scan(&user.ID, &user.Email, &user.Name, &user.InstanceAdmin, &user.Disabled, &user.PasswordResetRequired, &user.TOTPEnabled, &user.CreatedAt, &user.LastLoginAt, &memberships); err != nil {
-			return nil, err
+		var sk any
+		var skText string
+		if err := rows.Scan(&user.ID, &user.Email, &user.Name, &user.InstanceAdmin, &user.Disabled, &user.PasswordResetRequired, &user.TOTPEnabled, &user.CreatedAt, &user.LastLoginAt, &memberships, &sk, &skText); err != nil {
+			return Page[User]{}, err
 		}
 		if err := json.Unmarshal(memberships, &user.Memberships); err != nil {
-			return nil, err
+			return Page[User]{}, err
+		}
+		if f.orgID != 0 {
+			own := make([]Membership, 0, 1)
+			for _, m := range user.Memberships {
+				if m.OrgID == f.orgID {
+					own = append(own, m)
+				}
+			}
+			user.Memberships = own
 		}
 		users = append(users, user)
+		keys = append(keys, skText)
 	}
-	return users, rows.Err()
+	if err := rows.Err(); err != nil {
+		return Page[User]{}, err
+	}
+	page := Page[User]{Items: users}
+	if len(users) > k.limit {
+		page.Items = users[:k.limit]
+		page.NextCursor = k.next(true, page.Items[k.limit-1].ID, keys[k.limit-1])
+	}
+	return page, nil
 }
 
+// ListOrganizations is the first page of ListOrganizationsPage.
 func (s *Service) ListOrganizations(ctx context.Context, search string, limit, siteLimit int) ([]Organization, error) {
-	search = strings.TrimSpace(search)
-	if len(search) > 200 {
-		return nil, ErrInvalid
-	}
-	rows, err := s.store.Pool.Query(ctx, listOrganizationsSQL, search, normalizeLimit(limit))
+	page, err := s.ListOrganizationsPage(ctx, ListParams{Search: search, Limit: limit}, siteLimit)
+	return page.Items, err
+}
+
+var organizationSorts = map[string]sortSpec{
+	"id":         {"o.id", "bigint"},
+	"created_at": {"o.created_at", "timestamptz"},
+	"name":       {"o.name", "text"},
+	"members":    {"(select count(*) from memberships mc where mc.org_id=o.id)", "bigint"},
+	"storage":    {"coalesce(storage.estimated_storage_bytes,-1)", "bigint"},
+}
+
+// ListOrganizationsPage lists organizations, including restorable deletions,
+// with keyset paging. Sorting by storage puts unmeasured organizations first
+// when ascending.
+func (s *Service) ListOrganizationsPage(ctx context.Context, p ListParams, siteLimit int) (Page[Organization], error) {
+	search, err := cleanSearch(p.Search)
 	if err != nil {
-		return nil, err
+		return Page[Organization]{}, err
+	}
+	k, err := newKeyset(p, organizationSorts)
+	if err != nil {
+		return Page[Organization]{}, err
+	}
+	query, args := k.wrap(listOrganizationsHead+", "+k.spec.expr+" sk "+listOrganizationsTail, []any{search})
+	rows, err := s.store.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return Page[Organization]{}, err
 	}
 	defer rows.Close()
 	items := make([]Organization, 0)
+	var keys []string
 	for rows.Next() {
 		var item Organization
+		var sk any
+		var skText string
 		storage, targets := storageScanTargets(false)
-		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount, &item.DeletedAt, &item.DeletedByKind, &item.DeletedByUserID, &item.DeletedByName, targets[0], targets[1], targets[2], targets[3], targets[4], targets[5]); err != nil {
-			return nil, err
+		if err := rows.Scan(&item.ID, &item.Name, &item.Slug, &item.MemberCount, &item.SiteCount, &item.DeletedAt, &item.DeletedByKind, &item.DeletedByUserID, &item.DeletedByName, targets[0], targets[1], targets[2], targets[3], targets[4], targets[5], &sk, &skText); err != nil {
+			return Page[Organization]{}, err
 		}
 		item.Storage = storage.value()
 		item.SiteLimit = siteLimit
@@ -183,11 +260,30 @@ func (s *Service) ListOrganizations(ctx context.Context, search string, limit, s
 			item.RestorableUntil = &until
 		}
 		items = append(items, item)
+		keys = append(keys, skText)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return Page[Organization]{}, err
+	}
+	page := Page[Organization]{Items: items}
+	if len(items) > k.limit {
+		page.Items = items[:k.limit]
+		page.NextCursor = k.next(true, page.Items[k.limit-1].ID, keys[k.limit-1])
+	}
+	return page, nil
 }
 
 func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) (OrganizationDetail, error) {
+	return s.getOrganization(ctx, id, siteLimit, true)
+}
+
+// GetOrganizationWithoutMembers is GetOrganization with Members left empty, for
+// callers that page the member list themselves.
+func (s *Service) GetOrganizationWithoutMembers(ctx context.Context, id int64, siteLimit int) (OrganizationDetail, error) {
+	return s.getOrganization(ctx, id, siteLimit, false)
+}
+
+func (s *Service) getOrganization(ctx context.Context, id int64, siteLimit int, withMembers bool) (OrganizationDetail, error) {
 	var detail OrganizationDetail
 	storage, targets := storageScanTargets(false)
 	err := s.store.Pool.QueryRow(ctx, getOrganizationSQL, id).Scan(
@@ -207,18 +303,23 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 		until := lifecycle.PurgeAt(*detail.DeletedAt)
 		detail.RestorableUntil = &until
 	}
-	users, err := s.ListUsers(ctx, "", MaxListLimit)
-	if err != nil {
-		return OrganizationDetail{}, err
-	}
-	for _, user := range users {
-		for _, membership := range user.Memberships {
-			if membership.OrgID == id {
-				user.Memberships = []Membership{membership}
-				detail.Members = append(detail.Members, user)
-				break
-			}
+	// Every member, not just those among the first users overall: page through
+	// the membership list up to maxDetailMembers and point at the rest.
+	var cursor string
+	for pages := 0; withMembers && pages < maxDetailMemberPages; pages++ {
+		page, err := s.listUsersPage(ctx, s.store.Pool, userFilter{orgID: id}, ListParams{Limit: MaxListLimit, Cursor: cursor})
+		if err != nil {
+			return OrganizationDetail{}, err
 		}
+		detail.Members = append(detail.Members, page.Items...)
+		cursor = page.NextCursor
+		if cursor == "" {
+			break
+		}
+	}
+	detail.MembersNextCursor = cursor
+	if detail.Members == nil {
+		detail.Members = []User{}
 	}
 	rows, err := s.store.Pool.Query(ctx, getOrganizationSitesSQL, id, MaxListLimit)
 	if err != nil {
@@ -232,30 +333,86 @@ func (s *Service) GetOrganization(ctx context.Context, id int64, siteLimit int) 
 	return detail, nil
 }
 
+// ListSites is the first page of ListSitesPage.
 func (s *Service) ListSites(ctx context.Context, search string, limit int) ([]Site, error) {
-	search = strings.TrimSpace(search)
-	if len(search) > 200 {
-		return nil, ErrInvalid
-	}
-	rows, err := s.store.Pool.Query(ctx, listSitesSQL, search, normalizeLimit(limit))
+	page, err := s.ListSitesPage(ctx, ListParams{Search: search, Limit: limit})
+	return page.Items, err
+}
+
+var siteSorts = map[string]sortSpec{
+	"id":         {"s.id", "bigint"},
+	"created_at": {"s.created_at", "timestamptz"},
+	"name":       {"s.name", "text"},
+	"storage":    {"coalesce(u.estimated_storage_bytes,-1)", "bigint"},
+}
+
+// ListSitesPage lists live sites with keyset paging; OrgID restricts it to one organization.
+func (s *Service) ListSitesPage(ctx context.Context, p ListParams) (Page[Site], error) {
+	search, err := cleanSearch(p.Search)
 	if err != nil {
-		return nil, err
+		return Page[Site]{}, err
 	}
-	return scanSites(rows)
+	k, err := newKeyset(p, siteSorts)
+	if err != nil {
+		return Page[Site]{}, err
+	}
+	query, args := k.wrap(listSitesHead+", "+k.spec.expr+" sk "+listSitesTail, []any{search, p.OrgID})
+	rows, err := s.store.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return Page[Site]{}, err
+	}
+	defer rows.Close()
+	items := make([]Site, 0)
+	var keys []string
+	for rows.Next() {
+		item, err := scanSite(rows, true)
+		if err != nil {
+			return Page[Site]{}, err
+		}
+		items = append(items, item.Site)
+		keys = append(keys, item.key)
+	}
+	if err := rows.Err(); err != nil {
+		return Page[Site]{}, err
+	}
+	page := Page[Site]{Items: items}
+	if len(items) > k.limit {
+		page.Items = items[:k.limit]
+		page.NextCursor = k.next(true, int64(page.Items[k.limit-1].ID), keys[k.limit-1])
+	}
+	return page, nil
+}
+
+type scannedSite struct {
+	Site
+	key string
+}
+
+func scanSite(rows pgx.Rows, paged bool) (scannedSite, error) {
+	var item scannedSite
+	storage, targets := storageScanTargets(true)
+	dest := []any{&item.ID, &item.OrgID, &item.Organization, &item.PublicID, &item.Name, &item.RetentionDays, &item.Pageviews, &item.LastEventAt,
+		targets[0], targets[1], targets[2], targets[3], targets[4], targets[5], targets[6], targets[7], targets[8], targets[9]}
+	if paged {
+		var sk any
+		dest = append(dest, &sk, &item.key)
+	}
+	if err := rows.Scan(dest...); err != nil {
+		return scannedSite{}, err
+	}
+	item.Storage = storage.value()
+	return item, nil
 }
 
 func scanSites(rows pgx.Rows) ([]Site, error) {
 	defer rows.Close()
 	items := make([]Site, 0)
 	for rows.Next() {
-		var item Site
-		storage, targets := storageScanTargets(true)
-		if err := rows.Scan(&item.ID, &item.OrgID, &item.Organization, &item.PublicID, &item.Name, &item.RetentionDays, &item.Pageviews, &item.LastEventAt,
-			targets[0], targets[1], targets[2], targets[3], targets[4], targets[5], targets[6], targets[7], targets[8], targets[9]); err != nil {
+		item, err := scanSite(rows, false)
+		if err != nil {
 			return nil, err
 		}
-		item.Storage = storage.value()
-		items = append(items, item)
+		items = append(items, item.Site)
 	}
 	return items, rows.Err()
 }
@@ -302,17 +459,17 @@ const organizationStorageLateralSQL = `
 		left join site_storage_usage u on u.site_id=owned_site.id
 	) storage on true`
 
-const listOrganizationsSQL = `
+const listOrganizationsHead = `
 	select o.id,o.name,o.slug,
 	       (select count(*) from memberships m where m.org_id=o.id),
 	       (select count(*) from sites counted_site where counted_site.org_id=o.id and (counted_site.deleted_at is null or (counted_site.deleted_with_org and counted_site.erased_at is null))),
 	       o.deleted_at,coalesce(o.deleted_by_kind,''),o.deleted_by_user_id,coalesce(deleted_by.name,''),
-	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version,storage.unmeasured_sites
+	       storage.estimated_storage_bytes,storage.database_bytes,storage.replay_bytes,storage.measured_at,storage.measurement_version,storage.unmeasured_sites`
+const listOrganizationsTail = `
 	from orgs o
 	left join users deleted_by on deleted_by.id=o.deleted_by_user_id
 ` + organizationStorageLateralSQL + `
-	where o.erased_at is null and ($1='' or lower(o.name) like '%'||lower($1)||'%' or lower(o.slug) like '%'||lower($1)||'%')
-	order by o.id limit $2`
+	where o.erased_at is null and ($1='' or lower(o.name) like '%'||lower($1)||'%' or lower(o.slug) like '%'||lower($1)||'%')`
 
 const getOrganizationSQL = `
 	select o.id,o.name,o.slug,
@@ -325,19 +482,19 @@ const getOrganizationSQL = `
 ` + organizationStorageLateralSQL + `
 	where o.id=$1 and o.erased_at is null`
 
-const listSitesSQL = `
+const listSitesHead = `
 	select s.id,s.org_id,o.name,s.public_id,s.name,s.retention_class,
 	       coalesce((select sum(r.pageviews) from rollup_day r where r.site_id=s.id),0),
 	       e.last_event_at,
 	       u.estimated_storage_bytes,u.database_bytes,u.replay_bytes,u.measured_at,u.measurement_version,
-	       u.hot_bytes,u.retained_bytes,u.auxiliary_bytes,u.replay_recording_bytes,u.replay_css_bytes
+	       u.hot_bytes,u.retained_bytes,u.auxiliary_bytes,u.replay_recording_bytes,u.replay_css_bytes`
+const listSitesTail = `
 	from sites s
 	join orgs o on o.id=s.org_id
 	left join site_last_event e on e.site_id=s.id
 	left join site_storage_usage u on u.site_id=s.id
-	where s.deleted_at is null and o.deleted_at is null
-	  and ($1='' or lower(s.name) like '%'||lower($1)||'%' or lower(s.public_id) like '%'||lower($1)||'%' or lower(o.name) like '%'||lower($1)||'%')
-	order by s.id limit $2`
+	where s.deleted_at is null and o.deleted_at is null and ($2::bigint=0 or s.org_id=$2)
+	  and ($1='' or lower(s.name) like '%'||lower($1)||'%' or lower(s.public_id) like '%'||lower($1)||'%' or lower(o.name) like '%'||lower($1)||'%')`
 
 const getOrganizationSitesSQL = `
 	select s.id,s.org_id,o.name,s.public_id,s.name,s.retention_class,
@@ -431,38 +588,33 @@ func (s *Service) UpdateSettings(ctx context.Context, actorID int64, patch Setti
 	})
 }
 
-func (s *Service) ListAudit(ctx context.Context, limit int) ([]AuditEntry, error) {
-	rows, err := s.store.Pool.Query(ctx, `select id,actor_user_id,action,target_type,target_id,metadata,created_at from audit_log where org_id is null order by created_at desc,id desc limit $1`, normalizeLimit(limit))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := make([]AuditEntry, 0)
-	for rows.Next() {
-		var item AuditEntry
-		var metadata []byte
-		if err := rows.Scan(&item.ID, &item.ActorUserID, &item.Action, &item.TargetType, &item.TargetID, &metadata, &item.CreatedAt); err != nil {
-			return nil, err
-		}
-		if err := json.Unmarshal(metadata, &item.Metadata); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
-}
-
+// User returns one visible (non-system, undeleted) user.
 func (s *Service) User(ctx context.Context, id int64) (User, error) {
-	users, err := s.ListUsers(ctx, "", MaxListLimit)
+	users, err := s.listUsers(ctx, s.store.Pool, "", id, 1)
 	if err != nil {
 		return User{}, err
 	}
-	for _, user := range users {
-		if user.ID == id {
-			return user, nil
-		}
+	if len(users) == 0 {
+		return User{}, ErrNotFound
 	}
-	return User{}, ErrNotFound
+	return users[0], nil
+}
+
+// GetOrganizationMembers pages through the members of an organization, each
+// with only that organization's membership.
+func (s *Service) GetOrganizationMembers(ctx context.Context, orgID int64, p ListParams) (Page[User], error) {
+	var exists bool
+	if err := s.store.Pool.QueryRow(ctx, `select exists(select 1 from orgs where id=$1 and erased_at is null)`, orgID).Scan(&exists); err != nil {
+		return Page[User]{}, err
+	}
+	if !exists {
+		return Page[User]{}, ErrNotFound
+	}
+	search, err := cleanSearch(p.Search)
+	if err != nil {
+		return Page[User]{}, err
+	}
+	return s.listUsersPage(ctx, s.store.Pool, userFilter{search: search, orgID: orgID}, p)
 }
 
 func notFound(err error) error {

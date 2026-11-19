@@ -18,10 +18,15 @@ paths:
     get:
       operationId: adminListUsers
       security: [{ cookieAuth: [] }]
-      summary: List and search instance users
+      summary: List and search instance users with keyset paging
+      description: Pages by cursor; next_cursor is null on the last page.
       parameters:
-        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: search, in: query, description: Case-insensitive substring match; q is an alias., schema: { type: string, maxLength: 200 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
         - { $ref: '#/components/parameters/AdminLimit' }
+        - { $ref: '#/components/parameters/AdminCursor' }
+        - { name: sort, in: query, description: 'One of id, created_at, email, name. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for.', schema: { type: string, default: id } }
+        - { $ref: '#/components/parameters/AdminOrder' }
       responses:
         '200': { description: Instance users., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUsersResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -40,6 +45,18 @@ paths:
         '409': { description: A user with this email already exists., content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/users/{user}:
+    get:
+      operationId: adminGetUser
+      security: [{ cookieAuth: [] }]
+      summary: Get a user with memberships, last login, 2FA status and active session count
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      responses:
+        '200': { description: User detail., content: { application/json: { schema: { $ref: '#/components/schemas/AdminUserDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
     patch:
       operationId: adminUpdateUser
       security: [{ cookieAuth: [] }]
@@ -78,6 +95,55 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { description: 'Refused: a problem for the protected cases, or {error: last_owner, orgs}.', content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }, application/json: { schema: { $ref: '#/components/schemas/AdminDeleteUserLastOwner' } } } }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/users/{user}/sessions/revoke:
+    post:
+      operationId: adminRevokeUserSessions
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Sign a user out of every session
+      description: Audited as instance.user.sessions_revoked (count only).
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      responses:
+        '200': { description: Sessions revoked., content: { application/json: { schema: { type: object, additionalProperties: false, required: [revoked], properties: { revoked: { type: integer, format: int64 } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/users/{user}/password-reset:
+    post:
+      operationId: adminStartPasswordReset
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Send a password reset, or return the one-time link when mail is not configured
+      description: Audited as instance.user.password_reset_started (delivery only, never the link). 400 when the instance has no reset sender. With a cookie session the admin re-enters their password (and TOTP code when enabled); with the admin API key no body is needed. 403 for another instance administrator.
+      parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password: { type: string, format: password }
+                totp_code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200': { description: Reset started., content: { application/json: { schema: { $ref: '#/components/schemas/AdminPasswordReset' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/admin/system:
+    get:
+      operationId: adminSystem
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }]
+      summary: Instance health at a glance
+      description: Version, schema, uptime, database size and connections, free disk, ingest queue, background job last runs, SMTP and update summary. Cached for 15 seconds.
+      responses:
+        '200': { description: System status., content: { application/json: { schema: { $ref: '#/components/schemas/AdminSystem' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '429': { $ref: '#/components/responses/RateLimited' }
   /api/private/admin/users/{user}/impersonate:
     post:
@@ -123,9 +189,14 @@ paths:
       operationId: adminListOrganizations
       security: [{ cookieAuth: [] }]
       summary: List organizations, including restorable deletions, with member, site, quota and storage totals
+      description: Pages by cursor; next_cursor is null on the last page. Sorting by storage puts unmeasured organizations first when ascending.
       parameters:
-        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: search, in: query, description: Case-insensitive substring match; q is an alias., schema: { type: string, maxLength: 200 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
         - { $ref: '#/components/parameters/AdminLimit' }
+        - { $ref: '#/components/parameters/AdminCursor' }
+        - { name: sort, in: query, description: 'One of id, created_at, name, members, storage. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for.', schema: { type: string, default: id } }
+        - { $ref: '#/components/parameters/AdminOrder' }
       responses:
         '200': { description: Organizations., content: { application/json: { schema: { $ref: '#/components/schemas/AdminOrganizationsResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -136,8 +207,14 @@ paths:
       operationId: adminGetOrganization
       security: [{ cookieAuth: [] }]
       summary: Get an organization with its members, sites, quota and storage total
-      description: Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404.
-      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      description: >-
+        Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404.
+        Without members_limit and members_cursor, members holds every member up to 1000 and members_next_cursor is set when there are more.
+        With either, members is one page of members_limit (default 50, max 200) members.
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: members_limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+        - { name: members_cursor, in: query, schema: { type: string, maxLength: 512 } }
       responses:
         '200': { description: Organization details., content: { application/json: { schema: { $ref: '#/components/schemas/AdminOrganizationDetail' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -175,9 +252,15 @@ paths:
       operationId: adminListSites
       security: [{ cookieAuth: [] }]
       summary: List sites with traffic, storage, last event and retention
+      description: Pages by cursor; next_cursor is null on the last page.
       parameters:
-        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: search, in: query, description: Case-insensitive substring match; q is an alias., schema: { type: string, maxLength: 200 } }
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
         - { $ref: '#/components/parameters/AdminLimit' }
+        - { $ref: '#/components/parameters/AdminCursor' }
+        - { name: sort, in: query, description: 'One of id, created_at, name, storage. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for.', schema: { type: string, default: id } }
+        - { $ref: '#/components/parameters/AdminOrder' }
+        - { name: org, in: query, description: Only sites of this organization., schema: { type: integer, format: int64, minimum: 1 } }
       responses:
         '200': { description: Sites., content: { application/json: { schema: { $ref: '#/components/schemas/AdminSitesResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -336,8 +419,15 @@ paths:
     get:
       operationId: adminListAudit
       security: [{ cookieAuth: [] }]
-      summary: List instance administration audit entries
-      parameters: [{ $ref: '#/components/parameters/AdminLimit' }]
+      summary: List instance administration audit entries, newest first, with filters and keyset paging
+      parameters:
+        - { $ref: '#/components/parameters/AdminLimit' }
+        - { $ref: '#/components/parameters/AdminCursor' }
+        - { name: actor, in: query, description: Actor user id., schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: action, in: query, description: Exact action, or a prefix when it ends in *., schema: { type: string, maxLength: 200 } }
+        - { name: org, in: query, description: Entries about this organization., schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: from, in: query, description: Inclusive lower bound., schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Exclusive upper bound., schema: { type: string, format: date-time } }
       responses:
         '200': { description: Instance audit entries., content: { application/json: { schema: { $ref: '#/components/schemas/AdminAuditResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -5251,7 +5341,17 @@ components:
     AdminLimit:
       name: limit
       in: query
-      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    AdminCursor:
+      name: cursor
+      in: query
+      description: Opaque next_cursor of the previous page.
+      schema: { type: string, maxLength: 512 }
+    AdminOrder:
+      name: order
+      in: query
+      description: asc (default) or desc.
+      schema: { type: string, default: asc }
     GitHubStarsRepoID:
       name: repo_id
       in: query
@@ -6022,11 +6122,84 @@ components:
         last_login_at: { type: string, format: date-time }
         memberships: { type: array, items: { $ref: '#/components/schemas/AdminMembership' } }
         reset_url: { type: string, description: One-time password-set link; present only when send_reset was set and mail is not configured. }
+    AdminUserDetail:
+      allOf:
+        - { $ref: '#/components/schemas/AdminUser' }
+        - type: object
+          required: [active_sessions, two_factor_exempt]
+          properties:
+            active_sessions: { type: integer, description: Unexpired sessions. }
+            two_factor_exempt: { type: boolean }
+    AdminPasswordReset:
+      type: object
+      additionalProperties: false
+      required: [sent]
+      properties:
+        sent: { type: boolean, description: True when the link was emailed. }
+        reset_url: { type: string, description: One-time link, only when mail is not configured. }
+    AdminSystemDisk:
+      type: object
+      additionalProperties: false
+      required: [path, free_bytes]
+      properties:
+        path: { type: string }
+        free_bytes: { type: [integer, 'null'], format: int64 }
+    AdminSystem:
+      type: object
+      additionalProperties: false
+      required: [version, schema_version, latest_schema_version, started_at, uptime_seconds, database, data_dir, replay_dir, ingest, jobs, smtp_configured, update, generated_at]
+      properties:
+        version: { type: string }
+        schema_version: { type: integer, format: int64 }
+        latest_schema_version: { type: integer, format: int64 }
+        started_at: { type: string, format: date-time }
+        uptime_seconds: { type: integer, format: int64 }
+        database:
+          type: object
+          additionalProperties: false
+          required: [size_bytes, connections, max_connections]
+          properties:
+            size_bytes: { type: integer, format: int64 }
+            connections: { type: integer }
+            max_connections: { type: integer }
+        data_dir: { anyOf: [{ $ref: '#/components/schemas/AdminSystemDisk' }, { type: 'null' }] }
+        replay_dir: { anyOf: [{ $ref: '#/components/schemas/AdminSystemDisk' }, { type: 'null' }] }
+        ingest:
+          type: object
+          additionalProperties: false
+          required: [queue_depth, drops_503, accepted_total]
+          properties:
+            queue_depth: { type: integer, format: int64 }
+            drops_503: { type: integer, format: int64 }
+            accepted_total: { type: integer, format: int64 }
+        jobs:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, last_run_at]
+            properties:
+              name: { type: string }
+              last_run_at: { type: [string, 'null'], format: date-time }
+        smtp_configured: { type: boolean }
+        update:
+          type: object
+          additionalProperties: false
+          required: [current_version, latest_version, update_available, checked_at, check_error]
+          properties:
+            current_version: { type: string }
+            latest_version: { type: [string, 'null'] }
+            update_available: { type: boolean }
+            checked_at: { type: [string, 'null'], format: date-time }
+            check_error: { type: [string, 'null'] }
+        generated_at: { type: string, format: date-time }
     AdminUsersResponse:
       type: object
       additionalProperties: false
-      required: [data]
-      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminUser' } } }
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
+        next_cursor: { type: [string, 'null'], description: Cursor of the next page; null on the last page. }
     AdminDeleteUserInput:
       type: object
       additionalProperties: false
@@ -6085,8 +6258,10 @@ components:
     AdminOrganizationsResponse:
       type: object
       additionalProperties: false
-      required: [data]
-      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminOrganization' } } }
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminOrganization' } }
+        next_cursor: { type: [string, 'null'], description: Cursor of the next page; null on the last page. }
     AdminSite:
       type: object
       additionalProperties: false
@@ -6106,8 +6281,10 @@ components:
     AdminSitesResponse:
       type: object
       additionalProperties: false
-      required: [data]
-      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminSite' } } }
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminSite' } }
+        next_cursor: { type: [string, 'null'], description: Cursor of the next page; null on the last page. }
     AdminOrganizationDetail:
       allOf:
         - { $ref: '#/components/schemas/AdminOrganization' }
@@ -6115,6 +6292,7 @@ components:
           required: [members, sites]
           properties:
             members: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
+            members_next_cursor: { type: string, description: Present when more members exist; pass it as members_cursor. }
             sites: { type: array, items: { $ref: '#/components/schemas/AdminSite' } }
     AdminStorageUsage:
       type: object
@@ -6467,8 +6645,10 @@ components:
     AdminAuditResponse:
       type: object
       additionalProperties: false
-      required: [data]
-      properties: { data: { type: array, items: { $ref: '#/components/schemas/AdminAuditEntry' } } }
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminAuditEntry' } }
+        next_cursor: { type: [string, 'null'], description: Cursor of the next page; null on the last page. }
     AdminUpdateStatus:
       type: object
       additionalProperties: false

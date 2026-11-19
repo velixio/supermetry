@@ -313,6 +313,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	}
 	authService := platformauth.New(platformStore, sender, secretBox, cfg.BaseURL, authOptions...)
 	adminService.SetResetStarter(authService.StartAccountSetup)
+	adminService.SetPasswordResetStarter(authService.StartReset)
 	orgService := orgs.New(platformStore, databaseRegistry)
 	keyService := keys.New(platformStore)
 	defer keyService.Close()

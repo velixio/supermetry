@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/sync/singleflight"
 
 	"supermetry/internal/api"
 	"supermetry/internal/config"
@@ -270,6 +271,10 @@ type handler struct {
 	overviewLimits  map[int64]overviewRateWindow
 	adminLimitMu    sync.Mutex
 	adminLimits     map[int64]adminRateWindow
+	systemMu        sync.Mutex
+	systemFlight    singleflight.Group
+	systemCache     adminSystemResponse
+	systemCachedAt  time.Time
 	emailTests      map[int64]adminRateWindow
 }
 
@@ -309,7 +314,11 @@ func New(deps Deps) http.Handler {
 func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/admin/users", h.adminListUsers)
 	mux.HandleFunc("POST /api/private/admin/users", h.adminCreateUser)
+	mux.HandleFunc("GET /api/private/admin/users/{user}", h.adminGetUser)
 	mux.HandleFunc("PATCH /api/private/admin/users/{user}", h.adminUpdateUser)
+	mux.HandleFunc("POST /api/private/admin/users/{user}/sessions/revoke", h.adminRevokeUserSessions)
+	mux.HandleFunc("POST /api/private/admin/users/{user}/password-reset", h.adminStartPasswordReset)
+	mux.HandleFunc("GET /api/private/admin/system", h.adminSystem)
 	mux.HandleFunc("DELETE /api/private/admin/users/{user}", h.adminDeleteUser)
 	mux.HandleFunc("POST /api/private/admin/users/{user}/impersonate", h.adminImpersonateUser)
 	mux.HandleFunc("GET /api/private/admin/organizations", h.adminListOrganizations)

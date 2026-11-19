@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
-import { useAdminAudit, useAdminUsers, useRemoveExemption, useSetExemption, useTwoFactorPolicy, useUpdateTwoFactorPolicy, type AdminTwoFactorPolicy } from './adminApi'
+import { useAdminUsers, useRemoveExemption, useSetExemption, useTwoFactorPolicy, useUpdateTwoFactorPolicy, type AdminTwoFactorPolicy } from './adminApi'
 import { AdminPage, ErrorLine, formatDate } from './AdminCommon'
 
 const scopes: { value: AdminTwoFactorPolicy['scope']; label: string }[] = [
@@ -94,31 +94,11 @@ function ExemptionForm() {
   )
 }
 
-function AuditList() {
-  const audit = useAdminAudit()
-  return (
-    <section aria-labelledby="admin-audit-title" className="flex flex-col gap-2">
-      <h2 id="admin-audit-title" className="text-lg font-semibold">{en.admin.auditTitle}</h2>
-      <ErrorLine error={audit.error} />
-      {audit.data && audit.data.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.admin.empty}</p> : null}
-      <ul className="flex flex-col  rounded-lg text-sm">
-        {audit.data?.data.map((entry) => (
-          <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2">
-            <span className="font-medium">{entry.action}</span>
-            <span className="text-muted-foreground">{entry.target_type} #{entry.target_id} · {formatDate(entry.created_at)}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
 export function AdminSecurityPage() {
   return (
     <AdminPage title={en.admin.security}>
       <PolicyForm />
       <ExemptionForm />
-      <AuditList />
     </AdminPage>
   )
 }

@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List and search instance users */
+        /**
+         * List and search instance users with keyset paging
+         * @description Pages by cursor; next_cursor is null on the last page.
+         */
         get: operations["adminListUsers"];
         put?: never;
         /** Create a user with an unusable password, optionally with an organization they own */
@@ -29,7 +32,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get a user with memberships, last login, 2FA status and active session count */
+        get: operations["adminGetUser"];
         put?: never;
         post?: never;
         /**
@@ -41,6 +45,66 @@ export interface paths {
         head?: never;
         /** Enable, disable, force password reset, promote or demote a user */
         patch: operations["adminUpdateUser"];
+        trace?: never;
+    };
+    "/api/private/admin/users/{user}/sessions/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign a user out of every session
+         * @description Audited as instance.user.sessions_revoked (count only).
+         */
+        post: operations["adminRevokeUserSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/users/{user}/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a password reset, or return the one-time link when mail is not configured
+         * @description Audited as instance.user.password_reset_started (delivery only, never the link). 400 when the instance has no reset sender. With a cookie session the admin re-enters their password (and TOTP code when enabled); with the admin API key no body is needed. 403 for another instance administrator.
+         */
+        post: operations["adminStartPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/admin/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Instance health at a glance
+         * @description Version, schema, uptime, database size and connections, free disk, ingest queue, background job last runs, SMTP and update summary. Cached for 15 seconds.
+         */
+        get: operations["adminSystem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/private/admin/users/{user}/impersonate": {
@@ -70,7 +134,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List organizations, including restorable deletions, with member, site, quota and storage totals */
+        /**
+         * List organizations, including restorable deletions, with member, site, quota and storage totals
+         * @description Pages by cursor; next_cursor is null on the last page. Sorting by storage puts unmeasured organizations first when ascending.
+         */
         get: operations["adminListOrganizations"];
         put?: never;
         post?: never;
@@ -89,7 +156,7 @@ export interface paths {
         };
         /**
          * Get an organization with its members, sites, quota and storage total
-         * @description Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404.
+         * @description Also returns an organization in its restore grace period (deleted_at and restorable_until are set); erased organizations are 404. Without members_limit and members_cursor, members holds every member up to 1000 and members_next_cursor is set when there are more. With either, members is one page of members_limit (default 50, max 200) members.
          */
         get: operations["adminGetOrganization"];
         put?: never;
@@ -131,7 +198,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List sites with traffic, storage, last event and retention */
+        /**
+         * List sites with traffic, storage, last event and retention
+         * @description Pages by cursor; next_cursor is null on the last page.
+         */
         get: operations["adminListSites"];
         put?: never;
         post?: never;
@@ -258,7 +328,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List instance administration audit entries */
+        /** List instance administration audit entries, newest first, with filters and keyset paging */
         get: operations["adminListAudit"];
         put?: never;
         post?: never;
@@ -5301,8 +5371,69 @@ export interface components {
             /** @description One-time password-set link; present only when send_reset was set and mail is not configured. */
             reset_url?: string;
         };
+        AdminUserDetail: components["schemas"]["AdminUser"] & {
+            /** @description Unexpired sessions. */
+            active_sessions: number;
+            two_factor_exempt: boolean;
+        };
+        AdminPasswordReset: {
+            /** @description True when the link was emailed. */
+            sent: boolean;
+            /** @description One-time link */
+            reset_url?: string;
+        };
+        AdminSystemDisk: {
+            path: string;
+            /** Format: int64 */
+            free_bytes: number | null;
+        };
+        AdminSystem: {
+            version: string;
+            /** Format: int64 */
+            schema_version: number;
+            /** Format: int64 */
+            latest_schema_version: number;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: int64 */
+            uptime_seconds: number;
+            database: {
+                /** Format: int64 */
+                size_bytes: number;
+                connections: number;
+                max_connections: number;
+            };
+            data_dir: components["schemas"]["AdminSystemDisk"] | null;
+            replay_dir: components["schemas"]["AdminSystemDisk"] | null;
+            ingest: {
+                /** Format: int64 */
+                queue_depth: number;
+                /** Format: int64 */
+                drops_503: number;
+                /** Format: int64 */
+                accepted_total: number;
+            };
+            jobs: {
+                name: string;
+                /** Format: date-time */
+                last_run_at: string | null;
+            }[];
+            smtp_configured: boolean;
+            update: {
+                current_version: string;
+                latest_version: string | null;
+                update_available: boolean;
+                /** Format: date-time */
+                checked_at: string | null;
+                check_error: string | null;
+            };
+            /** Format: date-time */
+            generated_at: string;
+        };
         AdminUsersResponse: {
             data: components["schemas"]["AdminUser"][];
+            /** @description Cursor of the next page; null on the last page. */
+            next_cursor: string | null;
         };
         AdminDeleteUserInput: {
             /** @description The user's email; must match. */
@@ -5370,6 +5501,8 @@ export interface components {
         };
         AdminOrganizationsResponse: {
             data: components["schemas"]["AdminOrganization"][];
+            /** @description Cursor of the next page; null on the last page. */
+            next_cursor: string | null;
         };
         AdminSite: {
             /** Format: int32 */
@@ -5390,9 +5523,13 @@ export interface components {
         };
         AdminSitesResponse: {
             data: components["schemas"]["AdminSite"][];
+            /** @description Cursor of the next page; null on the last page. */
+            next_cursor: string | null;
         };
         AdminOrganizationDetail: components["schemas"]["AdminOrganization"] & {
             members: components["schemas"]["AdminUser"][];
+            /** @description Present when more members exist; pass it as members_cursor. */
+            members_next_cursor?: string;
             sites: components["schemas"]["AdminSite"][];
         };
         AdminStorageUsage: {
@@ -5746,6 +5883,8 @@ export interface components {
         };
         AdminAuditResponse: {
             data: components["schemas"]["AdminAuditEntry"][];
+            /** @description Cursor of the next page; null on the last page. */
+            next_cursor: string | null;
         };
         AdminUpdateStatus: {
             current_version: string;
@@ -8553,6 +8692,10 @@ export interface components {
         AppEnvironment: string;
         AppPlatform: string;
         AdminLimit: number;
+        /** @description Opaque next_cursor of the previous page. */
+        AdminCursor: string;
+        /** @description asc (default) or desc. */
+        AdminOrder: string;
         GitHubStarsRepoID: number;
         GitHubStarsEventLimit: number;
         AdminUserID: number;
@@ -8599,8 +8742,16 @@ export interface operations {
     adminListUsers: {
         parameters: {
             query?: {
+                /** @description Case-insensitive substring match; q is an alias. */
                 search?: string;
+                q?: string;
                 limit?: components["parameters"]["AdminLimit"];
+                /** @description Opaque next_cursor of the previous page. */
+                cursor?: components["parameters"]["AdminCursor"];
+                /** @description One of id, created_at, email, name. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for. */
+                sort?: string;
+                /** @description asc (default) or desc. */
+                order?: components["parameters"]["AdminOrder"];
             };
             header?: never;
             path?: never;
@@ -8656,6 +8807,33 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminGetUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
         };
     };
@@ -8731,6 +8909,93 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
+    adminRevokeUserSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sessions revoked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        revoked: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminStartPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: components["parameters"]["AdminUserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: password */
+                    password: string;
+                    totp_code?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Reset started. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPasswordReset"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    adminSystem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description System status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSystem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     adminImpersonateUser: {
         parameters: {
             query?: never;
@@ -8785,8 +9050,16 @@ export interface operations {
     adminListOrganizations: {
         parameters: {
             query?: {
+                /** @description Case-insensitive substring match; q is an alias. */
                 search?: string;
+                q?: string;
                 limit?: components["parameters"]["AdminLimit"];
+                /** @description Opaque next_cursor of the previous page. */
+                cursor?: components["parameters"]["AdminCursor"];
+                /** @description One of id, created_at, name, members, storage. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for. */
+                sort?: string;
+                /** @description asc (default) or desc. */
+                order?: components["parameters"]["AdminOrder"];
             };
             header?: never;
             path?: never;
@@ -8810,7 +9083,10 @@ export interface operations {
     };
     adminGetOrganization: {
         parameters: {
-            query?: never;
+            query?: {
+                members_limit?: number;
+                members_cursor?: string;
+            };
             header?: never;
             path: {
                 org: components["parameters"]["OrgPathID"];
@@ -8897,8 +9173,18 @@ export interface operations {
     adminListSites: {
         parameters: {
             query?: {
+                /** @description Case-insensitive substring match; q is an alias. */
                 search?: string;
+                q?: string;
                 limit?: components["parameters"]["AdminLimit"];
+                /** @description Opaque next_cursor of the previous page. */
+                cursor?: components["parameters"]["AdminCursor"];
+                /** @description One of id, created_at, name, storage. Ties break by id in the same direction. The cursor is bound to the sort and order it was issued for. */
+                sort?: string;
+                /** @description asc (default) or desc. */
+                order?: components["parameters"]["AdminOrder"];
+                /** @description Only sites of this organization. */
+                org?: number;
             };
             header?: never;
             path?: never;
@@ -9247,6 +9533,18 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: components["parameters"]["AdminLimit"];
+                /** @description Opaque next_cursor of the previous page. */
+                cursor?: components["parameters"]["AdminCursor"];
+                /** @description Actor user id. */
+                actor?: number;
+                /** @description Exact action */
+                action?: string;
+                /** @description Entries about this organization. */
+                org?: number;
+                /** @description Inclusive lower bound. */
+                from?: string;
+                /** @description Exclusive upper bound. */
+                to?: string;
             };
             header?: never;
             path?: never;

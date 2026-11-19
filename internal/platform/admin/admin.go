@@ -13,8 +13,10 @@ import (
 )
 
 var (
-	ErrForbidden    = errors.New("instance administration required")
-	ErrInvalid      = errors.New("invalid admin request")
+	ErrForbidden = errors.New("instance administration required")
+	ErrInvalid   = errors.New("invalid admin request")
+	// ErrAdminTarget refuses an action that must not be aimed at another instance administrator.
+	ErrAdminTarget  = errors.New("action not allowed on an instance administrator")
 	ErrNotFound     = errors.New("admin resource not found")
 	ErrLastAdmin    = errors.New("instance must retain an enabled administrator")
 	ErrWouldLockOut = errors.New("two-factor policy would lock out every instance administrator")
@@ -51,6 +53,8 @@ type UserPatch struct {
 type Service struct {
 	store        *store.Store
 	resetStarter ResetStarter
+	// passwordResetStarter sends the reset an admin starts for an existing user.
+	passwordResetStarter ResetStarter
 }
 
 func New(data *store.Store) *Service { return &Service{store: data} }

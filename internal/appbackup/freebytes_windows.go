@@ -4,7 +4,8 @@ package appbackup
 
 import "golang.org/x/sys/windows"
 
-func freeBytes(path string) (uint64, error) {
+// FreeBytes is the space available to unprivileged writers on the filesystem holding path.
+func FreeBytes(path string) (uint64, error) {
 	pointer, err := windows.UTF16PtrFromString(path)
 	if err != nil {
 		return 0, err

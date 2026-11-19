@@ -10,8 +10,8 @@ import { lowersRetention, retentionOptions, retentionPolicy, useInstanceConfig, 
 import { nativeSelectClass } from '@/lib/nativeSelect'
 import { en } from '@/messages/en'
 import { uiFlows } from '@/messages/uiFlows'
-import { useAdminSites, useSetAdminSiteRetention, type AdminSite } from './adminApi'
-import { AdminPage, ErrorLine, SearchForm, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
+import { useAdminSites, type AdminSort, useSetAdminSiteRetention, type AdminSite } from './adminApi'
+import { AdminPage, ErrorLine, LoadMore, SearchForm, SortHeader, useAdminSort, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
 import { StorageUsage } from './StorageUsage'
 
 function RetentionCell({ site, policy, onSaved }: { site: AdminSite; policy: RetentionPolicy; onSaved: (name: string) => void }) {
@@ -55,9 +55,10 @@ function RetentionCell({ site, policy, onSaved }: { site: AdminSite; policy: Ret
   )
 }
 
-export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: string; onSearch?: (value: string) => void } = {}) {
+export function AdminSitesPage({ search: urlSearch, onSearch, sort: urlSort, onSort }: { search?: string; onSearch?: (value: string) => void; sort?: AdminSort; onSort?: (sort: AdminSort) => void } = {}) {
   const [search, setSearch] = useAdminSearch(urlSearch, onSearch)
-  const sites = useAdminSites(search)
+  const [sort, setSort] = useAdminSort(urlSort, onSort)
+  const sites = useAdminSites(search, sort)
   const config = useInstanceConfig()
   const policy = retentionPolicy(config.data)
   const [notice, setNotice] = useState('')
@@ -74,8 +75,8 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
             <caption className="sr-only">{en.admin.sites}</caption>
             <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
-                <th scope="col" className={cellClass}>Project</th><th scope="col" className={cellClass}>Organization</th>
-                <th scope="col" className={cellClass}>{en.admin.usage}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}>{en.admin.lastEvent}</th><th scope="col" className={cellClass}>{en.admin.retention}</th>
+                <SortHeader field="name" label="Project" sort={sort} onSort={setSort} /><th scope="col" className={cellClass}>Organization</th>
+                <th scope="col" className={cellClass}>{en.admin.usage}</th><SortHeader field="storage" label={uiFlows.admin.storage} sort={sort} onSort={setSort} /><th scope="col" className={cellClass}>{en.admin.lastEvent}</th><th scope="col" className={cellClass}>{en.admin.retention}</th>
               </tr>
             </thead>
             <tbody>
@@ -93,6 +94,7 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
           </table>
         </div>
       ) : null}
+      <LoadMore query={sites} />
     </AdminPage>
   )
 }

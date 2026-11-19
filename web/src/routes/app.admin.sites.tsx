@@ -6,7 +6,9 @@ import { AdminSitesPage } from '@/features/admin/AdminSitesPage'
 export const Route = createFileRoute('/app/admin/sites')({ validateSearch: parseAdminSearch, component: SitesRoute })
 
 function SitesRoute() {
-  const { q } = Route.useSearch()
+  const { q, sort, order } = Route.useSearch()
   const navigate = Route.useNavigate()
-  return <AdminSitesPage search={q ?? ''} onSearch={(value) => void navigate({ search: value.trim() ? { q: value.trim() } : {} })} />
+  return <AdminSitesPage search={q ?? ''} onSearch={(value) => void navigate({ search: (prev) => ({ ...prev, q: value.trim() || undefined }) })}
+      sort={{ sort, order }}
+      onSort={(next) => void navigate({ search: (prev) => ({ ...prev, ...next }) })} />
 }

@@ -4,7 +4,8 @@ package appbackup
 
 import "golang.org/x/sys/unix"
 
-func freeBytes(path string) (uint64, error) {
+// FreeBytes is the space available to unprivileged writers on the filesystem holding path.
+func FreeBytes(path string) (uint64, error) {
 	var stat unix.Statfs_t
 	if err := unix.Statfs(path, &stat); err != nil {
 		return 0, err

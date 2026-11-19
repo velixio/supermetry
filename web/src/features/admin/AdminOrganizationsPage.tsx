@@ -9,8 +9,8 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { en } from '@/messages/en'
 import { uiFlows } from '@/messages/uiFlows'
-import { useAdminOrganization, useAdminOrganizations, useDeleteAdminOrganization, useRestoreAdminOrganization, type AdminOrganization, type AdminOrganizationDetail } from './adminApi'
-import { AdminPage, ErrorLine, SearchForm, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
+import { useAdminOrganization, type AdminSort, useAdminOrganizations, useDeleteAdminOrganization, useRestoreAdminOrganization, type AdminOrganization, type AdminOrganizationDetail } from './adminApi'
+import { AdminPage, ErrorLine, LoadMore, SearchForm, SortHeader, useAdminSort, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
 import { StorageUsage } from './StorageUsage'
 
 function DeleteOrganization({ organization, onDeleted }: { organization: AdminOrganizationDetail; onDeleted: (name: string) => void }) {
@@ -101,11 +101,12 @@ function OrganizationDetail({ id, onClose, onDeleted, onRestored }: { id: number
   )
 }
 
-export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search?: string; onSearch?: (value: string) => void } = {}) {
+export function AdminOrganizationsPage({ search: urlSearch, onSearch, sort: urlSort, onSort }: { search?: string; onSearch?: (value: string) => void; sort?: AdminSort; onSort?: (sort: AdminSort) => void } = {}) {
   const [search, setSearch] = useAdminSearch(urlSearch, onSearch)
   const [selected, setSelected] = useState<number | null>(null)
   const [notice, setNotice] = useState('')
-  const organizations = useAdminOrganizations(search)
+  const [sort, setSort] = useAdminSort(urlSort, onSort)
+  const organizations = useAdminOrganizations(search, sort)
   const detailsButtons = useRef(new Map<number, HTMLButtonElement>())
   const close = () => {
     const id = selected
@@ -124,7 +125,7 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.organizations}</caption>
             <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
-              <tr><th scope="col" className={cellClass}>Organization</th><th scope="col" className={cellClass}>{en.admin.members}</th><th scope="col" className={cellClass}>{en.admin.quota}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}><span className="sr-only">{en.admin.details}</span></th></tr>
+              <tr><SortHeader field="name" label="Organization" sort={sort} onSort={setSort} /><SortHeader field="members" label={en.admin.members} sort={sort} onSort={setSort} /><th scope="col" className={cellClass}>{en.admin.quota}</th><SortHeader field="storage" label={uiFlows.admin.storage} sort={sort} onSort={setSort} /><th scope="col" className={cellClass}><span className="sr-only">{en.admin.details}</span></th></tr>
             </thead>
             <tbody>
               {organizations.data.data.map((org) => (
@@ -148,6 +149,7 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
           </table>
         </div>
       ) : null}
+      <LoadMore query={organizations} />
       {selected !== null ? <OrganizationDetail id={selected} onClose={close} onDeleted={(name) => { setSelected(null); setNotice(uiFlows.admin.deleted(name)) }} onRestored={(name) => { setSelected(null); setNotice(uiFlows.admin.restored(name)) }} /> : null}
     </AdminPage>
   )
