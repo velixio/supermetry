@@ -6,6 +6,14 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.33 (2026-11-19)
+
+### Fixed
+
+- Journeys, Retention and Events no longer ask you to install the tracker when the site is already receiving data; the empty page says why it is still empty instead.
+- An app that sends sessions but no error events (a crash-free app) now shows its overview instead of "No reports yet".
+- Screen-reader chart tables no longer add empty scroll space below charts.
+
 ## v0.1.32 (2026-11-19)
 
 ### Added
