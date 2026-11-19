@@ -6,9 +6,20 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.31 (2026-11-19)
+
 ### Added
 
+- A new dashboard layout: page controls live in the header, surfaces are flatter, the sidebar has a menu filter (`/`), go-to keys (`g` then a letter) and a hover rail, and a context panel (Ctrl/⌘ .) shows pinned pages, related pages and recent pages. Descriptions moved into info tips, so on-screen text is shorter.
+- Import wizard, including pulling data straight from Plausible (Stats API), Matomo (Reporting API) and Google Analytics 4 (Data API). A pull resumes where it stopped after a restart.
+- Scheduled site exports to S3-compatible storage, with incremental runs. The storage secret is stored encrypted and never returned by the API.
+- API keys show where and with what they were last used (country and client family only, never an IP address), and sensitive actions (creating or rolling an API key, changing roles, exporting data, deleting a site or organization) ask for your password again when you have not signed in recently.
+- After creating a site, an install step shows the snippet per framework and waits for the first event. Goal and funnel forms suggest pages and event names already seen.
 - DSN keys can now have their allowed origins edited after creation (Edit origins on the key), without rotating the key.
+
+### Changed
+
+- The logo was redrawn and follows the theme. Project settings open on General.
 
 ## v0.1.30 (2026-11-19)
 
