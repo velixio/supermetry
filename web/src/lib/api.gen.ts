@@ -78,7 +78,7 @@ export interface paths {
         put?: never;
         /**
          * Send a password reset, or return the one-time link when mail is not configured
-         * @description Audited as instance.user.password_reset_started (delivery only, never the link). 400 when the instance has no reset sender.
+         * @description Audited as instance.user.password_reset_started (delivery only, never the link). 400 when the instance has no reset sender. With a cookie session the admin re-enters their password (and TOTP code when enabled); with the admin API key no body is needed. 403 for another instance administrator.
          */
         post: operations["adminStartPasswordReset"];
         delete?: never;
@@ -8947,7 +8947,15 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: password */
+                    password: string;
+                    totp_code?: string;
+                };
+            };
+        };
         responses: {
             /** @description Reset started. */
             200: {

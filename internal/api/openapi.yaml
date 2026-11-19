@@ -114,8 +114,19 @@ paths:
       operationId: adminStartPasswordReset
       security: [{ cookieAuth: [] }, { bearerAuth: [] }]
       summary: Send a password reset, or return the one-time link when mail is not configured
-      description: Audited as instance.user.password_reset_started (delivery only, never the link). 400 when the instance has no reset sender.
+      description: Audited as instance.user.password_reset_started (delivery only, never the link). 400 when the instance has no reset sender. With a cookie session the admin re-enters their password (and TOTP code when enabled); with the admin API key no body is needed. 403 for another instance administrator.
       parameters: [{ $ref: '#/components/parameters/AdminUserID' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties:
+                password: { type: string, format: password }
+                totp_code: { type: string, pattern: '^[0-9]{6}$' }
       responses:
         '200': { description: Reset started., content: { application/json: { schema: { $ref: '#/components/schemas/AdminPasswordReset' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }

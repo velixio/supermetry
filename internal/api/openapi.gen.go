@@ -7039,6 +7039,12 @@ type AdminImpersonateUserJSONBody struct {
 	TotpCode *string `json:"totp_code,omitempty"`
 }
 
+// AdminStartPasswordResetJSONBody defines parameters for AdminStartPasswordReset.
+type AdminStartPasswordResetJSONBody struct {
+	Password string  `json:"password"`
+	TotpCode *string `json:"totp_code,omitempty"`
+}
+
 // ConfirmCurrentUserEmailChangeLinkParams defines parameters for ConfirmCurrentUserEmailChangeLink.
 type ConfirmCurrentUserEmailChangeLinkParams struct {
 	Token string `form:"token" json:"token"`
@@ -7879,6 +7885,9 @@ type AdminUpdateUserJSONRequestBody = AdminUserPatch
 
 // AdminImpersonateUserJSONRequestBody defines body for AdminImpersonateUser for application/json ContentType.
 type AdminImpersonateUserJSONRequestBody AdminImpersonateUserJSONBody
+
+// AdminStartPasswordResetJSONRequestBody defines body for AdminStartPasswordReset for application/json ContentType.
+type AdminStartPasswordResetJSONRequestBody AdminStartPasswordResetJSONBody
 
 // ConfirmCurrentUserEmailChangeJSONRequestBody defines body for ConfirmCurrentUserEmailChange for application/json ContentType.
 type ConfirmCurrentUserEmailChangeJSONRequestBody ConfirmCurrentUserEmailChangeJSONBody
