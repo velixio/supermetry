@@ -90,7 +90,7 @@ export function PixelDashboard({ site, homepage }: { site: Site; homepage: strin
         <CardContent>
           {stats.isPending ? <p className="text-sm text-muted-foreground" role="status">Loading views…</p> : null}
           {stats.isError ? <p className="text-sm text-destructive" role="alert">{stats.error.message}</p> : null}
-          {stats.data && daily.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No views in this period yet.</p> : null}
+          {stats.data && daily.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No views in this period yet.</p> : null}
           {daily.length > 0 ? (
             <div className="h-64" role="img" aria-label="Proxy and direct views over time">
               <ResponsiveContainer width="100%" height="100%">
@@ -112,7 +112,7 @@ export function PixelDashboard({ site, homepage }: { site: Site; homepage: strin
       <Card>
         <CardHeader><CardTitle>Countries</CardTitle><CardDescription>{en.pixels.noCountryNote}</CardDescription></CardHeader>
         <CardContent>
-          {stats.data?.countries.length ? <ol className="flex flex-col gap-2">{stats.data.countries.slice(0, 10).map((country) => <li className="flex justify-between border-b pb-2 last:border-0" key={country.country}><span>{country.country}</span><span className="tabular-nums">{formatViews(country.views)}</span></li>)}</ol> : <p className="text-sm text-muted-foreground">No direct-view country data in this period.</p>}
+          {stats.data?.countries.length ? <ol className="flex flex-col gap-2">{stats.data.countries.slice(0, 10).map((country) => <li className="flex justify-between" key={country.country}><span>{country.country}</span><span className="tabular-nums">{formatViews(country.views)}</span></li>)}</ol> : <p className="text-sm text-muted-foreground">No direct-view country data in this period.</p>}
         </CardContent>
       </Card>
     </PageContainer>

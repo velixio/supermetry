@@ -21,7 +21,7 @@ function OrganizationOverview() {
   return (
     <PageContainer width="narrow">
       <PageHeader title={membership.org.name} description="Your organization access" />
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-card px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-card px-4 py-3 text-sm">
       <p>
         Role: <span className="font-medium capitalize">{membership.role}</span>
       </p>

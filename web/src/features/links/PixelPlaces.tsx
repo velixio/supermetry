@@ -15,7 +15,7 @@ function Rows({ title, rows }: { title: string; rows: { key: string; label: stri
       ) : (
         <ul className="flex flex-col text-sm">
           {rows.map((row) => (
-            <li className="flex items-baseline justify-between gap-3 border-b py-1.5 last:border-0" key={row.key}>
+            <li className="flex items-baseline justify-between gap-3 py-1.5" key={row.key}>
               <span className="min-w-0 truncate">{row.label}</span>
               <span className="tabular-nums">{fmt.number(row.count)}</span>
             </li>

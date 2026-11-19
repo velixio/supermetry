@@ -133,7 +133,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
 
   return (
     <div className="flex flex-col gap-6">
-      <form className="flex flex-col gap-4 rounded-lg border bg-card p-4" onSubmit={submit}>
+      <form className="flex flex-col gap-4 rounded-lg bg-card p-4" onSubmit={submit}>
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="app-tags">Tag allowlist</FieldLabel>
@@ -184,9 +184,9 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
 
       <IssueWebhooks orgId={orgId} siteId={siteId} canEdit={role === 'owner' || role === 'admin' || role === 'editor'} />
 
-      <section className="flex flex-col gap-3 rounded-lg border bg-card p-4" aria-label="Ingest keys">
+      <section className="flex flex-col gap-3 rounded-lg bg-card p-4" aria-label="Ingest keys">
         <h3 className="text-sm font-medium">Ingest keys</h3>
-        <ul className="divide-y text-sm">
+        <ul className="text-sm">
           {(keys.data?.keys ?? []).map((key) => (
             <li key={key.prefix} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <code>{`smk_${key.prefix}…`}</code>
@@ -208,7 +208,7 @@ export function AppSettingsPage({ orgId, siteId, publicId, role }: { orgId: numb
         {rotate.error ? <p role="alert" className="text-sm text-destructive">{rotate.error.message}</p> : null}
       </section>
       {canErase ? (
-        <section className="flex flex-col gap-3 rounded-lg border bg-card p-4" aria-label="Erase a user's data">
+        <section className="flex flex-col gap-3 rounded-lg bg-card p-4" aria-label="Erase a user's data">
           <h3 className="text-sm font-medium">Erase a user&apos;s data</h3>
           <p className="text-sm text-muted-foreground">
             Deletes the stored event bodies of this user&apos;s events and clears the user hash on their event rows.

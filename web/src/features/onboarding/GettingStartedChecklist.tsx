@@ -80,7 +80,7 @@ export function GettingStartedChecklist({ orgId, orgSlug, siteId, siteSlug, user
   const nextCopy = next ? text.items[next.id] : null
 
   return (
-    <section aria-labelledby="getting-started-title" className="rounded-lg border bg-card px-4 py-2 text-card-foreground">
+    <section aria-labelledby="getting-started-title" className="rounded-lg bg-card px-4 py-2 text-card-foreground">
       <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1">
         <h2 id="getting-started-title" className="text-sm font-medium" data-testid="checklist-progress">
           {strip.progress.replace('{done}', String(progress.done)).replace('{total}', String(progress.total))}

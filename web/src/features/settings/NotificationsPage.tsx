@@ -45,7 +45,7 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
         </p>
       ) : null}
       {sent ? <p role="status" className="text-sm text-muted-foreground">{sent}</p> : null}
-      {channels.data && channels.data.data.length > 0 ? <ul className="flex flex-col divide-y rounded-lg border bg-card px-4">
+      {channels.data && channels.data.data.length > 0 ? <ul className="flex flex-col rounded-lg bg-card px-4">
         {channels.data.data.map((channel) => (
           <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={channel.id}>
             <div>

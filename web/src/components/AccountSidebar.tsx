@@ -92,7 +92,7 @@ export function AccountSidebar({ me }: { me: Me }) {
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
-      <SidebarHeader className="sticky top-0 z-10 h-12 flex-row items-center border-b bg-sidebar p-0 px-2">
+      <SidebarHeader className="sticky top-0 z-10 h-12 flex-row items-center bg-sidebar p-0 px-2">
         <SidebarBrandLink onClick={closeMobile} />
       </SidebarHeader>
       <div className="px-2 pt-2 pb-1">

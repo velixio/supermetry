@@ -69,10 +69,10 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
       {sites.isPending ? <p role="status" className="text-sm text-muted-foreground">{en.admin.loading}</p> : null}
       {sites.data && sites.data.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.admin.empty}</p> : null}
       {sites.data && sites.data.data.length > 0 ? (
-        <div className="relative overflow-x-auto rounded-lg border" tabIndex={0}>
+        <div className="relative overflow-x-auto rounded-lg" tabIndex={0}>
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.sites}</caption>
-            <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
                 <th scope="col" className={cellClass}>Project</th><th scope="col" className={cellClass}>Organization</th>
                 <th scope="col" className={cellClass}>{en.admin.usage}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}>{en.admin.lastEvent}</th><th scope="col" className={cellClass}>{en.admin.retention}</th>
@@ -80,7 +80,7 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
             </thead>
             <tbody>
               {sites.data.data.map((site) => (
-                <tr key={site.id} className="border-b last:border-0">
+                <tr key={site.id}>
                   <td className={cellClass}><div className="font-medium">{site.name}</div><div className="text-muted-foreground">{site.public_id}</div></td>
                   <td className={cellClass}>{site.organization}</td>
                   <td className={cellClass}>{site.pageviews.toLocaleString()}</td>

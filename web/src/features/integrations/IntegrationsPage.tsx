@@ -40,7 +40,7 @@ const stateLabel: Record<ConnectionState, string> = {
 }
 
 const stateClass: Record<ConnectionState, string> = {
-  none: 'border-border text-muted-foreground',
+  none: 'bg-muted text-muted-foreground',
   active: 'text-emerald-700 dark:text-emerald-300',
   reauth: 'text-amber-700 dark:text-amber-300',
   error: 'text-destructive',
@@ -79,7 +79,7 @@ function ConnectForm({
 
   const pending = connect.isPending || connect.isSuccess
   return (
-    <form aria-labelledby={`connect-${entry.provider}`} className="flex flex-col gap-3 border-t pt-4" onSubmit={submit} noValidate>
+    <form aria-labelledby={`connect-${entry.provider}`} className="flex flex-col gap-3" onSubmit={submit} noValidate>
       <h3 className="text-sm font-medium" id={`connect-${entry.provider}`}>{t.connectHeading}</h3>
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium" htmlFor={`property-${entry.provider}`}>{t.propertyLabel}</label>
@@ -128,10 +128,10 @@ function ProviderCard({
   const headingId = `provider-${entry.provider}`
 
   return (
-    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
+    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4 rounded-lg bg-card p-5 text-card-foreground">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold" id={headingId}>{entry.name}</h3>
-        <span className={`inline-flex min-h-7 items-center rounded-sm border px-3 text-sm font-medium ${stateClass[state]}`}>
+        <span className={`inline-flex min-h-7 items-center rounded-sm bg-muted px-3 text-sm font-medium ${stateClass[state]}`}>
           <span className="sr-only">{t.statusLabel}: </span>
           {stateLabel[state]}
         </span>
@@ -216,7 +216,7 @@ export function IntegrationsPage({
 
       {result ? (
         <div
-          className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm ${result === 'connected' ? '' : 'border-destructive'}`}
+          className={`flex flex-wrap items-center justify-between gap-3 rounded-lg p-3 text-sm ${result === 'connected' ? 'bg-muted/40' : 'bg-destructive/10'}`}
           role={result === 'connected' ? 'status' : 'alert'}
         >
           <p>{resultMessage(result)}</p>

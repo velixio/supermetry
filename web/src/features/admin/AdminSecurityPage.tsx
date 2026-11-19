@@ -29,7 +29,7 @@ function PolicyForm() {
     save.mutate({ scope, grace_days: Math.min(30, Math.max(0, Number(grace) || 0)) })
   }
   return (
-    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg border bg-card p-4" aria-labelledby="admin-policy-title">
+    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg bg-card p-4" aria-labelledby="admin-policy-title">
       <h2 id="admin-policy-title" className="text-lg font-semibold">{en.admin.policyTitle}</h2>
       <ErrorLine error={policy.error ?? save.error} />
       <fieldset className="flex flex-col gap-1">
@@ -67,12 +67,12 @@ function ExemptionForm() {
     grant.mutate({ userId: Number(userId), exemption: { reason: reason.trim(), expires_at: expires ? new Date(expires).toISOString() : undefined } })
   }
   return (
-    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg border bg-card p-4" aria-labelledby="admin-exemption-title">
+    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg bg-card p-4" aria-labelledby="admin-exemption-title">
       <h2 id="admin-exemption-title" className="text-lg font-semibold">{en.admin.exemptionTitle}</h2>
       <ErrorLine error={grant.error ?? remove.error} />
       <label className="flex flex-col gap-1 text-sm font-medium">
         {en.admin.exemptionUser}
-        <select className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3" value={userId} onChange={(event) => setUserId(event.target.value)}>
+        <select className="max-sm:min-h-11  rounded-lg border-input bg-background px-3" value={userId} onChange={(event) => setUserId(event.target.value)}>
           <option value="">Choose a user</option>
           {users.data?.data.map((user) => <option key={user.id} value={user.id}>{user.email}</option>)}
         </select>
@@ -101,7 +101,7 @@ function AuditList() {
       <h2 id="admin-audit-title" className="text-lg font-semibold">{en.admin.auditTitle}</h2>
       <ErrorLine error={audit.error} />
       {audit.data && audit.data.data.length === 0 ? <p className="text-sm text-muted-foreground">{en.admin.empty}</p> : null}
-      <ul className="flex flex-col divide-y rounded-lg border text-sm">
+      <ul className="flex flex-col  rounded-lg text-sm">
         {audit.data?.data.map((entry) => (
           <li key={entry.id} className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2">
             <span className="font-medium">{entry.action}</span>

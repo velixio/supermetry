@@ -52,7 +52,7 @@ export function PixelStatsSection({ siteId, timezone, tag }: Props) {
     if (next === 'hour' && !hourAllowed) setPeriod('7d')
   }
   return (
-    <section aria-labelledby="pixel-stats" className="flex flex-col gap-4 rounded-lg border bg-card p-4">
+    <section aria-labelledby="pixel-stats" className="flex flex-col gap-4 rounded-lg bg-card p-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h2 className="text-base font-medium" id="pixel-stats">{t.pixelStatsTitle}</h2>
         <div className="flex flex-wrap gap-3">

@@ -41,7 +41,7 @@ export function StarsEvents({ repoId }: { repoId: number }) {
       {events.isSuccess && rows.length === 0 ? (
         <Empty><EmptyHeader><EmptyTitle>{en.githubStars.eventsEmpty}</EmptyTitle><EmptyDescription>{en.githubStars.eventsEmptyHint}</EmptyDescription></EmptyHeader></Empty>
       ) : rows.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-lg">
           <Table className="min-w-[36rem]">
             <TableHeader>
               <TableRow>

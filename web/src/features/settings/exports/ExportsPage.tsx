@@ -87,7 +87,7 @@ export function ExportsPage({ orgId, role, sites }: { orgId: number; role: strin
         {notice ? <p role="status" className="text-sm text-muted-foreground">{notice}</p> : null}
         {schedules.isSuccess && list.length === 0 ? <p className="text-sm text-muted-foreground">{t.empty}</p> : null}
         {list.length > 0 ? (
-          <div className="rounded-lg border bg-card text-card-foreground">
+          <div className="rounded-lg bg-card text-card-foreground">
             <Table aria-label={t.tableLabel}>
               <TableHeader>
                 <TableRow>
@@ -182,7 +182,7 @@ function RunHistory({ orgId, schedule, onClose }: { orgId: number; schedule: Exp
           {runs.data?.runs.length ? (
             <ul className="flex flex-col gap-3">
               {runs.data.runs.map((item) => (
-                <li key={item.id} className="flex flex-col gap-1 border-b pb-3 text-sm last:border-0">
+                <li key={item.id} className="flex flex-col gap-1 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <span>{fmt.date(item.started_at, 'UTC')}</span>
                     <StatusChip variant={variant[item.status]}>{t.status[item.status]}</StatusChip>

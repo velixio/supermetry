@@ -97,7 +97,7 @@ export function TrackingSnippet({
             {scriptOptions.map((option) => (
               <label
                 key={option.id}
-                className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 text-sm has-[:checked]:bg-muted/50"
+                className="flex cursor-pointer flex-col gap-2 rounded-lg bg-muted/40 p-3 text-sm has-[:checked]:bg-accent"
               >
                 <span className="flex items-center gap-2 font-medium">
                   <input

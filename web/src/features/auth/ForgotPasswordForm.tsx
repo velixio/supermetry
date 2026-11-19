@@ -55,7 +55,7 @@ export function ForgotPasswordForm({ request, cooldown = cooldownSeconds }: { re
     <AuthScreen title={uiFlows.auth.forgotHeading} description={uiFlows.auth.forgotDescription}>
       {sentTo ? (
         <div className="flex flex-col gap-3">
-          <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">{uiFlows.auth.forgotSent(sentTo)}</p>
+          <p role="status" className="rounded-lg bg-muted/40 p-3 text-sm">{uiFlows.auth.forgotSent(sentTo)}</p>
           <p className="text-sm text-muted-foreground">{uiFlows.auth.forgotNoMail}</p>
           <Button type="button" variant="outline" disabled={pending || wait > 0} onClick={() => void submit()}>
             {pending ? <LoaderCircleIcon data-icon="inline-start" className="animate-spin" /> : null}

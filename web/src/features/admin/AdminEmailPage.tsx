@@ -28,7 +28,7 @@ function EnvironmentView({ settings }: { settings: AdminEmailSettings }) {
     [en.admin.emailHelo, settings.helo],
   ]
   return (
-    <div className="flex max-w-xl flex-col gap-3 rounded-lg border bg-card p-4">
+    <div className="flex max-w-xl flex-col gap-3 rounded-lg bg-card p-4">
       <p role="note" className="text-sm text-muted-foreground">{en.admin.emailEnvironmentNote}</p>
       <dl className="grid grid-cols-[minmax(0,10rem)_1fr] gap-x-4 gap-y-2 text-sm">
         {rows.map(([label, value]) => (
@@ -69,7 +69,7 @@ function SettingsForm({ settings }: { settings: AdminEmailSettings }) {
     save.mutate(body())
   }
   return (
-    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg border bg-card p-4" aria-label={en.admin.email}>
+    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4 rounded-lg bg-card p-4" aria-label={en.admin.email}>
       {settings.source === 'none' ? <p className="text-sm text-muted-foreground">{en.admin.emailNotConfigured}</p> : null}
       <ErrorLine error={save.error ?? remove.error} />
       <label className="flex flex-col gap-1 text-sm font-medium">
@@ -129,7 +129,7 @@ function TestForm() {
     test.mutate(to)
   }
   return (
-    <form onSubmit={submit} className="flex max-w-xl flex-col gap-3 rounded-lg border bg-card p-4" aria-labelledby="admin-email-test-title">
+    <form onSubmit={submit} className="flex max-w-xl flex-col gap-3 rounded-lg bg-card p-4" aria-labelledby="admin-email-test-title">
       <h2 id="admin-email-test-title" className="text-lg font-semibold">{en.admin.emailTestTitle}</h2>
       <label className="flex flex-col gap-1 text-sm font-medium">
         {en.admin.emailTestTo}

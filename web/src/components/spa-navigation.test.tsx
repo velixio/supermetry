@@ -357,7 +357,7 @@ describe('sidebar groups, pinning and scope', () => {
     renderSidebar('/app/acme/docs-public')
     await screen.findByRole('link', { name: 'Realtime' })
     const header = document.querySelector('[data-slot="sidebar-header"]')
-    expect(header).toHaveClass('sticky', 'top-0', 'bg-sidebar', 'border-b')
+    expect(header).toHaveClass('sticky', 'top-0', 'bg-sidebar')
   })
 
   it('puts the plan, language and theme in the account menu, not as a floating pill', async () => {
