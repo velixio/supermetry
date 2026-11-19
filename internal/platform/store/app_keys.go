@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"time"
 
@@ -280,4 +281,31 @@ func (s *Store) RevokeDSNKeyTx(ctx context.Context, tx pgx.Tx, siteID int32, pre
 		return false, fmt.Errorf("revoke dsn key: %w", err)
 	}
 	return tag.RowsAffected() > 0, nil
+}
+
+// UpdateDSNKeyTx changes the allowed origins and/or label of the site's active
+// (unrevoked, unexpired) DSN key with the given prefix; nil leaves a field as
+// it is. It returns the updated row and whether an active key was found.
+func (s *Store) UpdateDSNKeyTx(ctx context.Context, tx pgx.Tx, siteID int32, prefix string, origins *[]string, label *string, now time.Time) (DSNKeyRow, bool, error) {
+	var originArg any
+	if origins != nil {
+		list := *origins
+		if list == nil {
+			list = []string{}
+		}
+		originArg = list
+	}
+	var row DSNKeyRow
+	err := tx.QueryRow(ctx, `update app_ingest_keys set allowed_origins = coalesce($3, allowed_origins), label = coalesce($4, label)
+		where site_id = $1 and kind = 'dsn' and prefix = $2 and revoked_at is null and (expires_at is null or expires_at > $5)
+		returning site_id, public_key, label, allowed_origins, rate_limit_per_min, created_at, expires_at`,
+		siteID, prefix, originArg, label, now).
+		Scan(&row.SiteID, &row.PublicKey, &row.Label, &row.AllowedOrigins, &row.RatePerMin, &row.CreatedAt, &row.ExpiresAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return DSNKeyRow{}, false, nil
+	}
+	if err != nil {
+		return DSNKeyRow{}, false, fmt.Errorf("update dsn key: %w", err)
+	}
+	return row, true, nil
 }
