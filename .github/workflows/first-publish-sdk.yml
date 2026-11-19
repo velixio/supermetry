@@ -1,0 +1,56 @@
+name: First npm publish (temporary)
+
+# One-off: stages the first version of @supermetry/nextjs and @supermetry/remix with
+# NPM_TOKEN, because trusted publishing can only be configured once a package exists.
+# Delete this workflow after both are approved.
+
+"on":
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.0.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Build, test and pack
+        working-directory: sdk
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun run build
+          mkdir -p "$RUNNER_TEMP/pkgs"
+          for dir in nextjs remix; do
+            bun run --filter "@supermetry/$dir" typecheck
+            bun run --filter "@supermetry/$dir" test
+            version="$(node -p "require('./$dir/package.json').version")"
+            archive="$RUNNER_TEMP/pkgs/supermetry-$dir-$version.tgz"
+            (cd "$dir" && bun pm pack --filename "$archive" --quiet)
+            node scripts/check-packages.mjs --archive "$archive" "$dir"
+          done
+
+      - name: Stage packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for archive in "$RUNNER_TEMP"/pkgs/*.tgz; do
+            npm stage publish "$archive" --access public --tag latest --provenance --ignore-scripts
+          done
