@@ -2974,6 +2974,20 @@ paths:
     parameters:
       - { name: site, in: path, required: true, schema: { type: integer, format: int32, minimum: 1 } }
       - { name: prefix, in: path, required: true, description: The first 8 characters of the public key., schema: { type: string, minLength: 8, maxLength: 8 } }
+    patch:
+      operationId: updateAppDSNKey
+      tags: [Sites]
+      summary: Edit a DSN key's allowed origins and label
+      description: |
+        Absent fields stay unchanged; `allowed_origins: []` clears the list so any origin may send. Only active
+        (unrevoked, unexpired) keys can be edited. Ingest picks the change up at once.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AppDSNKeyUpdate' } } }
+      responses:
+        '200': { description: The updated key, content: { application/json: { schema: { $ref: '#/components/schemas/AppDSNKey' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
     delete:
       operationId: revokeAppDSNKey
       tags: [Sites]
@@ -5400,6 +5414,12 @@ components:
         label: { type: string, maxLength: 80 }
         allowed_origins: { type: array, maxItems: 20, items: { type: string, description: 'scheme://host[:port]' } }
         expires_at: { type: string, format: date-time, nullable: true }
+    AppDSNKeyUpdate:
+      type: object
+      description: At least one field is required.
+      properties:
+        label: { type: string, maxLength: 80 }
+        allowed_origins: { type: array, maxItems: 20, items: { type: string, description: 'scheme://host[:port]' } }
     AppDSNKey:
       type: object
       required: [public_key, prefix, dsn, label, allowed_origins, created_at, expires_at]
