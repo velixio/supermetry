@@ -619,6 +619,7 @@ func registerPlatformRoutes(mux *http.ServeMux, platform http.Handler, auth Auth
 		"POST " + privatePrefix + "/sites/{site}/ingest-keys",
 		"GET " + privatePrefix + "/sites/{site}/app/dsn-keys",
 		"POST " + privatePrefix + "/sites/{site}/app/dsn-keys",
+		"PATCH " + privatePrefix + "/sites/{site}/app/dsn-keys/{prefix}",
 		"DELETE " + privatePrefix + "/sites/{site}/app/dsn-keys/{prefix}",
 		"POST " + privatePrefix + "/sites/{site}/app/users/erase",
 		"GET " + privatePrefix + "/sites/{site}/app/users/erasures/{erasure}",
