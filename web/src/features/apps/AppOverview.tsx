@@ -42,7 +42,9 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
   if (overview.isPending) return <PageContainer><PageHeader title="Overview" /><p role="status" className="text-sm text-muted-foreground">Loading overview…</p></PageContainer>
   if (overview.isError) return <PageContainer><PageHeader title="Overview" /><p role="alert" className="text-sm text-destructive">{overview.error.message}</p></PageContainer>
   const data = overview.data
-  if (data.events === 0 && !hasAppFilters(search)) return <AppEmptyState org={org} site={site} />
+  // A healthy app can send sessions (release health) and no error events at all: that is
+  // a 100% crash-free app, not an app that was never set up.
+  if (data.events === 0 && !(data.sessions > 0) && !hasAppFilters(search)) return <AppEmptyState org={org} site={site} />
   const sessions = data.crash_free_sessions
   const deployRows = deploys.data?.deploys ?? []
   const markers = deployMarkers(deployRows, timezone, data.series.map((point) => point.day))
