@@ -23,7 +23,7 @@ export function IssueComments({ siteId, issueId, canEdit }: { siteId: number; is
         {comments.isSuccess && comments.data.comments.length === 0 ? <p className="text-sm text-muted-foreground">No comments yet.</p> : null}
         <ul className="flex flex-col gap-3">
           {(comments.data?.comments ?? []).map((comment) => (
-            <li key={comment.id} className="rounded-lg border p-3 text-sm">
+            <li key={comment.id} className="rounded-lg bg-card p-3 text-sm">
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span><strong className="font-medium text-foreground">{comment.author_name || 'Removed user'}</strong> · {comment.created_at.slice(0, 16).replace('T', ' ')}{comment.edited_at ? ' (edited)' : ''}</span>
                 {canEdit ? <Button type="button" size="sm" variant="ghost" aria-label={`Delete comment ${comment.id}`} disabled={remove.isPending} onClick={() => remove.mutate(comment.id)}>Delete</Button> : null}

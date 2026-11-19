@@ -61,13 +61,13 @@ export function MonitorsPage({ siteId, canEdit }: { siteId: number; canEdit: boo
       />
       {error ? <p role="alert" className="text-sm text-destructive">{error.message}</p> : null}
       {monitors.data?.monitors.length === 0 ? (
-        <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">
+        <p className="rounded-lg bg-card p-5 text-sm text-muted-foreground">
           {t.monitors.empty}
         </p>
       ) : null}
       <div className="flex flex-col gap-3">
         {monitors.data?.monitors.map((m) => (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4" key={m.id} aria-label={t.monitors.monitorAria(m.slug)}>
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card p-4" key={m.id} aria-label={t.monitors.monitorAria(m.slug)}>
             <div>
               <h2 className="font-medium">{m.slug} <span className="text-sm font-normal text-muted-foreground">{m.environment}</span></h2>
               <p className="text-sm text-muted-foreground">{STATUS_LABEL[m.status]} · {describeSchedule(m)}</p>

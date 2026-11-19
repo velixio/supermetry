@@ -148,7 +148,7 @@ export function ImportWizard({ siteId, orgId, search, onSearchChange, reviewTarg
   const rangeInvalid = draft.mode === 'api' && rangeProblem(draft) !== null
 
   return (
-    <section className="flex flex-col gap-5 rounded-lg border bg-card p-4 text-card-foreground md:p-5" aria-labelledby="import-wizard-title">
+    <section className="flex flex-col gap-5 rounded-lg bg-card p-4 text-card-foreground md:p-5" aria-labelledby="import-wizard-title">
       <header className="flex flex-col gap-1">
         <h2 id="import-wizard-title" className="font-semibold">{t.title}</h2>
         <p className="text-sm text-muted-foreground">{t.intro}</p>

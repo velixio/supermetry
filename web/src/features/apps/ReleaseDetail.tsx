@@ -38,7 +38,7 @@ export function ReleaseIssueList({ org, site, title, description, issues, empty 
 
 export function RolloutChart({ data, timezone }: { data: AppReleaseDetailData; timezone: string }) {
   const markers = deployMarkers(data.deploys, timezone, data.rollout.map((point) => point.day))
-  if (data.rollout.length === 0) return <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No sessions for this release in this period.</p>
+  if (data.rollout.length === 0) return <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No sessions for this release in this period.</p>
   return (
     <>
       <div className="h-64" role="img" aria-label="Adoption and crash-free sessions per day">

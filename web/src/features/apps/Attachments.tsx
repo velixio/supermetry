@@ -72,7 +72,7 @@ function AttachmentRow({ attachment, index, source }: { attachment: BodyAttachme
       </div>
       {image ? (
         <a href={url} target="_blank" rel="noopener noreferrer" className="w-fit">
-          <img src={url} alt={name} loading="lazy" className="max-h-40 max-w-full rounded-md border object-contain" />
+          <img src={url} alt={name} loading="lazy" className="max-h-40 max-w-full rounded-md object-contain" />
         </a>
       ) : null}
       {text && open ? <TextViewer url={url} name={name} /> : null}
@@ -88,7 +88,7 @@ export function Attachments({ attachments, source }: { attachments: BodyAttachme
         <CardTitle className="text-base">Attachments <InfoTip label="About attachments">Screenshots and text files sent with the event. Text is scrubbed of personal data; files over 1 MiB, other types and anything past 5 MiB per event are not stored.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className="flex flex-col divide-y" aria-label="Attachments">
+        <ul className="flex flex-col" aria-label="Attachments">
           {attachments.map((attachment, i) => (
             source ? <AttachmentRow key={i} attachment={attachment} index={i} source={source} /> : (
               <li key={i} className="py-2 text-sm">{attachment.name || 'attachment'} {attachment.size !== undefined ? <span className="text-muted-foreground">{formatSize(attachment.size)}</span> : null}</li>

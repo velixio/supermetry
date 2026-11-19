@@ -35,7 +35,7 @@ export type IssueSelection = { selected: ReadonlySet<number>; onToggle: (id: num
 
 /** Issue rows shared by the overview's top issues and the issues page. */
 export function IssueRowsTable({ org, site, issues, search, selection }: { org: string; site: string; issues: AppIssueRow[]; search: AppSearch; selection?: IssueSelection }) {
-  if (issues.length === 0) return <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No issues here.</p>
+  if (issues.length === 0) return <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No issues here.</p>
   return (
     <Table>
       <TableHeader>

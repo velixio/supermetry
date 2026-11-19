@@ -63,7 +63,7 @@ export function TransactionDetail({ org, site, siteId, name, timezone, search, o
       <Card>
         <CardHeader><CardTitle>Latency <InfoTip label="About latency">p50 and p95 per day, in milliseconds.</InfoTip></CardTitle></CardHeader>
         <CardContent>
-          {data.series.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No samples in this period.</p> : (
+          {data.series.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No samples in this period.</p> : (
             <div className="h-64" role="img" aria-label="p50 and p95 latency per day">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart accessibilityLayer data={data.series}>

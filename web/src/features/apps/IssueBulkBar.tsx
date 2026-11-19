@@ -25,7 +25,7 @@ export function IssueBulkBar({ siteId, count, matching, target, onDone }: {
     })
   }
   return (
-    <div role="toolbar" aria-label="Bulk actions" className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">
+    <div role="toolbar" aria-label="Bulk actions" className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/40 p-2 text-sm">
       <span className="font-medium">{matching ? `All ${count} matching issues` : `${count} selected`}</span>
       <Button size="sm" variant="outline" disabled={bulk.isPending} onClick={() => run({ status: 'resolved' })}>Resolve</Button>
       <Button size="sm" variant="outline" disabled={bulk.isPending} onClick={() => run({ status: 'ignored' })}>Ignore</Button>

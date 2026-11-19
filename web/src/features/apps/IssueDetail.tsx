@@ -52,7 +52,7 @@ function EventRow({ event, org, site, issueId }: { event: AppIssueDetailData['la
   const [open, setOpen] = useState(false)
   const label = `${event.ts.slice(0, 19).replace('T', ' ')} · ${event.release || 'no release'} · ${event.platform}${event.os_version ? ` ${event.os_version}` : ''}`
   return (
-    <li className="border-b last:border-0">
+    <li className="">
       <button type="button" aria-expanded={open} className="flex w-full items-center justify-between gap-3 py-2 text-left text-sm" onClick={() => setOpen(!open)}>
         <span>{label}{event.sdk_name === 'otlp-logs' ? <Badge variant="outline" className="ml-2">{en.issueSourceLogs}</Badge> : null}</span>
         <span aria-hidden className="text-muted-foreground">{open ? '−' : '+'}</span>
@@ -134,7 +134,7 @@ export function IssueDetail({ org, site, siteId, issueId, timezone, search, canE
       <Card>
         <CardHeader><CardTitle>Events per day <InfoTip label="About events per day">Occurrences of this issue in the selected period.</InfoTip></CardTitle></CardHeader>
         <CardContent>
-          {data.series.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No events in this period.</p> : (
+          {data.series.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No events in this period.</p> : (
             <div className="h-56" role="img" aria-label="Daily events for this issue">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart accessibilityLayer data={data.series}>

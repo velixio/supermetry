@@ -178,7 +178,7 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
       </section>
 
 
-      <details className="group min-w-0 rounded-lg border p-4">
+      <details className="group min-w-0 rounded-lg bg-card p-4">
         <summary className="cursor-pointer text-lg font-semibold">Legacy kits</summary>
         <div className="mt-4 flex min-w-0 flex-col gap-8">
           <p className="text-sm text-muted-foreground">The TypeScript and Python kits and the HTTP API still work. New projects should use a Sentry SDK above.</p>
@@ -189,13 +189,13 @@ export function AppInstallationPage({ org, site, orgId, siteId, publicId, timezo
           </p>
           <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
             {fields.map((field) => (
-              <div key={field.label} className="flex min-w-0 flex-col gap-2 rounded-lg border p-3">
+              <div key={field.label} className="flex min-w-0 flex-col gap-2 rounded-lg bg-muted/40 p-3">
                 <dt className="text-sm font-medium">{field.label}</dt>
                 <dd className="min-w-0 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm select-all" aria-label={field.label}>{field.value}</dd>
                 <dd><CopyButton value={field.value} label={field.copy} /></dd>
               </div>
             ))}
-            <div className="flex min-w-0 flex-col gap-2 rounded-lg border p-3 sm:col-span-2">
+            <div className="flex min-w-0 flex-col gap-2 rounded-lg bg-muted/40 p-3 sm:col-span-2">
               <dt className="text-sm font-medium">Ingest key</dt>
               <dd className="flex flex-wrap gap-2 font-mono text-sm">
                 {(keys.data?.keys ?? []).map((key) => (

@@ -36,7 +36,7 @@ export function CompatibilityMatrix({ org, site, siteId, timezone, search, onSea
       </div>
       {compat.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading compatibility…</p> : null}
       {compat.isError ? <p role="alert" className="text-sm text-destructive">{compat.error.message}</p> : null}
-      {compat.data && compat.data.rows.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No reports in this period.</p> : null}
+      {compat.data && compat.data.rows.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No reports in this period.</p> : null}
       {compat.data && compat.data.rows.length > 0 ? (
         <Table>
           <TableHeader>

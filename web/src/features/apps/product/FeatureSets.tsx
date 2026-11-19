@@ -14,7 +14,7 @@ function FeatureRow({ siteId, feature, search, timezone, canEdit }: { siteId: nu
   const adoption = useFeatureAdoption(siteId, feature.id, search, timezone)
   const remove = useDeleteFeatureSet(siteId)
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card p-3">
       <div className="min-w-0">
         <p className="font-medium">{feature.name}</p>
         <p className="truncate text-xs text-muted-foreground">{feature.event_names.join(', ')}</p>

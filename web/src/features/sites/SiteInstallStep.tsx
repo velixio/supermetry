@@ -100,7 +100,7 @@ export function SiteInstallStep({ orgId, siteId, publicId, dashboardHref }: {
           </>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3" data-testid="install-status">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/30 p-3" data-testid="install-status">
         <div className="flex flex-col gap-0.5">
           <div role="status" aria-live="polite" aria-label={text.statusLabel} className="flex flex-col gap-0.5">
             <span className="text-sm font-medium">{received ? text.received : text.waiting}</span>

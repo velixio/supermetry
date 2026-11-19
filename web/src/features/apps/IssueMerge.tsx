@@ -34,7 +34,7 @@ export function IssueMerge({ siteId, issueId, canEdit }: { siteId: number; issue
         {merged.isSuccess && rows.length === 0 ? <p className="text-sm text-muted-foreground">No issues are merged into this one.</p> : null}
         <ul className="flex flex-col gap-2">
           {rows.map((row) => (
-            <li key={row.hash} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm">
+            <li key={row.hash} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card p-3 text-sm">
               <span className="min-w-0">
                 <span className="block truncate font-medium">{row.title}</span>
                 <span className="text-xs text-muted-foreground">Issue {row.issue_id} · {fmt.number(row.events)} events here · <code title={row.hash}>{row.hash.slice(0, 12)}</code></span>

@@ -59,7 +59,7 @@ export function ReviewStep({ siteId, orgId, item, onUndone, onAnother }: Props) 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{t.heading}</caption>
-            <thead className="border-b text-muted-foreground">
+            <thead className="text-muted-foreground">
               <tr>
                 <th scope="col" className="py-2 pr-4 font-medium">{t.month}</th>
                 <th scope="col" className="py-2 pr-4 text-right font-medium">{t.comparedDays}</th>
@@ -74,7 +74,7 @@ export function ReviewStep({ siteId, orgId, item, onUndone, onAnother }: Props) 
               {rows.map((row) => {
                 const tolerance = monthTolerance(row)
                 return (
-                  <tr key={row.month} className="border-b last:border-0">
+                  <tr key={row.month} className="">
                     <th scope="row" className="py-2 pr-4 font-medium tabular-nums">{row.month}</th>
                     <td className="py-2 pr-4 text-right tabular-nums">{row.comparedDays}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{fmt.number(row.importedVisitors)}</td>
@@ -97,7 +97,7 @@ export function ReviewStep({ siteId, orgId, item, onUndone, onAnother }: Props) 
       ) : null}
       <p className="text-sm text-muted-foreground">{t.switchHint}</p>
 
-      <section aria-labelledby="undo-heading" className="flex flex-col gap-2 border-t pt-4">
+      <section aria-labelledby="undo-heading" className="flex flex-col gap-2 pt-4">
         <h4 id="undo-heading" className="text-sm font-medium">{t.undoHeading}</h4>
         <p className="text-sm text-muted-foreground">{t.undoHelp}</p>
         <div className="flex flex-wrap gap-2">

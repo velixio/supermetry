@@ -34,7 +34,7 @@ export function ReleasesTable({ org, site, siteId, timezone, search, onSearch }:
       </>} />
       {releases.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading releases…</p> : null}
       {releases.isError ? <p role="alert" className="text-sm text-destructive">{releases.error.message}</p> : null}
-      {releases.data && releases.data.releases.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No releases reported in this period.</p> : null}
+      {releases.data && releases.data.releases.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No releases reported in this period.</p> : null}
       {releases.data && releases.data.releases.length > 0 ? (
         <Table>
           <TableHeader>

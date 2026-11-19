@@ -65,7 +65,7 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
       <Card>
         <CardHeader><CardTitle>Events and crashes <InfoTip label="About events and crashes">Daily counts, with the crash-free users rate.</InfoTip></CardTitle></CardHeader>
         <CardContent>
-          {data.series.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No events in this period.</p> : (
+          {data.series.length === 0 ? <p className="rounded-lg bg-muted/30 p-8 text-center text-sm text-muted-foreground">No events in this period.</p> : (
             <div className="h-64" role="img" aria-label="Daily events, crashes and crash-free users">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart accessibilityLayer data={data.series}>
