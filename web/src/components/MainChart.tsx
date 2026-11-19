@@ -426,7 +426,7 @@ export function MainChart({
       aria-label={label}
       data-interval={resolvedInterval}
       data-last-bucket={lastBucket}
-      className={embedded ? 'group/chart p-4 text-card-foreground' : 'rounded-lg border bg-card p-4 text-card-foreground'}
+      className={embedded ? 'group/chart p-4 text-card-foreground' : 'rounded-lg bg-card p-4 text-card-foreground'}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <ul aria-label="Chart notes" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">

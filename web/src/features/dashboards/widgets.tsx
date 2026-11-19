@@ -67,8 +67,8 @@ function trafficMetric(widget: DashboardWidget): 'visitors' | 'pageviews' {
 /** Titled card used by the widgets that have no card of their own. */
 function WidgetCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-lg border bg-card text-card-foreground" role="region">
-      <header className="flex min-h-12 items-center border-b px-4">
+    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-lg bg-card text-card-foreground" role="region">
+      <header className="flex min-h-12 items-center px-4">
         <h2 className="truncate text-sm font-medium">{title}</h2>
       </header>
       <div className="p-4">{children}</div>
@@ -179,7 +179,7 @@ function GoalsWidget({ title, query, limit }: { title: string; query: StatsQuery
             </thead>
             <tbody>
               {rows.map(({ goal, count }) => (
-                <tr className="border-t" key={goal.id}>
+                <tr key={goal.id}>
                   <th className="max-w-48 truncate py-2 pr-3 text-left font-medium" title={goal.name}>{goal.name}</th>
                   <td className="px-3 py-2 text-right tabular-nums">{conversions.isPending ? '—' : fmt.number(count)}</td>
                   <td className="py-2 pl-3 text-right tabular-nums">{conversions.isPending ? '—' : fmt.percent(visits > 0 ? (count / visits) * 100 : 0)}</td>
@@ -281,7 +281,7 @@ export class WidgetBoundary extends Component<{ title: string; children: ReactNo
   render() {
     if (!this.state.failed) return this.props.children
     return (
-      <div className="flex min-h-24 flex-col items-start gap-2 rounded-lg border bg-card p-4" role="alert">
+      <div className="flex min-h-24 flex-col items-start gap-2 rounded-lg bg-card p-4" role="alert">
         <p className="text-sm text-muted-foreground">{t.widgetFailed(this.props.title)}</p>
         <Button className="max-sm:min-h-11" size="sm" type="button" variant="outline" onClick={() => this.setState({ failed: false })}>{t.retry}</Button>
       </div>

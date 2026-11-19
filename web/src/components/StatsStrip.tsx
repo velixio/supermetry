@@ -216,7 +216,7 @@ export function StatsStrip({
     const isSelected = selected === metric
     const className = tabs
       ? 'relative flex h-full min-w-0 flex-col items-start gap-1 px-4 py-3 text-left text-card-foreground'
-      : 'flex h-full min-w-0 flex-col items-start gap-2 rounded-lg border bg-card p-4 text-left text-card-foreground'
+      : 'flex h-full min-w-0 flex-col items-start gap-2 rounded-lg bg-card p-4 text-left text-card-foreground'
     const content = (
       <>
         <span className={`w-full truncate text-muted-foreground ${tabs ? 'text-xs font-medium' : 'text-sm'}`}>{metricLabel(metric)}</span>
@@ -252,9 +252,7 @@ export function StatsStrip({
   const shown = shownMetrics ? visible(statMetrics) : visible(primaryMetrics)
   const more = shownMetrics ? [] : visible(secondaryMetrics)
   const grid = tabs
-    // Each tab draws its right and bottom hairline; the negative margins tuck the outer ones under the
-    // clipped edge, so dividers stay correct however the tabs wrap and empty slots stay card-coloured.
-    ? '-mr-px -mb-px grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 [&>*]:border-r [&>*]:border-b'
+    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
     : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'
   const toggle = more.length > 0 ? (
     <Button
@@ -271,19 +269,19 @@ export function StatsStrip({
     </Button>
   ) : null
   const moreGrid = more.length > 0
-    ? <section className={`${grid} ${tabs ? 'border-t' : ''}`} hidden={!expanded} id="dashboard-more-metrics">{expanded ? more.map(card) : null}</section>
+    ? <section className={grid} hidden={!expanded} id="dashboard-more-metrics">{expanded ? more.map(card) : null}</section>
     : null
 
   if (tabs) {
     return (
-      <div aria-label={dashboardView.kpi.groupLabel} className="flex flex-col border-b" role="group">
+      <div aria-label={dashboardView.kpi.groupLabel} className="flex flex-col" role="group">
         <div className="overflow-hidden">
           <section aria-busy={current.isLoading || comparison.isLoading} className={grid}>
             {shown.map(card)}
           </section>
         </div>
         {moreGrid ? <div className="overflow-hidden">{moreGrid}</div> : null}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1 [&>button]:shrink-0">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1 [&>button]:shrink-0">
           {toggle}
           {footnote ?? <span className="flex-1" />}
           <span className="flex shrink-0 items-center gap-2 px-2 text-xs text-muted-foreground" data-testid="kpi-reference">

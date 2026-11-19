@@ -143,7 +143,7 @@ export function FullReportDialog({ dimension, query, title, allowSearch = true, 
             {result.data ? (nextCursor ? t.summaryMore(loaded.length) : t.summary(rows.length, loaded.length)) : ''}
           </p>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto rounded-lg border" role="region" aria-label={t.tableLabel(title)} tabIndex={0}>
+        <div className="min-h-0 flex-1 overflow-auto rounded-lg" role="region" aria-label={t.tableLabel(title)} tabIndex={0}>
           {result.isError ? (
             <ErrorState detail={result.error?.detail} onRetry={() => void result.refetch()} />
           ) : result.isPending ? (
@@ -175,7 +175,7 @@ export function FullReportDialog({ dimension, query, title, allowSearch = true, 
               </thead>
               <tbody>
                 {rows.map((row, index) => (
-                  <tr key={`${String(row[dimension])}:${String(row.country ?? '')}:${index}`} className="border-t">
+                  <tr key={`${String(row[dimension])}:${String(row.country ?? '')}:${index}`} >
                     <td className="max-w-[16rem] px-3 py-2"><span className="block truncate" title={label(dimension, row)}>{label(dimension, row)}</span></td>
                     {metrics.map((metric) => (
                       <td key={metric} className="px-3 py-2 text-right tabular-nums">{formatBreakdownMetric(metric, row)}</td>
@@ -191,7 +191,7 @@ export function FullReportDialog({ dimension, query, title, allowSearch = true, 
             {loadingMore ? t.loadingMore : t.loadMore}
           </Button>
         ) : null}
-        <fieldset aria-describedby={noteId} className="flex flex-col gap-2 border-t pt-3" disabled={!canExport}>
+        <fieldset aria-describedby={noteId} className="flex flex-col gap-2 pt-3" disabled={!canExport}>
           <legend className="sr-only">{t.exportTitle}</legend>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className="text-xs font-medium">{t.columnsLegend}</span>

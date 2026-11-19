@@ -153,7 +153,7 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
 
   return (
     <Card className="flex min-w-0 self-start flex-col" aria-labelledby="weekly-rhythm-title">
-      <CardHeader className="gap-1 border-b">
+      <CardHeader className="gap-1">
         <CardTitle id="weekly-rhythm-title">Weekly rhythm</CardTitle>
         <CardDescription>{en.map.trafficCaption.replace('{timezone}', timezoneLabel(timezone, locale))}</CardDescription>
         <p className="sr-only" id={summaryId}>{dataSummary}</p>
@@ -258,7 +258,7 @@ export function TrafficGrid({ dateRange, rows, metric, timezone, locale, isLoadi
               <span aria-label="Traffic intensity legend" className="flex gap-1" role="img">{[1, 2, 3, 4, 5].map((step) => <span key={step} aria-hidden="true" className={cn('size-3 rounded-[2px]', stepClasses[step])} />)}</span>
               <span>{en.map.more}</span>
             </div>
-            <section className="border-t pt-4" aria-labelledby="peak-windows-title">
+            <section className="pt-4" aria-labelledby="peak-windows-title">
               <h3 id="peak-windows-title" className="text-sm font-medium">Peak windows</h3>
               {peaks.length > 0 ? <ol className="mt-3 space-y-3">
                 {peaks.map((window) => {

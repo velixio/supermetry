@@ -145,11 +145,11 @@ describe('icon rail', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('FunnelsG F')
   })
 
-  it('separates the groups with a hairline on the rail', async () => {
+  it('separates the groups on the rail with space, not a hairline (D105)', async () => {
     renderSidebar('/app/acme/docs-public/realtime', { defaultOpen: false })
     await screen.findByRole('link', { name: 'Realtime' })
     const groups = document.querySelectorAll('[data-slot="sidebar-group"]')
-    expect(groups[1]).toHaveClass('group-data-[collapsible=icon]:not-first:border-t')
+    expect(groups[1].className).not.toMatch(/border-t/)
   })
 })
 

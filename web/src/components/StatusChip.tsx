@@ -9,7 +9,7 @@ const variants: Record<StatusChipVariant, string> = {
   success: 'bg-success/10 text-success',
   warning: 'bg-warning/10 text-warning',
   'warning-outline': 'bg-transparent text-warning',
-  neutral: 'border-border bg-muted text-muted-foreground',
+  neutral: 'bg-muted text-muted-foreground',
   danger: 'bg-destructive/10 text-destructive',
 }
 
@@ -27,7 +27,7 @@ export function StatusChip({ variant = 'neutral', icon, className, children, ...
       data-slot="status-chip"
       data-variant={variant}
       className={cn(
-        'inline-flex h-6 w-fit items-center gap-1 rounded-sm border px-2 text-xs font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0',
+        'inline-flex h-6 w-fit items-center gap-1 rounded-sm px-2 text-xs font-medium whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0',
         variants[variant],
         className,
       )}

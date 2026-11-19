@@ -30,7 +30,7 @@ function describe(filter: Filter): string {
 export function DashboardSettings({ layout, siteId, orgId, anonymous, dateRange, onChange }: DashboardSettingsProps) {
   const filters = (layout.filters ?? []) as Filter[]
   return (
-    <section aria-labelledby="dash-edit-settings" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <section aria-labelledby="dash-edit-settings" className="flex flex-col gap-3 rounded-lg bg-card p-4">
       <h2 className="text-sm font-medium" id="dash-edit-settings">{t.settings}</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field>

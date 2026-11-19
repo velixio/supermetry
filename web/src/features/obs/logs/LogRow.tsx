@@ -35,7 +35,7 @@ export function LogRow({ log, org, site, timezone, showTraceLink = true }: { log
   const [open, setOpen] = useState(false)
   const Chevron = open ? ChevronDownIcon : ChevronRightIcon
   return (
-    <li className="border-b last:border-b-0">
+    <li >
       <div className="flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2 text-sm">
         <button type="button" aria-expanded={open} aria-label={open ? t.collapse : t.expand} className="mt-0.5 shrink-0 text-muted-foreground" onClick={() => setOpen(!open)}>
           <Chevron className="size-4" />

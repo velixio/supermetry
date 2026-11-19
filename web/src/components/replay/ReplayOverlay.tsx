@@ -100,7 +100,7 @@ function ReplayOverlayContent({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-[90vh] sm:w-[95vw] sm:max-w-[95vw] sm:rounded-lg">
-        <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
+        <DialogHeader className="shrink-0 px-5 py-4 pr-12">
           <DialogTitle>Session replay</DialogTitle>
           <DialogDescription>{formatDate(startedAt)}</DialogDescription>
         </DialogHeader>
@@ -118,7 +118,7 @@ function ReplayOverlayContent({
             ) : null}
           </section>
 
-          <aside aria-label={en.a11y2.replayDetails} className="flex w-full shrink-0 flex-col gap-6 border-t p-4 lg:min-h-0 lg:w-80 lg:overflow-y-auto lg:border-t-0 lg:border-l">
+          <aside aria-label={en.a11y2.replayDetails} className="flex w-full shrink-0 flex-col gap-6 p-4 lg:min-h-0 lg:w-80 lg:overflow-y-auto">
             <section className="flex flex-col gap-3" aria-labelledby="replay-visitor-heading">
               <h2 className="font-medium" id="replay-visitor-heading">Visitor details</h2>
               <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">

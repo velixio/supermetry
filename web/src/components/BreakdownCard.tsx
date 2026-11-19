@@ -105,8 +105,8 @@ export function BreakdownCard({ title, tabs, query, onFilter, allowSearch = true
   }
 
   return (
-    <section aria-label={title} className="min-w-0 rounded-lg border bg-card text-card-foreground" role="region">
-      <header className="flex min-h-12 items-center justify-between gap-3 border-b px-4 py-1.5">
+    <section aria-label={title} className="min-w-0 rounded-lg bg-card text-card-foreground" role="region">
+      <header className="flex min-h-12 items-center justify-between gap-3 px-4 py-1.5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <h2 className="shrink-0 truncate text-sm font-medium">{title}</h2>
           {tabs.length > 1 ? (

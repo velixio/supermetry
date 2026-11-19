@@ -57,7 +57,7 @@ export function WhereCard({ query, metric, onFilter, inspect }: WhereCardProps) 
 
   return (
     <Card className="min-w-0 overflow-hidden" aria-labelledby="where-title">
-      <CardHeader className="border-b">
+      <CardHeader >
         <CardTitle id="where-title">Where</CardTitle>
         <CardDescription className="sr-only" id="where-summary">{summary}</CardDescription>
         {leaderHeadline ? <p className="text-sm font-medium">{leaderHeadline}</p> : null}

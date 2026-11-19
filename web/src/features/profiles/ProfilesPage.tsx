@@ -94,7 +94,7 @@ function ProfilesPageContent({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="rounded-lg border bg-card">
+            <div className="rounded-lg bg-card">
               <Table aria-label="Profiles">
                 <TableHeader>
                   <TableRow>

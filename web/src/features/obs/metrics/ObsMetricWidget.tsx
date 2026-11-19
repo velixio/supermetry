@@ -29,8 +29,8 @@ export function ObsMetricWidget({ title, siteId, timezone, dateRange, query, cha
   const full = useMemo(() => (query && query.name ? widgetMetricQuery(query, dateRange, timezone) : null), [query, dateRange, timezone])
   const result = useObsMetricQuery(siteId, full)
   return (
-    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-lg border bg-card text-card-foreground" role="region">
-      <header className="flex min-h-12 items-center border-b px-4">
+    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-lg bg-card text-card-foreground" role="region">
+      <header className="flex min-h-12 items-center px-4">
         <h2 className="truncate text-sm font-medium">{title}</h2>
       </header>
       <div className="p-4">

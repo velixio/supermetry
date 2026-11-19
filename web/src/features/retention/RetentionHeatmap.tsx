@@ -32,10 +32,10 @@ export function RetentionHeatmap({
             : `Identity window: ${identityWindow}. Supermetry cannot identify the same person across days; week and month views group daily cohorts without linking them. Mode: ${retentionMode}.`}
         </p>
       </div>
-      <div className="min-w-0 overflow-x-auto rounded-lg border bg-card" tabIndex={0}>
+      <div className="min-w-0 overflow-x-auto rounded-lg bg-card" tabIndex={0}>
         <table aria-label={title} className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b text-left">
+            <tr className="text-left">
               <th className="px-3 py-2 font-medium">Cohort</th>
               <th className="px-3 py-2 text-right font-medium">Size</th>
               {Array.from({ length: columns }, (_, index) => (
@@ -47,7 +47,7 @@ export function RetentionHeatmap({
           </thead>
           <tbody>
             {cohorts.map((cohort) => (
-              <tr className="border-b last:border-b-0" key={cohort.start}>
+              <tr key={cohort.start}>
                 <th className="whitespace-nowrap px-3 py-2 text-left font-medium">{cohort.start}</th>
                 <td className="px-3 py-2 text-right tabular-nums">{fmt.number(cohort.size)}</td>
                 {Array.from({ length: columns }, (_, index) => {
