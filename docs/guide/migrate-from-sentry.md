@@ -29,7 +29,9 @@ crash-free sessions or users, and no regression detection by release.
 The DSN public key is public by design and ships in your bundle. For browser
 apps, create a DSN key with **allowed origins** (`https://app.example.com`); a
 browser request from another origin is refused. Revoke a key from the same
-screen if it is abused. You can keep one key per environment.
+screen if it is abused. You can keep one key per environment. To change the
+allowed origins later, use **Edit origins** on the key from the same screen; the
+change applies at once, and saving an empty list lets any origin send.
 
 ## What is supported
 

@@ -6,6 +6,10 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+### Added
+
+- DSN keys can now have their allowed origins edited after creation (Edit origins on the key), without rotating the key.
+
 ## v0.1.30 (2026-11-19)
 
 ### Added
