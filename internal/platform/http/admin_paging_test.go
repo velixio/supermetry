@@ -14,8 +14,11 @@ import (
 
 	"supermetry/internal/db"
 	"supermetry/internal/platform/admin"
+	platformauth "supermetry/internal/platform/auth"
 	"supermetry/internal/platform/authz"
+	platformcrypto "supermetry/internal/platform/crypto"
 	platformhttp "supermetry/internal/platform/http"
+	"supermetry/internal/platform/mail"
 	"supermetry/internal/platform/store"
 	"supermetry/internal/testpg"
 )
@@ -41,7 +44,11 @@ func newPagingEnv(t *testing.T) pagingEnv {
 	if e.svcUser, err = store.AdminServiceUserID(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
-	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash,is_admin) values ('root@example.test','Root','h',true) returning id`).Scan(&e.adminID); err != nil {
+	rootHash, err := platformcrypto.HashPassword(pagingAdminPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash,is_admin) values ('root@example.test','Root',$1,true) returning id`, rootHash).Scan(&e.adminID); err != nil {
 		t.Fatal(err)
 	}
 	if err := pool.QueryRow(ctx, `insert into users(email,name,password_hash) values ('plain@example.test','Plain','h') returning id`).Scan(&e.memberID); err != nil {
@@ -56,6 +63,7 @@ func newPagingEnv(t *testing.T) pagingEnv {
 		return "https://example.test/reset/" + strings.Split(email, "@")[0], nil
 	})
 	e.handler = platformhttp.New(platformhttp.Deps{
+		Auth: platformauth.New(data, &mail.Fake{}, nil, "https://app.example.test"),
 		Authenticator: actorAuthenticator{
 			"admin":         {UserID: e.adminID, SiteIDs: []int32{}},
 			"impersonated":  {UserID: e.adminID, ImpersonatedBy: e.memberID, SiteIDs: []int32{}},
@@ -83,8 +91,14 @@ func (e pagingEnv) get(t *testing.T, path string, v any) int {
 	return w.Code
 }
 
+const pagingAdminPassword = "root-password-123456"
+
 func (e pagingEnv) post(actor, path string) *httptest.ResponseRecorder {
-	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader("{}"))
+	return e.postBody(actor, path, "{}")
+}
+
+func (e pagingEnv) postBody(actor, path, body string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	r.Header.Set("X-Test-Actor", actor)
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("X-CSRF-Token", "t")
@@ -319,7 +333,24 @@ func TestAdminUserDetailRevokeAndResetAreAuditedAndGuarded(t *testing.T) {
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"revoked":2`) {
 		t.Fatalf("revoke status=%d body=%s", w.Code, w.Body.String())
 	}
-	w = e.post("admin", resetPath)
+	// Starting a reset needs the admin's password again.
+	if w = e.post("admin", resetPath); w.Code != http.StatusUnauthorized {
+		t.Fatalf("reset without password status=%d", w.Code)
+	}
+	var resets int
+	e.pool.QueryRow(ctx, `select count(*) from audit_log where action='instance.user.password_reset_started'`).Scan(&resets)
+	if resets != 0 {
+		t.Fatalf("refused resets left %d audit rows", resets)
+	}
+	// Another instance administrator is never a reset target.
+	var otherAdmin int64
+	if err := e.pool.QueryRow(ctx, `insert into users(email,name,password_hash,is_admin) values ('root2@example.test','Root2','h',true) returning id`).Scan(&otherAdmin); err != nil {
+		t.Fatal(err)
+	}
+	if w = e.postBody("admin", fmt.Sprintf("/api/private/admin/users/%d/password-reset", otherAdmin), `{"password":"`+pagingAdminPassword+`"}`); w.Code != http.StatusForbidden || strings.Contains(w.Body.String(), "reset_url") {
+		t.Fatalf("reset of admin status=%d body=%s", w.Code, w.Body.String())
+	}
+	w = e.postBody("admin", resetPath, `{"password":"`+pagingAdminPassword+`"}`)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"reset_url":"https://example.test/reset/plain"`) || !strings.Contains(w.Body.String(), `"sent":false`) {
 		t.Fatalf("reset status=%d body=%s", w.Code, w.Body.String())
 	}

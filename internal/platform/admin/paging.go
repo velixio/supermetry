@@ -40,6 +40,15 @@ type sortSpec struct {
 	typ  string
 }
 
+// keyText renders the sort key as text for the cursor; timestamps use a fixed
+// UTC layout so the cursor does not depend on the session's TimeZone or DateStyle.
+func (s sortSpec) keyText() string {
+	if s.typ == "timestamptz" {
+		return `to_char(q.sk at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
+	}
+	return "q.sk::text"
+}
+
 type cursorToken struct {
 	Sort  string `json:"s"`
 	Order string `json:"o"`
@@ -103,6 +112,10 @@ func newKeyset(p ListParams, specs map[string]sortSpec) (keyset, error) {
 			if _, err := strconv.ParseInt(c.Value, 10, 64); err != nil {
 				return keyset{}, ErrInvalid
 			}
+		case "timestamptz":
+			if _, err := parseCursorTime(c.Value); err != nil {
+				return keyset{}, ErrInvalid
+			}
 		}
 		k.hasCursor, k.cursor = true, c
 	}
@@ -131,8 +144,8 @@ func (k keyset) wrap(inner string, args []any) (string, []any) {
 		cursorSQL = fmt.Sprintf(" where (q.sk, q.id) %s ($%d::%s, $%d::bigint)", op, len(args)-1, k.spec.typ, len(args))
 	}
 	args = append(args, k.limit+1)
-	return fmt.Sprintf("select q.*, q.sk::text from (%s) q%s order by q.sk %s, q.id %s limit $%d",
-		inner, cursorSQL, k.order(), k.order(), len(args)), args
+	return fmt.Sprintf("select q.*, %s from (%s) q%s order by q.sk %s, q.id %s limit $%d",
+		k.spec.keyText(), inner, cursorSQL, k.order(), k.order(), len(args)), args
 }
 
 // next builds the cursor for the last served row when a further row exists.

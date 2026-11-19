@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"supermetry/internal/platform/store"
 )
 
@@ -304,6 +306,70 @@ func TestListAuditPageFiltersAndKeyset(t *testing.T) {
 	}
 }
 
+// localeService is the service on a pool whose sessions use a non-UTC TimeZone
+// and a day-first DateStyle, which break cursors that round-trip timestamps as text.
+func localeService(t *testing.T, data *store.Store) *Service {
+	t.Helper()
+	cfg := data.Pool.Config().Copy()
+	cfg.ConnConfig.RuntimeParams["TimeZone"] = "Asia/Kolkata"
+	cfg.ConnConfig.RuntimeParams["DateStyle"] = "SQL, DMY"
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	return New(&store.Store{Pool: pool})
+}
+
+func TestAuditAndListCursorsSurviveNonUTCSession(t *testing.T) {
+	_, data, actorID, _ := newFixture(t)
+	s := localeService(t, data)
+	ctx := context.Background()
+	base := time.Date(2026, 3, 1, 0, 0, 0, 123456000, time.UTC)
+	for i := 0; i < 12; i++ {
+		if _, err := data.Pool.Exec(ctx, `insert into audit_log(org_id,actor_user_id,action,target_type,target_id,created_at) values (null,$1,'instance.x','user',1,$2)`,
+			actorID, base.Add(time.Duration(i/2)*time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := AuditFilter{Limit: 5}
+	seen := map[int64]bool{}
+	for pages := 0; pages < 10; pages++ {
+		page, err := s.ListAuditPage(ctx, f)
+		if err != nil {
+			t.Fatalf("page %d: %v", pages, err)
+		}
+		for _, e := range page.Items {
+			if seen[e.ID] {
+				t.Fatalf("duplicate %d", e.ID)
+			}
+			seen[e.ID] = true
+		}
+		if page.NextCursor == "" {
+			break
+		}
+		f.Cursor = page.NextCursor
+	}
+	if len(seen) != 12 {
+		t.Fatalf("walked %d audit rows, want 12", len(seen))
+	}
+	ids := walkUsers(t, s, ListParams{Sort: "created_at", Order: "desc", Limit: 1})
+	assertNoDupesNoGaps(t, ids, 2)
+}
+
+func TestForgedTimestampCursorIsInvalid(t *testing.T) {
+	s, _, _, _ := newFixture(t)
+	ctx := context.Background()
+	forged := encodeCursor(cursorToken{Sort: "created_at", Order: "asc", Value: "not a time", ID: 1})
+	if _, err := s.ListUsersPage(ctx, ListParams{Sort: "created_at", Cursor: forged}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("forged users cursor error = %v, want ErrInvalid", err)
+	}
+	forgedAudit := encodeCursor(cursorToken{Sort: "created_at", Order: "desc", Value: "2026-01-01", ID: 1})
+	if _, err := s.ListAuditPage(ctx, AuditFilter{Cursor: forgedAudit}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("forged audit cursor error = %v, want ErrInvalid", err)
+	}
+}
+
 func TestUserDetailRevokeSessionsAndAudit(t *testing.T) {
 	s, data, actorID, memberID := newFixture(t)
 	ctx := context.Background()
@@ -355,6 +421,12 @@ func TestStartPasswordResetAudited(t *testing.T) {
 	if _, err := s.StartPasswordReset(ctx, memberID, memberID); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("non-admin error = %v", err)
 	}
+	if _, err := s.StartPasswordReset(ctx, actorID, actorID); !errors.Is(err, ErrAdminTarget) {
+		t.Fatalf("admin target error = %v, want ErrAdminTarget", err)
+	}
+	if gotEmail != "" {
+		t.Fatal("a reset was issued for an administrator")
+	}
 	res, err := s.StartPasswordReset(ctx, actorID, memberID)
 	if err != nil || gotEmail != "member@example.test" || res.ResetURL != "https://example.test/reset/abc" || res.Sent {
 		t.Fatalf("res=%+v email=%q err=%v", res, gotEmail, err)
@@ -370,6 +442,22 @@ func TestStartPasswordResetAudited(t *testing.T) {
 	}
 	if _, err := s.StartPasswordReset(ctx, actorID, 999999); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing user error = %v", err)
+	}
+}
+
+func TestStartPasswordResetAuditsBeforeSending(t *testing.T) {
+	s, data, actorID, memberID := newFixture(t)
+	ctx := context.Background()
+	var auditedAtSend int
+	s.SetPasswordResetStarter(func(ctx context.Context, _ string) (string, error) {
+		data.Pool.QueryRow(ctx, `select count(*) from audit_log where action='instance.user.password_reset_started' and target_id=$1`, memberID).Scan(&auditedAtSend)
+		return "", errors.New("smtp down")
+	})
+	if _, err := s.StartPasswordReset(ctx, actorID, memberID); err == nil {
+		t.Fatal("want the sender error")
+	}
+	if auditedAtSend != 1 {
+		t.Fatalf("audit rows visible when sending = %d, want 1", auditedAtSend)
 	}
 }
 

@@ -46,7 +46,7 @@ func (s *Service) ListAuditPage(ctx context.Context, f AuditFilter) (Page[AuditE
 	}
 	args := []any{f.ActorUserID, action, prefix, f.OrgID, f.From, f.To}
 	query := `
-		select id,actor_user_id,action,target_type,target_id,metadata,created_at,created_at::text created_key
+		select id,actor_user_id,action,target_type,target_id,metadata,created_at
 		from audit_log
 		where org_id is null
 		  and ($1::bigint=0 or actor_user_id=$1)
@@ -59,10 +59,11 @@ func (s *Service) ListAuditPage(ctx context.Context, f AuditFilter) (Page[AuditE
 		if err != nil || c.Sort != "created_at" || c.Order != "desc" {
 			return Page[AuditEntry]{}, ErrInvalid
 		}
-		if _, err := time.Parse("2006-01-02 15:04:05.999999999-07", c.Value); err != nil {
+		cursorAt, err := parseCursorTime(c.Value)
+		if err != nil {
 			return Page[AuditEntry]{}, ErrInvalid
 		}
-		args = append(args, c.Value, c.ID)
+		args = append(args, cursorAt, c.ID)
 		query += `
 		  and (created_at,id) < ($7::timestamptz,$8::bigint)`
 	}
@@ -75,19 +76,16 @@ func (s *Service) ListAuditPage(ctx context.Context, f AuditFilter) (Page[AuditE
 	}
 	defer rows.Close()
 	items := make([]AuditEntry, 0)
-	var keys []string
 	for rows.Next() {
 		var item AuditEntry
 		var metadata []byte
-		var key string
-		if err := rows.Scan(&item.ID, &item.ActorUserID, &item.Action, &item.TargetType, &item.TargetID, &metadata, &item.CreatedAt, &key); err != nil {
+		if err := rows.Scan(&item.ID, &item.ActorUserID, &item.Action, &item.TargetType, &item.TargetID, &metadata, &item.CreatedAt); err != nil {
 			return Page[AuditEntry]{}, err
 		}
 		if err := json.Unmarshal(metadata, &item.Metadata); err != nil {
 			return Page[AuditEntry]{}, err
 		}
 		items = append(items, item)
-		keys = append(keys, key)
 	}
 	if err := rows.Err(); err != nil {
 		return Page[AuditEntry]{}, err
@@ -95,7 +93,7 @@ func (s *Service) ListAuditPage(ctx context.Context, f AuditFilter) (Page[AuditE
 	page := Page[AuditEntry]{Items: items}
 	if len(items) > limit {
 		page.Items = items[:limit]
-		page.NextCursor = encodeCursor(cursorToken{Sort: "created_at", Order: "desc", Value: keys[limit-1], ID: page.Items[limit-1].ID})
+		page.NextCursor = encodeCursor(cursorToken{Sort: "created_at", Order: "desc", Value: formatCursorTime(page.Items[limit-1].CreatedAt), ID: page.Items[limit-1].ID})
 	}
 	return page, nil
 }
@@ -160,7 +158,12 @@ func (s *Service) SetPasswordResetStarter(start ResetStarter) { s.passwordResetS
 // when mail is configured and otherwise returns it. The action is audited
 // without the link.
 func (s *Service) StartPasswordReset(ctx context.Context, actorID, userID int64) (PasswordReset, error) {
+	if s.passwordResetStarter == nil {
+		return PasswordReset{}, fmt.Errorf("%w: password reset is not configured", ErrInvalid)
+	}
 	var email string
+	// The audit row is committed before the link is issued, so a reset can never
+	// be handed out without a record of who asked for it.
 	if err := s.store.Tx(ctx, func(tx pgx.Tx) error {
 		if err := requireAdmin(ctx, tx, actorID); err != nil {
 			return err
@@ -168,29 +171,25 @@ func (s *Service) StartPasswordReset(ctx context.Context, actorID, userID int64)
 		if err := requireVisibleUser(ctx, tx, userID); err != nil {
 			return err
 		}
-		return tx.QueryRow(ctx, `select email from users where id=$1`, userID).Scan(&email)
+		var isAdmin bool
+		if err := tx.QueryRow(ctx, `select email,is_admin from users where id=$1`, userID).Scan(&email, &isAdmin); err != nil {
+			return err
+		}
+		if isAdmin {
+			return ErrAdminTarget
+		}
+		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
+			ActorUserID: actorID, Action: "instance.user.password_reset_started", TargetType: "user", TargetID: userID,
+			Metadata: map[string]any{},
+		})
 	}); err != nil {
 		return PasswordReset{}, err
-	}
-	if s.passwordResetStarter == nil {
-		return PasswordReset{}, fmt.Errorf("%w: password reset is not configured", ErrInvalid)
 	}
 	link, err := s.passwordResetStarter(ctx, email)
 	if err != nil {
 		return PasswordReset{}, err
 	}
-	result := PasswordReset{Sent: link == "", ResetURL: link}
-	delivery := "email"
-	if link != "" {
-		delivery = "link"
-	}
-	err = s.store.Tx(ctx, func(tx pgx.Tx) error {
-		return store.WriteInstanceAudit(ctx, tx, store.InstanceAuditEntry{
-			ActorUserID: actorID, Action: "instance.user.password_reset_started", TargetType: "user", TargetID: userID,
-			Metadata: map[string]any{"delivery": delivery},
-		})
-	})
-	return result, err
+	return PasswordReset{Sent: link == "", ResetURL: link}, nil
 }
 
 func requireVisibleUser(ctx context.Context, tx pgx.Tx, userID int64) error {
@@ -203,3 +202,15 @@ func requireVisibleUser(ctx context.Context, tx pgx.Tx, userID int64) error {
 	}
 	return nil
 }
+
+// formatCursorTime and parseCursorTime carry a timestamptz cursor value in a
+// session-independent form (UTC, RFC 3339 with microseconds).
+func formatCursorTime(t time.Time) string {
+	return t.UTC().Format(cursorTimeLayout)
+}
+
+func parseCursorTime(v string) (time.Time, error) {
+	return time.Parse(cursorTimeLayout, v)
+}
+
+const cursorTimeLayout = "2006-01-02T15:04:05.000000Z"

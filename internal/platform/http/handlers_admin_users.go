@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"supermetry/internal/platform/admin"
 	platformauth "supermetry/internal/platform/auth"
 )
 
@@ -55,10 +56,33 @@ func (h *handler) adminStartPasswordReset(w http.ResponseWriter, r *http.Request
 		writeProblem(w, http.StatusBadRequest, "Bad request", "user is invalid")
 		return
 	}
+	if h.deps.Auth == nil {
+		unavailable(w, "authentication")
+		return
+	}
+	// The admin API key resolves to the system user and, like impersonation,
+	// skips the interactive check; a signed-in admin must re-authenticate.
+	if keyPath := h.deps.AdminServiceUserID != 0 && principal.UserID == h.deps.AdminServiceUserID; !keyPath {
+		var request struct {
+			Password string `json:"password"`
+			TOTPCode string `json:"totp_code,omitempty"`
+		}
+		if !decodeJSON(w, r, &request) {
+			return
+		}
+		if err := h.deps.Auth.VerifySensitiveAction(h.clientContext(r), principal.UserID, request.Password, request.TOTPCode); err != nil {
+			sensitiveActionError(w, err)
+			return
+		}
+	}
 	result, err := h.deps.Admin.StartPasswordReset(h.clientContext(r), principal.UserID, userID)
 	if err != nil {
 		if errors.Is(err, platformauth.ErrRateLimited) {
 			rateLimited(w)
+			return
+		}
+		if errors.Is(err, admin.ErrAdminTarget) {
+			writeProblem(w, http.StatusForbidden, "Forbidden", "a password reset cannot be started for an instance administrator")
 			return
 		}
 		adminError(w, err)
