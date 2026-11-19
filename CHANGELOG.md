@@ -6,9 +6,12 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.30 (2026-11-19)
+
 ### Added
 
-- Error-level OTLP log records now create issues, so apps that only write logs get error tracking without an SDK.
+- Error-level OTLP log records now create issues, so apps that only write logs get error tracking without an SDK. Issues made this way are marked "From logs".
+- Examples for collecting errors without code changes: an OpenTelemetry Collector config that ships systemd journal logs (Go panics become one issue each) and a Python auto-instrumentation wrapper image. See docs/guide/collect-without-code.md.
 
 ## v0.1.29 (2026-11-18)
 
