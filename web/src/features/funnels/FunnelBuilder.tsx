@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { SeenValuePicker, type SuggestSource } from '@/features/onboarding/SeenValuePicker'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -14,12 +15,15 @@ type FunnelBuilderProps = {
   initialSteps?: FunnelStep[]
   onSubmit: (steps: FunnelStep[]) => void | Promise<void>
   pending?: boolean
+  /** When set, page paths and event names already seen are offered for each step. */
+  suggest?: SuggestSource
 }
 
 export function FunnelBuilder({
   initialSteps = defaultSteps,
   onSubmit,
   pending = false,
+  suggest,
 }: FunnelBuilderProps) {
   const [steps, setSteps] = useState<FunnelStep[]>(initialSteps)
   const [error, setError] = useState('')
@@ -137,6 +141,9 @@ export function FunnelBuilder({
                 onChange={(event) => update(index, { value: event.target.value })}
               />
             </div>
+            {suggest ? (
+              <SeenValuePicker source={suggest} dimension={step.type} query={step.value} onPick={(value) => update(index, { value })} />
+            ) : null}
           </Field>
         ))}
       </FieldGroup>

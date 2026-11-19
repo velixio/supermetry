@@ -56,10 +56,10 @@ export function DataPurgeCard({ orgId, siteId }: { orgId: number; siteId: number
   }
 
   return (
-    <section className="rounded-xl border bg-card p-5" aria-labelledby="data-purge-title">
+    <section className="rounded-lg border bg-card p-5" aria-labelledby="data-purge-title">
       <h2 id="data-purge-title" className="text-lg font-semibold">Delete stored traffic</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Permanently removes sessions and their events that match a source and/or a country, within a date range (in this site&apos;s time zone). Reports for those days are rebuilt afterwards. Session recordings are not deleted. This cannot be undone.
+        Permanently removes sessions and their events that match a source and/or a country, within a date range (in this project&apos;s time zone). Reports for those days are rebuilt afterwards. Session recordings are not deleted. This cannot be undone.
       </p>
       <form className="mt-4 flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
         <FieldGroup>

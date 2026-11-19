@@ -127,3 +127,23 @@ func InstanceAdminActive(ctx context.Context, db DBTX, userID int64) (bool, erro
 		                 from users where id=$1 and deleted_at is null), false)`, userID).Scan(&active)
 	return active, err
 }
+
+// SessionReauthAt returns when the session last proved the user's identity: the
+// last re-authentication, or the sign-in itself when it never re-authenticated.
+func (s *Store) SessionReauthAt(ctx context.Context, hash []byte) (time.Time, error) {
+	var at time.Time
+	err := s.Pool.QueryRow(ctx, `select coalesce(reauth_at, created_at) from user_sessions where id_hash=$1`, hash).Scan(&at)
+	return at, err
+}
+
+// StampSessionReauth records a successful re-authentication.
+func (s *Store) StampSessionReauth(ctx context.Context, hash []byte, now time.Time) error {
+	tag, err := s.Pool.Exec(ctx, `update user_sessions set reauth_at=$2 where id_hash=$1`, hash, now)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}

@@ -27,7 +27,11 @@ const me = {
 }
 
 describe('dashboard breakdown route', () => {
+  // Below the app-shell toolbar width, so the filters stay in the page's own sticky row.
+  const shellWidth = window.innerWidth
+  afterEach(() => { window.innerWidth = shellWidth })
   beforeEach(() => {
+    window.innerWidth = 1000
     vi.clearAllMocks()
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
@@ -120,20 +124,27 @@ describe('dashboard breakdown route', () => {
     return router
   }
 
-  it('puts the date range, segments and include-imported in one sticky filter row and Export in the header actions', async () => {
+  it('keeps dates and filters at the start of the one sticky row, view options and export at its end, and compare on the chart', async () => {
     renderDashboard()
     const row = await screen.findByRole('group', { name: 'Filters' })
-    expect(row).toHaveClass('sticky', 'top-11', 'z-10', 'bg-background')
+    expect(row).toHaveClass('sticky', 'top-12', 'z-10', 'bg-background')
     const date = within(row).getByRole('button', { name: /date range/i })
     const segments = within(row).getByRole('button', { name: 'Segments' })
-    const imported = within(row).getByRole('checkbox', { name: 'Include imported data' })
-    expect(within(row).getByRole('combobox', { name: 'Compare' })).toBeVisible()
     expect(date.compareDocumentPosition(segments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(segments.compareDocumentPosition(imported) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const actions = document.querySelector('[data-slot="page-header-actions"]') as HTMLElement
+    // Compare changes the chart, so it lives in the chart's header, not in the filter row.
+    expect(within(row).queryByRole('combobox', { name: 'Compare' })).toBeNull()
+    const chart = screen.getByTestId('chart-controls')
+    expect(within(chart).getByRole('combobox', { name: 'Compare' })).toBeInTheDocument()
+    expect(chart).toHaveAttribute('data-pinned', 'false')
+    // No visible title row: the h1 is for assistive tech, the actions close the filter row.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('sr-only')
+    const actions = within(row).getByTestId('filters-trailing')
     expect(within(actions).getByRole('button', { name: 'Export CSV' })).toBeVisible()
+    const options = within(actions).getByRole('button', { name: 'View options' })
+    expect(segments.compareDocumentPosition(options) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(actions).queryByRole('checkbox')).toBeNull()
-    expect(within(row).queryByRole('button', { name: 'Export CSV' })).toBeNull()
+    fireEvent.pointerDown(options, { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Include imported data' })).toBeVisible()
   })
 
   it('publishes the filter row height as --dashboard-filter-h so the sticky inspector clears a wrapped row', async () => {
@@ -165,8 +176,11 @@ describe('dashboard breakdown route', () => {
     expect(await screen.findByRole('region', { name: 'Where' })).toBeVisible()
     expect(screen.getByRole('region', { name: 'Weekly rhythm' })).toBeVisible()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible()
-    expect(within(screen.getByRole('heading', { level: 1, name: 'Dashboard' }).parentElement as HTMLElement).getByText(/^\S.* – .+\d{4}$/)).toBeVisible()
+    // The page is titled by the project it shows; the breadcrumb already names the page.
+    expect(screen.getByRole('heading', { level: 1, name: 'Example' })).toBeVisible()
+    // The range is stated once, in the date button, not again under the title.
+    expect(screen.getByRole('button', { name: /date range/i })).toHaveTextContent('Sep 28, 2026 – Sep 30, 2026')
+    expect(screen.getByRole('heading', { level: 1, name: 'Example' })).not.toHaveTextContent(/Sep 28/)
     expect(screen.queryByText(/Example, /)).toBeNull()
     const band = screen.getByTestId('where-when-band')
     expect(band).toHaveClass('lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]')
@@ -264,7 +278,7 @@ describe('dashboard breakdown route', () => {
       within(sources)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Source', 'Channels', 'UTM Source', 'Medium', 'Campaign'])
+    ).toEqual(['Source', 'Channels', 'UTM source', 'Medium', 'Campaign'])
   })
 
   it('shows the new device tabs and hides Hostname for a single-host site', async () => {
@@ -308,7 +322,7 @@ describe('dashboard breakdown route', () => {
     expect(within(sources).getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
       'Source',
       'Channels',
-      'UTM Source',
+      'UTM source',
       'Medium',
       'Campaign',
     ])
@@ -518,9 +532,10 @@ describe('dashboard breakdown route', () => {
 
   it('ignores the inspect param in edit mode', async () => {
     const router = renderAt(range)
-    fireEvent.click(await screen.findByRole('button', { name: 'New dashboard' }))
+    fireEvent.pointerDown(await screen.findByRole('button', { name: /Switch dashboard/ }), { button: 0, ctrlKey: false, pointerType: 'mouse' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'New dashboard' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Start editing' }))
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'New dashboard' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Start editing' })).toBeNull())
     await router.navigate({ to: '/app/$org/$site', params: { org: 'acme', site: 'example' }, search: { ...router.state.location.search, inspect: 'country:IN' } as never })
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(screen.queryByRole('dialog', { name: 'India' })).toBeNull()

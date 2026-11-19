@@ -7,14 +7,21 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { en } from '@/messages/en'
 
-export function ResponsiveFilters({ children, className }: { children: ReactNode; className?: string }) {
+/**
+ * `lead` (the date and compare controls) stays visible; on narrow screens it shares one scrollable row with the
+ * Filters button, and the remaining controls move into the sheet.
+ */
+export function ResponsiveFilters({ children, className, lead, trailing }: { children: ReactNode; className?: string; lead?: ReactNode; trailing?: ReactNode }) {
   const mobile = useIsMobile()
-  if (!mobile) return <div className={cn('flex flex-wrap items-center justify-end gap-2', className)}>{children}</div>
+  const end = trailing ? <div className="ml-auto flex shrink-0 items-center gap-1" data-testid="filters-trailing">{trailing}</div> : null
+  if (!mobile) return <div className={cn('flex flex-wrap items-center justify-end gap-2', className)}>{lead}{children}{end}</div>
 
   return (
+    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
     <Sheet>
       <SheetTrigger asChild>
-        <Button className="min-h-11" type="button" variant="outline"><ListFilterIcon data-icon="inline-start" />{en.polish.filters}</Button>
+        <Button className="max-sm:min-h-11 shrink-0" size="sm" type="button" variant="ghost"><ListFilterIcon data-icon="inline-start" />{en.polish.filters}</Button>
       </SheetTrigger>
       <SheetContent className="w-[min(23rem,100vw)] overflow-y-auto" side="right">
         <SheetHeader>
@@ -24,5 +31,9 @@ export function ResponsiveFilters({ children, className }: { children: ReactNode
         <div className="flex flex-col items-stretch gap-4 px-4 pb-6">{children}</div>
       </SheetContent>
     </Sheet>
+    {lead}
+    </div>
+    {end}
+    </div>
   )
 }

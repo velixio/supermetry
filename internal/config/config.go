@@ -133,21 +133,31 @@ type Config struct {
 	AdminAPIKey           string
 	MetricsToken          string
 	TrustedProxies        []netip.Prefix
+	CSPMode               string // enforce (default), report-only or off
+	CSPExtra              string // extra CSP sources, "directive src src; directive src"
 	SecretKey             []byte
 	Signup                string
 	SMTP                  SMTP
 	AllowPrivateWebhooks  bool
-	Replay                ReplayEnv
+	// AllowPrivateExportEndpoints lets scheduled exports write to private or
+	// loopback S3 endpoints (a local MinIO) and plain HTTP.
+	AllowPrivateExportEndpoints bool
+	Replay                      ReplayEnv
 
 	// SearchConsoleClientID and SearchConsoleClientSecret enable the Google
 	// Search Console integration; it stays hidden while either is empty.
 	SearchConsoleClientID     string
 	SearchConsoleClientSecret string
-	E2ELoginLimit             int
-	IngestDiag                bool
-	ReferrerSpamFile          string
-	TombstonePoll             time.Duration
-	RouteHitsFile             string
+	// GA4OAuthClientID and GA4OAuthClientSecret enable importing from the
+	// Google Analytics Data API; the GA4 pull endpoints answer "not
+	// configured" while either is empty.
+	GA4OAuthClientID     string
+	GA4OAuthClientSecret string
+	E2ELoginLimit        int
+	IngestDiag           bool
+	ReferrerSpamFile     string
+	TombstonePoll        time.Duration
+	RouteHitsFile        string
 }
 
 type ReplayEnv struct {
@@ -323,6 +333,8 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	}
 	c.SearchConsoleClientID = getenv("SUPERMETRY_GSC_CLIENT_ID")
 	c.SearchConsoleClientSecret = getenv("SUPERMETRY_GSC_CLIENT_SECRET")
+	c.GA4OAuthClientID = getenv("SUPERMETRY_GA4_OAUTH_CLIENT_ID")
+	c.GA4OAuthClientSecret = getenv("SUPERMETRY_GA4_OAUTH_CLIENT_SECRET")
 	if raw := getenv("SUPERMETRY_ALLOW_PRIVATE_WEBHOOKS"); raw != "" {
 		value, err := strconv.ParseBool(raw)
 		if err != nil {
@@ -331,6 +343,7 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 			c.AllowPrivateWebhooks = value
 		}
 	}
+	parseOptionalBool(getenv("SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS"), "SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS", &c.AllowPrivateExportEndpoints, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_REPLAY_ENABLED"), "SUPERMETRY_REPLAY_ENABLED", &c.Replay.Enabled, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_NEUTRAL_PATHS"), "SUPERMETRY_NEUTRAL_PATHS", &c.NeutralPaths, &errs)
 	parseOptionalBool(getenv("SUPERMETRY_MANAGED"), "SUPERMETRY_MANAGED", &c.Managed, &errs)
@@ -516,6 +529,15 @@ func LoadLookup(lookup func(string) (string, bool)) (Config, error) {
 	parsePositiveInt(getenv("SUPERMETRY_INGEST_RATE_GLOBAL"), "SUPERMETRY_INGEST_RATE_GLOBAL", &c.IngestRateGlobal, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_READ_TIMEOUT"), "SUPERMETRY_HTTP_READ_TIMEOUT", &c.HTTPReadTimeout, &errs)
 	parsePositiveDuration(getenv("SUPERMETRY_HTTP_WRITE_TIMEOUT"), "SUPERMETRY_HTTP_WRITE_TIMEOUT", &c.HTTPWriteTimeout, &errs)
+	switch mode := strings.ToLower(strings.TrimSpace(getenv("SUPERMETRY_CSP"))); mode {
+	case "", "enforce":
+		c.CSPMode = "enforce"
+	case "report-only", "off":
+		c.CSPMode = mode
+	default:
+		errs = append(errs, fmt.Errorf("SUPERMETRY_CSP must be enforce, report-only or off"))
+	}
+	c.CSPExtra = strings.TrimSpace(getenv("SUPERMETRY_CSP_EXTRA"))
 	switch raw := strings.TrimSpace(getenv("SUPERMETRY_TRUSTED_PROXIES")); {
 	case raw == "":
 		// A proxy on the same host, LAN or Docker network connects from a

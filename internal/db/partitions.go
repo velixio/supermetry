@@ -2,14 +2,85 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// partitionExec is what the partition helpers need: run one statement and read
+// the catalogue. A pgx.Tx satisfies it, and so does stepwise.
+type partitionExec interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// partitionLockTimeout bounds how long one CREATE ... PARTITION OF waits for
+// its parent. A waiting AccessExclusiveLock queues every later reader of that
+// parent behind it, so it gives up quickly and retries instead.
+const partitionLockTimeout = "2s"
+
+const partitionAttempts = 6
+
+// stepwise runs each statement in its own transaction under the partition
+// advisory lock, so partition creation never holds a lock on one parent while
+// waiting for another. Lock timeouts and deadlocks are retried with backoff;
+// every statement is idempotent (IF NOT EXISTS).
+type stepwise struct{ pool *pgxpool.Pool }
+
+func (s stepwise) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	return s.pool.QueryRow(ctx, sql, args...)
+}
+
+func (s stepwise) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	var tag pgconn.CommandTag
+	var err error
+	for attempt := 1; attempt <= partitionAttempts; attempt++ {
+		tag, err = s.execOnce(ctx, sql, args...)
+		if err == nil || !retryableLockError(err) || attempt == partitionAttempts {
+			return tag, err
+		}
+		select {
+		case <-ctx.Done():
+			return tag, ctx.Err()
+		case <-time.After(time.Duration(attempt) * 100 * time.Millisecond):
+		}
+	}
+	return tag, err
+}
+
+func (s stepwise) execOnce(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return pgconn.CommandTag{}, fmt.Errorf("begin partition creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
+		return pgconn.CommandTag{}, fmt.Errorf("lock partition creation: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `select set_config('lock_timeout', $1, true)`, partitionLockTimeout); err != nil {
+		return pgconn.CommandTag{}, fmt.Errorf("set partition lock timeout: %w", err)
+	}
+	tag, err := tx.Exec(ctx, sql, args...)
+	if err != nil {
+		return tag, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return tag, fmt.Errorf("commit partition creation: %w", err)
+	}
+	return tag, nil
+}
+
+// retryableLockError reports a deadlock (40P01) or lock timeout (55P03).
+func retryableLockError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && (pgErr.Code == "40P01" || pgErr.Code == "55P03")
+}
 
 // RetentionClass is the number of days hot analytics data is retained.
 // RetForever has no expiry and uses monthly rather than daily partitions.
@@ -52,15 +123,10 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 		return nil
 	}
 
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin partition creation: %w", err)
-	}
-	defer func() { _ = tx.Rollback(context.Background()) }()
-
-	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('supermetry:partitions:' || current_schema()))`); err != nil {
-		return fmt.Errorf("lock partition creation: %w", err)
-	}
+	// One short transaction per partition: a single transaction across every
+	// parent held AccessExclusiveLock on each until commit and deadlocked with
+	// readers that touch two parents (rollup backfill, demo seeding).
+	tx := stepwise{pool: pool}
 	for _, table := range []string{"events", "sessions"} {
 		for _, class := range retentionClasses {
 			if err := ensureTablePartitions(ctx, tx, table, class, from, to); err != nil {
@@ -103,9 +169,6 @@ func EnsurePartitions(ctx context.Context, pool *pgxpool.Pool, from, to time.Tim
 	}
 	if err := ensureDailyIfTable(ctx, tx, "logs", from, to); err != nil {
 		return err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit partition creation: %w", err)
 	}
 	return nil
 }
@@ -154,7 +217,7 @@ func EnsureMonthlyPartitions(ctx context.Context, pool *pgxpool.Pool, table stri
 }
 
 // ensureDailyIfTable skips tables that older migration-test schemas lack.
-func ensureDailyIfTable(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+func ensureDailyIfTable(ctx context.Context, tx partitionExec, table string, from, to time.Time) error {
 	var has bool
 	if err := tx.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&has); err != nil {
 		return fmt.Errorf("check %s: %w", table, err)
@@ -165,7 +228,7 @@ func ensureDailyIfTable(ctx context.Context, tx pgx.Tx, table string, from, to t
 	return ensureDailyTimestampPartitions(ctx, tx, table, from, to)
 }
 
-func ensureDailyTimestampPartitions(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+func ensureDailyTimestampPartitions(ctx context.Context, tx partitionExec, table string, from, to time.Time) error {
 	for lower := utcDay(from); lower.Before(to); lower = lower.AddDate(0, 0, 1) {
 		name := table + "_" + lower.Format("20060102")
 		sql := fmt.Sprintf(
@@ -232,7 +295,7 @@ func EnsureAppActiveDayPartitions(ctx context.Context, pool *pgxpool.Pool, from,
 
 // ensureAppSessionPartitions creates the partitions of app_sessions and
 // app_checkins when the tables exist (migration tests build older schemas).
-func ensureAppSessionPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
+func ensureAppSessionPartitions(ctx context.Context, tx partitionExec, from, to time.Time) error {
 	for _, table := range []string{"app_sessions", "app_checkins"} {
 		var has bool
 		if err := tx.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&has); err != nil {
@@ -251,7 +314,7 @@ func ensureAppSessionPartitions(ctx context.Context, tx pgx.Tx, from, to time.Ti
 // ensureAppEventBodyPartitions creates the partitions of app_event_bodies and
 // app_event_attachments when the tables exist (migration tests build older
 // schemas).
-func ensureAppEventBodyPartitions(ctx context.Context, tx pgx.Tx, from, to time.Time) error {
+func ensureAppEventBodyPartitions(ctx context.Context, tx partitionExec, from, to time.Time) error {
 	for _, table := range []string{"app_event_bodies", "app_event_attachments"} {
 		var has bool
 		if err := tx.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&has); err != nil {
@@ -269,7 +332,7 @@ func ensureAppEventBodyPartitions(ctx context.Context, tx pgx.Tx, from, to time.
 
 // ensureMonthlyTimestampPartitions creates UTC-month partitions of a table
 // partitioned by a timestamptz column.
-func ensureMonthlyTimestampPartitions(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+func ensureMonthlyTimestampPartitions(ctx context.Context, tx partitionExec, table string, from, to time.Time) error {
 	start := time.Date(from.UTC().Year(), from.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
 	for lower := start; lower.Before(to); lower = lower.AddDate(0, 1, 0) {
 		upper := lower.AddDate(0, 1, 0)
@@ -288,7 +351,7 @@ func ensureMonthlyTimestampPartitions(ctx context.Context, tx pgx.Tx, table stri
 	return nil
 }
 
-func ensureMonthlyDayPartitions(ctx context.Context, tx pgx.Tx, table string, from, to time.Time) error {
+func ensureMonthlyDayPartitions(ctx context.Context, tx partitionExec, table string, from, to time.Time) error {
 	start := time.Date(from.UTC().Year(), from.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
 	for lower := start; lower.Before(to); lower = lower.AddDate(0, 1, 0) {
 		upper := lower.AddDate(0, 1, 0)
@@ -307,7 +370,7 @@ func ensureMonthlyDayPartitions(ctx context.Context, tx pgx.Tx, table string, fr
 	return nil
 }
 
-func ensureTablePartitions(ctx context.Context, tx pgx.Tx, table string, class RetentionClass, from, to time.Time) error {
+func ensureTablePartitions(ctx context.Context, tx partitionExec, table string, class RetentionClass, from, to time.Time) error {
 	column := "ts"
 	if table == "sessions" {
 		column = "start"

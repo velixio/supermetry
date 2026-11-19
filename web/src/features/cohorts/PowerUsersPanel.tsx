@@ -15,7 +15,7 @@ import { thresholdChoices, type PowerMetric } from './types'
 import { activeLocale } from '@/lib/i18n/intl'
 
 const t = en.cohorts
-const selectClass = 'h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
+const selectClass = 'max-sm:min-h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-9'
 
 function formatDate(value: string): string {
   return value ? new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'medium' }).format(new Date(value)) : '—'
@@ -73,7 +73,7 @@ function PowerUsersContent({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="min-w-0 overflow-x-auto rounded-xl border bg-card" tabIndex={0}>
+            <div className="min-w-0 overflow-x-auto rounded-lg border bg-card" tabIndex={0}>
               <Table aria-label={t.powerTitle}>
                 <TableHeader>
                   <TableRow>
@@ -100,7 +100,7 @@ function PowerUsersContent({
           )}
           {canEdit ? (
             <div>
-              <Button className="h-11 md:h-8" type="button" variant="outline" onClick={() => onSaveAsCohort(metric, min)}>{t.powerSaveAsCohort}</Button>
+              <Button className="max-md:h-11" type="button" variant="outline" onClick={() => onSaveAsCohort(metric, min)}>{t.powerSaveAsCohort}</Button>
             </div>
           ) : null}
         </>

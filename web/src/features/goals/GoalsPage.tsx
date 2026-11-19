@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -13,13 +14,15 @@ import { activeLocale } from '@/lib/i18n/intl'
 
 type GoalsPageProps = {
   siteId: number
+  /** Needed for the picker of already-seen pages and events. */
+  orgId?: number
   dateRange: { from: string; to: string }
   timezone?: string
   revenueCurrency?: string
   revenueCurrencyState?: 'unconfigured' | 'configured' | 'conflict'
 }
 
-export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
+export function GoalsPage({ siteId, orgId, dateRange, timezone = 'UTC', revenueCurrency, revenueCurrencyState }: GoalsPageProps) {
   const goals = useGoals(siteId)
   const save = useSaveGoal(siteId)
   const [editing, setEditing] = useState<Goal>()
@@ -40,7 +43,7 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
     <PageContainer>
       <PageHeader title="Goals" description="Track the pages and events that matter." />
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
-        <section className="overflow-hidden rounded-xl border bg-card">
+        <section className="overflow-hidden rounded-lg border bg-card">
           <table className="w-full text-sm">
             <thead className="border-b text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Goal</th><th className="px-4 py-3 text-right font-medium">Conversions</th><th className="px-4 py-3 text-right font-medium">Rate</th><th className="px-4 py-3 text-right font-medium">Revenue</th><th className="px-4 py-3 text-right font-medium">Average revenue</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
@@ -59,12 +62,13 @@ export function GoalsPage({ siteId, dateRange, timezone = 'UTC', revenueCurrency
           </table>
           {goals.isPending ? <p className="p-5 text-sm text-muted-foreground" role="status">Loading goals…</p> : null}
           {goals.isError ? <div className="p-5" role="alert">Goals could not be loaded. <Button variant="outline" size="sm" onClick={() => void goals.refetch()}>Retry goals</Button></div> : null}
-          {!goals.isPending && !goals.isError && goals.data?.length === 0 ? <p className="p-5 text-sm text-muted-foreground">No goals yet.</p> : null}
+          {!goals.isPending && !goals.isError && goals.data?.length === 0 ? <FeatureEmptyState kind="goals" onAction={() => document.getElementById('goal-name')?.focus()} /> : null}
         </section>
         <GoalEditor
           projectCurrency={revenueCurrency}
           currencyState={revenueCurrencyState}
           goal={editing}
+          suggest={orgId === undefined ? undefined : { siteId, orgId, dateRange }}
           pending={save.isPending}
           onCancel={() => setEditing(undefined)}
           onSave={async (input) => {

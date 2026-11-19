@@ -41,9 +41,9 @@ const stateLabel: Record<ConnectionState, string> = {
 
 const stateClass: Record<ConnectionState, string> = {
   none: 'border-border text-muted-foreground',
-  active: 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300',
-  reauth: 'border-amber-600 text-amber-700 dark:border-amber-400 dark:text-amber-300',
-  error: 'border-destructive text-destructive',
+  active: 'text-emerald-700 dark:text-emerald-300',
+  reauth: 'text-amber-700 dark:text-amber-300',
+  error: 'text-destructive',
 }
 
 const BACKFILL_OPTIONS = [28, 90, 180, 485] as const
@@ -87,7 +87,7 @@ function ConnectForm({
           aria-describedby={`property-hint-${entry.provider}`}
           aria-invalid={invalid || undefined}
           autoComplete="off"
-          className="min-h-11"
+          className="max-sm:min-h-11"
           id={`property-${entry.provider}`}
           onChange={(event) => setProperty(event.target.value)}
           placeholder="sc-domain:supermetry.com"
@@ -100,7 +100,7 @@ function ConnectForm({
       <div className="flex flex-col gap-1 sm:max-w-xs">
         <label className="text-sm font-medium" htmlFor={`backfill-${entry.provider}`}>{t.backfillLabel}</label>
         <select
-          className="min-h-11 rounded-lg border border-input bg-background px-2.5 text-sm"
+          className="max-sm:min-h-11 rounded-lg border border-input bg-background px-2.5 text-sm"
           id={`backfill-${entry.provider}`}
           onChange={(event) => setBackfillDays(Number(event.target.value))}
           value={backfillDays}
@@ -110,7 +110,7 @@ function ConnectForm({
       </div>
       {connect.isError ? <p className="text-sm text-destructive" role="alert">{connect.error.message}</p> : null}
       <div>
-        <Button className="min-h-11" disabled={pending} type="submit">
+        <Button className="max-sm:min-h-11" disabled={pending} type="submit">
           {pending ? t.connecting : reconnecting ? t.reconnect : t.connect}
         </Button>
       </div>
@@ -128,10 +128,10 @@ function ProviderCard({
   const headingId = `provider-${entry.provider}`
 
   return (
-    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5 text-card-foreground">
+    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold" id={headingId}>{entry.name}</h3>
-        <span className={`inline-flex min-h-7 items-center rounded-full border px-3 text-sm font-medium ${stateClass[state]}`}>
+        <span className={`inline-flex min-h-7 items-center rounded-sm border px-3 text-sm font-medium ${stateClass[state]}`}>
           <span className="sr-only">{t.statusLabel}: </span>
           {stateLabel[state]}
         </span>
@@ -159,7 +159,7 @@ function ProviderCard({
 
       {connection && canManage ? (
         <div>
-          <Button className="min-h-11" onClick={() => setConfirming(true)} type="button" variant="outline">
+          <Button className="max-sm:min-h-11" onClick={() => setConfirming(true)} type="button" variant="outline">
             {t.disconnect}
             <span className="sr-only"> {entry.name}</span>
           </Button>
@@ -178,9 +178,9 @@ function ProviderCard({
           </AlertDialogHeader>
           {disconnect.isError ? <p role="alert">{disconnect.error.message}</p> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel className="max-sm:min-h-11">{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
-              className="min-h-11"
+              className="max-sm:min-h-11"
               disabled={disconnect.isPending}
               onClick={(event) => {
                 event.preventDefault()
@@ -216,11 +216,11 @@ export function IntegrationsPage({
 
       {result ? (
         <div
-          className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm ${result === 'connected' ? 'border-emerald-600' : 'border-destructive'}`}
+          className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm ${result === 'connected' ? '' : 'border-destructive'}`}
           role={result === 'connected' ? 'status' : 'alert'}
         >
           <p>{resultMessage(result)}</p>
-          {onDismissResult ? <Button className="min-h-11" onClick={onDismissResult} type="button" variant="ghost">{t.dismiss}</Button> : null}
+          {onDismissResult ? <Button className="max-sm:min-h-11" onClick={onDismissResult} type="button" variant="ghost">{t.dismiss}</Button> : null}
         </div>
       ) : null}
 

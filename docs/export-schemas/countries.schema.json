@@ -1,0 +1,56 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/countries.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Per-day breakdown by countries.",
+  "properties": {
+    "bounces": {
+      "type": "integer"
+    },
+    "day": {
+      "format": "date",
+      "type": "string"
+    },
+    "events": {
+      "type": "integer"
+    },
+    "pageviews": {
+      "type": "integer"
+    },
+    "value": {
+      "type": "string"
+    },
+    "visit_duration_s": {
+      "type": "integer"
+    },
+    "visitors": {
+      "type": "integer"
+    },
+    "visits": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "day",
+    "value",
+    "visitors",
+    "visits",
+    "pageviews",
+    "bounces",
+    "visit_duration_s",
+    "events"
+  ],
+  "title": "countries.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "day",
+    "value",
+    "visitors",
+    "visits",
+    "pageviews",
+    "bounces",
+    "visit_duration_s",
+    "events"
+  ],
+  "x-supermetry-schema-version": 1
+}

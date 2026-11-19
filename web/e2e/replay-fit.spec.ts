@@ -154,11 +154,14 @@ test('matching desktop aspect ratio does not leave wide side bars', async ({ pag
     element.style.height = '580px'
   })
   await expect.poll(async () => Number(await stage.getAttribute('data-replay-scale'))).toBeCloseTo(5 / 9, 2)
-  const [frameBox, iframeBox] = await Promise.all([
-    stage.locator('.rr-player__frame').boundingBox(),
-    stage.locator('iframe').boundingBox(),
-  ])
-  expect(Math.abs(frameBox!.width - iframeBox!.width)).toBeLessThanOrEqual(4)
+  // The scale attribute updates before the frame and iframe finish resizing, so poll the widths.
+  await expect.poll(async () => {
+    const [frameBox, iframeBox] = await Promise.all([
+      stage.locator('.rr-player__frame').boundingBox(),
+      stage.locator('iframe').boundingBox(),
+    ])
+    return Math.abs(frameBox!.width - iframeBox!.width)
+  }).toBeLessThanOrEqual(4)
 })
 
 test('recorded viewport changes recompute the fit during playback', async ({ page, owner }) => {

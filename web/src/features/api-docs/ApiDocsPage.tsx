@@ -217,7 +217,7 @@ function TryRequest({
     <div className="flex flex-col gap-4">
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="api-docs-site">Site</FieldLabel>
+          <FieldLabel htmlFor="api-docs-site">Project</FieldLabel>
           <select
             className="h-9 rounded-md border bg-background px-3 text-sm"
             id="api-docs-site"

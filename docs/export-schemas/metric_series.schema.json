@@ -1,0 +1,62 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/metric_series.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Metric series registry.",
+  "properties": {
+    "attributes": {
+      "description": "A JSON document stored as text.",
+      "type": "string"
+    },
+    "bounds": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "first_seen": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "series_id": {
+      "type": "integer"
+    },
+    "unit": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "series_id",
+    "name",
+    "kind",
+    "unit",
+    "attributes",
+    "first_seen",
+    "last_seen",
+    "bounds"
+  ],
+  "title": "metric_series.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "series_id",
+    "name",
+    "kind",
+    "unit",
+    "attributes",
+    "first_seen",
+    "last_seen",
+    "bounds"
+  ],
+  "x-supermetry-schema-version": 1
+}

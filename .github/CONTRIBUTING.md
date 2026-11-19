@@ -12,11 +12,32 @@ Thanks for helping. Please open an issue before starting large changes so we can
 Behind a domain or reverse proxy, set `SUPERMETRY_BASE_URL=https://your.domain` in `.env`: its hostname is allowed for the Vite dev server automatically (the banner shows it), and `make dev` prints that URL to open. Use `SUPERMETRY_DEV_ALLOWED_HOSTS=a.supermetry.com,.example.com` for extra names (`.example.com` covers subdomains; `true` and `*` are ignored, the host check is never disabled). The proxy must forward the `Host` header and WebSocket upgrades (hot reload). `make dev` listens on 127.0.0.1 unless `SUPERMETRY_LISTEN` is set, so a proxy on another machine needs `SUPERMETRY_LISTEN` set explicitly.
 
 ```sh
-make build
-make test
-make lint
-cd web && bun install --frozen-lockfile && bun run typecheck && bun run test --run
+make build      # dashboard (bun install --frozen-lockfile, bun run build), then bin/supermetry
+make test       # go test -race ./... (starts the dev PostgreSQL if no test DSN is set)
+make lint       # go vet and gofmt
+make web-test   # web typecheck and vitest
 ```
+
+### Tests
+
+- **Go:** `SUPERMETRY_TEST_DSN=postgres://user:pass@127.0.0.1:5432/postgres go test ./internal/query/...` runs one package against your own PostgreSQL. Without the variable, database tests skip. `make test-fast` skips the two slowest database packages and runs the web suite too.
+- **Web:** `cd web && bun install --frozen-lockfile && bunx vitest run` runs all unit tests. Pass a file path to run one.
+- **End to end:** `make test-e2e` builds the binary and runs the Playwright specs.
+
+## Repository layout
+
+```text
+cmd/supermetry/   the binary: serve, migrate, backup, restore and other commands
+internal/         all server code, one package per concern (ingest, session, query,
+                  api, auth, sites, imports, app* for App Monitoring, db/migrations, ...)
+web/              the dashboard: Vite, React, TypeScript (src/features, src/routes)
+sdk/              client libraries and framework integrations
+deploy/           Dockerfile, compose files, installer, systemd unit, Helm chart
+docs/             user and API docs; docs/features.md lists what ships
+tools/, scripts/  test data generators, benchmarks and release helpers
+```
+
+Migrations are numbered SQL files in `internal/db/migrations`. Add a new one; never edit a released one.
 
 ## Rules of the project
 
@@ -31,7 +52,21 @@ cd web && bun install --frozen-lockfile && bun run typecheck && bun run test --r
 
 - Keep them focused, with commits that build and pass `go vet`.
 - Add or update tests, and describe how you verified the change.
-- Write commit messages that describe the change only.
+- Write commit messages that describe the change only: a short imperative summary line, then a body if the reason is not obvious. Several small commits are better than one large one.
+- Fill in the pull request template. Include screenshots for UI changes.
+
+## Good first issues
+
+Look for the `good first issue` label. Good places to start:
+
+- Fix or extend a document in `docs/`.
+- Add a test for an existing metric, using a small hand-computed fixture.
+- Add a missing install recipe, referrer entry or translation string.
+- Improve an error message or an empty state in the dashboard.
+
+Comment on the issue before you start, so two people do not do the same work. Ask questions in [Discussions](https://github.com/velixio/supermetry/discussions).
+
+Report security problems privately, as described in [SECURITY.md](SECURITY.md).
 
 ## License
 

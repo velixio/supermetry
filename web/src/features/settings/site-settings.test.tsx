@@ -62,7 +62,7 @@ describe('site settings', () => {
       'aria-current',
       'page',
     )
-    expect(screen.getByRole('navigation', { name: 'Site settings' })).toBeVisible()
+    expect(screen.getByRole('navigation', { name: 'Project settings' })).toBeVisible()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
   })
@@ -96,8 +96,8 @@ describe('site settings', () => {
     expect(setup).toHaveTextContent(/currency: 'USD'/)
     expect(setup).toHaveTextContent(/supermetry\.identify\('user-123'/)
     expect(setup).toHaveTextContent(/name="supermetry:404"/)
-    expect(setup).toHaveTextContent(/Site settings → Tracking/)
-    expect(setup).toHaveTextContent(/Site settings → General/)
+    expect(setup).toHaveTextContent(/Tracking settings/)
+    expect(setup).toHaveTextContent(/General settings/)
     expect(setup).toHaveTextContent(/supermetry\.optOut\(\)/)
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Next.js' }), { button: 0, ctrlKey: false })
     expect(screen.getByText('app/layout.tsx')).toBeVisible()
@@ -106,7 +106,7 @@ describe('site settings', () => {
   })
 
   it.each([
-    ['waiting', undefined, 'Waiting', 'Waiting for the first accepted event.'],
+    ['waiting', undefined, 'Waiting', 'No event yet.'],
     ['receiving', '2026-10-07T09:59:40Z', 'Receiving', 'Last event 20 seconds ago'],
     ['quiet', '2026-10-06T09:00:00Z', 'Quiet', 'Last event 1 day ago'],
   ] as const)('shows the %s install state', (installStatus, lastSeenAt, label, detail) => {
@@ -128,7 +128,7 @@ describe('site settings', () => {
     const snippetButton = screen.getByRole('button', { name: 'Copy tracking snippet' })
     expect(heading.compareDocumentPosition(snippetButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Setup progress' })).toHaveTextContent('Install the snippet')
-    expect(screen.getByText('No event yet? Check these common causes')).toBeInTheDocument()
+    expect(screen.getByText('No events yet? Common causes')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Open dashboard' })).not.toBeInTheDocument()
   })
 
@@ -136,7 +136,7 @@ describe('site settings', () => {
     renderWithRouter(<InstallGuide publicId="site-public" installStatus="receiving" lastSeenAt="2026-10-07T09:59:40Z" now={new Date('2026-10-07T10:00:00Z')} dashboardHref="/app/acme/docs" domainsHref="/app/acme/docs/settings/general" snippet="<script></script>" fullSnippet="<script></script>" />)
     expect(await screen.findByRole('link', { name: 'Open dashboard' })).toHaveAttribute('href', '/app/acme/docs')
     expect(screen.getByRole('heading', { name: 'Events are arriving' })).toBeVisible()
-    expect(screen.queryByText('No event yet? Check these common causes')).not.toBeInTheDocument()
+    expect(screen.queryByText('No events yet? Common causes')).not.toBeInTheDocument()
   })
 
   it('holds the snippet space while it loads and offers a retry when it fails', () => {
@@ -196,6 +196,6 @@ describe('site settings', () => {
     renderIconSettings(role)
 
     expect(screen.queryByRole('button', { name: 'Refetch' })).not.toBeInTheDocument()
-    expect(screen.getByText("Fetched from your site's pages")).toBeVisible()
+    expect(screen.getByRole('button', { name: 'About project icon' })).toBeVisible()
   })
 })

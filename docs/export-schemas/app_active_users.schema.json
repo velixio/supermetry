@@ -1,0 +1,41 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_active_users.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Daily, weekly and monthly active installs and new installs.",
+  "properties": {
+    "dau": {
+      "type": "integer"
+    },
+    "day": {
+      "format": "date",
+      "type": "string"
+    },
+    "mau": {
+      "type": "integer"
+    },
+    "new_installs": {
+      "type": "integer"
+    },
+    "wau": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "day",
+    "dau",
+    "wau",
+    "mau",
+    "new_installs"
+  ],
+  "title": "app_active_users.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "day",
+    "dau",
+    "wau",
+    "mau",
+    "new_installs"
+  ],
+  "x-supermetry-schema-version": 1
+}

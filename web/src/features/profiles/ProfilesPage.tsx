@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { useCapability, AccessDenied } from '@/lib/authorization'
 import { Link } from '@tanstack/react-router'
 import { SearchIcon, UserRoundIcon } from 'lucide-react'
@@ -65,10 +66,10 @@ function ProfilesPageContent({
           <UserRoundIcon aria-hidden="true" />
           <EmptyHeader>
             <EmptyTitle>Profiles are disabled</EmptyTitle>
-            <EmptyDescription>Enable profiles in General site settings, then identify users from your site.</EmptyDescription>
+            <EmptyDescription>Enable profiles in project settings, then identify users.</EmptyDescription>
           </EmptyHeader>
           <code className="max-w-full overflow-x-auto rounded-md bg-muted px-3 py-2 text-sm">supermetry.identify(&quot;user-123&quot;, {'{ plan: "pro" }'});</code>
-          <p className="text-sm text-muted-foreground">Call identify on every page load. Supermetry stores nothing in the browser.</p>
+          <p className="text-sm text-muted-foreground">Call on every page load.</p>
         </Empty>
       ) : (
         <section className="flex flex-col gap-4">
@@ -83,7 +84,9 @@ function ProfilesPageContent({
               onChange={(event) => onSearchChange(event.target.value)}
             />
           </div>
-          {profiles.data.data.length === 0 ? (
+          {profiles.data.data.length === 0 && !search && !cursor ? (
+            <FeatureEmptyState kind="profiles" />
+          ) : profiles.data.data.length === 0 ? (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>No profiles found</EmptyTitle>
@@ -91,7 +94,7 @@ function ProfilesPageContent({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="rounded-xl border bg-card">
+            <div className="rounded-lg border bg-card">
               <Table aria-label="Profiles">
                 <TableHeader>
                   <TableRow>

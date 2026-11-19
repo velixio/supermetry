@@ -1,0 +1,74 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_transactions_hourly.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Hourly transaction rollups with p50 and p95.",
+  "properties": {
+    "count": {
+      "type": "integer"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "errors": {
+      "type": "integer"
+    },
+    "local_hour": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "op": {
+      "type": "string"
+    },
+    "p50_ms": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "p95_ms": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "platform": {
+      "type": "string"
+    },
+    "release": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "local_hour",
+    "name",
+    "op",
+    "release",
+    "environment",
+    "platform",
+    "count",
+    "errors",
+    "p50_ms",
+    "p95_ms"
+  ],
+  "title": "app_transactions_hourly.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "local_hour",
+    "name",
+    "op",
+    "release",
+    "environment",
+    "platform",
+    "count",
+    "errors",
+    "p50_ms",
+    "p95_ms"
+  ],
+  "x-supermetry-schema-version": 1
+}

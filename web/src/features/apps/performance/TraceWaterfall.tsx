@@ -32,7 +32,7 @@ export function TraceWaterfall({ org, site, trace }: { org: string; site: string
   for (const error of trace.errors) if (error.span_id) errorsBySpan.set(error.span_id, (errorsBySpan.get(error.span_id) ?? 0) + 1)
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      {trace.truncated ? <p role="status" className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm">This trace has more spans than can be shown. The first 10,000 are listed.</p> : null}
+      {trace.truncated ? <p role="status" className="rounded-md bg-muted/50 px-3 py-2 text-sm">Showing the first 10,000 spans.</p> : null}
       <ol className="flex min-w-0 flex-col divide-y rounded-lg border" aria-label="Spans">
         {trace.spans.map((span) => {
           const failed = spanFailed(span) || errorsBySpan.has(span.span_id)
@@ -55,7 +55,7 @@ export function TraceWaterfall({ org, site, trace }: { org: string; site: string
                   className={`absolute top-0 h-full rounded ${failed ? 'bg-destructive' : span.is_segment ? 'bg-chart-1' : 'bg-chart-2'}`}
                   style={{ left: `${left}%`, width: `${width}%` }}
                 />
-                <span className="absolute inset-y-0 right-1 flex items-center text-xs tabular-nums text-foreground/80">{formatMs(span.duration_ms)}</span>
+                <span className="absolute inset-y-0 right-1 flex items-center text-xs tabular-nums text-foreground">{formatMs(span.duration_ms)}</span>
               </div>
             </li>
           )

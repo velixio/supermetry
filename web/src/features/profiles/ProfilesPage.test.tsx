@@ -24,9 +24,9 @@ describe('ProfilesPage', () => {
 
     expect(screen.queryByRole('main')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Profiles are disabled' })).toBeVisible()
-    expect(screen.getByText(/enable profiles in general site settings/i)).toBeVisible()
+    expect(screen.getByText(/enable profiles in project settings/i)).toBeVisible()
     expect(screen.getByText(/supermetry\.identify\("user-123"/)).toBeVisible()
-    expect(screen.getByText(/call identify on every page load/i)).toBeVisible()
+    expect(screen.getByText(/call on every page load/i)).toBeVisible()
   })
 
   it('searches profiles and renders cursor pagination', async () => {

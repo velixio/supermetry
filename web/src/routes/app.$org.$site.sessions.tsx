@@ -48,33 +48,34 @@ function SessionsRoute() {
 
   const { filters, dropped } = parseFilters(search.f)
   const timezone = site.timezone || 'UTC'
+  const toolbar = (
+          <ResponsiveFilters>
+          <FilterBar
+            dropped={dropped}
+            filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+            filters={filters}
+            invalidNotice={en.dashboard.invalidFilter}
+            removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+            onRemove={(index) => void navigate({ search: firstPage({ ...search, ...removeFilter(search, index) }) })}
+            siteId={site.id}
+            canEdit={membership?.role !== 'viewer'}
+            onApply={(segmentFilters) => void navigate({ search: firstPage({ ...search, ...replaceFilters(search, segmentFilters) }) })}
+          />
+          <DatePicker
+            labels={en.dashboard}
+            search={search}
+            onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
+          />
+        {canReplay ? <Field className="w-auto max-sm:min-h-11" orientation="horizontal">
+          <Checkbox id="sessions-has-replay" checked={search.has_replay ?? false} onCheckedChange={(checked) => void navigate({ search: firstPage({ ...search, has_replay: checked === true }) })} />
+          <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
+        </Field> : null}
+          </ResponsiveFilters>
+  )
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-4 overflow-hidden [contain:inline-size]">
-      <div className="flex min-w-0 justify-end">
-        <ResponsiveFilters>
-        <FilterBar
-          dropped={dropped}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          filters={filters}
-          invalidNotice={en.dashboard.invalidFilter}
-          removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          onRemove={(index) => void navigate({ search: firstPage({ ...search, ...removeFilter(search, index) }) })}
-          siteId={site.id}
-          canEdit={membership?.role !== 'viewer'}
-          onApply={(segmentFilters) => void navigate({ search: firstPage({ ...search, ...replaceFilters(search, segmentFilters) }) })}
-        />
-        <DatePicker
-          labels={en.dashboard}
-          search={search}
-          onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })}
-        />
-      {canReplay ? <Field className="min-h-11 sm:min-h-9" orientation="horizontal">
-        <Checkbox id="sessions-has-replay" checked={search.has_replay ?? false} onCheckedChange={(checked) => void navigate({ search: firstPage({ ...search, has_replay: checked === true }) })} />
-        <FieldLabel htmlFor="sessions-has-replay">Has replay</FieldLabel>
-      </Field> : null}
-        </ResponsiveFilters>
-      </div>
+    <div className="flex min-w-0 max-w-full flex-col gap-3 overflow-hidden [contain:inline-size]">
       <SessionsPage
+        toolbar={toolbar}
         cursor={currentCursor(search)}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         filters={filters}

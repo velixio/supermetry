@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const range = { from: '2026-09-28', to: '2026-09-30' }
 const shots = 'e2e/screenshots/journeys'
@@ -74,9 +75,9 @@ test('journeys page renders the API flow without errors across viewports and the
   await page.getByLabel('Steps').selectOption('3')
   await expect(diagram.locator('rect')).toHaveCount(api.nodes.length)
 
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await page.screenshot({ path: `${shots}/1440-dark.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
 
   for (const width of [1024, 390]) {
     await page.setViewportSize({ width, height: 900 })

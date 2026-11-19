@@ -63,9 +63,9 @@ export function SitesPage({
     return (
       <PageContainer>
         <PageHeader
-          title="No sites yet"
-          description="Add a site when you are ready to start collecting analytics."
-          actions={role === 'owner' || role === 'admin' ? <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add your first site</Link></Button> : undefined}
+          title="No projects yet"
+          description="Add a project when you are ready to start collecting analytics."
+          actions={role === 'owner' || role === 'admin' ? <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add your first project</Link></Button> : undefined}
         />
         {deletedSites}
       </PageContainer>
@@ -75,11 +75,11 @@ export function SitesPage({
   return (
     <PageContainer>
       <PageHeader
-        title="Sites"
-        description="Manage the sites you can access in this organization."
-        actions={role === 'owner' || role === 'admin' ? <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add site</Link></Button> : undefined}
+        title="Projects"
+        description="Manage the projects you can access in this organization."
+        actions={role === 'owner' || role === 'admin' ? <Button asChild><Link to="/app/$org/sites/new" params={{ org }}>Add project</Link></Button> : undefined}
       />
-      <ul className="flex flex-col overflow-hidden rounded-xl border bg-card">
+      <ul className="flex flex-col overflow-hidden rounded-lg border bg-card">
         {sites.map((site) => {
           const slug = siteSlug(site)
           return (
@@ -113,7 +113,7 @@ export function SitesPage({
             <DialogDescription>
               {pendingDelete?.is_demo
                 ? 'The demo project and its data are deleted now.'
-                : 'The site stops collecting data now. You can restore it for 7 days; after that its data is permanently deleted.'}
+                : 'The project stops collecting data now. You can restore it for 7 days; after that its data is permanently deleted.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -132,7 +132,7 @@ export function SitesPage({
                 }
               }}
             >
-              Delete site
+              Delete project
             </Button>
           </DialogFooter>
         </DialogContent>

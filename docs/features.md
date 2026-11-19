@@ -1,9 +1,9 @@
 # Features
 
 Supermetry compared with Plausible, Umami and OpenPanel, feature by feature.
-✓ has it · – lacks it · ? not verified yet (check `knowledge/` before relying on it).
+✓ has it · – lacks it · ? not verified yet.
 **Supermetry**: ✅ done · ⏳ in progress · ❌ not started · ⏸ deferred.
-Evidence for the other products is kept in the maintainers' research notes. Last updated 2026-10-14. Comparison cells marked `?` have not been checked against the other product yet.
+Last updated 2026-11-18. Comparison cells marked `?` have not been checked against the other product yet.
 
 ## Analytics
 
@@ -46,7 +46,13 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | Short links and tracking pixels | ? | ✓ | ? | ✅ (`/l/{slug}`, `/px/{id}.gif`, default UTM tags, expiry, click limits, QR code, per-link stats) |
 | Pixel analytics projects and open GitHub counters | ? | ? | ? | ✅ (aggregate-only GIF pixels, branded SVG badges, snippets and a dedicated dashboard; open counters are opt-in) |
 | App health for desktop, mobile and backend apps | ? | ? | ? | ✅ (app projects with a write-only ingest key, crash and error reports grouped into issues, crash-free users and sessions, regressions by release, compatibility matrix, releases page, issue alerts, TypeScript and Python client kits, read-only MCP tools) |
-| App Monitoring: Sentry SDK compatibility | ? | ? | ? | ✅ (point an unmodified Sentry SDK at the project DSN; tested end to end with the JavaScript browser, Node, Python and Go SDKs; DSN keys with allowed origins and revoke; per-SDK setup screen; event detail with exception chain, in-app frames, breadcrumbs, contexts and tags; JavaScript source maps uploaded with unmodified `sentry-cli`, `@sentry/vite-plugin` or the `sentry` CLI and resolved to original file and line; inbound filters with per-project switches; app user erasure; app data in the site export; performance, replays, profiles, cron and native symbolication are later phases) |
+| App Monitoring: Sentry SDK compatibility | ? | ? | ? | ✅ (point an unmodified Sentry SDK at the project DSN; tested end to end with the JavaScript browser, Node, Python and Go SDKs; DSN keys with allowed origins and revoke; per-SDK setup screen; event detail with exception chain, in-app frames, breadcrumbs, contexts and tags; inbound filters with per-project switches; app user erasure; app data in the site export) |
+| App Monitoring: issues and releases | ? | ? | ? | ✅ (issues with search, bulk actions, merge, comments, activity and user feedback; releases list, detail, compare and health; deploy markers; attachments; suspect commits from release commit data in `internal/appquery/suspects.go`) |
+| App Monitoring: symbolication | ? | ? | ? | ✅ (JavaScript source maps uploaded with unmodified `sentry-cli`, `@sentry/vite-plugin` or the `sentry` CLI; ProGuard mappings; native debug files with minidump stack walking; symbols settings page; see `docs/guide/source-maps.md`) |
+| App Monitoring: performance and traces | ? | ? | ? | ✅ (transaction list and detail, trace page with a span waterfall, span rollups) |
+| App Monitoring: logs and metrics | ? | ? | ? | ✅ (logs and metrics explorers; OTLP ingest in `internal/otlpingest`; per-project quotas) |
+| App Monitoring: alerts, silences and incidents | ? | ? | ? | ✅ (alert rules with a rule builder (triggers, filters, actions), alert silences, incident list, notification history; see `docs/guide/observability.md`) |
+| App Monitoring: cron monitors | ? | ? | ? | ✅ (monitors settings page; missed check-in detection in `internal/appmonitors`) |
 | AI insights | – | ? | ✓ | ⏸ |
 
 ## Tracking
@@ -68,7 +74,7 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | Do Not Track / GPC, visitor opt-out | ✓ (opt-out) | ✓ (DNT) | – | ✅ (respected by default; `supermetry.optOut()`) |
 | Consent mode, manual pageviews, `beforeSend` hook | – | ✓ | ✓ (consent) | ✅ |
 | npm tracker package | ✓ | – | ✓ | ✅ |
-| Mobile SDKs | – | – | ✓ | ⏸ |
+| Mobile SDKs | – | – | ✓ | ✅ (Swift `sdk/ios`, Kotlin `sdk/android`, React Native `sdk/react-native`) |
 
 ## Team, sharing and API
 
@@ -89,10 +95,16 @@ Evidence for the other products is kept in the maintainers' research notes. Last
 | Webhooks, Slack, Discord | – | – | ✓ | ✅ |
 | CSV export | ✓ | ✓ | ? | ✅ (every report, streamed) |
 | Full export; import from Plausible, Umami, GA4, Mixpanel, Amplitude | ✓ | partial | ✓ | ✅ (file imports with dry-run preview, per-day de-duplication and undo; identifiers and IPs are never stored) |
+| Pull imports from Plausible, Matomo and GA4 | ? | ? | ? | ✅ (fetch daily aggregates through each service's API in resumable date-range chunks, then the same preview and undo; Umami imports are file based) |
+| Scheduled exports to S3 | ? | ? | ? | ✅ (`internal/exportschedule`; uploaded object is a ZIP with a manifest) |
+| Organization settings export and import | ? | ? | ? | ✅ (`internal/orgbundle`; Settings, Exports) |
 | Stats API: summary | ✓ | ✓ | ✓ | ✅ |
 | Stats API: timeseries, breakdowns, realtime | ✓ | ✓ | ✓ | ✅ |
 | API: sessions, raw events, properties, suggestions | – | ✓ | ✓ | ✅ |
 | API key management through the API, scoped keys | ✓ (scopes) | ✓ | – | ✅ (`keys:manage`, no escalation) |
+| API key expiry and rolling | ? | ? | ? | ✅ (default expiry, checksummed key format, last-use metadata, roll endpoints) |
+| Step-up re-authentication for sensitive actions | ? | ? | ? | ✅ (required for exports, settings bundle and pull imports, and member changes) |
+| Content-Security-Policy for the dashboard | ? | ? | ? | ✅ (enforced by default; `SUPERMETRY_CSP` sets enforce, report-only or off) |
 | API reference in the app + typed client | ✓ (docs) | ✓ (client) | ✓ | ✅ |
 | Sites / goals / funnels API | ✓ (not in CE) | ✓ | ✓ | ✅ |
 | MCP server for AI assistants | ? | ✓ | ✓ | ✅ |
@@ -158,17 +170,15 @@ Hosting, docs, Docker, security and optimisation come later (user, 2026-10-08).
 33. ~~Pixel analytics projects and opt-in open GitHub counters~~ ✅
 34. ~~GitHub star tracking per organization: each organization tracks its own repositories (5 by default, adjustable per organization): webhook, per-user event log, hourly and daily charts, daily reconcile; page at /app/{org}/github-stars, readable by every member and managed by owners and admins; opt-in public star-count endpoint `GET /api/github/stars/{owner}/{name}` returning `{"stars":N}`~~ ✅
 35. ~~Admin storage estimates per site and organization, with logical PostgreSQL bytes plus replay recording/CSS blobs~~ ✅
-36. ~~App health: app projects with ingest keys, `POST /api/public/v1/app-events`, issues with resolve/regress by release, crash-free users and sessions, compatibility and releases pages, four app alert kinds, MIT client kits for TypeScript and Python (`sdk/`); Swift and Kotlin kits later~~ ✅
+36. ~~App health: app projects with ingest keys, `POST /api/public/v1/app-events`, issues with resolve/regress by release, crash-free users and sessions, compatibility and releases pages, four app alert kinds, MIT client kits for TypeScript and Python (`sdk/`)~~ ✅
 37. ~~Stripe revenue integration: webhook purchases, renewals and refunds with cookieless attribution~~ ✅
 
 ### Later
 
 - ~~LICENSE file~~ ✅, ~~Docker image, release binaries, systemd unit, installer~~ ✅, ~~backup/restore~~ ✅
 - ~~Server-side events API docs~~ ✅ (`docs/api.md`); landing page and docs (Astro + Starlight)
-- ~~Trust fixes T1–T8~~ ✅ (see competitor-profiles/_summary.md); full security review still to do
+- ~~Trust fixes T1–T8~~ ✅; full security review still to do
 - ~~Accuracy check (reference, 0 mismatches)~~ ✅; real-traffic comparison with Plausible (`tools/bench/accuracy/compare_live.py`) and product benchmark (D25) ⏳
 - Optimisation: ~~startup time~~ ✅ (9.8 s → 160 ms), idle RAM (~90 MB now, target <50 MB), product benchmark (D25)
 
-A full gap analysis against every reference repo is kept in the maintainers' research notes.
-
-Deferred: AI insights, mobile SDKs, SSO/OIDC, Camo IP-range verification, and more open-counter hosts.
+Deferred: AI insights, SSO/OIDC, Camo IP-range verification, and more open-counter hosts.

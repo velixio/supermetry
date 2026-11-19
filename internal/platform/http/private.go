@@ -22,10 +22,12 @@ import (
 
 	"supermetry/internal/api"
 	"supermetry/internal/config"
+	"supermetry/internal/exportschedule"
 	"supermetry/internal/ghstars"
 	"supermetry/internal/ghtrending"
 	"supermetry/internal/imports"
 	"supermetry/internal/links"
+	"supermetry/internal/orgbundle"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
 	"supermetry/internal/platform/audit"
@@ -63,6 +65,7 @@ type MutationService interface {
 	UpdateSite(context.Context, authz.Principal, int32, sitesvc.SitePatch) (coresites.Site, error)
 	DeleteSite(context.Context, authz.Principal, int32) error
 	CreateAPIKey(context.Context, authz.Principal, CreateAPIKeyRequest) (CreatedAPIKey, error)
+	RollAPIKey(context.Context, authz.Principal, int64, RollAPIKeyRequest) (RolledAPIKey, error)
 	DeleteOrg(context.Context, authz.Principal, int64) error
 }
 
@@ -132,8 +135,11 @@ type Deps struct {
 		Unregister(siteID int32, tag string)
 		Reload(context.Context, links.DBTX) error
 	}
-	Pixels  *pixels.Registry
-	Auth    *platformauth.Auth
+	Pixels *pixels.Registry
+	Auth   *platformauth.Auth
+	// StepUp overrides how sensitive actions check for a recent sign-in; nil
+	// uses Auth. It exists so tests can stand in for a session store.
+	StepUp  StepUpChecker
 	Orgs    *orgs.Orgs
 	Keys    *keys.Keys
 	Invites *invites.Invites
@@ -158,7 +164,9 @@ type Deps struct {
 	ImportQueue     interface {
 		Queue(imports.Job) error
 	}
-	Exporter interface {
+	// ImportPulls serves API-based imports (Plausible, Matomo, GA4). Optional.
+	ImportPulls ImportPullService
+	Exporter    interface {
 		Write(context.Context, io.Writer, int32, time.Time, time.Time) error
 	}
 	ReplayStore replay.BlobStore
@@ -189,6 +197,10 @@ type Deps struct {
 	Integrations IntegrationsService
 	// Stripe serves the per-site Stripe revenue connection. Optional.
 	Stripe StripeService
+	// ExportSchedules runs scheduled exports to S3-compatible storage. Nil answers 404.
+	ExportSchedules *exportschedule.Service
+	// OrgBundle exports and imports organization settings. Nil answers 404.
+	OrgBundle *orgbundle.Service
 }
 
 // Services adapts the services built by Tasks 104 and 105 to MutationService.
@@ -208,16 +220,44 @@ type CreateSiteRequest struct {
 	RevenueCurrency string `json:"revenue_currency"`
 }
 
+// StepUpChecker says whether the session behind a cookie signed in or
+// re-authenticated recently enough for a sensitive action.
+type StepUpChecker interface {
+	RequireRecentAuth(ctx context.Context, cookieValue string) error
+}
+
+// CreateAPIKeyRequest picks the expiry with at most one of expires_at,
+// expires_in_days (1 to 3650) or never_expires:true. With none, the key
+// expires after keys.DefaultExpiry (90 days).
 type CreateAPIKeyRequest struct {
-	Name      string     `json:"name"`
-	Scopes    []string   `json:"scopes"`
-	SiteIDs   []int32    `json:"site_ids,omitempty"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Name          string     `json:"name"`
+	Scopes        []string   `json:"scopes"`
+	SiteIDs       []int32    `json:"site_ids,omitempty"`
+	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
+	ExpiresInDays *int       `json:"expires_in_days,omitempty"`
+	NeverExpires  bool       `json:"never_expires,omitempty"`
 }
 
 type CreatedAPIKey struct {
-	ID  int64  `json:"id"`
-	Key string `json:"key"`
+	ID        int64      `json:"id"`
+	Key       string     `json:"key"`
+	ExpiresAt *time.Time `json:"expires_at"`
+}
+
+// RollAPIKeyRequest chooses how long the old key keeps working: grace_hours of
+// 0, 1, 24 (default when omitted) or 168.
+type RollAPIKeyRequest struct {
+	GraceHours *int `json:"grace_hours,omitempty"`
+}
+
+// RolledAPIKey is the successor (its secret is shown once) and when the old key
+// stops working.
+type RolledAPIKey struct {
+	ID              int64      `json:"id"`
+	Key             string     `json:"key"`
+	ExpiresAt       *time.Time `json:"expires_at"`
+	OldKeyID        int64      `json:"old_key_id"`
+	OldKeyExpiresAt *time.Time `json:"old_key_expires_at"`
 }
 
 type handler struct {
@@ -311,6 +351,7 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/purge-requests", h.listDataPurges)
 	mux.HandleFunc("POST /api/private/sites/{site}/purge-requests", h.createDataPurge)
 	mux.HandleFunc("POST /api/private/orgs/{org}/api-keys", h.createAPIKey)
+	mux.HandleFunc("POST /api/private/orgs/{org}/api-keys/{key}/roll", h.rollAPIKey)
 	mux.HandleFunc("GET /api/private/orgs/{org}/audit", h.listAudit)
 	mux.HandleFunc("GET /api/private/orgs/{org}/sites/deleted", h.listDeletedSites)
 	mux.HandleFunc("PATCH /api/private/orgs/{org}", h.renameOrg)
@@ -437,7 +478,26 @@ func (h *handler) registerPrivate(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/private/sites/{site}/imports", h.listImports)
 	mux.HandleFunc("POST /api/private/sites/{site}/imports/preview", h.previewImport)
 	mux.HandleFunc("DELETE /api/private/imports/{import}", h.deleteImport)
+	mux.HandleFunc("GET /api/private/imports/{import}", h.getImport)
+	mux.HandleFunc("GET /api/private/sites/{site}/imports/capabilities", h.importCapabilities)
+	mux.HandleFunc("GET /api/private/sites/{site}/imports/compare", h.compareImports)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports/pull", h.createPullImport)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports/pull/preview", h.previewPullImport)
+	mux.HandleFunc("POST /api/private/sites/{site}/imports/ga4/connect", h.connectGA4)
+	mux.HandleFunc("GET /api/private/imports/ga4/callback", h.ga4Callback)
+	mux.HandleFunc("GET /api/private/imports/ga4/connections", h.listGA4Connections)
+	mux.HandleFunc("GET /api/private/imports/ga4/connections/{connection}/properties", h.listGA4Properties)
+	mux.HandleFunc("DELETE /api/private/imports/ga4/connections/{connection}", h.deleteGA4Connection)
 	mux.HandleFunc("GET /api/private/sites/{site}/export", h.exportSite)
+	mux.HandleFunc("GET /api/private/orgs/{org}/export-schedules", h.listExportSchedules)
+	mux.HandleFunc("POST /api/private/orgs/{org}/export-schedules", h.createExportSchedule)
+	mux.HandleFunc("PATCH /api/private/orgs/{org}/export-schedules/{schedule}", h.updateExportSchedule)
+	mux.HandleFunc("DELETE /api/private/orgs/{org}/export-schedules/{schedule}", h.deleteExportSchedule)
+	mux.HandleFunc("POST /api/private/orgs/{org}/export-schedules/{schedule}/run", h.runExportSchedule)
+	mux.HandleFunc("POST /api/private/orgs/{org}/export-schedules/{schedule}/test", h.testExportSchedule)
+	mux.HandleFunc("GET /api/private/orgs/{org}/export-schedules/{schedule}/runs", h.listExportRuns)
+	mux.HandleFunc("GET /api/private/orgs/{org}/settings-export", h.exportOrgSettings)
+	mux.HandleFunc("POST /api/private/orgs/{org}/settings-import", h.importOrgSettings)
 	mux.HandleFunc("GET /api/private/sites/{site}/profiles", h.listProfiles)
 	mux.HandleFunc("GET /api/private/profiles/{profile}", h.getProfile)
 	mux.HandleFunc("DELETE /api/private/profiles/{profile}", h.deleteProfile)
@@ -581,8 +641,54 @@ func (s Services) CreateAPIKey(ctx context.Context, principal authz.Principal, r
 	if s.Keys == nil {
 		return CreatedAPIKey{}, errors.New("API key service is unavailable")
 	}
-	plain, info, err := s.Keys.Create(ctx, principal, request.Name, request.Scopes, request.SiteIDs, request.ExpiresAt)
-	return CreatedAPIKey{ID: info.ID, Key: plain}, err
+	choices := 0
+	if request.ExpiresAt != nil {
+		choices++
+	}
+	if request.ExpiresInDays != nil {
+		choices++
+	}
+	if request.NeverExpires {
+		choices++
+	}
+	if choices > 1 {
+		return CreatedAPIKey{}, fmt.Errorf("%w: choose one of expires_at, expires_in_days or never_expires", keys.ErrInvalid)
+	}
+	var (
+		plain string
+		info  keys.KeyInfo
+		err   error
+	)
+	switch {
+	case request.NeverExpires:
+		plain, info, err = s.Keys.Create(ctx, principal, request.Name, request.Scopes, request.SiteIDs, nil)
+	case request.ExpiresAt != nil:
+		plain, info, err = s.Keys.Create(ctx, principal, request.Name, request.Scopes, request.SiteIDs, request.ExpiresAt)
+	case request.ExpiresInDays != nil:
+		if *request.ExpiresInDays < 1 || *request.ExpiresInDays > 3650 {
+			return CreatedAPIKey{}, fmt.Errorf("%w: expires_in_days must be between 1 and 3650", keys.ErrInvalid)
+		}
+		expires := time.Now().Add(time.Duration(*request.ExpiresInDays) * 24 * time.Hour)
+		plain, info, err = s.Keys.Create(ctx, principal, request.Name, request.Scopes, request.SiteIDs, &expires)
+	default:
+		plain, info, err = s.Keys.CreateDefaultExpiry(ctx, principal, request.Name, request.Scopes, request.SiteIDs)
+	}
+	return CreatedAPIKey{ID: info.ID, Key: plain, ExpiresAt: info.ExpiresAt}, err
+}
+
+func (s Services) RollAPIKey(ctx context.Context, principal authz.Principal, id int64, request RollAPIKeyRequest) (RolledAPIKey, error) {
+	if s.Keys == nil {
+		return RolledAPIKey{}, errors.New("API key service is unavailable")
+	}
+	grace := keys.DefaultGraceHours
+	if request.GraceHours != nil {
+		grace = *request.GraceHours
+	}
+	plain, info, err := s.Keys.Roll(ctx, principal, id, grace)
+	if err != nil {
+		return RolledAPIKey{}, err
+	}
+	return RolledAPIKey{ID: info.ID, Key: plain, ExpiresAt: info.ExpiresAt, OldKeyID: id, OldKeyExpiresAt: info.PredecessorExpiresAt}, nil
 }
 
 func (s Services) DeleteOrg(ctx context.Context, principal authz.Principal, id int64) error {
@@ -850,6 +956,9 @@ type problem struct {
 	Title  string `json:"title"`
 	Status int    `json:"status"`
 	Detail string `json:"detail"`
+	// Code is a stable machine-readable reason ("reauth_required"); empty for
+	// problems that have none.
+	Code string `json:"code,omitempty"`
 	// Position is where a syntax error is, for problems about a search.
 	Position *int `json:"position,omitempty"`
 }
@@ -894,7 +1003,7 @@ func serviceError(w http.ResponseWriter, err error) {
 		writeProblem(w, http.StatusConflict, "Conflict", err.Error())
 	case errors.Is(err, sitesvc.ErrLimit):
 		writeProblem(w, http.StatusForbidden, "Limit reached", err.Error())
-	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, keys.ErrInvalid), errors.Is(err, orgs.ErrInvalidRole),
+	case errors.Is(err, sitesvc.ErrInvalid), errors.Is(err, keys.ErrInvalid), errors.Is(err, keys.ErrInvalidGrace), errors.Is(err, orgs.ErrInvalidRole),
 		errors.Is(err, orgs.ErrInvalidAccess),
 		errors.Is(err, orgs.ErrLastOwner), errors.Is(err, invites.ErrInvalid),
 		errors.Is(err, shares.ErrInvalid), errors.Is(err, shares.ErrPasswordRequired),

@@ -37,7 +37,6 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
     <PageContainer width="narrow">
       <PageHeader
         title={t.channels.title}
-        description={t.channels.description}
         actions={canManage ? <Button onClick={() => setEditing(null)}>{t.channels.add}</Button> : undefined}
       />
       {channels.error || remove.error || test.error ? (
@@ -46,11 +45,11 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
         </p>
       ) : null}
       {sent ? <p role="status" className="text-sm text-muted-foreground">{sent}</p> : null}
-      <div className="flex flex-col gap-3">
-        {channels.data?.data.map((channel) => (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={channel.id}>
+      {channels.data && channels.data.data.length > 0 ? <ul className="flex flex-col divide-y rounded-lg border bg-card px-4">
+        {channels.data.data.map((channel) => (
+          <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={channel.id}>
             <div>
-              <h2 className="font-medium">{channel.name}</h2>
+              <h2 className="text-sm font-medium">{channel.name}</h2>
               <p className="text-sm capitalize text-muted-foreground">
                 {channel.kind}{channel.config.recipients?.length ? ` · ${channel.config.recipients.join(', ')}` : ''}
                 {channel.config.chat_id ? ` · ${channel.config.chat_id}` : ''}
@@ -59,16 +58,16 @@ export function NotificationsPage({ orgId, canManage = true }: { orgId: number; 
             </div>
             {canManage ? (
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" disabled={test.isPending} onClick={() => sendTest(channel)}>
-                  {t.channels.sendTest(channel.name)}
+                <Button variant="secondary" size="sm" className="max-md:min-h-11" disabled={test.isPending} aria-label={t.channels.sendTest(channel.name)} onClick={() => sendTest(channel)}>
+                  {t.channels.test}
                 </Button>
-                {channel.kind === 'email' || channel.kind === 'telegram' || channel.kind === 'pagerduty' ? <Button variant="outline" onClick={() => setEditing(channel)}>{t.common.edit}</Button> : null}
-                <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(channel.id)}>{t.common.delete}</Button>
+                {channel.kind === 'email' || channel.kind === 'telegram' || channel.kind === 'pagerduty' ? <Button variant="secondary" size="sm" className="max-md:min-h-11" onClick={() => setEditing(channel)}>{t.common.edit}</Button> : null}
+                <Button variant="secondary" size="sm" className="max-md:min-h-11" disabled={remove.isPending} onClick={() => remove.mutate(channel.id)}>{t.common.delete}</Button>
               </div>
             ) : null}
-          </section>
+          </li>
         ))}
-      </div>
+      </ul> : null}
       <ChannelDialog
         channel={editing}
         error={save.error}
@@ -124,7 +123,7 @@ function ChannelDialog({ channel, error, pending, onClose, onSave }: {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="channel-kind">{t.channels.type}</FieldLabel>
-              <select id="channel-kind" disabled={Boolean(channel)} className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput({ kind: event.target.value as ChannelKind, name: input.name, enabled: input.enabled, config: {} })}>
+              <select id="channel-kind" disabled={Boolean(channel)} className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput({ kind: event.target.value as ChannelKind, name: input.name, enabled: input.enabled, config: {} })}>
                 {(["email", "webhook", "slack", "discord", "telegram", "pagerduty"] as const).map((kind) => <option key={kind} value={kind}>{t.common.channelKind[kind]}</option>)}
               </select>
             </Field>

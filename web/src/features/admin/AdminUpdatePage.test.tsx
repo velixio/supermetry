@@ -71,14 +71,14 @@ describe('AdminUpdatePage', () => {
   it('says so when no update has been run', () => {
     available({ history: [] })
     render(<AdminUpdatePage />)
-    expect(screen.getByText('No updates have been run yet.')).toBeVisible()
+    expect(screen.getByText('No updates yet.')).toBeVisible()
   })
 
   it('warns about the brief offline period before the update starts', () => {
     available()
     render(<AdminUpdatePage />)
     fireEvent.click(screen.getByRole('button', { name: 'Update to 1.3.0' }))
-    expect(screen.getByRole('dialog')).toHaveTextContent('Supermetry will be offline for a few seconds')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Offline for a few seconds')
   })
 
   it('checks for a new release on demand, showing progress while it runs', () => {
@@ -166,7 +166,7 @@ describe('AdminUpdatePage', () => {
   it('explains when this deployment cannot be updated from the UI', () => {
     available({ update_supported: false, deployment_mode: undefined })
     render(<AdminUpdatePage />)
-    expect(screen.getByText('Updates are not managed by this installation.')).toBeVisible()
+    expect(screen.getByText('Updates are not managed here.')).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Update to 1.3.0' })).not.toBeInTheDocument()
   })
 

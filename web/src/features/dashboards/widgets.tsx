@@ -67,7 +67,7 @@ function trafficMetric(widget: DashboardWidget): 'visitors' | 'pageviews' {
 /** Titled card used by the widgets that have no card of their own. */
 function WidgetCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-xl border bg-card text-card-foreground" role="region">
+    <section aria-label={title} className="relative min-w-0 overflow-hidden rounded-lg border bg-card text-card-foreground" role="region">
       <header className="flex min-h-12 items-center border-b px-4">
         <h2 className="truncate text-sm font-medium">{title}</h2>
       </header>
@@ -257,7 +257,7 @@ function VitalsWidget({ title, query }: { title: string; query: StatsQuery }) {
           const needs = Math.round(value.needs_improvement * 100)
           const poor = Math.round(value.poor * 100)
           return (
-            <div className="min-w-0 rounded-lg border px-3 py-2" key={key}>
+            <div className="min-w-0 rounded-md bg-muted/40 px-3 py-2" key={key}>
               <dt className="truncate text-xs text-muted-foreground">{name}</dt>
               <dd className="text-lg font-semibold tabular-nums">{value.samples > 0 && value.p75 !== undefined ? formatP75(key, value.p75) : '—'}</dd>
               <dd className="text-xs text-muted-foreground">{t.vitalsShares(good, needs, poor)} · {t.vitalsSamples(value.samples)}</dd>
@@ -281,9 +281,9 @@ export class WidgetBoundary extends Component<{ title: string; children: ReactNo
   render() {
     if (!this.state.failed) return this.props.children
     return (
-      <div className="flex min-h-24 flex-col items-start gap-2 rounded-xl border bg-card p-4" role="alert">
+      <div className="flex min-h-24 flex-col items-start gap-2 rounded-lg border bg-card p-4" role="alert">
         <p className="text-sm text-muted-foreground">{t.widgetFailed(this.props.title)}</p>
-        <Button className="min-h-11 sm:min-h-9" size="sm" type="button" variant="outline" onClick={() => this.setState({ failed: false })}>{t.retry}</Button>
+        <Button className="max-sm:min-h-11" size="sm" type="button" variant="outline" onClick={() => this.setState({ failed: false })}>{t.retry}</Button>
       </div>
     )
   }

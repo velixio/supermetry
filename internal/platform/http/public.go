@@ -21,6 +21,7 @@ func (h *handler) registerPublic(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/public/v1/api-keys", h.listPublicAPIKeys)
 	mux.HandleFunc("POST /api/public/v1/api-keys", h.createPublicAPIKey)
 	mux.HandleFunc("DELETE /api/public/v1/api-keys/{key}", h.revokePublicAPIKey)
+	mux.HandleFunc("POST /api/public/v1/api-keys/{key}/roll", h.rollPublicAPIKey)
 	mux.HandleFunc("GET /api/public/v1/sites", h.listSites)
 	mux.HandleFunc("POST /api/public/v1/sites", h.createSite)
 	mux.HandleFunc("GET /api/public/v1/sites/{site}", h.getSite)

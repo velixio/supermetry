@@ -40,11 +40,11 @@ export function AppAlertsPage({ orgId, orgSlug, siteId, siteSlug }: { orgId: num
       />
       {failure ? <p role="alert" className="text-sm text-destructive">{failure.message}</p> : null}
       {alerts.data && rules.length === 0 ? (
-        <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.rules.empty}</p>
+        <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">{t.rules.empty}</p>
       ) : null}
       <div className="flex flex-col gap-3">
         {rules.map((alert) => (
-          <section aria-label={t.rules.ruleAria(String(alert.name ?? alert.id))} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={alert.id}>
+          <section aria-label={t.rules.ruleAria(String(alert.name ?? alert.id))} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4" key={alert.id}>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-medium">{alert.name}</h2>

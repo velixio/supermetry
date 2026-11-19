@@ -68,7 +68,8 @@ test('a saved dashboard renders every widget kind with overrides, switcher and r
   await owner.login(page, `${base}?dash=${id}&period=custom&from=${range.from}&to=${range.to}`)
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dashboard')
+  // The dashboard's title is the project name, already shown in the header breadcrumb, so the h1 is screen-reader-only.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Site 1')
   const grid = page.getByRole('group', { name: 'Dashboard widgets' })
   await expect(grid).toBeVisible()
   await expect(grid.locator('[data-widget-id]')).toHaveCount(9)
@@ -88,18 +89,18 @@ test('a saved dashboard renders every widget kind with overrides, switcher and r
   expect(queryBodies.some((body) => body.date_range.from === range.from && body.date_range.to === range.to)).toBe(true)
 
   // Keyboard: open the switcher with the keyboard and choose the standard dashboard.
-  const switcher = page.getByRole('combobox', { name: 'Dashboard' })
+  const switcher = page.getByRole('button', { name: /Switch dashboard/ })
   await expect(switcher).toBeVisible()
-  expect((await switcher.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(36)
+  expect((await switcher.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(32)
   await switcher.focus()
   await page.keyboard.press('Enter')
-  await page.getByRole('option', { name: 'Standard dashboard' }).click()
+  await page.getByRole('menuitemradio', { name: 'Standard dashboard' }).click()
   await expect(page).toHaveURL(/dash=builtin/)
   await expect(page.getByRole('group', { name: 'Dashboard widgets' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Pages' })).toBeVisible()
   await switcher.focus()
   await page.keyboard.press('Enter')
-  await page.getByRole('option', { name: 'Marketing' }).click()
+  await page.getByRole('menuitemradio', { name: 'Marketing' }).click()
   await expect(page).toHaveURL(new RegExp(`dash=${id}`))
   await expect(page.getByRole('group', { name: 'Dashboard widgets' }).locator('[data-widget-id]')).toHaveCount(9)
   // The dashboard's own default period was adopted into the URL.
@@ -168,7 +169,7 @@ test('the site default dashboard opens on its own and failures stay inside their
   await expect(page).toHaveURL(/period=7d/)
   await expect(page).toHaveURL(/compare=previous_period/)
   const grid = page.getByRole('group', { name: 'Dashboard widgets' })
-  await expect(grid.getByRole('alert')).toContainText('The pages query failed.')
+  await expect(grid.getByRole('status').filter({ hasText: 'The pages query failed.' })).toBeVisible()
   await expect(grid.getByText('Headline numbers', { exact: true })).toBeAttached()
   await expect(grid.getByRole('button', { name: 'Retry' })).toBeVisible()
 

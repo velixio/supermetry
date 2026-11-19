@@ -869,3 +869,26 @@ func TestLoadRemoteSymbols(t *testing.T) {
 		t.Fatalf("explicit: %v %d %v", c.ElectronSymbols, c.RemoteSymbolsMB, err)
 	}
 }
+
+func TestLoadCSPMode(t *testing.T) {
+	base := validEnvForCSP()
+	for in, want := range map[string]string{"": "enforce", "Report-Only": "report-only", "off": "off"} {
+		base["SUPERMETRY_CSP"] = in
+		c, err := Load(env(base))
+		if err != nil || c.CSPMode != want {
+			t.Fatalf("%q: mode %q err %v, want %q", in, c.CSPMode, err, want)
+		}
+	}
+	base["SUPERMETRY_CSP"] = "bogus"
+	if _, err := Load(env(base)); err == nil {
+		t.Fatal("bogus SUPERMETRY_CSP accepted")
+	}
+}
+
+func validEnvForCSP() map[string]string {
+	return map[string]string{
+		"SUPERMETRY_DATABASE_URL": "postgres://x",
+		"SUPERMETRY_BASE_URL":     "https://a.example",
+		"SUPERMETRY_SECRET_KEY":   validSecretKey(),
+	}
+}

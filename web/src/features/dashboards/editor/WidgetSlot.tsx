@@ -22,7 +22,7 @@ type WidgetSlotProps = {
   onAction: (id: string, action: SlotAction) => void
 }
 
-const button = 'min-h-11 min-w-11 sm:min-h-11 sm:min-w-11'
+const button = 'max-sm:min-h-11 max-sm:min-w-11 sm:min-h-11 sm:min-w-11'
 
 /** One widget in the editor: a toolbar plus the live preview rendered by the viewer's widget body. */
 export function WidgetSlot({ widget, index, total, preview, query, onAction }: WidgetSlotProps) {

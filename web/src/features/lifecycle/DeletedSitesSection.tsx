@@ -13,8 +13,8 @@ function localDate(value: string): string {
 function restoreError(error: unknown): string {
   const code = error instanceof Error ? error.message : ''
   if (code === 'not_restorable') return 'This can no longer be restored.'
-  if (code === 'site_limit') return 'Your organization is at its site limit.'
-  return 'The site could not be restored.'
+  if (code === 'site_limit') return 'Your organization is at its project limit.'
+  return 'The project could not be restored.'
 }
 
 export function DeletedSitesSection({
@@ -33,7 +33,7 @@ export function DeletedSitesSection({
   const restore = useMutation({
     mutationFn: (siteId: number) => restoreSite(siteId, orgId!),
     onSuccess: async () => {
-      toast.success('Site restored')
+      toast.success('Project restored')
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['lifecycle', 'deleted-sites', orgId] }),
         queryClient.invalidateQueries({ queryKey: ['me'] }),
@@ -47,7 +47,7 @@ export function DeletedSitesSection({
     <Card>
       <CardHeader>
         <CardTitle>Scheduled for deletion</CardTitle>
-        <CardDescription>Restore a site before its permanent deletion date.</CardDescription>
+        <CardDescription>Restore a project before its permanent deletion date.</CardDescription>
       </CardHeader>
       <CardContent>
         {restore.error ? <p role="alert" className="mb-3 text-sm text-destructive">{restoreError(restore.error)}</p> : null}

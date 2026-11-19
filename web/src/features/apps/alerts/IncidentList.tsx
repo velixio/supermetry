@@ -19,11 +19,11 @@ const stamp = (value: string) => new Date(value).toLocaleString()
 
 /** One row per incident: when it opened and resolved, its peak, and whether anyone was told. */
 export function IncidentList({ incidents }: { incidents: AlertIncident[] }) {
-  if (incidents.length === 0) return <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.incidents.empty}</p>
+  if (incidents.length === 0) return <p className="rounded-lg border bg-card p-5 text-sm text-muted-foreground">{t.incidents.empty}</p>
   return (
     <ol aria-label={t.incidents.list} className="flex flex-col gap-3">
       {incidents.map((incident) => (
-        <li key={incident.id} className="grid gap-1 rounded-xl border bg-card p-4">
+        <li key={incident.id} className="grid gap-1 rounded-lg border bg-card p-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={incident.resolved_at ? 'secondary' : 'destructive'}>{incident.resolved_at ? t.incidents.resolved : t.incidents.open}</Badge>
             <Badge variant="outline" className="capitalize">{incident.severity}</Badge>

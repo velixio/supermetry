@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { SeenValuePicker, type SuggestSource } from '@/features/onboarding/SeenValuePicker'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -13,10 +14,12 @@ type GoalEditorProps = {
   onCancel?: () => void
   projectCurrency?: string
   currencyState?: 'unconfigured' | 'configured' | 'conflict'
+  /** When set, page paths and event names already seen are offered next to the value field. */
+  suggest?: SuggestSource
 }
 
 const emptyGoal: GoalInput = { kind: 'page', match: 'exact', value: '', name: '' }
-export function GoalEditor({ goal, pending, onSave, onCancel, projectCurrency, currencyState }: GoalEditorProps) {
+export function GoalEditor({ goal, pending, onSave, onCancel, projectCurrency, currencyState, suggest }: GoalEditorProps) {
   const [input, setInput] = useState<GoalInput>(goal ?? emptyGoal)
   const [error, setError] = useState('')
 
@@ -43,7 +46,7 @@ export function GoalEditor({ goal, pending, onSave, onCancel, projectCurrency, c
   }
 
   return (
-    <form className="flex flex-col gap-4 rounded-xl border bg-card p-4" onSubmit={submit}>
+    <form className="flex flex-col gap-4 rounded-lg border bg-card p-4" onSubmit={submit}>
       <h2 className="font-medium">{goal ? 'Edit goal' : 'Create a goal'}</h2>
       <FieldGroup>
         <Field data-invalid={error !== '' && !input.name.trim()}>
@@ -72,6 +75,14 @@ export function GoalEditor({ goal, pending, onSave, onCancel, projectCurrency, c
         <Field data-invalid={error !== '' && !input.value.trim()}>
           <FieldLabel htmlFor="goal-value">Goal value</FieldLabel>
           <Input id="goal-value" aria-invalid={error !== '' && !input.value.trim()} value={input.value} onChange={(event) => setInput((current) => ({ ...current, value: event.target.value }))} />
+          {suggest && input.match !== 'wildcard' ? (
+            <SeenValuePicker
+              source={suggest}
+              dimension={input.kind === 'event' ? 'event' : 'page'}
+              query={input.value}
+              onPick={(value) => setInput((current) => ({ ...current, value, name: current.name.trim() ? current.name : value }))}
+            />
+          ) : null}
         </Field>
         {input.kind === 'scroll' ? (
           <Field data-invalid={error !== '' && (!Number.isInteger(input.scroll_threshold) || input.scroll_threshold! < 1 || input.scroll_threshold! > 100)}>

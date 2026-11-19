@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { request as playwrightRequest } from '@playwright/test'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const screenshotDirectory = 'e2e/screenshots/sites-overview'
 
@@ -22,6 +23,9 @@ test('sites overview filters, remembers its view, exposes keyboard actions, and 
       const body = (await created.json()) as { id?: number; ID?: number }
       seeded.push(Number(body.id ?? body.ID))
     }
+    // Signing in opens the last visited project by default; this test is about the overview, so ask for it.
+    const preference = await api.patch('/api/private/me', { data: { preferences: { landing_page: 'overview' } } })
+    expect(preference.ok(), await preference.text()).toBe(true)
     await runOverview(page, owner)
   } finally {
     for (const id of seeded) await api.delete(`/api/private/sites/${id}`)
@@ -36,7 +40,7 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
   })
 
   await owner.login(page, '/app')
-  await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
   await expect(page.getByRole('banner', { name: 'Application header' })).toBeVisible()
   await expect(page.getByRole('main')).toHaveCount(1)
   await expect(page.getByTestId('site-overview-card').first()).toBeVisible()
@@ -56,7 +60,7 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
   await expect(page).toHaveURL(/period=7d/)
 
   await page.getByRole('radio', { name: 'Table view' }).click()
-  await expect(page.getByRole('table', { name: 'Sites overview' })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Projects overview' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('radio', { name: 'Table view' })).toHaveAttribute('aria-checked', 'true')
   await page.getByRole('radio', { name: 'Card view' }).click()
@@ -64,16 +68,16 @@ async function runOverview(page: import('@playwright/test').Page, owner: { login
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.screenshot({ path: `${screenshotDirectory}/1440-light.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.screenshot({ path: `${screenshotDirectory}/1440-dark.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
 
   await page.setViewportSize({ width: 1024, height: 850 })
   await page.screenshot({ path: `${screenshotDirectory}/1024.png`, fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(page.getByRole('heading', { name: 'Sites', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await page.screenshot({ path: `${screenshotDirectory}/390.png`, fullPage: true })
   expect(serverErrors).toEqual([])

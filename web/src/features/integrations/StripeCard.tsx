@@ -36,9 +36,9 @@ const stateLabel: Record<StripeState, string> = {
 
 const stateClass: Record<StripeState, string> = {
   off: 'border-border text-muted-foreground',
-  pending: 'border-amber-600 text-amber-700 dark:border-amber-400 dark:text-amber-300',
-  active: 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300',
-  error: 'border-destructive text-destructive',
+  pending: 'text-amber-700 dark:text-amber-300',
+  active: 'text-emerald-700 dark:text-emerald-300',
+  error: 'text-destructive',
 }
 
 const SECRET_PATTERN = /^whsec_[A-Za-z0-9+/=_-]{16,240}$/
@@ -66,9 +66,9 @@ function WebhookURL({ url }: { url: string }) {
     <div className="flex flex-col gap-2">
       <label className="text-sm font-medium" htmlFor="stripe-webhook-url">{s.webhookUrl}</label>
       <div className="flex flex-wrap gap-2">
-        <Input className="min-h-11 min-w-0 flex-1 font-mono text-xs" id="stripe-webhook-url" onFocus={(event) => event.currentTarget.select()} readOnly value={full} />
+        <Input className="max-sm:min-h-11 min-w-0 flex-1 font-mono text-xs" id="stripe-webhook-url" onFocus={(event) => event.currentTarget.select()} readOnly value={full} />
         <Button
-          className="min-h-11"
+          className="max-sm:min-h-11"
           onClick={() => void copyText(full).then((ok) => setCopied(ok ? 'ok' : 'failed'))}
           type="button"
           variant="outline"
@@ -110,7 +110,7 @@ function SecretForm({ status, siteId, orgId }: { status: StripeIntegration; site
           aria-describedby="stripe-signing-secret-hint"
           aria-invalid={invalid || undefined}
           autoComplete="off"
-          className="min-h-11 min-w-0 flex-1 font-mono"
+          className="max-sm:min-h-11 min-w-0 flex-1 font-mono"
           id="stripe-signing-secret"
           onChange={(event) => setSecret(event.target.value)}
           placeholder="whsec_…"
@@ -118,7 +118,7 @@ function SecretForm({ status, siteId, orgId }: { status: StripeIntegration; site
           type="password"
           value={secret}
         />
-        <Button className="min-h-11" disabled={configure.isPending} type="submit">
+        <Button className="max-sm:min-h-11" disabled={configure.isPending} type="submit">
           {configure.isPending ? s.saving : s.saveSecret}
         </Button>
       </div>
@@ -133,7 +133,7 @@ function PaymentIntentToggle({ status, siteId, orgId }: { status: StripeIntegrat
   const configure = useConfigureStripe(siteId, orgId)
   return (
     <div className="flex flex-col gap-1">
-      <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
+      <label className="flex max-sm:min-h-11 items-center gap-3 text-sm font-medium">
         <input
           aria-describedby="stripe-payment-intents-hint"
           checked={status.record_payment_intents}
@@ -198,11 +198,11 @@ export function StripeCard({ siteId, orgId, canManage }: { siteId: number; orgId
   const state = stripeState(status)
 
   return (
-    <section aria-labelledby="provider-stripe" className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5 text-card-foreground">
+    <section aria-labelledby="provider-stripe" className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-5 text-card-foreground">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold" id="provider-stripe">{s.title}</h3>
         {status ? (
-          <span className={`inline-flex min-h-7 items-center rounded-full border px-3 text-sm font-medium ${stateClass[state]}`}>
+          <span className={`inline-flex min-h-7 items-center rounded-sm border px-3 text-sm font-medium ${stateClass[state]}`}>
             <span className="sr-only">{t.statusLabel}: </span>
             {stateLabel[state]}
           </span>
@@ -220,7 +220,7 @@ export function StripeCard({ siteId, orgId, canManage }: { siteId: number; orgId
       ) : !status?.enabled ? (
         canManage ? (
           <div>
-            <Button className="min-h-11" disabled={enable.isPending} onClick={() => enable.mutate()} type="button">
+            <Button className="max-sm:min-h-11" disabled={enable.isPending} onClick={() => enable.mutate()} type="button">
               {enable.isPending ? s.enabling : s.enable}
             </Button>
             {enable.isError ? <p className="mt-2 text-sm text-destructive" role="alert">{enable.error.message}</p> : null}
@@ -262,7 +262,7 @@ export function StripeCard({ siteId, orgId, canManage }: { siteId: number; orgId
 
           {canManage ? (
             <div>
-              <Button className="min-h-11" onClick={() => setConfirming(true)} type="button" variant="outline">
+              <Button className="max-sm:min-h-11" onClick={() => setConfirming(true)} type="button" variant="outline">
                 {s.disconnect}
               </Button>
             </div>
@@ -279,9 +279,9 @@ export function StripeCard({ siteId, orgId, canManage }: { siteId: number; orgId
           </AlertDialogHeader>
           {disconnect.isError ? <p role="alert">{disconnect.error.message}</p> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel className="max-sm:min-h-11">{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
-              className="min-h-11"
+              className="max-sm:min-h-11"
               disabled={disconnect.isPending}
               onClick={(event) => {
                 event.preventDefault()

@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { InfoTip } from '@/components/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -48,8 +49,7 @@ export function ReplayStorageForm({
       <form onSubmit={submit}>
         <Card>
           <CardHeader>
-            <CardTitle>Replay storage</CardTitle>
-            <CardDescription>Store replay blobs on local disk or S3-compatible object storage.</CardDescription>
+            <CardTitle>Replay storage <InfoTip label="About replay storage">Store replay blobs on local disk or S3-compatible object storage.</InfoTip></CardTitle>
           </CardHeader>
           <CardContent>
             <FieldGroup>

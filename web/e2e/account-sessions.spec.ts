@@ -38,7 +38,7 @@ test('account sessions show real sign-in metadata, legacy fallbacks, local times
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Active sessions', exact: true })).toBeVisible()
   const list = page.getByRole('list', { name: 'Active account sessions' })
-  const currentRow = list.getByRole('listitem').filter({ hasText: 'Current session' })
+  const currentRow = list.getByRole('listitem').filter({ has: page.getByText('Current session', { exact: true }) })
   await expect(list.getByRole('listitem').first()).toContainText('Current session')
   await expect(currentRow.getByText('127.0.0.1', { exact: true })).toBeVisible()
   await expect(currentRow.getByText('Chrome', { exact: true })).toBeVisible()
@@ -77,7 +77,7 @@ test('account sessions show real sign-in metadata, legacy fallbacks, local times
   expect((await after.json()).data.find((session: { ID: string }) => session.ID === current.ID)?.Current).toBe(true)
   expect((await page.request.get('/api/private/me')).ok()).toBe(true)
 
-  const bulkButton = page.getByRole('button', { name: 'Sign out all other devices' })
+  const bulkButton = page.getByRole('button', { name: 'Sign out others' })
   await expect(bulkButton).toBeEnabled()
   await bulkButton.click()
   await expect(page.getByRole('heading', { name: 'Sign out all other devices?' })).toBeVisible()

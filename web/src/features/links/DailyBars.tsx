@@ -56,7 +56,7 @@ export function DailyBars({ from, to, daily, hourly = [], unit, title, granulari
   const total = days.reduce((sum, item) => sum + item.count, 0)
   const peak = days.reduce((best, item) => (item.count > best.count ? item : best), days[0] ?? { day: from, count: 0 })
   if (total === 0) {
-    return <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{t.dailyNone}</p>
+    return <p className="rounded-md bg-muted/50 p-4 text-center text-sm text-muted-foreground">{t.dailyNone}</p>
   }
   const summary = (granularity === 'hour' ? t.hourlyAlt : t.dailyAlt)
     .replace('{total}', fmt.number(total))

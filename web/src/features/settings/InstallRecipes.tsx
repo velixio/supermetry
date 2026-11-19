@@ -45,11 +45,11 @@ export function VerifyInstallation({ verify, intervalMs = pollEveryMs, troublesh
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" className="min-h-11" disabled={state === 'checking'} onClick={() => void start()}>
+        <Button type="button" variant="outline" className="max-sm:min-h-11" disabled={state === 'checking'} onClick={() => void start()}>
           Verify installation
         </Button>
         <span role="status" className="text-sm text-muted-foreground">
-          {state === 'checking' ? 'Waiting for the first event… open your site in another tab.' : null}
+          {state === 'checking' ? 'Waiting for the first event… open your website in another tab.' : null}
           {state === 'ok' ? 'Events are arriving. Installation verified.' : null}
           {state === 'timeout' ? 'No event yet. Check the common causes below, then try again.' : null}
           {state === 'error' ? 'Could not check the status. Try again.' : null}
@@ -79,7 +79,7 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
   const { copied, copy } = useCopyStatus()
   return (
     <div className="flex items-center gap-3">
-      <Button type="button" variant="outline" className="min-h-11" onClick={() => void copy(value)}>
+      <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={() => void copy(value)}>
         {copied === 'yes' ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
         {label}
       </Button>
@@ -97,12 +97,12 @@ export function SiteDetails({ publicId, snippet }: { publicId: string; snippet?:
   const input = useRecipeInput(publicId, snippet)
   const host = trackerHost(input.scriptUrl)
   const fields = [
-    { label: 'Site ID', value: input.publicId },
+    { label: 'Project ID', value: input.publicId },
     { label: 'Host', value: host },
   ]
   return (
     <section aria-labelledby="site-details-title" className="flex min-w-0 flex-col gap-3">
-      <h2 id="site-details-title" className="text-lg font-semibold">Your site details</h2>
+      <h2 id="site-details-title" className="text-lg font-semibold">Your project details</h2>
       <p className="text-sm text-muted-foreground">
         The npm packages and server SDKs need these two values: pass them as <code>site</code> and <code>host</code>.
       </p>
@@ -111,7 +111,7 @@ export function SiteDetails({ publicId, snippet }: { publicId: string; snippet?:
           <div key={field.label} className="flex min-w-0 flex-col gap-2 rounded-lg border p-3">
             <dt className="text-sm font-medium">{field.label}</dt>
             <dd className="min-w-0 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm select-all" aria-label={field.label}>{field.value}</dd>
-            <dd><CopyButton value={field.value} label={`Copy ${field.label === 'Site ID' ? 'site ID' : 'host'}`} /></dd>
+            <dd><CopyButton value={field.value} label={`Copy ${field.label === 'Project ID' ? 'project ID' : 'host'}`} /></dd>
           </div>
         ))}
       </dl>
@@ -126,7 +126,7 @@ export function AiInstallPrompt({ publicId, snippet }: { publicId: string; snipp
   return (
     <section aria-labelledby="ai-install-title" className="flex min-w-0 flex-col gap-3">
       <h2 id="ai-install-title" className="flex items-center gap-2 text-lg font-semibold"><SparklesIcon aria-hidden="true" className="size-4" />Install with an AI assistant</h2>
-      <p className="text-sm text-muted-foreground">Copy this prompt into your AI coding assistant. It already contains this site&apos;s ID and host.</p>
+      <p className="text-sm text-muted-foreground">Copy this prompt into your AI coding assistant. It already contains this project&apos;s ID and host.</p>
       <pre className="max-h-64 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap select-all" tabIndex={0} aria-label="AI install prompt"><code>{prompt}</code></pre>
       <CopyButton value={prompt} label="Copy AI prompt" />
     </section>
@@ -163,11 +163,11 @@ export function InstallRecipes({ publicId, snippet, verify, troubleshooting }: {
   return (
     <section aria-labelledby="install-recipes-title" className="flex min-w-0 flex-col gap-3">
       <h2 id="install-recipes-title" className="text-lg font-semibold">Install recipes</h2>
-      <p className="text-sm text-muted-foreground">Pick your stack. Every snippet already contains this site&apos;s ID and host.</p>
+      <p className="text-sm text-muted-foreground">Pick your stack. Every snippet already contains this project&apos;s ID and host.</p>
       <Tabs defaultValue="html" className="min-w-0">
         <TabsList aria-label="Installation method" className="h-auto max-w-full flex-wrap justify-start">
           {groups.flatMap((group) => group.items).map((recipe) => (
-            <TabsTrigger key={recipe.id} value={recipe.id} className="h-11 px-3">{recipe.label}</TabsTrigger>
+            <TabsTrigger key={recipe.id} value={recipe.id} className="max-sm:h-11 px-3">{recipe.label}</TabsTrigger>
           ))}
         </TabsList>
         {recipes.map((recipe) => (
@@ -193,7 +193,7 @@ export function AdBlockerSetup({ publicId, snippet, managed }: { publicId: strin
     <section aria-labelledby="ad-blockers-title" className="flex min-w-0 flex-col gap-3">
       <h2 id="ad-blockers-title" className="text-lg font-semibold">Ad blockers</h2>
       <p className="text-sm text-muted-foreground">
-        The tracker already sends events to neutral URLs for this site, which most blocker rules don&apos;t match. Some blockers block the Supermetry domain itself.
+        The tracker already sends events to neutral URLs for this project, which most blocker rules don&apos;t match. Some blockers block the Supermetry domain itself.
         To count those visitors too, serve tracking from your own domain.
       </p>
 
@@ -204,7 +204,7 @@ export function AdBlockerSetup({ publicId, snippet, managed }: { publicId: strin
       <ol className="flex min-w-0 flex-col gap-4">
         {managed ? (
           <li className="flex flex-col gap-1 text-sm">
-            <p className="font-medium">{++step}. Create the site&apos;s proxy key</p>
+            <p className="font-medium">{++step}. Create the project&apos;s proxy key</p>
             <p className="text-muted-foreground">
               With the key, Supermetry Cloud counts each visitor&apos;s own location instead of your server&apos;s. Keep it on the server only.
             </p>
@@ -215,7 +215,7 @@ export function AdBlockerSetup({ publicId, snippet, managed }: { publicId: strin
           <p className="font-medium">{++step}. Add the proxy to your server</p>
           <Tabs defaultValue={recipes[0]?.id} className="min-w-0">
             <TabsList aria-label="Proxy server" className="h-auto max-w-full flex-wrap justify-start">
-              {recipes.map((recipe) => <TabsTrigger key={recipe.id} value={recipe.id} className="h-11 px-3">{recipe.label}</TabsTrigger>)}
+              {recipes.map((recipe) => <TabsTrigger key={recipe.id} value={recipe.id} className="max-sm:h-11 px-3">{recipe.label}</TabsTrigger>)}
             </TabsList>
             {recipes.map((recipe) => (
               <TabsContent key={recipe.id} value={recipe.id} className="min-w-0 pt-3"><RecipePanel recipe={recipe} /></TabsContent>

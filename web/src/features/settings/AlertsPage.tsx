@@ -32,7 +32,6 @@ export function AlertsPage({ orgId, orgSlug, siteId }: { orgId: number; orgSlug?
     <PageContainer width="narrow">
       <PageHeader
         title={t.alerts.title}
-        description={t.alerts.description}
         actions={<Button onClick={() => setEditing(null)}>{t.alerts.create}</Button>}
       />
       {alerts.error || channels.error || remove.error ? (
@@ -40,21 +39,21 @@ export function AlertsPage({ orgId, orgSlug, siteId }: { orgId: number; orgSlug?
           {alerts.error?.message ?? channels.error?.message ?? remove.error?.message}
         </p>
       ) : null}
-      {alerts.data?.data.length === 0 ? <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.alerts.empty}</p> : null}
-      <div className="flex flex-col gap-3">
-        {alerts.data?.data.map((alert) => (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4" key={alert.id}>
+      {alerts.data?.data.length === 0 ? <p className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">{t.alerts.empty}</p> : null}
+      {alerts.data && alerts.data.data.length > 0 ? <ul className="flex flex-col divide-y rounded-lg border bg-card px-4">
+        {alerts.data.data.map((alert) => (
+          <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={alert.id}>
             <div>
-              <h2 className="font-medium">{labels[alert.kind as WebAlertKind] ?? alert.kind}</h2>
+              <h2 className="text-sm font-medium">{labels[alert.kind as WebAlertKind] ?? alert.kind}</h2>
               <p className="text-sm text-muted-foreground">{t.alerts.threshold(alert.threshold ?? '')} · {alert.enabled ? t.common.enabled : t.common.disabled}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditing(alert)}>{t.common.edit}</Button>
-              <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate(alert.id)}>{t.common.delete}</Button>
+              <Button variant="secondary" size="sm" className="max-md:min-h-11" onClick={() => setEditing(alert)}>{t.common.edit}</Button>
+              <Button variant="secondary" size="sm" className="max-md:min-h-11" disabled={remove.isPending} onClick={() => remove.mutate(alert.id)}>{t.common.delete}</Button>
             </div>
-          </section>
+          </li>
         ))}
-      </div>
+      </ul> : null}
       <AlertDialog
         alert={editing}
         orgSlug={orgSlug}
@@ -108,14 +107,14 @@ function AlertDialog({ alert, orgSlug, channels, goals, error, pending, onClose,
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="alert-kind">{t.alerts.type}</FieldLabel>
-              <select id="alert-kind" className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput((value) => changeKind(value, event.target.value as AlertKind))}>
+              <select id="alert-kind" className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={input.kind} onChange={(event) => setInput((value) => changeKind(value, event.target.value as AlertKind))}>
                 {webKinds.map((kind) => <option key={kind} value={kind}>{labels[kind]}</option>)}
               </select>
             </Field>
             {input.kind === 'goal_reached' ? (
               <Field>
                 <FieldLabel htmlFor="alert-goal">{t.alerts.goal}</FieldLabel>
-                <select id="alert-goal" required className="h-8 rounded-lg border border-input bg-background px-2 text-sm" value={input.goal_id ?? ''} onChange={(event) => setInput((value) => ({ ...value, goal_id: Number(event.target.value) }))}>
+                <select id="alert-goal" required className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={input.goal_id ?? ''} onChange={(event) => setInput((value) => ({ ...value, goal_id: Number(event.target.value) }))}>
                   <option value="" disabled>{t.alerts.selectGoal}</option>
                   {goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.name}</option>)}
                 </select>

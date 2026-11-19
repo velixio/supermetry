@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { PageContainer } from '@/components/PageContainer'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +20,8 @@ type RevenueReportProps = {
   filters: Filter[]
   compare: Compare
   includeImported: boolean
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 type BreakdownDimension = 'source' | 'channel' | 'utm_campaign'
@@ -76,11 +80,11 @@ function Trend({ query, currency }: { query: ReturnType<typeof useStats>; curren
     <CardContent>
       <div className="flex h-48 items-end gap-1 overflow-hidden" aria-hidden="true">
         {rows.map((row, index) => <div className="flex h-full min-w-1 flex-1 items-end gap-px" key={String(row.time)}>
-          <div className="min-w-0 flex-1 rounded-t bg-primary/75" style={{ height: `${Math.max(2, numeric(row.total_revenue) / maximum * 100)}%` }} />
+          <div className="min-w-0 flex-1 rounded-t bg-chart-1" style={{ height: `${Math.max(2, numeric(row.total_revenue) / maximum * 100)}%` }} />
           {comparisonRows[index] ? <div className="min-w-0 flex-1 rounded-t bg-muted-foreground/30" style={{ height: `${Math.max(2, numeric(comparisonRows[index].total_revenue) / maximum * 100)}%` }} /> : null}
         </div>)}
       </div>
-      {comparisonRows.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">Solid bars show the selected range; muted bars show the comparison range.</p> : null}
+      {comparisonRows.length > 0 ? <p className="mt-2 text-xs text-muted-foreground">Muted bars: comparison range.</p> : null}
       <div className="overflow-x-auto" tabIndex={0}>
         <table className="sr-only" aria-label="Revenue over time">
           <thead><tr><th scope="col">Date</th><th scope="col">Revenue</th>{comparisonRows.length > 0 ? <th scope="col">Comparison revenue</th> : null}</tr></thead>
@@ -109,7 +113,7 @@ function Breakdown({
       <CardDescription>Top 10 by event-time revenue</CardDescription>
     </CardHeader>
     {query.isError ? <ErrorState detail={query.error?.detail} onRetry={() => void query.refetch()} /> : <CardContent className="space-y-3">
-      {limited ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground" role="status">Available attributed revenue only. Some legacy closed events have no event-time attribution and are excluded from this breakdown.</p> : null}
+      {limited ? <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground" role="status">Partial: legacy events are excluded.</p> : null}
       <div className="overflow-x-auto" tabIndex={0}>
         <table className="w-full min-w-72 text-sm">
           <thead><tr className="border-b text-left text-muted-foreground"><th className="pb-2 font-medium" scope="col">{title}</th><th className="pb-2 text-right font-medium" scope="col">Revenue</th><th className="pb-2 text-right font-medium" scope="col">Average</th></tr></thead>
@@ -144,19 +148,23 @@ export function RevenueReport(props: RevenueReportProps) {
   const trendLimited = trend.data?.meta.event_attribution?.coverage === 'available_only' || trend.data?.comparison?.event_attribution?.coverage === 'available_only'
 
   if (trend.isPending && !trend.data) {
-    return <section className="rounded-xl border bg-card p-5" role="status">Loading revenue report…</section>
+    return <PageContainer>
+      <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
+      <section className="rounded-lg border bg-card p-5" role="status">Loading revenue report…</section>
+    </PageContainer>
   }
 
   if (trend.isError) {
     return <PageContainer>
-      <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} />
+      <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
       <Card><ErrorState detail={trend.error?.detail} onRetry={() => void trend.refetch()} /></Card>
     </PageContainer>
   }
 
   return <PageContainer>
-    <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} />
-    {trendLimited ? <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">Available attributed revenue only. The selected attribution filters exclude legacy closed events without event-time attribution from the headline and trend.</p> : null}
+    <PageHeader title="Revenue" description={<>All amounts use the project’s permanent {props.currency} currency.</>} actions={props.toolbar} />
+    {trendLimited ? <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground" role="status">Partial: legacy events are excluded.</p> : null}
+    {trend.data && trend.data.rows.length === 0 && props.filters.length === 0 ? <FeatureEmptyState kind="revenue" /> : <>
     <div className="grid gap-3 sm:grid-cols-2">
       <MetricCard label="Total revenue" value={numeric(totals?.total_revenue)} previous={numeric(comparison?.total_revenue)} formatter={formatter} compare={props.compare} />
       <MetricCard label="Average revenue" value={numeric(totals?.average_revenue)} previous={numeric(comparison?.average_revenue)} formatter={formatter} compare={props.compare} />
@@ -168,5 +176,6 @@ export function RevenueReport(props: RevenueReportProps) {
       <Breakdown title="Campaign" dimension="utm_campaign" query={campaign} currency={props.currency} />
     </div>
     {props.orgId ? <RevenueBreakdown siteId={props.siteId} orgId={props.orgId} currency={props.currency} timezone={props.timezone} from={props.dateRange.from} to={props.dateRange.to} /> : null}
+    </>}
   </PageContainer>
 }

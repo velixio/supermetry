@@ -135,7 +135,7 @@ export function AddFilterPicker({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline">
+        <Button className="text-muted-foreground hover:text-foreground" type="button" variant="ghost">
           <PlusIcon data-icon="inline-start" />
           Add filter
         </Button>

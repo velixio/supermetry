@@ -335,6 +335,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/private/orgs/{org}/export-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List scheduled exports to S3-compatible storage
+         * @description Owners and admins only. The secret is never returned; secret_set says whether one is stored. Sensitive; the step-up re-authentication check applies when enabled.
+         */
+        get: operations["orgListExportSchedules"];
+        put?: never;
+        /**
+         * Create a scheduled export
+         * @description site_id omitted exports every site of the organization. Endpoints on private or loopback addresses, and plain http, are refused unless the operator sets SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS. First run is at the next 03:00 UTC window; days are the site's closed days.
+         */
+        post: operations["orgCreateExportSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/export-schedules/{schedule}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a scheduled export and its history */
+        delete: operations["orgDeleteExportSchedule"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a scheduled export
+         * @description Omitted fields are kept. An empty or omitted secret keeps the stored secret.
+         */
+        patch: operations["orgUpdateExportSchedule"];
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/export-schedules/{schedule}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue a run now
+         * @description The scheduler starts it within a minute. Enabled schedules only.
+         */
+        post: operations["orgRunExportSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/export-schedules/{schedule}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check the destination by writing and deleting a small object */
+        post: operations["orgTestExportSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/export-schedules/{schedule}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run history, newest first */
+        get: operations["orgListExportRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/settings-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the organization's settings as a JSON bundle
+         * @description Sites, goals, funnels, segments, supported alerts, share-link settings and member emails with roles. No secrets, tokens or channel configuration. Owners and admins only; audited. Sensitive.
+         */
+        get: operations["orgExportSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/private/orgs/{org}/settings-import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recreate a settings bundle in this organization
+         * @description Sites that already exist (same slug, or same name and kind) are left unchanged. Share links and alert rules are never recreated; alerts whose channel is missing arrive disabled. Body up to 8 MiB. Owners and admins only. Sensitive.
+         */
+        post: operations["orgImportSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/private/orgs/{org}/github-stars/repos": {
         parameters: {
             query?: never;
@@ -3832,9 +3971,31 @@ export interface paths {
         put?: never;
         /**
          * Create a narrower API key
-         * @description Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated.
+         * @description Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated. Without an expiry field the key expires after 90 days (clamped to the caller key's own expiry); send never_expires only to create a key that does not expire.
          */
         post: operations["createApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/v1/api-keys/{key_id}/roll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll an API key
+         * @description Requires keys:manage. Creates a successor with the same name, scopes, site access and expiry policy, and lets the old key keep working for grace_hours (default 24). The caller needs authority over the key being rolled: a key cannot roll a key with broader scopes or sites, nor a keys:manage key. The successor never outlives the caller key.
+         */
+        post: operations["rollApiKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4530,6 +4691,116 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ExportSchedule: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            org_id: number;
+            /**
+             * Format: int32
+             * @description Null means every site of the organization.
+             */
+            site_id: number | null;
+            name: string;
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            /** @description After the first full export only new days are written. */
+            incremental: boolean;
+            enabled: boolean;
+            endpoint: string;
+            region: string;
+            bucket: string;
+            prefix: string;
+            access_key_id: string;
+            secret_set: boolean;
+            path_style: boolean;
+            /** Format: date-time */
+            next_run_at: string;
+            /** Format: date-time */
+            last_run_at: string | null;
+            /** @enum {string|null} */
+            last_status: "succeeded" | "failed" | "skipped" | null;
+            last_error: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ExportScheduleInput: {
+            name: string;
+            /** Format: int32 */
+            site_id?: number | null;
+            /** @enum {string} */
+            frequency: "daily" | "weekly" | "monthly";
+            /** @description Defaults to true. */
+            incremental?: boolean;
+            /** @description Bare https://host[:port], no path. */
+            endpoint: string;
+            region: string;
+            bucket: string;
+            prefix?: string;
+            access_key_id: string;
+            secret: string;
+            path_style?: boolean;
+        };
+        ExportSchedulePatch: {
+            name?: string;
+            /** @enum {string} */
+            frequency?: "daily" | "weekly" | "monthly";
+            incremental?: boolean;
+            enabled?: boolean;
+            endpoint?: string;
+            region?: string;
+            bucket?: string;
+            prefix?: string;
+            access_key_id?: string;
+            secret?: string;
+            path_style?: boolean;
+        };
+        ExportRun: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            schedule_id: number;
+            /** Format: int32 */
+            site_id: number | null;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @enum {string} */
+            status: "running" | "succeeded" | "failed" | "skipped";
+            /** Format: date */
+            from_day: string | null;
+            /** Format: date */
+            to_day: string | null;
+            /** Format: int64 */
+            bytes: number;
+            object_key: string;
+            error: string;
+        };
+        SettingsImportReport: {
+            dry_run: boolean;
+            sites: {
+                name?: string;
+                slug?: string;
+                /** @enum {string} */
+                action?: "create" | "created" | "skip_exists" | "failed";
+                goals?: number;
+                funnels?: number;
+                segments?: number;
+                alerts?: number;
+                alerts_disabled?: number;
+                share_links_not_recreated?: number;
+                error?: string;
+            }[];
+            members: {
+                email?: string;
+                role?: string;
+                /** @enum {string} */
+                action?: "listed_only" | "would_invite" | "invited" | "already_member" | "not_invited" | "failed";
+                note?: string;
+            }[];
+            warnings: string[];
+        };
         AppSettings: {
             tag_allowlist?: string[];
             /** @description 0 means the default of 7. */
@@ -5627,6 +5898,8 @@ export interface components {
             sites_view: "cards" | "table";
             /** Format: int32 */
             last_site_id?: number | null;
+            /** @description True hides the plain-language summary above the dashboard metrics; absent or false shows it. */
+            summary_collapsed?: boolean;
             /**
              * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
              * @enum {string}
@@ -5642,6 +5915,7 @@ export interface components {
                 sites_view?: "cards" | "table";
                 /** Format: int32 */
                 last_site_id?: number | null;
+                summary_collapsed?: boolean;
                 /**
                  * @description Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
                  * @enum {string}
@@ -5693,6 +5967,38 @@ export interface components {
             /** @description Tracking state (waiting, receiving, or quiet). */
             install_status: string;
             tracking_snippet: string;
+            /** @description Up to three typed facts for the project status line, in priority order. The client words them. */
+            highlights: {
+                /** @enum {string} */
+                kind: "quiet" | "new_issues" | "crash_free_drop" | "visitors_change" | "top_source" | "steady";
+                /**
+                 * Format: double
+                 * @description visitors_change: signed percent change against the previous period.
+                 */
+                percent?: number;
+                /** @description top_source: the source name. */
+                name?: string;
+                /**
+                 * Format: double
+                 * @description top_source: share of visitors, 0 to 1.
+                 */
+                share?: number;
+                /**
+                 * Format: int64
+                 * @description new_issues: issues first seen in the period.
+                 */
+                count?: number;
+                /**
+                 * Format: int64
+                 * @description quiet: whole hours since the last event.
+                 */
+                hours?: number;
+                /**
+                 * Format: double
+                 * @description crash_free_drop: percentage points lost.
+                 */
+                points?: number;
+            }[];
         };
         /**
          * @description Days from the current time, or null for no expiry.
@@ -5788,7 +6094,18 @@ export interface components {
             expires_at: string | null;
             /** Format: date-time */
             last_used_at: string | null;
+            /** @description Two-letter country of the last request, from the local GeoIP database. The IP address is never stored. */
+            last_used_country: string | null;
+            /**
+             * @description Coarse client family of the last request. The raw User-Agent is never stored.
+             * @enum {string|null}
+             */
+            last_used_client: "mcp" | "curl" | "sdk-js" | "sdk-python" | "browser" | "other" | null;
             revoked: boolean;
+            /** @description True when expires_at is null. */
+            never_expires: boolean;
+            /** @description True for a live key that expires within 14 days. */
+            expiring_soon: boolean;
         };
         APIKeyList: {
             data: components["schemas"]["APIKey"][];
@@ -5797,14 +6114,43 @@ export interface components {
             name: string;
             scopes: string[];
             site_ids?: number[];
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Explicit expiry. Choose at most one of expires_at
+             */
             expires_at?: string;
+            /** @description Expire this many days from now. */
+            expires_in_days?: number;
+            /** @description Create a key without an expiry. When none of the three expiry fields is sent, the key expires after 90 days. */
+            never_expires?: boolean;
         };
         CreatedAPIKey: {
             /** Format: int64 */
             id: number;
             /** @description The secret value. It is shown once and cannot be retrieved later. */
             key: string;
+            /** Format: date-time */
+            expires_at: string | null;
+        };
+        RollAPIKeyRequest: {
+            /**
+             * @description How long the old key keeps working after the roll. 0 ends it immediately.
+             * @default 24
+             * @enum {integer}
+             */
+            grace_hours: 0 | 1 | 24 | 168;
+        };
+        RolledAPIKey: {
+            /** Format: int64 */
+            id: number;
+            /** @description The successor's secret. It is shown once and cannot be retrieved later. */
+            key: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** Format: int64 */
+            old_key_id: number;
+            /** Format: date-time */
+            old_key_expires_at: string;
         };
         MCPMessage: components["schemas"]["MCPRequest"] | components["schemas"]["MCPResponse"];
         MCPRequest: {
@@ -9139,6 +9485,269 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    orgListExportSchedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schedules. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        schedules: components["schemas"]["ExportSchedule"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgCreateExportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportScheduleInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportSchedule"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgDeleteExportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                schedule: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgUpdateExportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                schedule: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportSchedulePatch"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportSchedule"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgRunExportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                schedule: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgTestExportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                schedule: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Result; ok false carries the error text. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        error?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgListExportRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+                schedule: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        runs: components["schemas"]["ExportRun"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgExportSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The bundle (attachment). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    orgImportSettings: {
+        parameters: {
+            query?: {
+                /** @description Report what would happen and write nothing. */
+                dry_run?: boolean;
+                /** @description Invite the bundle's members (never owners). Off by default. */
+                invite_members?: boolean;
+            };
+            header?: never;
+            path: {
+                org: components["parameters"]["OrgPathID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Import report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsImportReport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     orgListGitHubStarsRepos: {
@@ -15142,6 +15751,41 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    rollApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RollAPIKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successor created; its secret is returned only in this response. */
+            201: {
+                headers: {
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolledAPIKey"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
         };

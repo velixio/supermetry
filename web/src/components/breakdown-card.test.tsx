@@ -89,9 +89,9 @@ describe('BreakdownCard', () => {
   it('keeps canonical detail search disabled in anonymous mode', async () => {
     useStats.mockReturnValue(result({ data: data('country', 'US', 2) }))
     render(<BreakdownCard title="Countries" tabs={tabs('country')} query={baseQuery} onFilter={vi.fn()} allowSearch={false} />)
-    fireEvent.click(screen.getByRole('button', { name: /Details/i }))
+    fireEvent.click(screen.getByRole('button', { name: /View all/i }))
     expect(await screen.findByRole('searchbox', { name: 'Search country' })).toBeDisabled()
-    expect(screen.getByText(/Free-text searches are unavailable/)).toBeVisible()
+    expect(screen.getByText(/Free-text search is unavailable/)).toBeVisible()
   })
 
   it('one failing card does not blank the dashboard', () => {
@@ -179,7 +179,7 @@ describe('BreakdownCard', () => {
     expect(screen.getByText('Springfield')).toBeVisible()
   })
 
-  it('queries country with region in the details table', () => {
+  it('queries country with region in the full report', () => {
     useStats.mockReturnValue(result({
       data: {
         ...data('region', 'California', 5),
@@ -189,9 +189,9 @@ describe('BreakdownCard', () => {
     }))
 
     render(<BreakdownCard title="Countries" tabs={tabs('region')} query={baseQuery} onFilter={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+    fireEvent.click(screen.getByRole('button', { name: 'View all Countries' }))
 
-    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({ dimensions: ['region', 'country'] }))
+    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({ dimensions: ['region', 'country'], limit: 1000 }))
   })
 
   it('clicking a row emits an is filter that round-trips to URL state', () => {
@@ -329,7 +329,7 @@ describe('BreakdownCard', () => {
     expect(within(card).getAllByRole('row').at(-1)).toHaveTextContent('/no-data')
   })
 
-  it('shows and sorts the page metrics in the details table', () => {
+  it('shows and sorts the page metrics in the full report', () => {
     useStats.mockReturnValue(result({
       data: {
         columns: ['page', 'visitors', 'pageviews', 'time_on_page', 'exit_rate'],
@@ -343,39 +343,32 @@ describe('BreakdownCard', () => {
     }))
 
     render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+    fireEvent.click(screen.getByRole('button', { name: 'View all Pages' }))
 
-    const table = screen.getByRole('table', { name: 'Pages details' })
-    expect(within(table).getByRole('columnheader', { name: 'Time on page' })).toBeVisible()
-    expect(within(table).getByRole('columnheader', { name: 'Exit rate' })).toBeVisible()
+    const table = screen.getByRole('table', { name: 'Pages full report' })
+    expect(within(table).getByRole('columnheader', { name: /Time on page/ })).toBeVisible()
+    expect(within(table).getByRole('columnheader', { name: /Exit rate/ })).toBeVisible()
     expect(within(table).getByText('12s')).toBeVisible()
 
-    fireEvent.click(within(table).getByRole('button', { name: 'Time on page' }))
-    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({
-      orderBy: [{ column: 'time_on_page', direction: 'desc' }],
-    }))
-    expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent('/no-data')
-
     fireEvent.click(within(table).getByRole('button', { name: /Time on page/ }))
-    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({
-      orderBy: [{ column: 'time_on_page', direction: 'desc' }],
-    }))
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('/engaged')
+    fireEvent.click(within(table).getByRole('button', { name: /Time on page/ }))
+    expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent('/engaged')
+  })
 
-    fireEvent.click(within(table).getByRole('button', { name: 'Exit rate' }))
-    expect(useStats).toHaveBeenLastCalledWith(expect.objectContaining({
-      orderBy: [
-        { column: 'exit_rate', direction: 'desc' },
-        { column: 'pageviews', direction: 'desc' },
-      ],
-    }))
+  it('offers one way to see every row, named View all', () => {
+    useStats.mockReturnValue(result({ data: data('page', '/', 10) }))
+    render(<BreakdownCard title="Pages" tabs={tabs('page')} query={baseQuery} onFilter={vi.fn()} />)
+    expect(screen.getAllByRole('button', { name: /View all/ })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: /Details|full report/i })).toBeNull()
   })
 
   it('CSV export requests text/csv with the same query', async () => {
     useStats.mockReturnValue(result({ data: data('page', '/', 10) }))
     render(<BreakdownCard title="Pages" tabs={tabs('page')} query={baseQuery} onFilter={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /details/i }))
-    fireEvent.click(screen.getByRole('button', { name: /csv/i }))
+    fireEvent.click(screen.getByRole('button', { name: /view all/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /csv/i }))
 
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith('/api/private/query', {
@@ -388,7 +381,6 @@ describe('BreakdownCard', () => {
           filters: [],
           include_imported: true,
           order_by: [{ column: 'visitors', direction: 'desc' }],
-          limit: 25,
         },
         headers: { Accept: 'text/csv' },
         params: {
@@ -449,5 +441,74 @@ describe('BreakdownCard', () => {
     useStats.mockReturnValue(result({ data: data('browser_version', '', 5) }))
     render(<BreakdownCard title="Versions" tabs={tabs('browser_version')} query={baseQuery} onFilter={vi.fn()} inspect={{ can: () => true, open: vi.fn() }} />)
     expect(screen.queryByRole('button', { name: /^Inspect/ })).toBeNull()
+  })
+
+  describe('shared top list', () => {
+    const pagesData = {
+      columns: ['page', 'visitors', 'pageviews', 'time_on_page', 'exit_rate'],
+      rows: [
+        { page: '/cloud', visitors: 9, pageviews: 12, time_on_page: 12, exit_rate: 33.3 },
+        { page: '/pricing', visitors: 3, pageviews: 3, time_on_page: 8, exit_rate: 10 },
+      ],
+      totals: { visitors: 12 },
+      meta: { sources_used: ['daily'], cached: false },
+    }
+
+    it('draws a share bar on every page row, like every other top list', () => {
+      useStats.mockReturnValue(result({ data: pagesData }))
+      render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} />)
+      const card = screen.getByRole('region', { name: 'Pages' })
+      const bars = card.querySelectorAll('[data-slot="top-list-bar"]')
+      expect(bars).toHaveLength(2)
+      expect((bars[0] as HTMLElement).style.width).toBe('100%')
+      expect((bars[1] as HTMLElement).style.width).toBe('33.33333333333333%')
+    })
+
+    it('offers a labelled open-in-new-tab action on every page row, revealed on hover and focus', () => {
+      useStats.mockReturnValue(result({ data: pagesData }))
+      render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} allowedHosts={['example.com']} />)
+      const cloud = screen.getByRole('link', { name: 'Open /cloud in new tab' })
+      expect(cloud).toHaveAttribute('href', 'https://example.com/cloud')
+      expect(cloud).toHaveAttribute('target', '_blank')
+      expect(cloud).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(screen.getByRole('link', { name: 'Open /pricing in new tab' })).toBeVisible()
+      expect(cloud.closest('[data-slot="top-list-actions"]')).toHaveClass('opacity-0', 'group-hover/row:opacity-100', 'group-focus-within/row:opacity-100')
+    })
+
+    it('offers no link for a page row when the site has no concrete host', () => {
+      useStats.mockReturnValue(result({ data: pagesData }))
+      render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} allowedHosts={['*.example.com']} />)
+      expect(screen.queryByRole('link')).toBeNull()
+    })
+
+    it('shows no-referrer traffic as Direct / none with an explanation and keeps it unfilterable', () => {
+      useStats.mockReturnValue(result({
+        data: {
+          columns: ['source', 'visitors'],
+          rows: [{ source: '', visitors: 7 }, { source: 'news.ycombinator.com', visitors: 3 }],
+          totals: { visitors: 10 },
+          meta: { sources_used: ['daily'], cached: false },
+        },
+      }))
+      const onFilter = vi.fn()
+      render(<BreakdownCard title="Sources" tabs={tabs('source')} query={baseQuery} onFilter={onFilter} />)
+      expect(screen.getByText('Direct / none')).toBeVisible()
+      expect(screen.queryByText('Unknown')).toBeNull()
+      expect(screen.getByTitle('No referrer: typed URL, bookmark, app, or stripped by privacy settings')).toBeVisible()
+      expect(screen.getByRole('link', { name: 'Open news.ycombinator.com in new tab' })).toHaveAttribute('href', 'https://news.ycombinator.com')
+      expect(screen.queryByRole('link', { name: /Open Direct/ })).toBeNull()
+      expect(screen.getAllByTestId('source-icon')).toHaveLength(2)
+      expect(screen.queryByRole('button', { name: /Direct/ })).toBeNull()
+      expect(onFilter).not.toHaveBeenCalled()
+    })
+
+    it('switches sub-tabs with the shared segmented control', () => {
+      useStats.mockReturnValue(result({ data: data('page', '/', 10) }))
+      render(<BreakdownCard title="Pages" tabs={[...tabs('page'), { key: 'entry', dimension: 'entry', metric: 'visitors', label: 'Entry' }]} query={baseQuery} onFilter={vi.fn()} />)
+      const group = screen.getByRole('tablist', { name: 'Pages breakdown' })
+      expect(group).toHaveAttribute('data-slot', 'segmented-control')
+      fireEvent.click(within(group).getByRole('tab', { name: 'Entry' }))
+      expect(within(group).getByRole('tab', { name: 'Entry' })).toHaveAttribute('aria-selected', 'true')
+    })
   })
 })

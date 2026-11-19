@@ -80,7 +80,7 @@ export function ReleaseDetail({ org, site, siteId, timezone, search, release, on
   const health = data.health
   return (
     <PageContainer>
-      <PageHeader title={release} description={data.created ? `Created ${data.created.slice(0, 10)}` : 'Seen in events only'} actions={<>{back}<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} /></>} />
+      <PageHeader title={release} description={<span>{data.created ? `Created ${data.created.slice(0, 10)}` : 'Seen in events only'}</span>} actions={<>{back}<AppFilters siteId={siteId} timezone={timezone} search={search} onSearch={onSearch} /></>} />
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <Badge variant={data.status === 'archived' ? 'secondary' : 'outline'}>{data.status}</Badge>
         {data.ref ? <span className="text-muted-foreground">ref <span className="font-mono">{data.ref}</span></span> : null}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,7 +17,7 @@ export function IssueComments({ siteId, issueId, canEdit }: { siteId: number; is
   const error = post.error ?? remove.error
   return (
     <Card>
-      <CardHeader><CardTitle>Comments</CardTitle><CardDescription>Visible to everyone in the project. Do not paste secrets or personal data.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Comments <InfoTip label="About comments">Visible to everyone in the project. Do not paste secrets or personal data.</InfoTip></CardTitle></CardHeader>
       <CardContent className="flex flex-col gap-4">
         {comments.isError ? <p role="alert" className="text-sm text-destructive">{comments.error.message}</p> : null}
         {comments.isSuccess && comments.data.comments.length === 0 ? <p className="text-sm text-muted-foreground">No comments yet.</p> : null}

@@ -5,6 +5,7 @@ import type { Locator, Page } from '@playwright/test'
 
 import { axeAvailable, axeMissing, axePath } from './axe'
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 test.use({ bypassCSP: true })
 
@@ -38,7 +39,7 @@ const fixtureRange = '?period=custom&from=2026-09-28&to=2026-09-30'
 const emptyCounts = (): ImpactCounts => ({ critical: 0, serious: 0, moderate: 0, minor: 0 })
 
 async function waitForDashboard(page: Page) {
-  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeAttached()
+  await expect(page.getByRole('heading', { level: 1 })).toBeAttached()
   await expect(page.getByRole('region', { name: 'Where' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Weekly rhythm' })).toBeVisible()
   await expect(page.locator('[aria-label^="Loading "]')).toHaveCount(0)
@@ -54,8 +55,8 @@ async function waitForSessions(page: Page) {
 }
 
 async function waitForSettings(page: Page) {
-  await expect(page.getByRole('heading', { level: 1, name: 'Site settings' })).toBeVisible()
-  await expect(page.getByLabel('Revenue currency')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Project settings' })).toBeVisible()
+  await expect(page.getByLabel('Revenue currency', { exact: true })).toBeVisible()
 }
 
 async function audit(page: Page, name: string): Promise<AxePageReport> {
@@ -120,7 +121,7 @@ test('reports axe findings for the requested pages', async ({ page, owner }) => 
   await owner.login(page, dashboard + fixtureRange)
   await waitForDashboard(page)
   reports.push(await audit(page, 'dashboard'))
-  await page.getByRole('button', { name: 'Open command palette' }).click()
+  await page.getByRole('button', { name: 'Search or jump to…' }).click()
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
   reports.push(await audit(page, 'command-palette'))
   await page.keyboard.press('Escape')
@@ -161,7 +162,7 @@ test('account recovery, invitation, first-run, account security and admin pages 
   reports.push(await expectNoSeriousViolations(page, 'forgot'))
   await page.getByLabel('Email').fill('nobody@supermetry.test')
   await page.getByRole('button', { name: 'Send reset link' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'If an account exists' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'has an account, a reset link is on its way' })).toBeVisible()
   reports.push(await expectNoSeriousViolations(page, 'forgot-sent'))
 
   await page.goto('/reset/not-a-real-token')
@@ -215,7 +216,7 @@ test('account recovery, invitation, first-run, account security and admin pages 
   await expect(page.getByRole('heading', { level: 1, name: 'Account security' })).toBeVisible()
   reports.push(await expectNoSeriousViolations(page, 'account-security'))
 
-  for (const [path, heading] of [['/app/admin/users', 'Users'], ['/app/admin/organizations', 'Organizations'], ['/app/admin/sites', 'Sites']] as const) {
+  for (const [path, heading] of [['/app/admin/users', 'Users'], ['/app/admin/organizations', 'Organizations'], ['/app/admin/sites', 'Projects']] as const) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible()
     await expect(page.getByRole('table').first()).toBeVisible()
@@ -223,7 +224,7 @@ test('account recovery, invitation, first-run, account security and admin pages 
   }
 
   await page.goto(`/app/${owner.orgSlug}/no-such-site`)
-  await expect(page.getByRole('heading', { level: 1, name: 'Site not found' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Project not found' })).toBeVisible()
   reports.push(await expectNoSeriousViolations(page, 'site-not-found'))
 
   await page.goto('/no-such-page')
@@ -260,7 +261,7 @@ test('captures the dashboard and grouped sidebar at the requested breakpoints', 
   await owner.login(page, dashboard + fixtureRange)
   await waitForDashboard(page)
 
-  for (const name of ['Analyze', 'Behaviour', 'Conversion', 'Manage', 'Settings']) {
+  for (const name of ['Analyze', 'Behavior', 'Conversion', 'Manage', 'Settings']) {
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
   }
   await screenshot(page, 'dashboard-1440-light.png')
@@ -269,11 +270,11 @@ test('captures the dashboard and grouped sidebar at the requested breakpoints', 
   await band.scrollIntoViewIfNeeded()
   await screenshot(page, 'dashboard-band-1440-light.png', false)
 
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.evaluate(() => window.scrollTo({ top: 0 }))
   await screenshot(page, 'dashboard-1440-dark.png')
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
   await expect(page.locator('html')).not.toHaveClass(/dark/)
 
   await page.setViewportSize({ width: 1024, height: 900 })

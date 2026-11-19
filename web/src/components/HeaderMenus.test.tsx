@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import { QueryClientProvider } from '@tanstack/react-query'
 import type { AnchorHTMLAttributes } from 'react'
 
 import { AccountMenu } from './HeaderMenus'
@@ -20,13 +21,14 @@ const me: Me = {
   user: { id: 1, name: 'Alex Example', email: 'alex@example.test' },
   memberships: [{ org: { id: 1, name: 'Acme', slug: 'acme' }, role: 'owner', sites: [] }],
 }
+const renderMenu = (ui: React.ReactElement) => render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
 function openMenu(name: string) {
   fireEvent.keyDown(screen.getByRole('button', { name }), { key: 'ArrowDown' })
 }
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
 it.each([true, false])('shows identity and explicit current-session logout with organization access=%s', async (hasOrganization) => {
-  render(<AccountMenu me={{ ...me, memberships: hasOrganization ? me.memberships : [] }} />)
+  renderMenu(<AccountMenu me={{ ...me, memberships: hasOrganization ? me.memberships : [] }} />)
   openMenu('Account')
   expect(await screen.findByText('Alex Example')).toBeVisible()
   expect(screen.getByText('alex@example.test')).toBeVisible()
@@ -39,7 +41,7 @@ it.each([true, false])('shows identity and explicit current-session logout with 
 
 it('hides instance administration from the account menu on a managed instance', async () => {
   queryClient.setQueryData(['auth-config'], { signup: 'open', setup_required: false, homepage_url: '', managed: true })
-  render(<AccountMenu me={{ ...me, user: { ...me.user, instance_admin: true } }} trigger={<button type="button">Account</button>} />)
+  renderMenu(<AccountMenu me={{ ...me, user: { ...me.user, instance_admin: true } }} trigger={<button type="button">Account</button>} />)
   openMenu('Account')
   expect(await screen.findByRole('menuitem', { name: 'Account settings' })).toBeVisible()
   expect(screen.queryByRole('menuitem', { name: 'Instance administration' })).not.toBeInTheDocument()
@@ -47,13 +49,13 @@ it('hides instance administration from the account menu on a managed instance', 
 })
 
 it('shows the server build version in the account menu', async () => {
-  render(<AccountMenu me={{ ...me, version: '1.4.2' }} />)
+  renderMenu(<AccountMenu me={{ ...me, version: '1.4.2' }} />)
   openMenu('Account')
   expect(await screen.findByText('Supermetry v1.4.2')).toBeVisible()
 })
 
 it('opens the same account menu from a caller-supplied trigger', async () => {
-  render(
+  renderMenu(
     <AccountMenu
       me={{ ...me, user: { ...me.user, instance_admin: true } }}
       side="right"
@@ -68,4 +70,25 @@ it('opens the same account menu from a caller-supplied trigger', async () => {
   expect(screen.getByRole('menuitem', { name: 'Instance administration' })).toHaveAttribute('href', '/app/admin/users')
   fireEvent.click(screen.getByRole('menuitem', { name: 'Log out' }))
   expect(requestLogout).toHaveBeenCalledTimes(1)
+})
+
+it('holds the language and theme controls and an empty plan slot for the hosting layer', async () => {
+  renderMenu(<AccountMenu me={{ ...me, preferences: { landing_page: 'overview', sites_view: 'cards', locale: 'de' } }} />)
+  openMenu('Account')
+  const menu = await screen.findByRole('menu', { name: 'Account menu' })
+  expect(menu.querySelector('[data-account-plan-slot]')).not.toBeNull()
+  const language = screen.getByRole('menuitem', { name: 'Language' })
+  expect(language).toHaveAttribute('aria-haspopup', 'menu')
+  fireEvent.keyDown(language, { key: 'ArrowRight' })
+  expect(await screen.findByRole('menuitemradio', { name: /^Deutsch/ })).toHaveAttribute('aria-checked', 'true')
+  expect(screen.getByRole('menuitemradio', { name: 'Browser default' })).toHaveAttribute('aria-checked', 'false')
+})
+
+it('toggles the theme from the account menu', async () => {
+  localStorage.setItem('theme', 'light')
+  renderMenu(<AccountMenu me={me} />)
+  openMenu('Account')
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Switch to dark theme' }))
+  expect(localStorage.getItem('theme')).toBe('dark')
+  localStorage.removeItem('theme')
 })

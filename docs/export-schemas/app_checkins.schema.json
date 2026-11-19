@@ -1,0 +1,64 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_checkins.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Cron monitor check-ins in the range.",
+  "properties": {
+    "checkin_id": {
+      "type": "string"
+    },
+    "duration_ms": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "expected_at": {
+      "description": "An empty CSV cell is null.",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "monitor_id": {
+      "type": "integer"
+    },
+    "release": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "monitor_id",
+    "checkin_id",
+    "timestamp",
+    "status",
+    "expected_at",
+    "duration_ms",
+    "release"
+  ],
+  "title": "app_checkins.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "monitor_id",
+    "checkin_id",
+    "timestamp",
+    "status",
+    "expected_at",
+    "duration_ms",
+    "release"
+  ],
+  "x-supermetry-schema-version": 1
+}

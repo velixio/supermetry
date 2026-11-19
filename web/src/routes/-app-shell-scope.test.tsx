@@ -57,7 +57,7 @@ afterEach(() => {
 // The one shell: a 44px sticky header, the sidebar, and exactly one main landmark.
 async function expectShell() {
   const header = await screen.findByRole('banner', { name: 'Application header' })
-  expect(header).toHaveClass('sticky', 'top-0', 'h-11')
+  expect(header).toHaveClass('sticky', 'top-0', 'h-12')
   expect(document.querySelectorAll('main')).toHaveLength(1)
   expect(screen.getByRole('main', { name: 'Main content' })).toHaveAttribute('id', 'main-content')
   return { header, sidebar: screen.getByRole('complementary', { name: 'Application sidebar' }) }
@@ -126,7 +126,7 @@ describe('one shell for every /app route', () => {
       renderRoute('/app/acme/github-stars', viewer)
       expect(await screen.findByRole('heading', { level: 1, name: 'GitHub stars' })).toBeVisible()
       const { sidebar } = await expectShell()
-      expect(within(sidebar).getByRole('link', { name: 'Sites' })).toBeVisible()
+      expect(within(sidebar).getByRole('link', { name: 'Projects' })).toBeVisible()
       expect(within(sidebar).getByRole('link', { name: 'GitHub stars' })).toHaveAttribute('aria-current', 'page')
       expect(within(sidebar).queryByRole('navigation', { name: 'Account' })).toBeNull()
     })
@@ -135,7 +135,7 @@ describe('one shell for every /app route', () => {
       renderRoute('/app/acme/github-stars/Velixio/Supermetry', viewer)
       expect(await screen.findByRole('heading', { level: 1, name: 'velixio/supermetry' })).toBeVisible()
       const { sidebar } = await expectShell()
-      expect(within(sidebar).getByRole('link', { name: 'Sites' })).toBeVisible()
+      expect(within(sidebar).getByRole('link', { name: 'Projects' })).toBeVisible()
       expect(within(sidebar).getByRole('link', { name: 'GitHub stars' })).toHaveAttribute('aria-current', 'page')
       expect(screen.getByRole('link', { name: 'All repositories' })).toHaveAttribute('href', '/app/acme/github-stars')
       expect(await screen.findByText('Repository not found')).toBeVisible()

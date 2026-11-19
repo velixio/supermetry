@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { PageContainer } from './PageContainer'
@@ -12,23 +12,26 @@ describe('PageHeader', () => {
   it('renders one level-one heading with the standard title style', () => {
     render(<PageHeader title="Funnels" />)
     const heading = screen.getByRole('heading', { level: 1, name: 'Funnels' })
-    expect(heading).toHaveClass('text-lg', 'font-semibold', 'tracking-tight')
+    expect(heading).toHaveClass('text-base', 'font-semibold', 'tracking-tight')
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
-  it('keeps the title, description and actions in one compact row that wraps on narrow screens', () => {
+  it('keeps the title and its description InfoTip in one compact row, with the actions wrapping on narrow screens', () => {
     const { container } = render(<PageHeader title="Goals" description="Last 30 days" actions={<button type="button">New goal</button>} />)
     const header = container.querySelector('header')
     expect(header).toHaveClass('flex-wrap', 'items-center', 'gap-y-2')
     const heading = screen.getByRole('heading', { level: 1, name: 'Goals' })
-    // Title and description share a baseline row instead of stacking.
-    expect(heading.parentElement).toHaveClass('flex-wrap', 'items-baseline')
-    expect(screen.getByText('Last 30 days').parentElement).toBe(heading.parentElement)
+    // The description is an InfoTip beside the title, not a second line of text.
+    expect(heading.parentElement).toHaveClass('min-w-0', 'items-center')
+    expect(heading.parentElement).not.toHaveClass('flex-wrap')
+    expect(screen.getByRole('button', { name: 'About Goals' }).parentElement).toBe(heading.parentElement)
+    expect(screen.queryByText('Last 30 days')).not.toBeInTheDocument()
   })
 
-  it('renders the description and actions when given', () => {
+  it('renders the description in an InfoTip and the actions when given', async () => {
     render(<PageHeader title="Goals" description="Last 30 days" actions={<button type="button">New goal</button>} />)
-    expect(screen.getByText('Last 30 days')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'About Goals' }))
+    expect((await screen.findAllByText('Last 30 days')).length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'New goal' })).toBeInTheDocument()
   })
 

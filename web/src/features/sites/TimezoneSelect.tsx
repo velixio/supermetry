@@ -3,6 +3,7 @@ import { ChevronsUpDownIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
+import { InfoTip } from '@/components/InfoTip'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { uiFlows } from '@/messages/uiFlows'
 
@@ -33,6 +34,7 @@ export function TimezoneSelect({
   onChange,
   error,
   hint,
+  tip,
 }: {
   id?: string
   name?: string
@@ -42,6 +44,8 @@ export function TimezoneSelect({
   onChange?: (value: string) => void
   error?: string
   hint?: string
+  /** Explanation kept behind an info icon next to the label. */
+  tip?: string
 }) {
   const [own, setOwn] = useState(() => value ?? defaultValue ?? browserTimeZone())
   const [open, setOpen] = useState(false)
@@ -60,7 +64,10 @@ export function TimezoneSelect({
   }
   return (
     <Field data-invalid={Boolean(error) || undefined}>
-      <FieldLabel htmlFor={id}>{uiFlows.site.timezone}</FieldLabel>
+      <div className="flex items-center gap-1.5">
+        <FieldLabel htmlFor={id}>{uiFlows.site.timezone}</FieldLabel>
+        {tip ? <InfoTip label={`About ${uiFlows.site.timezone}`}>{tip}</InfoTip> : null}
+      </div>
       <input type="hidden" name={name} value={current} />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>

@@ -11,7 +11,7 @@ test('full report dialog searches, sorts, traps focus, restores focus and export
   await page.setViewportSize({ width: 1440, height: 1000 })
   await owner.login(page, `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=${range.from}&to=${range.to}`)
   const card = page.getByRole('region', { name: 'Location' })
-  const trigger = card.getByRole('button', { name: 'View full report' })
+  const trigger = card.getByRole('button', { name: 'View all Location' })
   await trigger.focus()
   await page.keyboard.press('Enter')
 
@@ -51,7 +51,8 @@ test('full report dialog searches, sorts, traps focus, restores focus and export
   const csvPromise = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Download CSV' }).click()
   const csv = await csvPromise
-  expect(csv.suggestedFilename()).toContain(owner.siteSlug)
+  // The server names the file after the project's public id.
+  expect(csv.suggestedFilename()).toContain(owner.sitePublicID)
   expect(csv.suggestedFilename()).toContain(range.from)
   expect(csv.suggestedFilename()).toContain(range.to)
   const csvText = readFileSync((await csv.path())!, 'utf8')
@@ -84,7 +85,7 @@ test('full report dialog searches, sorts, traps focus, restores focus and export
   // Active filters are honoured by the export.
   await card.getByRole('button', { name: /^India/ }).click()
   await expect.poll(() => new URL(page.url()).searchParams.getAll('f')).toContain('country:is:IN')
-  await page.getByRole('region', { name: 'Location' }).getByRole('button', { name: 'View full report' }).click()
+  await page.getByRole('region', { name: 'Location' }).getByRole('button', { name: 'View all Location' }).click()
   const filtered = page.getByRole('dialog', { name: /Location: full report/ })
   const filteredJson = page.waitForEvent('download')
   await filtered.getByRole('button', { name: 'Download JSON' }).click()

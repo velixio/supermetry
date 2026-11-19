@@ -115,7 +115,7 @@ describe('admin organizations', () => {
     const trigger = await screen.findByRole('button', { name: 'Doomed Co, At least 3 MiB. Show storage details' })
     expect(screen.queryByText('Calculating…')).not.toBeInTheDocument()
     fireEvent.click(trigger)
-    expect(await screen.findByText(/2 sites are still being measured/)).toBeVisible()
+    expect(await screen.findByText(/2 projects are still being measured/)).toBeVisible()
   })
 
   it('does not render missing organization storage as zero', async () => {

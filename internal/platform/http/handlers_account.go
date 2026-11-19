@@ -538,7 +538,7 @@ func (h *handler) listMembers(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) updateMember(w http.ResponseWriter, r *http.Request) {
 	principal, userID, ok := h.memberMutation(w, r)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	var request struct {
@@ -580,7 +580,7 @@ func (h *handler) updateMember(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) deleteMember(w http.ResponseWriter, r *http.Request) {
 	principal, userID, ok := h.memberMutation(w, r)
-	if !ok {
+	if !ok || !h.requireRecentAuth(w, r, principal) {
 		return
 	}
 	if h.deps.Orgs == nil {

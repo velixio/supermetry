@@ -1,0 +1,94 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/metric_hourly.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Hourly metric rollups in the site's local hours.",
+  "properties": {
+    "bucket_counts": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "count": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "local_hour": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "samples": {
+      "type": "integer"
+    },
+    "series_id": {
+      "type": "integer"
+    },
+    "sum": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "value_last": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "value_max": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "value_min": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "value_sum": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "series_id",
+    "local_hour",
+    "samples",
+    "value_sum",
+    "value_min",
+    "value_max",
+    "value_last",
+    "count",
+    "sum",
+    "bucket_counts"
+  ],
+  "title": "metric_hourly.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "series_id",
+    "local_hour",
+    "samples",
+    "value_sum",
+    "value_min",
+    "value_max",
+    "value_last",
+    "count",
+    "sum",
+    "bucket_counts"
+  ],
+  "x-supermetry-schema-version": 1
+}

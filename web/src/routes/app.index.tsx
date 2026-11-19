@@ -38,7 +38,7 @@ export function IndexPage() {
   if (!membership) return <NoOrgScreen navigate={navigate} />
   if (allSites.length > 0) {
     return (
-      <Suspense fallback={<div className="h-72 animate-pulse rounded-xl bg-muted" aria-label="Loading sites" role="status" />}><SitesOverviewLanding me={me.data} /></Suspense>
+      <Suspense fallback={<div className="h-72 animate-pulse rounded-lg bg-muted" aria-label="Loading projects" role="status" />}><SitesOverviewLanding me={me.data} /></Suspense>
     )
   }
   return (

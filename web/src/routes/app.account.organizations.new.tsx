@@ -35,8 +35,8 @@ function NewOrganizationRoute() {
 
   return (
     <PageContainer width="narrow">
-      <PageHeader title="Add organization" description="You will be its owner. Add its first site next." />
-      <section className="rounded-xl border bg-card p-5">
+      <PageHeader title="Add organization" description="You will be its owner. Add its first project next." />
+      <section className="rounded-lg border bg-card p-5">
         <form className="flex flex-col gap-5" onSubmit={(event) => void submit(event)}>
           <FieldGroup>
             <Field data-invalid={Boolean(error) || undefined}>

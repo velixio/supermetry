@@ -173,7 +173,7 @@ export function createShareApi(fetcher?: typeof globalThis.fetch) {
         throw new Error(problem.message)
       }
       if (!isCreatedSite(result.data)) {
-        throw new Error('The site was created, but its response was invalid.')
+        throw new Error('The project was created, but its response was invalid.')
       }
       return result.data
     },

@@ -1,5 +1,6 @@
 import { useCapability } from '@/lib/authorization'
-import { useEffect, useState, type FormEvent } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -46,11 +47,13 @@ type EventsPageProps = {
   app?: boolean
   replayId?: string
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 export function EventsPage({
   siteId, orgId, dateRange, filters, name, propertyKey, cursor, page,
-  onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site, replayId, onReplayChange, app = false,
+  onNameChange, onPropertyChange, onFirst, onNext, onPrevious, org, site, replayId, onReplayChange, app = false, toolbar,
 }: EventsPageProps) {
   const canReplay = useCapability('replay.read')
   const [draftName, setDraftName] = useState(name)
@@ -81,7 +84,7 @@ export function EventsPage({
 
   return (
     <PageContainer>
-      <PageHeader title="Events" description={app ? 'Inspect recent screen views, custom events, and their properties.' : 'Inspect recent pageviews, custom events, and their properties.'} />
+      <PageHeader title="Events" description={app ? 'Inspect recent screen views, custom events, and their properties.' : 'Inspect recent pageviews, custom events, and their properties.'} actions={toolbar} />
       <form className="flex items-end gap-2" onSubmit={submitName}>
         <FieldGroup className="max-w-sm flex-1">
           <Field>
@@ -109,7 +112,7 @@ export function EventsPage({
           ))}
         </div>
         {propertyKey ? (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-lg border bg-card p-4">
             <h3 className="mb-3 text-sm font-medium">Top values for {propertyKey}</h3>
             <div className="flex flex-col gap-2">
               {(values.data ?? []).map((item) => (
@@ -127,10 +130,12 @@ export function EventsPage({
         <div aria-label="Loading events" className="flex flex-col gap-3">
           <Skeleton className="h-10 w-full" /><Skeleton className="h-64 w-full" />
         </div>
+      ) : events.data.data.length === 0 && filters.length === 0 && !name && !cursor ? (
+        <FeatureEmptyState kind="events" />
       ) : events.data.data.length === 0 ? (
         <Empty><EmptyHeader><EmptyTitle>No events found</EmptyTitle><EmptyDescription>Try another date range, event name, or filter.</EmptyDescription></EmptyHeader></Empty>
       ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <Table aria-label="Events">
             <TableHeader><TableRow>
               <TableHead>Time</TableHead><TableHead>Kind</TableHead><TableHead>Name</TableHead><TableHead>{app ? 'Screen' : 'Page'}</TableHead>

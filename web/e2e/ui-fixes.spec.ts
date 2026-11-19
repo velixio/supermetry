@@ -72,7 +72,8 @@ test('realtime: empty chart explains itself and Live now card has room at 1440',
   await page.screenshot({ path: `${dir}/realtime-empty-1440.png` })
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  // The layout settles a moment after the resize (sidebar, chart), so poll instead of measuring once.
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   for (const name of ['Minute', 'Hour', 'Day']) {
     const target = await intervals.getByRole('radio', { name }).boundingBox()
     expect(target!.height).toBeGreaterThanOrEqual(44)

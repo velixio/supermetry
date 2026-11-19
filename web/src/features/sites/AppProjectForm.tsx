@@ -8,7 +8,7 @@ import type { AppSiteInput, RetentionDays } from '@/features/sites/types'
 import { retentionOptions, retentionPolicy, type RetentionPolicy } from '@/lib/instanceConfig'
 import { en } from '@/messages/en'
 
-const selectClass = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs'
+const selectClass = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
 
 export function AppProjectForm({ submitLabel, onSubmit, retention }: {
   submitLabel: string

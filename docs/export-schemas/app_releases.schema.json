@@ -1,0 +1,46 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_releases.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Releases created in the range.",
+  "properties": {
+    "created": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "release_id": {
+      "type": "integer"
+    },
+    "released": {
+      "description": "An empty CSV cell is null.",
+      "format": "date-time",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "url": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "release_id",
+    "version",
+    "url",
+    "created",
+    "released"
+  ],
+  "title": "app_releases.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "release_id",
+    "version",
+    "url",
+    "created",
+    "released"
+  ],
+  "x-supermetry-schema-version": 1
+}

@@ -1,3 +1,4 @@
+import { InfoTip } from '@/components/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -41,7 +42,7 @@ export function IssueActivity({ siteId, issueId }: { siteId: number; issueId: nu
   const rows = activity.data?.pages.flatMap((page) => page.activity) ?? []
   return (
     <Card>
-      <CardHeader><CardTitle>Activity</CardTitle><CardDescription>Every change to this issue, newest first.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Activity <InfoTip label="About activity">Every change to this issue, newest first.</InfoTip></CardTitle></CardHeader>
       <CardContent>
         {activity.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading activity…</p> : null}
         {activity.isError ? <p role="alert" className="text-sm text-destructive">{activity.error.message}</p> : null}

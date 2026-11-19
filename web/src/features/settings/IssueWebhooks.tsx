@@ -41,7 +41,7 @@ export function IssueWebhooks({ orgId, siteId, canEdit }: { orgId: number; siteI
   const toggle = <T,>(list: T[], value: T) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
   const list = channels.data?.data ?? []
   return (
-    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4" aria-label="Issue webhooks">
+    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4" aria-label="Issue webhooks">
       <h3 className="text-sm font-medium">Issue webhooks</h3>
       <FieldDescription>Send issue events to notification channels you already set up. Webhook channels get a signed JSON body; email, chat and Telegram channels get one line of text.</FieldDescription>
       <fieldset className="flex flex-col gap-1" disabled={!canEdit}>

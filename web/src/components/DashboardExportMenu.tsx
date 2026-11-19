@@ -1,7 +1,7 @@
 import { isAnonymousDimensionAllowed } from '@/lib/tracking-policy'
 import { useCapability } from '@/lib/authorization'
 import { useState } from 'react'
-import { ChevronDownIcon, DownloadIcon } from 'lucide-react'
+import { DownloadIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -68,14 +68,13 @@ export function DashboardExportMenu({ query, anonymous = false }: { query: Stats
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" disabled={exporting}>
-          <DownloadIcon data-icon="inline-start" />
-          {exporting ? 'Exporting…' : 'Export CSV'}
-          <ChevronDownIcon data-icon="inline-end" />
+        <Button className="text-muted-foreground hover:text-foreground max-sm:size-11" size="icon" title="Export CSV" type="button" variant="ghost" disabled={exporting}>
+          <DownloadIcon aria-hidden="true" />
+          <span className="sr-only">{exporting ? 'Exporting…' : 'Export CSV'}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {anonymous ? <p className="max-w-64 px-2 py-1.5 text-xs text-muted-foreground">Exports include safe aggregate categories. Verified pages exclude imports and unverified history and require no active filters.</p> : null}
+        {anonymous ? <p className="max-w-64 px-2 py-1.5 text-xs text-muted-foreground">Safe aggregate categories only.</p> : null}
         <DropdownMenuGroup>
           {exportOptions.filter((option) => !anonymous || isAnonymousDimensionAllowed(option.dimension) || option.dimension === 'page').map((option) => (
             <DropdownMenuItem

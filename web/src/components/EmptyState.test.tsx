@@ -9,7 +9,7 @@ describe('EmptyState', () => {
   it('explains the empty result and gives a next action', () => {
     render(<EmptyState />)
 
-    expect(screen.getByText('No data for this date range.')).toBeVisible()
-    expect(screen.getByText('Try a wider date range or remove a filter.')).toBeVisible()
+    expect(screen.getByText('No data in this range.')).toBeVisible()
+    expect(screen.getByText('Widen the range or remove a filter.')).toBeVisible()
   })
 })

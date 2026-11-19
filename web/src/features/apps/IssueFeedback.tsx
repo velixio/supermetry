@@ -1,3 +1,4 @@
+import { InfoTip } from '@/components/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -10,8 +11,7 @@ export function IssueFeedback({ siteId, issueId }: { siteId: number; issueId: nu
   return (
     <Card>
       <CardHeader>
-        <CardTitle>User feedback</CardTitle>
-        <CardDescription>Reports from people who hit this issue. Text is scrubbed; names and email addresses are not stored.</CardDescription>
+        <CardTitle>User feedback <InfoTip label="About user feedback">Reports from people who hit this issue. Text is scrubbed; names and email addresses are not stored.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent>
         {feedback.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading feedback…</p> : null}

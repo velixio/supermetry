@@ -21,14 +21,14 @@ export function LiveBadge({
 }: LiveBadgeProps) {
   const content = (
     <>
-      <span aria-hidden="true" className="text-accent">
+      <span aria-hidden="true" className="text-chart-1">
         ●{' '}
       </span>
       <span>{label(count)}</span>
     </>
   )
   const className = cn(
-    'inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm outline-none hover:bg-accent aria-pressed:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
     muted && 'text-muted-foreground',
   )
 

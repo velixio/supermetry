@@ -32,23 +32,23 @@ export function StarsAnnotations({ repoId, annotations }: { repoId: number; anno
       {canManage ? <form className="flex flex-wrap items-end gap-2" onSubmit={submit}>
         <label className="flex min-w-0 flex-1 basis-48 flex-col gap-1 text-sm font-medium">
           {en.githubStars.annotationLabel}
-          <Input className="min-h-11" value={label} maxLength={200} required onChange={(event) => setLabel(event.target.value)} />
+          <Input className="max-sm:min-h-11" value={label} maxLength={200} required onChange={(event) => setLabel(event.target.value)} />
         </label>
         <label className="flex min-w-0 flex-1 basis-48 flex-col gap-1 text-sm font-medium">
           {en.githubStars.annotationAt}
-          <Input className="min-h-11" type="datetime-local" value={at} required onChange={(event) => setAt(event.target.value)} />
+          <Input className="max-sm:min-h-11" type="datetime-local" value={at} required onChange={(event) => setAt(event.target.value)} />
         </label>
-        <Button type="submit" className="min-h-11" disabled={add.isPending || !label.trim()}>
+        <Button type="submit" className="max-sm:min-h-11" disabled={add.isPending || !label.trim()}>
           {add.isPending ? en.githubStars.annotationAdding : en.githubStars.annotationAdd}
         </Button>
       </form> : null}
       <ErrorLine error={add.error ?? remove.error} />
       {annotations.length === 0 ? <p className="text-sm text-muted-foreground">{en.githubStars.annotationsEmpty}</p> : (
-        <ul className="flex flex-col divide-y rounded-lg border">
+        <ul className="flex flex-col">
           {annotations.map((annotation) => (
-            <li key={annotation.id} className="flex items-center justify-between gap-3 px-3 py-1">
+            <li key={annotation.id} className="flex items-center border-b last:border-b-0 justify-between gap-3 px-3 py-1">
               <span className="min-w-0 break-words text-sm"><strong className="font-medium">{annotation.label}</strong> <span className="text-muted-foreground">{formatDate(annotation.at)}</span></span>
-              {canManage ? <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0" disabled={remove.isPending}
+              {canManage ? <Button type="button" variant="ghost" size="icon" className="max-sm:size-11 shrink-0" disabled={remove.isPending}
                 aria-label={en.githubStars.annotationDelete(annotation.label)} onClick={() => remove.mutate(annotation.id)}>
                 <Trash2Icon aria-hidden="true" />
               </Button> : null}

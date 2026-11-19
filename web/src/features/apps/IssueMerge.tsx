@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -27,8 +28,7 @@ export function IssueMerge({ siteId, issueId, canEdit }: { siteId: number; issue
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Merged issues</CardTitle>
-        <CardDescription>Events of merged issues count here, and new events with their fingerprints land on this issue.</CardDescription>
+        <CardTitle>Merged issues <InfoTip label="About merged issues">Events of merged issues count here, and new events with their fingerprints land on this issue.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {merged.isSuccess && rows.length === 0 ? <p className="text-sm text-muted-foreground">No issues are merged into this one.</p> : null}

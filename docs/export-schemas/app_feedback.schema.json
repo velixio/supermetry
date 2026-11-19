@@ -1,0 +1,63 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_feedback.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "User feedback; the reporter's email is not exported.",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "event_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "feedback_id": {
+      "type": "integer"
+    },
+    "has_contact": {
+      "type": "boolean"
+    },
+    "issue_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "page": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "feedback_id",
+    "issue_id",
+    "event_id",
+    "at",
+    "has_contact",
+    "text",
+    "page"
+  ],
+  "title": "app_feedback.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "feedback_id",
+    "issue_id",
+    "event_id",
+    "at",
+    "has_contact",
+    "text",
+    "page"
+  ],
+  "x-supermetry-schema-version": 1
+}

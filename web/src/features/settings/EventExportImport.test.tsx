@@ -56,17 +56,20 @@ describe('event export imports', () => {
       overlap: { imported_days: 0, live_days: 0, same_file: null },
     })
     upload.mockResolvedValue({ id: 11, status: 'pending' } as never)
+    request.mockImplementation(async (_m, path) => ((path as string).startsWith('/api/private/imports/') ? { id: 11, status: 'pending' } : []) as never)
     renderPage()
 
-    fireEvent.change(screen.getByLabelText('Import source'), { target: { value: source } })
+    fireEvent.click(screen.getByRole('tab', { name: 'Upload a file' }))
+    fireEvent.change(screen.getByLabelText('File type'), { target: { value: source } })
     expect(screen.getByText(help)).toBeVisible()
     const file = new File(['{}'], name)
     fireEvent.change(screen.getByLabelText('Import file'), { target: { files: [file] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Preview import' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(await screen.findByText('Row 4: invalid time "x"')).toBeVisible()
     expect(upload).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import this range' }))
     await waitFor(() => {
       expect(upload).toHaveBeenCalledWith(7, 3, source, file, expect.any(Function), undefined, false)
     })

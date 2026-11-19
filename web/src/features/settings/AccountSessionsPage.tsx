@@ -13,6 +13,7 @@ import {
 import { BrowserLabel } from '@/components/visitor/BrowserLabel'
 import { countryName, normalizeCountryCode } from '@/lib/country'
 
+import { InfoTip } from '@/components/InfoTip'
 import { privateRequest, type ListResponse } from './privateApi'
 import { activeLocale } from '@/lib/i18n/intl'
 import { uiAccount } from '@/messages/uiAccount'
@@ -80,12 +81,12 @@ export function AccountSessionsPage() {
   const otherSessionCount = ordered.filter(session => !session.Current).length
 
   return (
-    <PageContainer width="narrow">
-      <PageHeader title={uiAccount.sessions.title} description={uiAccount.sessions.intro} />
-      <section aria-label={uiAccount.sessions.sectionLabel} className="min-w-0 rounded-xl border bg-card p-5 text-card-foreground">
-        <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
-          <p className="text-sm text-muted-foreground">{uiAccount.sessions.note}</p>
-          <Button className="w-full shrink-0 sm:w-auto" variant="outline" disabled={!sessions.isSuccess || otherSessionCount === 0 || revokeOthers.isPending} onClick={() => setConfirmOthers(true)}>
+    <PageContainer width="narrow" className="max-w-3xl">
+      <PageHeader title={uiAccount.sessions.title} />
+      <section aria-label={uiAccount.sessions.sectionLabel} className="min-w-0 rounded-lg border bg-card p-4 text-card-foreground">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <InfoTip label={uiAccount.sessions.title}>{uiAccount.sessions.note}</InfoTip>
+          <Button className="shrink-0 max-md:min-h-11" variant="secondary" size="sm" disabled={!sessions.isSuccess || otherSessionCount === 0 || revokeOthers.isPending} onClick={() => setConfirmOthers(true)}>
             {uiAccount.sessions.signOutAll}
           </Button>
         </div>
@@ -110,8 +111,8 @@ export function AccountSessionsPage() {
         {sessions.isSuccess && ordered.length === 0 && <p className="text-sm text-muted-foreground">{uiAccount.sessions.none}</p>}
         <ul className="divide-y" aria-label={uiAccount.sessions.listLabel}>
           {ordered.map((session) => (
-            <li key={session.ID} className="min-w-0 py-5 first:pt-0 last:pb-0">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <li key={session.ID} className="min-w-0 py-4 first:pt-0 last:pb-0">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
                     <BrowserLabel value={session.Browser || uiAccount.sessions.unknownBrowser} />
@@ -121,15 +122,15 @@ export function AccountSessionsPage() {
                     <p className="mt-1 break-words text-sm text-muted-foreground">{session.DeviceLabel.trim()}</p>
                   )}
                 </div>
-                <Button size="sm" variant="outline" disabled={revoke.isPending || !session.ID} onClick={() => revoke.mutate(session.ID)} aria-label={session.Current ? uiAccount.sessions.revokeCurrent : uiAccount.sessions.revokeAria(session.Browser || uiAccount.sessions.unknownBrowser.toLowerCase(), session.IPAddress ?? '')}>
+                <Button size="sm" variant="secondary" className="max-md:min-h-11" disabled={revoke.isPending || !session.ID} onClick={() => revoke.mutate(session.ID)} aria-label={session.Current ? uiAccount.sessions.revokeCurrent : uiAccount.sessions.revokeAria(session.Browser || uiAccount.sessions.unknownBrowser.toLowerCase(), session.IPAddress ?? '')}>
                   {revoke.isPending && revoke.variables === session.ID ? uiAccount.sessions.revoking : uiAccount.sessions.revoke}
                 </Button>
               </div>
-              <dl className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-                <div className="min-w-0"><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.ip}</dt><dd className="break-all">{session.IPAddress || <span className="text-muted-foreground">{uiAccount.sessions.unknown}</span>}</dd></div>
-                <div className="min-w-0"><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.country}</dt><dd><SessionCountry code={session.CountryCode} /></dd></div>
-                <div><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.created}</dt><dd><SessionTime value={session.CreatedAt} /></dd></div>
-                <div><dt className="mb-1 text-xs text-muted-foreground">{uiAccount.sessions.lastActive}</dt><dd><SessionTime value={session.LastSeenAt} /></dd></div>
+              <dl className="grid min-w-0 grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div className="min-w-0"><dt className="mb-0.5 text-xs text-muted-foreground">{uiAccount.sessions.ip}</dt><dd className="break-all">{session.IPAddress || <span className="text-muted-foreground">{uiAccount.sessions.unknown}</span>}</dd></div>
+                <div className="min-w-0"><dt className="mb-0.5 text-xs text-muted-foreground">{uiAccount.sessions.country}</dt><dd><SessionCountry code={session.CountryCode} /></dd></div>
+                <div><dt className="mb-0.5 text-xs text-muted-foreground">{uiAccount.sessions.created}</dt><dd><SessionTime value={session.CreatedAt} /></dd></div>
+                <div><dt className="mb-0.5 text-xs text-muted-foreground">{uiAccount.sessions.lastActive}</dt><dd><SessionTime value={session.LastSeenAt} /></dd></div>
               </dl>
             </li>
           ))}

@@ -1,9 +1,10 @@
-import { useId, type Ref } from 'react'
+import { useId, type ReactNode, type Ref } from 'react'
 import { Link } from '@tanstack/react-router'
-import { CircleHelpIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
+import { SearchIcon } from 'lucide-react'
 
 import { Breadcrumbs } from './Breadcrumbs'
-import { LanguageMenu } from './LanguageMenu'
+import { ContextPanelToggle } from './context-panel'
+import { HelpMenu } from './HelpMenu'
 import { LiveBadge } from '@/components/LiveBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,8 +13,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useLiveSummary } from '@/features/realtime/useLiveSummary'
 import { useUpdateStatus } from '@/features/admin/adminApi'
 import type { Membership, Site } from '@/lib/me'
-import type { LocaleCode } from '@/lib/i18n'
-import type { Theme } from '@/lib/theme'
 import { isApplePlatform } from '@/lib/shortcuts'
 import { isAnonymousTracking } from '@/lib/tracking-policy'
 import { en } from '@/messages/en'
@@ -70,7 +69,8 @@ function UpdateNotice({ instanceAdmin }: { instanceAdmin: boolean }) {
 }
 
 /**
- * The single 44px sticky bar above every page: sidebar trigger, breadcrumbs, command palette trigger, live badge, help and theme.
+ * The single 48px sticky bar above every page: sidebar trigger, breadcrumbs, search field (opens the command palette), live badge and help.
+ * Language and theme live in the account menu.
  * Outside an organization (no membership) there is no site, so no live badge.
  */
 export function AppHeader({
@@ -78,52 +78,66 @@ export function AppHeader({
   membership,
   site,
   requestedSite,
-  locale = '',
-  theme,
-  onToggleTheme,
   onOpenHelp,
+  onOpenAbout,
   onOpenPalette,
   paletteTriggerRef,
+  notice,
+  toolbarRef,
 }: {
   instanceAdmin?: boolean
   membership?: Membership
   site?: Site
   requestedSite?: string
-  /** The signed-in user's saved interface language; '' follows the browser. */
-  locale?: LocaleCode | ''
-  theme: Theme
-  onToggleTheme: () => void
   onOpenHelp: () => void
+  onOpenAbout: () => void
   onOpenPalette: () => void
   /** Lets the shell return focus here after a command that leaves focus nowhere else. */
   paletteTriggerRef?: Ref<HTMLButtonElement>
+  /** A compact page-scoped status chip (the demo project), so it costs no page height. */
+  notice?: ReactNode
+  /** Receives the slot element that page controls are portalled into (see HeaderToolbar). */
+  toolbarRef?: Ref<HTMLDivElement>
 }) {
   return (
-    <header aria-label={en.a11y2.applicationHeader} className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
-      <div className="flex min-w-0 items-center gap-2">
+    <header aria-label={en.a11y2.applicationHeader} className="group/header sticky top-0 z-20 flex h-12 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
+      <div className="flex min-w-0 shrink items-center gap-2">
         <SidebarTrigger aria-label={en.navigation.collapse} />
         <Breadcrumbs membership={membership} />
       </div>
-      <div className="flex items-center gap-1">
-        {/* The shortcut hint sits beside the button's text, not inside it: the button's name is
-            "Open command palette" and the shortcut is announced through aria-keyshortcuts. */}
+      {/* The current page's filters and actions (HeaderToolbar portals them here on wide screens), so the
+          page itself starts with content. It scrolls sideways rather than wrapping when a page has many controls;
+          `relative` keeps its sr-only text inside the scroll box, or that text widens the page. */}
+      <div
+        ref={toolbarRef}
+        className="relative flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [&>:first-child]:ml-auto [scrollbar-width:none] empty:hidden [&_.flex-wrap]:flex-nowrap [&>*]:shrink-0"
+        data-slot="header-toolbar"
+        role="group"
+        aria-label={ui.appShell.pageControls}
+      />
+      <div className="flex shrink-0 items-center gap-1">
+        {/* One search field for the command palette. The shortcut hint sits beside the button's text,
+            not inside it, so the button's name is exactly its visible text. */}
         <span className="relative inline-flex">
           <Button
             ref={paletteTriggerRef}
             type="button"
-            size="sm"
             variant="ghost"
-            className="gap-1.5 text-muted-foreground md:pr-12"
-            aria-label={ui.palette.open}
+            size="sm"
+            className="justify-start gap-2 px-3 text-sm font-normal text-muted-foreground max-md:w-8 max-md:justify-center max-md:px-0 md:w-64 md:pr-16 lg:w-72 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:w-8 lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:justify-center lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:px-0"
+            aria-haspopup="dialog"
             aria-keyshortcuts="Control+K Meta+K"
+            aria-label={ui.palette.searchField}
             onClick={onOpenPalette}
           >
             <SearchIcon aria-hidden="true" />
+            <span aria-hidden="true" className="hidden flex-1 truncate text-left md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">{ui.palette.searchField}</span>
           </Button>
-          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-muted px-1 font-sans text-[0.7rem] font-medium text-muted-foreground md:inline">
+          <kbd aria-hidden="true" className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded-sm border bg-background px-1.5 py-0.5 font-sans text-xs font-medium text-muted-foreground md:inline lg:group-has-[[data-slot=header-toolbar]:not(:empty)]/header:hidden">
             {isApplePlatform() ? ui.palette.keyHintApple : ui.palette.keyHint}
           </kbd>
         </span>
+        {notice}
         <UpdateNotice instanceAdmin={instanceAdmin} />
         {membership && site && requestedSite && site.kind !== 'app' ? (
           <div className="hidden sm:block">
@@ -135,26 +149,8 @@ export function AppHeader({
             />
           </div>
         ) : null}
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="hidden sm:inline-flex"
-          aria-label={en.shortcuts.open}
-          onClick={onOpenHelp}
-        >
-          <CircleHelpIcon />
-        </Button>
-        <LanguageMenu locale={locale} />
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          aria-label={theme === 'dark' ? en.theme.dark : en.theme.light}
-          onClick={onToggleTheme}
-        >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </Button>
+        <HelpMenu onOpenAbout={onOpenAbout} onOpenShortcuts={onOpenHelp} />
+        <ContextPanelToggle />
       </div>
     </header>
   )

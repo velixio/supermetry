@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
-import { CopyIcon, FilterIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon, UsersRoundIcon } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
+import { CopyIcon, FilterIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -10,7 +11,6 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -40,6 +40,8 @@ type CohortsPageProps = {
   dateRange: { from: string; to: string }
   // policy is why cohorts cannot run, or undefined when they can.
   policy?: 'anonymous' | 'profiles_disabled'
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 type Builder = { id?: number; draft: DraftCohort }
@@ -51,7 +53,7 @@ function formatDate(value: string): string {
 function ResultPanel({ siteId, subject, title }: { siteId: number; subject: EvaluationSubject; title: string }) {
   const evaluation = useCohortEvaluation(siteId, subject)
   return (
-    <section aria-labelledby="cohort-result-title" className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4">
+    <section aria-labelledby="cohort-result-title" className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
       <h2 className="text-base font-semibold" id="cohort-result-title">{t.resultTitle}: {title}</h2>
       <div aria-live="polite" role="status">
         {evaluation.isPending || evaluation.isFetching ? (
@@ -73,7 +75,7 @@ function ResultPanel({ siteId, subject, title }: { siteId: number; subject: Eval
         ) : evaluation.data.sample.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.sampleEmpty}</p>
         ) : (
-          <div className="min-w-0 overflow-x-auto rounded-lg border" tabIndex={0}>
+          <div className="min-w-0 overflow-x-auto" tabIndex={0}>
             <Table aria-label={t.sampleTitle}>
               <TableHeader>
                 <TableRow>
@@ -169,7 +171,7 @@ function CohortsTab({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{t.description}</p>
         {canEdit && !builder ? (
-          <Button className="h-11 md:h-8" type="button" onClick={() => open({ draft: blankDraft() })}>
+          <Button className="max-md:h-11" type="button" onClick={() => open({ draft: blankDraft() })}>
             <PlusIcon data-icon="inline-start" />
             {t.newCohort}
           </Button>
@@ -177,7 +179,7 @@ function CohortsTab({
       </div>
 
       {builder ? (
-        <form aria-labelledby="cohort-builder-title" className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4" noValidate onSubmit={submit}>
+        <form aria-labelledby="cohort-builder-title" className="flex min-w-0 flex-col gap-4 rounded-lg border bg-card p-4" noValidate onSubmit={submit}>
           <h2 className="text-base font-semibold" id="cohort-builder-title">{builder.id ? t.builderTitleEdit : t.builderTitleNew}</h2>
           <ConditionBuilder draft={builder.draft} onChange={(draft) => setBuilder({ ...builder, draft })} />
           {problems.length > 0 || save.error ? (
@@ -187,12 +189,12 @@ function CohortsTab({
             </ul>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button className="h-11 md:h-8" type="button" variant="outline" onClick={preview}>
+            <Button className="max-md:h-11" type="button" variant="outline" onClick={preview}>
               <PlayIcon data-icon="inline-start" />
               {t.previewSize}
             </Button>
-            <Button className="h-11 md:h-8" disabled={save.isPending} type="submit">{save.isPending ? t.saving : t.save}</Button>
-            <Button className="h-11 md:h-8" type="button" variant="ghost" onClick={() => { setBuilder(undefined); setProblems([]) }}>{t.cancel}</Button>
+            <Button className="max-md:h-11" disabled={save.isPending} type="submit">{save.isPending ? t.saving : t.save}</Button>
+            <Button className="max-md:h-11" type="button" variant="ghost" onClick={() => { setBuilder(undefined); setProblems([]) }}>{t.cancel}</Button>
           </div>
         </form>
       ) : null}
@@ -207,15 +209,9 @@ function CohortsTab({
           <Skeleton className="h-24 w-full" />
         </div>
       ) : cohorts.data.length === 0 ? (
-        <Empty>
-          <UsersRoundIcon aria-hidden="true" />
-          <EmptyHeader>
-            <EmptyTitle>{t.empty}</EmptyTitle>
-            <EmptyDescription>{t.emptyDescription}</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        builder ? null : <FeatureEmptyState kind="cohorts" noAction={!canEdit} onAction={() => open({ draft: blankDraft() })} />
       ) : (
-        <div className="min-w-0 overflow-x-auto rounded-xl border bg-card" tabIndex={0}>
+        <div className="min-w-0 overflow-x-auto rounded-lg border bg-card" tabIndex={0}>
           <Table aria-label={t.title}>
             <TableHeader>
               <TableRow>
@@ -233,11 +229,11 @@ function CohortsTab({
                   <TableCell className="max-w-md whitespace-normal text-sm text-muted-foreground">{describeDefinition(cohort.definition)}</TableCell>
                   <TableCell className="max-w-48 sm:max-w-none">
                     <div className="flex flex-wrap gap-1">
-                      <Button aria-label={t.actionEvaluate(cohort.name)} className="h-11 md:h-8" type="button" variant="outline" onClick={() => setSubject({ value: { kind: 'saved', id: cohort.id }, title: cohort.name })}>
+                      <Button aria-label={t.actionEvaluate(cohort.name)} className="max-md:h-11" type="button" variant="outline" onClick={() => setSubject({ value: { kind: 'saved', id: cohort.id }, title: cohort.name })}>
                         <PlayIcon data-icon="inline-start" />
                         {t.evaluate}
                       </Button>
-                      <Button asChild aria-label={t.actionFilter(cohort.name)} className="h-11 md:h-8" variant="outline">
+                      <Button asChild aria-label={t.actionFilter(cohort.name)} className="max-md:h-11" variant="outline">
                         <Link
                           params={{ org: orgSlug, site: siteSlug }}
                           search={{ period: '30d', compare: 'off', f: serializeFilters([{ dimension: 'cohort', operator: 'is', values: [String(cohort.id)] }]), metric: 'visitors', include_imported: false }}
@@ -248,13 +244,13 @@ function CohortsTab({
                         </Link>
                       </Button>
                       {canEdit ? <>
-                        <Button aria-label={t.actionEdit(cohort.name)} className="size-11 md:size-8" size="icon" type="button" variant="ghost" onClick={() => open({ id: cohort.id, draft: draftFromDefinition(cohort.name, cohort.definition) })}>
+                        <Button aria-label={t.actionEdit(cohort.name)} className="max-md:size-11" size="icon" type="button" variant="ghost" onClick={() => open({ id: cohort.id, draft: draftFromDefinition(cohort.name, cohort.definition) })}>
                           <PencilIcon />
                         </Button>
-                        <Button aria-label={t.actionDuplicate(cohort.name)} className="size-11 md:size-8" disabled={duplicate.isPending} size="icon" type="button" variant="ghost" onClick={() => duplicate.mutate(cohort.id)}>
+                        <Button aria-label={t.actionDuplicate(cohort.name)} className="max-md:size-11" disabled={duplicate.isPending} size="icon" type="button" variant="ghost" onClick={() => duplicate.mutate(cohort.id)}>
                           <CopyIcon />
                         </Button>
-                        <Button aria-label={t.actionDelete(cohort.name)} className="size-11 md:size-8" size="icon" type="button" variant="ghost" onClick={() => setDeleting(cohort)}>
+                        <Button aria-label={t.actionDelete(cohort.name)} className="max-md:size-11" size="icon" type="button" variant="ghost" onClick={() => setDeleting(cohort)}>
                           <Trash2Icon />
                         </Button>
                       </> : null}
@@ -287,7 +283,7 @@ function CohortsTab({
   )
 }
 
-export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, policy }: CohortsPageProps) {
+export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, policy, toolbar }: CohortsPageProps) {
   const [tab, setTab] = useState<'cohorts' | 'power'>('cohorts')
   const [seed, setSeed] = useState<DraftCohort>()
 
@@ -304,7 +300,7 @@ export function CohortsPage({ siteId, orgSlug, siteSlug, canEdit, dateRange, pol
 
   return (
     <PageContainer>
-      <PageHeader title={t.title} />
+      <PageHeader title={t.title} actions={toolbar} />
       <Tabs value={tab} onValueChange={(value) => { setSeed(undefined); setTab(value as 'cohorts' | 'power') }}>
         <TabsList aria-label={t.title}>
           <TabsTrigger className="h-9 px-4 md:h-7" value="cohorts">{t.tabCohorts}</TabsTrigger>

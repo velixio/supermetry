@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -62,7 +63,7 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
       </div>
       {data.sessions > 0 || search.release ? <ReleaseHealth data={data} /> : null}
       <Card>
-        <CardHeader><CardTitle>Events and crashes</CardTitle><CardDescription>Daily counts, with the crash-free users rate.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Events and crashes <InfoTip label="About events and crashes">Daily counts, with the crash-free users rate.</InfoTip></CardTitle></CardHeader>
         <CardContent>
           {data.series.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No events in this period.</p> : (
             <div className="h-64" role="img" aria-label="Daily events, crashes and crash-free users">
@@ -86,7 +87,7 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
       </Card>
       {platforms.data && platforms.data.platforms.length > 0 ? (
         <Card>
-          <CardHeader><CardTitle>Platforms</CardTitle><CardDescription>Health per platform. Unsymbolicated counts error events whose frames lack debug files or mappings.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Platforms <InfoTip label="About platforms">Health per platform. Unsymbolicated counts error events whose frames lack debug files or mappings.</InfoTip></CardTitle></CardHeader>
           <CardContent>
             <Table aria-label="Platforms">
               <TableHeader><TableRow><TableHead>Platform</TableHead><TableHead className="text-right">Events</TableHead><TableHead className="text-right">Crashes</TableHead><TableHead className="text-right">Crash-free users</TableHead><TableHead className="text-right">Crash-free sessions</TableHead><TableHead className="text-right">Symbolicated</TableHead><TableHead className="text-right">Unsymbolicated</TableHead></TableRow></TableHeader>
@@ -109,7 +110,7 @@ export function AppOverview({ org, site, siteId, timezone, search, onSearch }: {
       ) : null}
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">
-          <div><CardTitle>Top issues</CardTitle><CardDescription>Open issues, most recently seen first.</CardDescription></div>
+          <div><CardTitle>Top issues <InfoTip label="About top issues">Open issues, most recently seen first.</InfoTip></CardTitle></div>
           <Link className="text-sm font-medium underline" to="/app/$org/$site/issues" params={{ org, site }} search={{ ...search }}>All issues</Link>
         </CardHeader>
         <CardContent>

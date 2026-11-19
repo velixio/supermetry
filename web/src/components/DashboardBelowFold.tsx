@@ -33,7 +33,7 @@ export function DashboardBelowFold({
         : card.tabs.filter((tab) => isAnonymousDimensionAllowed(tab.dimension))
       : visibleTabs(card.tabs, allowedHosts)
     if (tabs.length === 0 || (page && filters.length > 0)) {
-      return <section key={card.id} aria-label={page ? ui.breakdown.verifiedPages : card.title} className="rounded-xl border bg-card p-4" role="region">
+      return <section key={card.id} aria-label={page ? ui.breakdown.verifiedPages : card.title} className="rounded-lg border bg-card p-4" role="region">
         <h2 className="text-sm font-medium">{page ? ui.breakdown.verifiedPages : card.title}</h2>
         <p className="mt-3 text-sm text-muted-foreground">{page ? ui.breakdown.verifiedNone : ui.breakdown.anonymousGoals}</p>
       </section>
@@ -45,6 +45,7 @@ export function DashboardBelowFold({
       query={page ? { ...query, includeImported: false } : query}
       onFilter={onFilter}
       inspect={inspect}
+      allowedHosts={allowedHosts}
       allowSearch={!anonymous}
       allowFilter={!page}
       verifiedPaths={page}

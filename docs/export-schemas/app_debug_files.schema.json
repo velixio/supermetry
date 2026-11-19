@@ -1,0 +1,70 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_debug_files.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Uploaded debug files (metadata only).",
+  "properties": {
+    "arch": {
+      "type": "string"
+    },
+    "cache_state": {
+      "type": "string"
+    },
+    "code_id": {
+      "type": "string"
+    },
+    "created": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "debug_id": {
+      "type": "string"
+    },
+    "features": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "file_id": {
+      "type": "integer"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "object_name": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "file_id",
+    "kind",
+    "debug_id",
+    "code_id",
+    "arch",
+    "object_name",
+    "features",
+    "cache_state",
+    "size_bytes",
+    "created"
+  ],
+  "title": "app_debug_files.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "file_id",
+    "kind",
+    "debug_id",
+    "code_id",
+    "arch",
+    "object_name",
+    "features",
+    "cache_state",
+    "size_bytes",
+    "created"
+  ],
+  "x-supermetry-schema-version": 1
+}

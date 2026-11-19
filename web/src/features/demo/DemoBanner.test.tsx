@@ -46,6 +46,8 @@ describe('DemoBanner', () => {
 
   it('shows generation progress and polls until the demo is ready', () => {
     renderBanner()
+    expect(screen.getByTestId('demo-chip')).toHaveTextContent('Generating demo…')
+    fireEvent.click(screen.getByTestId('demo-chip'))
     expect(screen.getByText('Generating demo data…')).toBeVisible()
     expect(demoSiteRefetchInterval({ state: { data: demo } })).toBe(2_000)
     expect(demoSiteRefetchInterval({ state: { data: { ...demo, demo_ready: true } } })).toBe(false)
@@ -54,6 +56,8 @@ describe('DemoBanner', () => {
   it('shows a terminal failure state and stops polling', () => {
     const failed = { ...demo, demo_failed: true }
     renderBanner(failed)
+    expect(screen.getByRole('button', { name: /Demo data could not be generated\./ })).toHaveTextContent('Demo failed')
+    fireEvent.click(screen.getByTestId('demo-chip'))
     expect(screen.getByText('Demo data could not be generated.')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Remove demo project' })).toBeVisible()
     expect(demoSiteRefetchInterval({ state: { data: failed } })).toBe(false)
@@ -61,6 +65,7 @@ describe('DemoBanner', () => {
 
   it('shows the ready state and removes the project only after confirmation', async () => {
     renderBanner({ ...demo, demo_ready: true })
+    fireEvent.click(screen.getByRole('button', { name: "You're viewing demo data" }))
     expect(screen.getByText("You're viewing demo data")).toBeVisible()
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove demo project' }))
@@ -73,9 +78,11 @@ describe('DemoBanner', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-11T12:00:00Z'))
     renderBanner({ ...demo, demo_ready: true, demo_expires_at: '2026-10-11T14:31:00Z' })
-    expect(screen.getByText('Demo expires in 2h 31m')).toBeVisible()
+    expect(screen.getByTestId('demo-chip')).toHaveTextContent('Demo · 2h 31m')
     cleanup()
     renderBanner({ ...demo, demo_ready: true, demo_expires_at: '2026-10-11T12:42:00Z' })
+    expect(screen.getByTestId('demo-chip')).toHaveTextContent('Demo · 42m')
+    fireEvent.click(screen.getByTestId('demo-chip'))
     expect(screen.getByText('Demo expires in 42m')).toBeVisible()
   })
 

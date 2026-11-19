@@ -26,7 +26,7 @@ test('revenue report is currency-safe and responsive', async ({ page, owner }) =
   await expect(page.getByRole('heading', { name: 'Revenue', exact: true })).toBeVisible()
   await expect(page.getByText('$100.00', { exact: true })).toBeVisible()
   await expect(page.getByText('+25% vs previous period').first()).toBeVisible()
-  await expect(page.getByText(/available attributed revenue only/i).first()).toBeVisible()
+  await expect(page.getByText(/legacy events are excluded/i).first()).toBeVisible()
   await expect(page.getByRole('rowheader', { name: 'Newsletter' })).toBeVisible()
   expect(requests.sort()).toEqual(['channel', 'source', 'time', 'utm_campaign'])
 

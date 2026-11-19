@@ -42,7 +42,7 @@ it('restores a scheduled organization and opens it', async () => {
 
 it.each([
   ['not_restorable', 'This can no longer be restored.'],
-  ['site_limit', 'Your organization is at its site limit.'],
+  ['site_limit', 'Your organization is at its project limit.'],
   ['unexpected', 'The organization could not be restored.'],
 ])('shows %s restore errors inline', async (code, message) => {
   vi.mocked(getDeletedOrganizations).mockResolvedValue([{ id: 4, name: 'Acme', slug: 'acme', deleted_at: '2026-10-11T08:00:00Z', purge_at: '2026-10-18T08:00:00Z', sites: ['Docs'] }])

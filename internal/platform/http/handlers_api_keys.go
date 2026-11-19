@@ -9,14 +9,25 @@ import (
 )
 
 type apiKeyResponse struct {
-	ID         int64      `json:"id"`
-	Name       string     `json:"name"`
-	Scopes     []string   `json:"scopes"`
+	ID     int64    `json:"id"`
+	Name   string   `json:"name"`
+	Prefix string   `json:"prefix,omitempty"`
+	Scopes []string `json:"scopes"`
+	// SiteIDs is null for all sites.
 	SiteIDs    []int32    `json:"site_ids"`
 	CreatedAt  time.Time  `json:"created_at"`
 	ExpiresAt  *time.Time `json:"expires_at"`
 	LastUsedAt *time.Time `json:"last_used_at"`
-	Revoked    bool       `json:"revoked"`
+	// LastUsedCountry is a two-letter country and LastUsedClient one of mcp,
+	// curl, sdk-js, sdk-python, browser or other; both are null until the key
+	// is used. The IP address and User-Agent are never stored.
+	LastUsedCountry *string `json:"last_used_country"`
+	LastUsedClient  *string `json:"last_used_client"`
+	Revoked         bool    `json:"revoked"`
+	// NeverExpires is true when expires_at is null. ExpiringSoon is true for a
+	// live key that expires within 14 days.
+	NeverExpires bool `json:"never_expires"`
+	ExpiringSoon bool `json:"expiring_soon"`
 }
 
 func (h *handler) listPublicAPIKeys(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +44,11 @@ func (h *handler) listPublicAPIKeys(w http.ResponseWriter, r *http.Request) {
 		serviceError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": apiKeyResponses(items)})
+	responses := apiKeyResponses(items)
+	for i := range responses {
+		responses[i].Prefix = "" // the public API never echoes any part of a secret
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": responses})
 }
 
 func (h *handler) createPublicAPIKey(w http.ResponseWriter, r *http.Request) {
@@ -91,13 +106,59 @@ func (h *handler) publicKeyManager(w http.ResponseWriter, r *http.Request) (auth
 }
 
 func apiKeyResponses(items []keys.KeyInfo) []apiKeyResponse {
+	now := time.Now()
 	responses := make([]apiKeyResponse, 0, len(items))
 	for _, item := range items {
-		responses = append(responses, apiKeyResponse{
-			ID: item.ID, Name: item.Name, Scopes: item.Scopes, SiteIDs: item.SiteIDs,
+		response := apiKeyResponse{
+			ID: item.ID, Name: item.Name, Prefix: item.Prefix, Scopes: item.Scopes, SiteIDs: item.SiteIDs,
 			CreatedAt: item.CreatedAt, ExpiresAt: item.ExpiresAt, LastUsedAt: item.LastUsedAt,
-			Revoked: item.RevokedAt != nil,
-		})
+			Revoked: item.RevokedAt != nil, NeverExpires: item.NeverExpires(), ExpiringSoon: item.ExpiringSoon(now),
+		}
+		if item.LastUsedCountry != "" {
+			response.LastUsedCountry = &item.LastUsedCountry
+		}
+		if item.LastUsedClient != "" {
+			response.LastUsedClient = &item.LastUsedClient
+		}
+		responses = append(responses, response)
 	}
 	return responses
+}
+
+func (h *handler) rollPublicAPIKey(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.publicKeyManager(w, r)
+	if !ok {
+		return
+	}
+	h.rollAPIKeyFor(w, r, principal)
+}
+
+func (h *handler) rollAPIKey(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.orgManager(w, r, authz.ActionKeysManage)
+	if !ok || !h.requireRecentAuth(w, r, principal) {
+		return
+	}
+	h.rollAPIKeyFor(w, r, principal)
+}
+
+func (h *handler) rollAPIKeyFor(w http.ResponseWriter, r *http.Request, principal authz.Principal) {
+	id, err := parseInt64(r.PathValue("key"))
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "Not found", "API key not found")
+		return
+	}
+	var request RollAPIKeyRequest
+	if r.ContentLength != 0 && !decodeJSON(w, r, &request) {
+		return
+	}
+	if h.deps.Mutations == nil {
+		unavailable(w, "API key")
+		return
+	}
+	rolled, err := h.deps.Mutations.RollAPIKey(r.Context(), principal, id, request)
+	if err != nil {
+		serviceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, rolled)
 }

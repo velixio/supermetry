@@ -24,6 +24,7 @@ import { Route as AppGithubStarsRouteImport } from './routes/app.github-stars'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ResetTokenRouteImport } from './routes/reset.$token'
 import { Route as ShareSlugRouteImport } from './routes/share.$slug'
+import { Route as AppOrgIndexRouteImport } from './routes/app.$org.index'
 import { Route as AppOrgGithubStarsRouteImport } from './routes/app.$org.github-stars'
 import { Route as AppOrgHealthRouteImport } from './routes/app.$org.health'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.$org.settings'
@@ -59,7 +60,9 @@ import { Route as AppOrgSettingsIndexRouteImport } from './routes/app.$org.setti
 import { Route as AppOrgSettingsApiRouteImport } from './routes/app.$org.settings.api'
 import { Route as AppOrgSettingsApiKeysRouteImport } from './routes/app.$org.settings.api-keys'
 import { Route as AppOrgSettingsAuditRouteImport } from './routes/app.$org.settings.audit'
+import { Route as AppOrgSettingsExportsRouteImport } from './routes/app.$org.settings.exports'
 import { Route as AppOrgSettingsInvitesRouteImport } from './routes/app.$org.settings.invites'
+import { Route as AppOrgSettingsMcpRouteImport } from './routes/app.$org.settings.mcp'
 import { Route as AppOrgSettingsMembersRouteImport } from './routes/app.$org.settings.members'
 import { Route as AppOrgSettingsNotificationsRouteImport } from './routes/app.$org.settings.notifications'
 import { Route as AppOrgSettingsReplayStorageRouteImport } from './routes/app.$org.settings.replay-storage'
@@ -83,6 +86,7 @@ import { Route as AppOrgSiteReleasesReleaseRouteImport } from './routes/app.$org
 import { Route as AppOrgSiteReleasesCompareRouteImport } from './routes/app.$org.$site.releases_.compare'
 import { Route as AppOrgSiteReplaysIndexRouteImport } from './routes/app.$org.$site.replays.index'
 import { Route as AppOrgSiteReplaysIdRouteImport } from './routes/app.$org.$site.replays.$id'
+import { Route as AppOrgSiteSettingsIndexRouteImport } from './routes/app.$org.$site.settings.index'
 import { Route as AppOrgSiteSettingsAlertSilencesRouteImport } from './routes/app.$org.$site.settings.alert-silences'
 import { Route as AppOrgSiteSettingsAlertsRouteImport } from './routes/app.$org.$site.settings.alerts'
 import { Route as AppOrgSiteSettingsAppRouteImport } from './routes/app.$org.$site.settings.app'
@@ -178,6 +182,11 @@ const ShareSlugRoute = ShareSlugRouteImport.update({
   id: '/share/$slug',
   path: '/share/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgIndexRoute = AppOrgIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppOrgRoute,
 } as any)
 const AppOrgGithubStarsRoute = AppOrgGithubStarsRouteImport.update({
   id: '/github-stars',
@@ -354,9 +363,19 @@ const AppOrgSettingsAuditRoute = AppOrgSettingsAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppOrgSettingsRoute,
 } as any)
+const AppOrgSettingsExportsRoute = AppOrgSettingsExportsRouteImport.update({
+  id: '/exports',
+  path: '/exports',
+  getParentRoute: () => AppOrgSettingsRoute,
+} as any)
 const AppOrgSettingsInvitesRoute = AppOrgSettingsInvitesRouteImport.update({
   id: '/invites',
   path: '/invites',
+  getParentRoute: () => AppOrgSettingsRoute,
+} as any)
+const AppOrgSettingsMcpRoute = AppOrgSettingsMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => AppOrgSettingsRoute,
 } as any)
 const AppOrgSettingsMembersRoute = AppOrgSettingsMembersRouteImport.update({
@@ -480,6 +499,11 @@ const AppOrgSiteReplaysIdRoute = AppOrgSiteReplaysIdRouteImport.update({
   id: '/$site/replays/$id',
   path: '/$site/replays/$id',
   getParentRoute: () => AppOrgRoute,
+} as any)
+const AppOrgSiteSettingsIndexRoute = AppOrgSiteSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppOrgSiteSettingsRoute,
 } as any)
 const AppOrgSiteSettingsAlertSilencesRoute =
   AppOrgSiteSettingsAlertSilencesRouteImport.update({
@@ -629,6 +653,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org/': typeof AppOrgIndexRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -646,7 +671,9 @@ export interface FileRoutesByFullPath {
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
   '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/exports': typeof AppOrgSettingsExportsRoute
   '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/mcp': typeof AppOrgSettingsMcpRoute
   '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
@@ -691,6 +718,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
+  '/app/$org/$site/settings/': typeof AppOrgSiteSettingsIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
   '/app/$org/$site/issues/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
@@ -701,7 +729,6 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
-  '/app/$org': typeof AppOrgRouteWithChildren
   '/app/account': typeof AppAccountRouteWithChildren
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/github-stars': typeof AppGithubStarsRoute
@@ -722,6 +749,7 @@ export interface FileRoutesByTo {
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org': typeof AppOrgIndexRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -733,13 +761,14 @@ export interface FileRoutesByTo {
   '/app/$org/$site/retention': typeof AppOrgSiteRetentionRoute
   '/app/$org/$site/revenue': typeof AppOrgSiteRevenueRoute
   '/app/$org/$site/sessions': typeof AppOrgSiteSessionsRoute
-  '/app/$org/$site/settings': typeof AppOrgSiteSettingsRouteWithChildren
   '/app/$org/$site/users': typeof AppOrgSiteUsersRoute
   '/app/$org/$site/vitals': typeof AppOrgSiteVitalsRoute
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
   '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/exports': typeof AppOrgSettingsExportsRoute
   '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/mcp': typeof AppOrgSettingsMcpRoute
   '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
@@ -784,6 +813,7 @@ export interface FileRoutesByTo {
   '/app/$org/$site/performance': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays': typeof AppOrgSiteReplaysIndexRoute
+  '/app/$org/$site/settings': typeof AppOrgSiteSettingsIndexRoute
   '/app/$org/$site/links/pixel/$id': typeof AppOrgSiteLinksPixelIdRoute
   '/app/$org/$site/issues/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
@@ -819,6 +849,7 @@ export interface FileRoutesById {
   '/app/admin/sites': typeof AppAdminSitesRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
+  '/app/$org/': typeof AppOrgIndexRoute
   '/app/$org/$site/cohorts': typeof AppOrgSiteCohortsRoute
   '/app/$org/$site/compatibility': typeof AppOrgSiteCompatibilityRoute
   '/app/$org/$site/events': typeof AppOrgSiteEventsRoute
@@ -836,7 +867,9 @@ export interface FileRoutesById {
   '/app/$org/settings/api': typeof AppOrgSettingsApiRoute
   '/app/$org/settings/api-keys': typeof AppOrgSettingsApiKeysRoute
   '/app/$org/settings/audit': typeof AppOrgSettingsAuditRoute
+  '/app/$org/settings/exports': typeof AppOrgSettingsExportsRoute
   '/app/$org/settings/invites': typeof AppOrgSettingsInvitesRoute
+  '/app/$org/settings/mcp': typeof AppOrgSettingsMcpRoute
   '/app/$org/settings/members': typeof AppOrgSettingsMembersRoute
   '/app/$org/settings/notifications': typeof AppOrgSettingsNotificationsRoute
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
@@ -881,6 +914,7 @@ export interface FileRoutesById {
   '/app/$org/$site/performance/': typeof AppOrgSitePerformanceIndexRoute
   '/app/$org/$site/profiles/': typeof AppOrgSiteProfilesIndexRoute
   '/app/$org/$site/replays/': typeof AppOrgSiteReplaysIndexRoute
+  '/app/$org/$site/settings/': typeof AppOrgSiteSettingsIndexRoute
   '/app/$org/$site/links/pixel_/$id': typeof AppOrgSiteLinksPixelIdRoute
   '/app/$org/$site/issues_/$issue/events/$event': typeof AppOrgSiteIssuesIssueEventsEventRoute
 }
@@ -917,6 +951,7 @@ export interface FileRouteTypes {
     | '/app/admin/sites'
     | '/app/admin/update'
     | '/app/admin/users'
+    | '/app/$org/'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
@@ -934,7 +969,9 @@ export interface FileRouteTypes {
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
     | '/app/$org/settings/audit'
+    | '/app/$org/settings/exports'
     | '/app/$org/settings/invites'
+    | '/app/$org/settings/mcp'
     | '/app/$org/settings/members'
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
@@ -979,6 +1016,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
+    | '/app/$org/$site/settings/'
     | '/app/$org/$site/links/pixel/$id'
     | '/app/$org/$site/issues/$issue/events/$event'
   fileRoutesByTo: FileRoutesByTo
@@ -989,7 +1027,6 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/setup'
     | '/signup'
-    | '/app/$org'
     | '/app/account'
     | '/app/admin'
     | '/app/github-stars'
@@ -1010,6 +1047,7 @@ export interface FileRouteTypes {
     | '/app/admin/sites'
     | '/app/admin/update'
     | '/app/admin/users'
+    | '/app/$org'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
@@ -1021,13 +1059,14 @@ export interface FileRouteTypes {
     | '/app/$org/$site/retention'
     | '/app/$org/$site/revenue'
     | '/app/$org/$site/sessions'
-    | '/app/$org/$site/settings'
     | '/app/$org/$site/users'
     | '/app/$org/$site/vitals'
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
     | '/app/$org/settings/audit'
+    | '/app/$org/settings/exports'
     | '/app/$org/settings/invites'
+    | '/app/$org/settings/mcp'
     | '/app/$org/settings/members'
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
@@ -1072,6 +1111,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/performance'
     | '/app/$org/$site/profiles'
     | '/app/$org/$site/replays'
+    | '/app/$org/$site/settings'
     | '/app/$org/$site/links/pixel/$id'
     | '/app/$org/$site/issues/$issue/events/$event'
   id:
@@ -1106,6 +1146,7 @@ export interface FileRouteTypes {
     | '/app/admin/sites'
     | '/app/admin/update'
     | '/app/admin/users'
+    | '/app/$org/'
     | '/app/$org/$site/cohorts'
     | '/app/$org/$site/compatibility'
     | '/app/$org/$site/events'
@@ -1123,7 +1164,9 @@ export interface FileRouteTypes {
     | '/app/$org/settings/api'
     | '/app/$org/settings/api-keys'
     | '/app/$org/settings/audit'
+    | '/app/$org/settings/exports'
     | '/app/$org/settings/invites'
+    | '/app/$org/settings/mcp'
     | '/app/$org/settings/members'
     | '/app/$org/settings/notifications'
     | '/app/$org/settings/replay-storage'
@@ -1168,6 +1211,7 @@ export interface FileRouteTypes {
     | '/app/$org/$site/performance/'
     | '/app/$org/$site/profiles/'
     | '/app/$org/$site/replays/'
+    | '/app/$org/$site/settings/'
     | '/app/$org/$site/links/pixel_/$id'
     | '/app/$org/$site/issues_/$issue/events/$event'
   fileRoutesById: FileRoutesById
@@ -1291,6 +1335,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/share/$slug'
       preLoaderRoute: typeof ShareSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/$org/': {
+      id: '/app/$org/'
+      path: '/'
+      fullPath: '/app/$org/'
+      preLoaderRoute: typeof AppOrgIndexRouteImport
+      parentRoute: typeof AppOrgRoute
     }
     '/app/$org/github-stars': {
       id: '/app/$org/github-stars'
@@ -1537,11 +1588,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSettingsAuditRouteImport
       parentRoute: typeof AppOrgSettingsRoute
     }
+    '/app/$org/settings/exports': {
+      id: '/app/$org/settings/exports'
+      path: '/exports'
+      fullPath: '/app/$org/settings/exports'
+      preLoaderRoute: typeof AppOrgSettingsExportsRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
+    }
     '/app/$org/settings/invites': {
       id: '/app/$org/settings/invites'
       path: '/invites'
       fullPath: '/app/$org/settings/invites'
       preLoaderRoute: typeof AppOrgSettingsInvitesRouteImport
+      parentRoute: typeof AppOrgSettingsRoute
+    }
+    '/app/$org/settings/mcp': {
+      id: '/app/$org/settings/mcp'
+      path: '/mcp'
+      fullPath: '/app/$org/settings/mcp'
+      preLoaderRoute: typeof AppOrgSettingsMcpRouteImport
       parentRoute: typeof AppOrgSettingsRoute
     }
     '/app/$org/settings/members': {
@@ -1705,6 +1770,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrgSiteReplaysIdRouteImport
       parentRoute: typeof AppOrgRoute
     }
+    '/app/$org/$site/settings/': {
+      id: '/app/$org/$site/settings/'
+      path: '/'
+      fullPath: '/app/$org/$site/settings/'
+      preLoaderRoute: typeof AppOrgSiteSettingsIndexRouteImport
+      parentRoute: typeof AppOrgSiteSettingsRoute
+    }
     '/app/$org/$site/settings/alert-silences': {
       id: '/app/$org/$site/settings/alert-silences'
       path: '/alert-silences'
@@ -1865,7 +1937,9 @@ interface AppOrgSettingsRouteChildren {
   AppOrgSettingsApiRoute: typeof AppOrgSettingsApiRoute
   AppOrgSettingsApiKeysRoute: typeof AppOrgSettingsApiKeysRoute
   AppOrgSettingsAuditRoute: typeof AppOrgSettingsAuditRoute
+  AppOrgSettingsExportsRoute: typeof AppOrgSettingsExportsRoute
   AppOrgSettingsInvitesRoute: typeof AppOrgSettingsInvitesRoute
+  AppOrgSettingsMcpRoute: typeof AppOrgSettingsMcpRoute
   AppOrgSettingsMembersRoute: typeof AppOrgSettingsMembersRoute
   AppOrgSettingsNotificationsRoute: typeof AppOrgSettingsNotificationsRoute
   AppOrgSettingsReplayStorageRoute: typeof AppOrgSettingsReplayStorageRoute
@@ -1876,7 +1950,9 @@ const AppOrgSettingsRouteChildren: AppOrgSettingsRouteChildren = {
   AppOrgSettingsApiRoute: AppOrgSettingsApiRoute,
   AppOrgSettingsApiKeysRoute: AppOrgSettingsApiKeysRoute,
   AppOrgSettingsAuditRoute: AppOrgSettingsAuditRoute,
+  AppOrgSettingsExportsRoute: AppOrgSettingsExportsRoute,
   AppOrgSettingsInvitesRoute: AppOrgSettingsInvitesRoute,
+  AppOrgSettingsMcpRoute: AppOrgSettingsMcpRoute,
   AppOrgSettingsMembersRoute: AppOrgSettingsMembersRoute,
   AppOrgSettingsNotificationsRoute: AppOrgSettingsNotificationsRoute,
   AppOrgSettingsReplayStorageRoute: AppOrgSettingsReplayStorageRoute,
@@ -1904,6 +1980,7 @@ interface AppOrgSiteSettingsRouteChildren {
   AppOrgSiteSettingsSharesRoute: typeof AppOrgSiteSettingsSharesRoute
   AppOrgSiteSettingsSymbolsRoute: typeof AppOrgSiteSettingsSymbolsRoute
   AppOrgSiteSettingsTrackingRoute: typeof AppOrgSiteSettingsTrackingRoute
+  AppOrgSiteSettingsIndexRoute: typeof AppOrgSiteSettingsIndexRoute
 }
 
 const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
@@ -1924,6 +2001,7 @@ const AppOrgSiteSettingsRouteChildren: AppOrgSiteSettingsRouteChildren = {
   AppOrgSiteSettingsSharesRoute: AppOrgSiteSettingsSharesRoute,
   AppOrgSiteSettingsSymbolsRoute: AppOrgSiteSettingsSymbolsRoute,
   AppOrgSiteSettingsTrackingRoute: AppOrgSiteSettingsTrackingRoute,
+  AppOrgSiteSettingsIndexRoute: AppOrgSiteSettingsIndexRoute,
 }
 
 const AppOrgSiteSettingsRouteWithChildren =
@@ -1933,6 +2011,7 @@ interface AppOrgRouteChildren {
   AppOrgGithubStarsRoute: typeof AppOrgGithubStarsRouteWithChildren
   AppOrgHealthRoute: typeof AppOrgHealthRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRouteWithChildren
+  AppOrgIndexRoute: typeof AppOrgIndexRoute
   AppOrgSiteCohortsRoute: typeof AppOrgSiteCohortsRoute
   AppOrgSiteCompatibilityRoute: typeof AppOrgSiteCompatibilityRoute
   AppOrgSiteEventsRoute: typeof AppOrgSiteEventsRoute
@@ -1976,6 +2055,7 @@ const AppOrgRouteChildren: AppOrgRouteChildren = {
   AppOrgGithubStarsRoute: AppOrgGithubStarsRouteWithChildren,
   AppOrgHealthRoute: AppOrgHealthRoute,
   AppOrgSettingsRoute: AppOrgSettingsRouteWithChildren,
+  AppOrgIndexRoute: AppOrgIndexRoute,
   AppOrgSiteCohortsRoute: AppOrgSiteCohortsRoute,
   AppOrgSiteCompatibilityRoute: AppOrgSiteCompatibilityRoute,
   AppOrgSiteEventsRoute: AppOrgSiteEventsRoute,

@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { InfoTip } from '@/components/InfoTip'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { GaugeIcon } from 'lucide-react'
 import {
   CartesianGrid,
@@ -31,6 +33,8 @@ type VitalsPageProps = {
   siteId: number
   dateRange: { from: string; to: string }
   filters: Filter[]
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 const metrics: Array<{ key: VitalMetricName; name: string; short: string }> = [
@@ -80,8 +84,8 @@ function Distribution({ value }: { value: VitalMetric }) {
       className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
       role="img"
     >
-      <span className="bg-chart-2" style={{ width: `${good}%` }} />
-      <span className="bg-chart-4" style={{ width: `${needs}%` }} />
+      <span className="bg-success" style={{ width: `${good}%` }} />
+      <span className="bg-warning" style={{ width: `${needs}%` }} />
       <span className="bg-destructive" style={{ width: `${poor}%` }} />
     </div>
   )
@@ -98,7 +102,7 @@ function MetricCard({ metric, value, name, short }: { metric: VitalMetricName; v
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-3">
           <strong className="text-3xl font-semibold tabular-nums">{formatP75(metric, value.p75)}</strong>
-          <span className={cn('text-sm font-medium', state === 'Good' && 'text-chart-2', state === 'Needs improvement' && 'text-chart-4', state === 'Poor' && 'text-destructive', state === 'No data' && 'text-muted-foreground')}>{state}</span>
+          <span className={cn('text-sm font-medium', state === 'Good' && 'text-success', state === 'Needs improvement' && 'text-warning', state === 'Poor' && 'text-destructive', state === 'No data' && 'text-muted-foreground')}>{state}</span>
         </div>
         <Distribution value={value} />
       </CardContent>
@@ -107,7 +111,7 @@ function MetricCard({ metric, value, name, short }: { metric: VitalMetricName; v
 }
 
 function LoadingState() {
-  return <div className="flex flex-col gap-4" aria-label="Loading Web Vitals"><div className="grid gap-4 md:grid-cols-3">{metrics.map(({ key }) => <Skeleton className="h-40 rounded-xl" key={key} />)}</div><Skeleton className="h-80 rounded-xl" /></div>
+  return <div className="flex flex-col gap-4" aria-label="Loading Web Vitals"><div className="grid gap-4 md:grid-cols-3">{metrics.map(({ key }) => <Skeleton className="h-40 rounded-lg" key={key} />)}</div><Skeleton className="h-80 rounded-lg" /></div>
 }
 
 function BreakdownValue({ dimension, value }: { dimension: VitalsDimension; value: string }) {
@@ -131,7 +135,7 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
   return (
     <Card aria-label="Web Vitals trend" role="region">
       <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-        <div><CardTitle>Daily trend</CardTitle><CardDescription>Site-timezone p50, p75, and p95 from retained raw samples.</CardDescription></div>
+        <div><CardTitle>Daily trend <InfoTip label="About daily trend">p50, p75 and p95 per day in the project time zone, from retained raw samples.</InfoTip></CardTitle></div>
         <Tabs className="w-full sm:w-auto" value={metric} onValueChange={(value) => setMetric(value as VitalMetricName)}>
           <TabsList aria-label="Vitals trend metric" className="grid h-auto w-full grid-cols-3 sm:grid-cols-5 sm:w-auto">
             {metrics.map((item) => <TabsTrigger key={item.key} value={item.key}>{item.short}</TabsTrigger>)}
@@ -152,7 +156,7 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
                   ? [Number(value).toLocaleString(), 'Samples']
                   : [formatP75(metric, Number(value)), String(name).toUpperCase()]}
               />
-              <ReferenceLine yAxisId="value" y={good} stroke="var(--chart-2)" strokeDasharray="4 4" />
+              <ReferenceLine yAxisId="value" y={good} stroke="var(--success)" strokeDasharray="4 4" />
               <ReferenceLine yAxisId="value" y={poor} stroke="var(--destructive)" strokeDasharray="4 4" />
               <Line yAxisId="value" dataKey="p50" name="p50" type="monotone" stroke="var(--chart-3)" strokeWidth={1.5} dot={false} connectNulls={false} />
               <Line yAxisId="value" dataKey="p75" name="p75" type="monotone" stroke="var(--chart-1)" strokeWidth={2.5} dot={false} connectNulls={false} />
@@ -174,7 +178,7 @@ function TrendChart({ timeseries }: { timeseries: VitalsResponse['timeseries'] }
   )
 }
 
-export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
+export function VitalsPage({ siteId, dateRange, filters, toolbar }: VitalsPageProps) {
   const [dimension, setDimension] = useState<VitalsDimension>('page')
   const result = useVitals({ siteId, dateRange, filters, dimension })
   const totalSamples = result.data ? metrics.reduce((sum, metric) => sum + result.data.overall[metric.key].samples, 0) : 0
@@ -182,17 +186,11 @@ export function VitalsPage({ siteId, dateRange, filters }: VitalsPageProps) {
 
   return (
     <PageContainer>
-      <PageHeader title="Web Vitals" description="Real-user loading, stability, and responsiveness at the 75th percentile." />
+      <PageHeader title="Web Vitals" description="Real-user loading, stability, and responsiveness at the 75th percentile." actions={toolbar} />
       {result.isPending ? <LoadingState /> : result.isError ? (
         <Empty role="alert"><EmptyHeader><EmptyTitle>Web Vitals could not be loaded</EmptyTitle><EmptyDescription>{result.error.detail ?? 'Try again in a moment.'}</EmptyDescription></EmptyHeader></Empty>
       ) : totalSamples === 0 ? (
-        <Empty>
-          <GaugeIcon className="size-6 text-muted-foreground" aria-hidden="true" />
-          <EmptyHeader>
-            <EmptyTitle>No Web Vitals yet</EmptyTitle>
-            <EmptyDescription>Web Vitals need the full tracker script. Measurements will appear after visitors load your pages.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <FeatureEmptyState kind="vitals" />
       ) : result.data ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

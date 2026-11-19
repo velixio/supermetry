@@ -32,7 +32,7 @@ export function SearchForm({ onSearch, initial = '' }: { onSearch: (value: strin
         {en.admin.searchLabel}
         <Input type="search" maxLength={200} value={value} placeholder={en.admin.searchPlaceholder} onChange={(event) => setValue(event.target.value)} />
       </label>
-      <Button type="submit" variant="outline" className="min-h-11">{en.admin.searchLabel}</Button>
+      <Button type="submit" variant="outline" className="max-sm:min-h-11">{en.admin.searchLabel}</Button>
     </form>
   )
 }

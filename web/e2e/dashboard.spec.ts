@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import type { Request } from '@playwright/test'
 
 import { expect, fmtCompact, test } from './fixtures'
+import { setTheme } from './theme'
 
 const range = { from: '2026-09-28', to: '2026-09-30' }
 
@@ -39,6 +40,8 @@ test('dashboard numbers equal the API and click-to-filter refetches every card',
   }
 
   await owner.login(page, dashboard)
+  // The plain-language lead above the metrics: a headline, or the few-visitors note on a quiet project.
+  await expect(page.getByTestId('dashboard-summary-text')).toContainText(/visited|Not much traffic yet/)
   await expect(page.getByRole('button', { name: /Visitors/ })).toContainText(
     fmtCompact(api.totals.visitors),
   )
@@ -87,9 +90,13 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   const dashboard = `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-29&to=2026-09-29`
   await owner.login(page, dashboard)
   await page.goto(dashboard)
-  const filterRow = page.getByRole('group', { name: 'Filters' })
-  await expect(filterRow.getByRole('checkbox', { name: 'Include imported data' })).toBeVisible()
-  await expect(filterRow.getByRole('combobox', { name: 'Compare' })).toBeVisible()
+  const headerActions = page.getByTestId('filters-trailing')
+  await headerActions.getByRole('button', { name: 'View options' }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Include imported data' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  // Compare lives on the chart it changes and appears when the pointer is over the chart.
+  await page.getByTestId('kpi-chart').hover()
+  await expect(page.getByTestId('chart-controls').getByRole('combobox', { name: 'Compare' })).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Compare' }).click()
   await page.getByRole('option', { name: 'Previous period' }).click()
@@ -99,9 +106,9 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   await expect(page.locator('[data-trend="good"], [data-trend="bad"]').first()).toBeVisible()
 
   const countries = page.getByRole('region', { name: 'Location' })
-  await countries.getByRole('button', { name: 'Details' }).click()
+  await countries.getByRole('button', { name: 'View all Location' }).click()
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'CSV' }).click()
+  await page.getByRole('button', { name: 'Download CSV' }).click()
   const download = await downloadPromise
   const path = await download.path()
   expect(path).not.toBeNull()
@@ -109,7 +116,7 @@ test('compare, CSV, theme persistence, and the M shortcut work', async ({ page, 
   expect(header).toMatch(/country/i)
 
   await page.getByRole('button', { name: 'Close' }).click()
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.reload()
   await expect(page.locator('html')).toHaveClass(/dark/)

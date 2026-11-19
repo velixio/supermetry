@@ -24,11 +24,11 @@ function RetentionCell({ site, policy, onSaved }: { site: AdminSite; policy: Ret
     <div className="flex min-w-48 flex-col gap-1">
       <div className="flex items-center gap-2">
         <label htmlFor={id} className="sr-only">{uiFlows.admin.retentionFor(site.name)}</label>
-        <select id={id} className={`${nativeSelectClass} min-h-11 w-auto`} value={value} disabled={save.isPending} onChange={(event) => { save.reset(); setValue(Number(event.target.value)) }}>
+        <select id={id} className={`${nativeSelectClass} max-sm:min-h-11 w-auto`} value={value} disabled={save.isPending} onChange={(event) => { save.reset(); setValue(Number(event.target.value)) }}>
           {retentionOptions(policy, site.retention_days).map((days) => <option key={days} value={days}>{retentionLabel(days)}</option>)}
         </select>
         {value !== site.retention_days ? (
-          <Button type="button" size="sm" className="min-h-11" disabled={save.isPending}
+          <Button type="button" size="sm" className="max-sm:min-h-11" disabled={save.isPending}
             aria-label={`${uiFlows.admin.saveRetention}: ${uiFlows.admin.retentionFor(site.name)}`}
             onClick={() => (lowersRetention(site.retention_days, value) ? setConfirming(true) : submit())}>
             {save.isPending ? uiFlows.common.saving : uiFlows.admin.saveRetention}
@@ -74,7 +74,7 @@ export function AdminSitesPage({ search: urlSearch, onSearch }: { search?: strin
             <caption className="sr-only">{en.admin.sites}</caption>
             <thead className="border-b bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
-                <th scope="col" className={cellClass}>Site</th><th scope="col" className={cellClass}>Organization</th>
+                <th scope="col" className={cellClass}>Project</th><th scope="col" className={cellClass}>Organization</th>
                 <th scope="col" className={cellClass}>{en.admin.usage}</th><th scope="col" className={cellClass}>{uiFlows.admin.storage}</th><th scope="col" className={cellClass}>{en.admin.lastEvent}</th><th scope="col" className={cellClass}>{en.admin.retention}</th>
               </tr>
             </thead>

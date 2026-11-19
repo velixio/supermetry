@@ -19,10 +19,10 @@ function DeleteOrganization({ organization, onDeleted }: { organization: AdminOr
   const remove = useDeleteAdminOrganization()
   const matches = typed.trim() === organization.name
   return (
-    <section aria-labelledby="admin-org-danger" className="flex flex-col gap-2 rounded-lg border border-destructive/40 p-3">
+    <section aria-labelledby="admin-org-danger" className="flex flex-col gap-2 rounded-lg border p-3">
       <h3 id="admin-org-danger" className="text-sm font-semibold text-destructive">{uiFlows.admin.dangerZone}</h3>
       <p className="text-sm text-muted-foreground">{uiFlows.admin.deleteOrgBody(organization.sites.length, organization.members.length)}</p>
-      <Button type="button" variant="destructive" className="min-h-11 self-start" onClick={() => { remove.reset(); setTyped(''); setOpen(true) }}>{uiFlows.admin.deleteOrg}</Button>
+      <Button type="button" variant="destructive" className="max-sm:min-h-11 self-start" onClick={() => { remove.reset(); setTyped(''); setOpen(true) }}>{uiFlows.admin.deleteOrg}</Button>
       <AlertDialog open={open} onOpenChange={(next) => { if (!next && !remove.isPending) setOpen(false) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -66,7 +66,7 @@ function OrganizationDetail({ id, onClose, onDeleted, onRestored }: { id: number
     <section aria-labelledby="admin-org-detail-title" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 id="admin-org-detail-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{detail.data ? `${detail.data.name} ${en.admin.details}` : en.admin.loading}</h2>
-        <Button variant="outline" className="min-h-11" onClick={onClose}>{en.admin.close}</Button>
+        <Button variant="outline" className="max-sm:min-h-11" onClick={onClose}>{en.admin.close}</Button>
       </div>
       <ErrorLine error={detail.error} />
       {detail.data ? (
@@ -136,7 +136,7 @@ export function AdminOrganizationsPage({ search: urlSearch, onSearch }: { search
                   <td className={cellClass}>
                     <Button
                       ref={(element) => { if (element) detailsButtons.current.set(org.id, element); else detailsButtons.current.delete(org.id) }}
-                      size="sm" variant="outline" className="min-h-11" aria-label={`${en.admin.details}: ${org.name}`} aria-expanded={selected === org.id}
+                      size="sm" variant="outline" className="max-sm:min-h-11" aria-label={`${en.admin.details}: ${org.name}`} aria-expanded={selected === org.id}
                       onClick={() => { setNotice(''); setSelected(org.id) }}
                     >
                       {en.admin.details}

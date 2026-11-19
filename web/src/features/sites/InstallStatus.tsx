@@ -37,7 +37,7 @@ export function InstallStatusView({
   const resolved = status ?? (lastSeenAt ? 'receiving' : 'waiting')
   const detail = lastSeenAt
     ? `Last event ${relativeTime(lastSeenAt, now)}`
-    : 'Waiting for the first accepted event.'
+    : 'No event yet.'
   return (
     <div className="flex flex-wrap items-center gap-2" role="status">
       <Badge variant={resolved === 'receiving' ? 'default' : resolved === 'quiet' ? 'secondary' : 'outline'}>
@@ -56,7 +56,7 @@ export function InstallTroubleshooting({ domainsHref, renderLink, open = false }
   open?: boolean
 }) {
   return (
-    <details className="rounded-lg border bg-background px-3 py-2 text-sm" open={open}>
+    <details className="rounded-md bg-background px-3 py-2 text-sm" open={open}>
       <summary className="cursor-pointer font-medium select-none">{uiFlows.install.troubleshootTitle}</summary>
       <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-5 text-muted-foreground">
         <li>
@@ -94,7 +94,7 @@ export function InstallStatusCard({ status, lastSeenAt, now = new Date(), dashbo
   const title = resolved === 'receiving' ? uiFlows.install.receivingTitle : resolved === 'quiet' ? uiFlows.install.quietTitle : uiFlows.install.waitingTitle
   const body = resolved === 'receiving' ? uiFlows.install.receivingBody : resolved === 'quiet' ? uiFlows.install.quietBody : uiFlows.install.waitingBody
   return (
-    <section aria-labelledby="install-status-title" className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4">
+    <section aria-labelledby="install-status-title" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
       <ol aria-label={uiFlows.install.steps} className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
         {steps.map((step, index) => (
           <li key={step.label} className="flex items-center gap-2" aria-current={step.state === 'current' ? 'step' : undefined}>
@@ -104,8 +104,8 @@ export function InstallStatusCard({ status, lastSeenAt, now = new Date(), dashbo
                 step.state === 'done'
                   ? 'grid size-6 place-items-center rounded-full bg-primary text-primary-foreground'
                   : step.state === 'current'
-                    ? 'grid size-6 place-items-center rounded-full border-2 border-primary text-primary'
-                    : 'grid size-6 place-items-center rounded-full border text-muted-foreground'
+                    ? 'grid size-6 place-items-center rounded-full bg-accent text-foreground'
+                    : 'grid size-6 place-items-center rounded-full bg-muted text-muted-foreground'
               }
             >
               {step.state === 'done' ? <CheckIcon className="size-3.5" /> : index + 1}
@@ -122,7 +122,7 @@ export function InstallStatusCard({ status, lastSeenAt, now = new Date(), dashbo
             <span className={`relative inline-flex size-2.5 rounded-full ${resolved === 'receiving' ? 'bg-emerald-500' : resolved === 'quiet' ? 'bg-muted-foreground' : 'bg-amber-500'}`} />
           </span>
           <div className="flex min-w-0 flex-col gap-1">
-            <h2 id="install-status-title" className="text-base font-semibold">{title}</h2>
+            <h2 id="install-status-title" className="text-sm font-medium">{title}</h2>
             <p className="text-sm text-muted-foreground">{body}</p>
             <InstallStatusView status={status} lastSeenAt={lastSeenAt} now={now} />
           </div>

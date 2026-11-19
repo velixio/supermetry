@@ -1,0 +1,105 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_events.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Stored error events (no bodies, no user identifiers).",
+  "properties": {
+    "arch": {
+      "type": "string"
+    },
+    "device_class": {
+      "type": "string"
+    },
+    "dist": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "issue_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "kind": {
+      "type": "string"
+    },
+    "level": {
+      "type": "string"
+    },
+    "occurrences": {
+      "type": "integer"
+    },
+    "os_version": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "release": {
+      "type": "string"
+    },
+    "runtime": {
+      "type": "string"
+    },
+    "sdk_name": {
+      "type": "string"
+    },
+    "sdk_version": {
+      "type": "string"
+    },
+    "symbolication": {
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "timestamp",
+    "issue_id",
+    "kind",
+    "level",
+    "release",
+    "dist",
+    "environment",
+    "platform",
+    "sdk_name",
+    "sdk_version",
+    "os_version",
+    "arch",
+    "device_class",
+    "runtime",
+    "symbolication",
+    "occurrences"
+  ],
+  "title": "app_events.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "event_id",
+    "timestamp",
+    "issue_id",
+    "kind",
+    "level",
+    "release",
+    "dist",
+    "environment",
+    "platform",
+    "sdk_name",
+    "sdk_version",
+    "os_version",
+    "arch",
+    "device_class",
+    "runtime",
+    "symbolication",
+    "occurrences"
+  ],
+  "x-supermetry-schema-version": 1
+}

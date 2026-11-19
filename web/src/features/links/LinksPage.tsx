@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { Link } from '@tanstack/react-router'
 import { ChartColumnIcon, PencilIcon, PlusIcon, QrCodeIcon, Trash2Icon } from 'lucide-react'
 
@@ -57,7 +58,7 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
         description={t.description}
         actions={
           canManage ? (
-            <Button className="min-h-11" onClick={() => { save.reset(); setEditing(null) }}>
+            <Button className="max-sm:min-h-11" onClick={() => { save.reset(); setEditing(null) }}>
               <PlusIcon data-icon="inline-start" />
               {t.create}
             </Button>
@@ -72,19 +73,16 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
       {links.isError ? (
         <div className="flex items-center gap-3 text-sm" role="alert">
           {t.loadError}
-          <Button className="min-h-11" variant="outline" onClick={() => void links.refetch()}>{t.retry}</Button>
+          <Button className="max-sm:min-h-11" variant="outline" onClick={() => void links.refetch()}>{t.retry}</Button>
         </div>
       ) : null}
       {links.data && links.data.length === 0 ? (
-        <div className="rounded-xl border bg-card p-8 text-center">
-          <p className="font-medium">{t.empty}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{t.emptyHint}</p>
-        </div>
+        <FeatureEmptyState kind="links" noAction={!canManage} onAction={() => { save.reset(); setEditing(null) }} />
       ) : null}
       {links.data && links.data.length > 0 ? (
         <ul className="flex flex-col gap-3">
           {links.data.map((link) => (
-            <li className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4" key={link.id}>
+            <li className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4" key={link.id}>
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                 <div className="min-w-0 flex-1">
                   <h2 className="flex flex-wrap items-center gap-2 text-base font-medium">
@@ -104,11 +102,11 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
               </div>
               <div className="flex flex-wrap gap-2">
                 <CopyButton label={t.copyShortUrl.replace('{name}', link.name)} text={absoluteShortUrl(link)} />
-                <Button aria-label={`${t.qr} ${link.name}`} className="min-h-11" variant="outline" onClick={() => setQr(link)}>
+                <Button aria-label={`${t.qr} ${link.name}`} className="max-sm:min-h-11" variant="outline" onClick={() => setQr(link)}>
                   <QrCodeIcon data-icon="inline-start" />
                   {t.qr}
                 </Button>
-                <Button asChild className="min-h-11" variant="outline">
+                <Button asChild className="max-sm:min-h-11" variant="outline">
                   <Link aria-label={`${t.stats} ${link.name}`} params={{ org, site: siteSlug, id: String(link.id) }} to="/app/$org/$site/links/$id">
                     <ChartColumnIcon data-icon="inline-start" />
                     {t.stats}
@@ -116,11 +114,11 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
                 </Button>
                 {canManage ? (
                   <>
-                    <Button aria-label={`${t.edit} ${link.name}`} className="min-h-11" variant="outline" onClick={() => { save.reset(); setEditing(link) }}>
+                    <Button aria-label={`${t.edit} ${link.name}`} className="max-sm:min-h-11" variant="outline" onClick={() => { save.reset(); setEditing(link) }}>
                       <PencilIcon data-icon="inline-start" />
                       {t.edit}
                     </Button>
-                    <Button aria-label={`${t.delete} ${link.name}`} className="min-h-11" variant="outline" onClick={() => setDeleting(link)}>
+                    <Button aria-label={`${t.delete} ${link.name}`} className="max-sm:min-h-11" variant="outline" onClick={() => setDeleting(link)}>
                       <Trash2Icon data-icon="inline-start" />
                       {t.delete}
                     </Button>
@@ -162,9 +160,9 @@ export function LinksPage({ org, siteSlug, siteId, canManage }: Props) {
             <AlertDialogDescription>{t.confirmDelete}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel className="max-sm:min-h-11">{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
-              className="min-h-11"
+              className="max-sm:min-h-11"
               onClick={() => { if (deleting) remove.mutate(deleting.id); setDeleting(undefined) }}
             >
               {t.deleteAction}

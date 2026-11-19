@@ -1,0 +1,60 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/custom_events.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Custom events per day, with properties and revenue.",
+  "properties": {
+    "day": {
+      "format": "date",
+      "type": "string"
+    },
+    "event": {
+      "type": "string"
+    },
+    "events": {
+      "type": "integer"
+    },
+    "page": {
+      "type": "string"
+    },
+    "props": {
+      "description": "A JSON document stored as text.",
+      "type": "string"
+    },
+    "revenue_currency": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "revenue_micros": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "day",
+    "event",
+    "page",
+    "props",
+    "events",
+    "revenue_micros",
+    "revenue_currency"
+  ],
+  "title": "custom_events.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "day",
+    "event",
+    "page",
+    "props",
+    "events",
+    "revenue_micros",
+    "revenue_currency"
+  ],
+  "x-supermetry-schema-version": 1
+}

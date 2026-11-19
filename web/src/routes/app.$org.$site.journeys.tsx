@@ -39,27 +39,31 @@ function JourneysRoute() {
   const updateDashboardSearch = (next: typeof search) => void navigate({ search: next })
   const timezone = site.timezone || 'UTC'
 
+  const toolbar = (
+    <>
+      <FilterBar
+        dropped={dropped}
+        filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+        filters={filters}
+        invalidNotice={en.dashboard.invalidFilter}
+        removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
+        onRemove={(index) => void navigate({ search: { ...search, ...removeFilter(search, index) } })}
+        siteId={site.id}
+        canEdit={membership?.role !== 'viewer'}
+        onApply={(segmentFilters) => void navigate({ search: { ...search, ...replaceFilters(search, segmentFilters) } })}
+      />
+      <DatePicker
+        labels={en.dashboard}
+        search={search}
+        onChange={(next) => updateDashboardSearch({ ...search, ...next })}
+      />
+    </>
+  )
+
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <FilterBar
-          dropped={dropped}
-          filterLabel={(filter) => `${filter.dimension} ${filter.operator} ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          filters={filters}
-          invalidNotice={en.dashboard.invalidFilter}
-          removeLabel={(filter) => `Remove ${filter.dimension} filter ${filter.values.map((value) => filter.dimension === 'country' ? countryName(value) : value).join(', ')}`}
-          onRemove={(index) => void navigate({ search: { ...search, ...removeFilter(search, index) } })}
-          siteId={site.id}
-          canEdit={membership?.role !== 'viewer'}
-          onApply={(segmentFilters) => void navigate({ search: { ...search, ...replaceFilters(search, segmentFilters) } })}
-        />
-        <DatePicker
-          labels={en.dashboard}
-          search={search}
-          onChange={(next) => updateDashboardSearch({ ...search, ...next })}
-        />
-      </div>
+    <div className="flex min-w-0 flex-col gap-3">
       <JourneysPage
+        toolbar={toolbar}
         dateRange={resolveRange(search.period, timezone, new Date(), search.from, search.to)}
         direction={search.direction}
         filters={filters}

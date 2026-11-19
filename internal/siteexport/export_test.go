@@ -65,7 +65,7 @@ func TestExporterWritesCompleteZIP(t *testing.T) {
 		"daily_totals.csv", "pages.csv", "entry_pages.csv", "exit_pages.csv", "sources.csv",
 		"utm_sources.csv", "utm_mediums.csv", "utm_campaigns.csv", "utm_contents.csv", "utm_terms.csv",
 		"countries.csv", "regions.csv", "cities.csv", "browsers.csv", "operating_systems.csv", "devices.csv",
-		"custom_events.csv",
+		"custom_events.csv", "manifest.json",
 	}
 	gotNames := make([]string, 0, len(archive.File))
 	for _, file := range archive.File {
@@ -79,7 +79,7 @@ func TestExporterWritesCompleteZIP(t *testing.T) {
 	if got, want := daily, [][]string{{"day", "visitors", "visits", "pageviews", "bounces", "visit_duration_s"}, {"2026-10-01", "2", "2", "5", "1", "9"}, {"2026-10-02", "3", "4", "8", "1", "12"}}; !slices.EqualFunc(got, want, slices.Equal[[]string]) {
 		t.Fatalf("daily_totals.csv = %v, want %v", got, want)
 	}
-	custom := readCSV(t, archive.File[len(archive.File)-1])
+	custom := readCSV(t, archive.File[len(archive.File)-2])
 	if len(custom) != 2 || custom[1][1] != "signup" || custom[1][3] != `{"plan": "pro"}` {
 		t.Fatalf("custom_events.csv = %v", custom)
 	}

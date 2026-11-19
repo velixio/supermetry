@@ -15,7 +15,13 @@ const commands: PaletteCommand[] = [
   { id: 'action:theme', group: 'actions', label: 'Use dark theme', keywords: ['Use dark theme'], kind: 'action', action: 'theme' },
 ]
 
-function Harness({ onRun }: { onRun: (command: PaletteCommand) => void }) {
+const extra: PaletteCommand[] = [
+  { id: 'settings:/app/acme/settings/members', group: 'settings', label: 'Organization settings: Members', keywords: ['Organization settings: Members', 'Members'], kind: 'navigate', href: '/app/acme/settings/members' },
+  { id: 'action:create-api-key', group: 'actions', label: 'Create API key', keywords: ['Create API key'], kind: 'navigate', href: '/app/acme/settings/api-keys?create=1' },
+  { id: 'page:/replays', group: 'recent', label: 'Replays', keywords: ['Replays'], kind: 'navigate', href: '/app/acme/docs/replays' },
+]
+
+function Harness({ onRun, more = [] }: { onRun: (command: PaletteCommand) => void; more?: PaletteCommand[] }) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -23,7 +29,7 @@ function Harness({ onRun }: { onRun: (command: PaletteCommand) => void }) {
       <CommandPalette
         open={open}
         onOpenChange={setOpen}
-        commands={commands}
+        commands={[...commands, ...more]}
         onRun={(command) => {
           setOpen(false)
           onRun(command)
@@ -48,8 +54,8 @@ afterEach(() => {
   Element.prototype.scrollIntoView = originalScrollIntoView
 })
 
-async function open(onRun = vi.fn()) {
-  render(<Harness onRun={onRun} />)
+async function open(onRun = vi.fn(), more: PaletteCommand[] = []) {
+  render(<Harness onRun={onRun} more={more} />)
   const trigger = screen.getByRole('button', { name: 'Open palette' })
   trigger.focus()
   fireEvent.click(trigger)
@@ -63,7 +69,7 @@ describe('CommandPalette', () => {
     const { dialog, input } = await open()
     await waitFor(() => expect(input).toHaveFocus())
     expect(within(dialog).getByRole('group', { name: 'Pages' })).toBeInTheDocument()
-    expect(within(dialog).getByRole('group', { name: 'Sites' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Projects' })).toBeInTheDocument()
     expect(within(dialog).getByRole('group', { name: 'Actions' })).toBeInTheDocument()
     expect(within(dialog).getByRole('group', { name: 'Organizations' })).toBeInTheDocument()
     expect(within(dialog).getByRole('option', { name: /Shop/ })).toHaveTextContent('Acme')
@@ -130,5 +136,23 @@ describe('CommandPalette', () => {
     fireEvent.click(within(dialog).getByRole('option', { name: 'Events' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(trigger).not.toHaveFocus()
+  })
+
+  it('lists recent items first, then pages, settings and actions, and runs a settings destination by keyboard', async () => {
+    const { dialog, input, onRun } = await open(vi.fn(), extra)
+    const headings = [...dialog.querySelectorAll('[cmdk-group-heading]')].map((node) => node.textContent)
+    expect(headings.slice(0, 4)).toEqual(['Recent', 'Pages', 'Settings', 'Actions'])
+    expect(input).toHaveAttribute('role', 'combobox')
+    expect(input).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.change(input, { target: { value: 'members' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onRun).toHaveBeenCalledWith(expect.objectContaining({ id: 'settings:/app/acme/settings/members' }))
+  })
+
+  it('finds the create actions by typing', async () => {
+    const { input, onRun } = await open(vi.fn(), extra)
+    fireEvent.change(input, { target: { value: 'api key' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onRun).toHaveBeenCalledWith(expect.objectContaining({ id: 'action:create-api-key' }))
   })
 })

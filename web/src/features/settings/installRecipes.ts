@@ -257,7 +257,7 @@ def track(name, user_agent, client_ip, url, props=None):
     {
       id: 'react-native', label: 'React Native', group: 'mobile', install: 'npm install @supermetry/react-native @react-native-async-storage/async-storage',
       where: 'App.tsx', language: 'tsx',
-      note: 'appUrl is the base URL screens are reported under; its host must be an allowed host of this site.',
+      note: 'appUrl is the base URL screens are reported under; its host must be an allowed host of this project.',
       code: `import AsyncStorage from '@react-native-async-storage/async-storage'
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native'
 import { SupermetryProvider, createSupermetry, trackNavigation } from '@supermetry/react-native'
@@ -287,7 +287,7 @@ export function aiInstallPrompt({ publicId, scriptUrl }: RecipeInput): string {
   const host = trackerHost(scriptUrl)
   return `Add Supermetry analytics to this project.
 
-Site ID: ${publicId}
+Project ID: ${publicId}
 Host: ${host}
 
 1. Detect the framework and use its official package, passing site and host:
@@ -422,7 +422,7 @@ export const proxy = createSupermetryProxy({
 // and render <Supermetry site=${q(input.publicId)} host="" /> so the script loads from your origin.`
 
   return [
-    { id: 'proxy-nginx', label: 'nginx', group: 'proxy', where: 'Your site\'s server block', language: 'nginx', note, code: nginx },
+    { id: 'proxy-nginx', label: 'nginx', group: 'proxy', where: 'Your website\'s server block', language: 'nginx', note, code: nginx },
     { id: 'proxy-caddy', label: 'Caddy', group: 'proxy', where: 'Your Caddyfile', language: 'caddy', note: managed ? `${proxyKeyNote} Set SUPERMETRY_PROXY_KEY in Caddy's environment.` : note, code: caddy },
     { id: 'proxy-cloudflare', label: 'Cloudflare Worker', group: 'proxy', where: `A Worker on the route your-site.example${p}/*`, language: 'js', note, code: worker },
     { id: 'proxy-nextjs', label: 'Next.js proxy', group: 'proxy', install: 'npm install @supermetry/nextjs', where: 'lib/supermetry.ts and four route files', language: 'ts', note, code: nextjs },

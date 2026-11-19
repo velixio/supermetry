@@ -42,7 +42,7 @@ export function LogSearch({ org, site, siteId, timezone, initialQuery = '', onQu
       <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={submit} role="search">
         <Field className="flex-1">
           <FieldLabel htmlFor="log-query">{t.search}</FieldLabel>
-          <Input id="log-query" className="min-h-11 font-mono sm:min-h-9" maxLength={300} placeholder={t.searchPlaceholder} value={draft} onChange={(event) => setDraft(event.target.value)} />
+          <Input id="log-query" className="max-sm:min-h-11 font-mono sm:min-h-9" maxLength={300} placeholder={t.searchPlaceholder} value={draft} onChange={(event) => setDraft(event.target.value)} />
           {problem ? (
             <p role="alert" className="text-sm text-destructive">{t.syntaxError(problem.position ?? 0, problem.detail ?? problem.message)}</p>
           ) : <FieldDescription>{t.searchHelp}</FieldDescription>}
@@ -50,13 +50,13 @@ export function LogSearch({ org, site, siteId, timezone, initialQuery = '', onQu
         <Field className="sm:w-44">
           <FieldLabel htmlFor="log-range">{t.range}</FieldLabel>
           <Select value={range} onValueChange={(value) => setRange(value as LogRange)}>
-            <SelectTrigger className="min-h-11 w-full sm:min-h-9" id="log-range"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id="log-range"><SelectValue /></SelectTrigger>
             <SelectContent><SelectGroup>
               {(Object.keys(spans) as LogRange[]).map((key) => <SelectItem key={key} value={key}>{t.ranges[key]}</SelectItem>)}
             </SelectGroup></SelectContent>
           </Select>
         </Field>
-        <Button className="min-h-11 sm:min-h-9" type="submit">{t.search}</Button>
+        <Button className="max-sm:min-h-11" type="submit">{t.search}</Button>
       </form>
       {logs.isPending ? <Skeleton className="h-40 w-full" aria-label={t.loading} /> : null}
       {logs.isError && !problem ? <ErrorState detail={logs.error.message} onRetry={() => void logs.refetch()} /> : null}
@@ -64,7 +64,7 @@ export function LogSearch({ org, site, siteId, timezone, initialQuery = '', onQu
         <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{q.trim() ? t.emptyFiltered : t.emptyNone}</p>
       ) : null}
       {rows.length > 0 ? (
-        <ul className="rounded-xl border bg-card" aria-label={t.title}>
+        <ul className="rounded-lg border bg-card" aria-label={t.title}>
           {rows.map((log, index) => <LogRow key={`${log.ts}-${index}`} log={log} org={org} site={site} timezone={timezone} />)}
         </ul>
       ) : null}

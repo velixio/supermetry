@@ -53,7 +53,7 @@ function GainSummary({ points, granularity, timeZone }: { points: StarsPoint[]; 
     ...(stats.peak ? [[labels.peak, `${signed(stats.peak.net)} · ${bucketLabel(stats.peak.bucket, granularity, timeZone)}`] as [string, string]] : []),
   ]
   return (
-    <dl role="group" aria-label={labels.group} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
+    <dl role="group" aria-label={labels.group} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md bg-muted/40 p-3 text-sm sm:grid-cols-4">
       {items.map(([label, value]) => (
         <div key={label} className="flex min-w-0 flex-col">
           <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -104,9 +104,9 @@ function GrowthChart({ repoId }: { repoId: number }) {
           </p>
         </div>
         <ToggleGroup aria-label={en.githubStars.granularity} type="single" value={granularity} onValueChange={(value) => (value === 'hour' || value === 'day' || value === 'month') && setGranularity(value)}>
-          <ToggleGroupItem className="h-11 min-w-11" value="hour">{en.githubStars.hour}</ToggleGroupItem>
-          <ToggleGroupItem className="h-11 min-w-11" value="day">{en.githubStars.day}</ToggleGroupItem>
-          <ToggleGroupItem className="h-11 min-w-11" value="month">{en.githubStars.month}</ToggleGroupItem>
+          <ToggleGroupItem className="max-sm:h-11 max-sm:min-w-11" value="hour">{en.githubStars.hour}</ToggleGroupItem>
+          <ToggleGroupItem className="max-sm:h-11 max-sm:min-w-11" value="day">{en.githubStars.day}</ToggleGroupItem>
+          <ToggleGroupItem className="max-sm:h-11 max-sm:min-w-11" value="month">{en.githubStars.month}</ToggleGroupItem>
         </ToggleGroup>
       </div>
       {series.isPending ? <Skeleton aria-label={en.githubStars.loading} className="h-64 w-full" /> : series.isError ? (
@@ -152,7 +152,7 @@ function RepoPageBody({ org, owner, name, onRemoved }: { org: string; owner: str
   return (
     <PageContainer>
       <section className="flex min-w-0 flex-col gap-4" aria-labelledby="github-stars-title">
-        <Link to="/app/$org/github-stars" params={{ org }} className="inline-flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link to="/app/$org/github-stars" params={{ org }} className="inline-flex max-sm:min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ChevronLeftIcon aria-hidden="true" className="size-4" />
           {en.githubStars.allRepos}
         </Link>

@@ -64,8 +64,8 @@ export function CountryTable({ rows, metric, selectedCountry, activeCountry, onA
                   <Flag code={row.country} />
                   <span className="whitespace-normal break-words text-sm leading-tight" data-country-name>{label}</span>
                 </span>
-                <span aria-label={`${label} share`} className="mt-1 block h-1 overflow-hidden rounded-full bg-muted-foreground/15" data-share={share.toFixed(1)}>
-                  <span aria-hidden="true" className="block h-full rounded-full bg-accent" style={{ width: `${share}%` }} />
+                <span aria-label={`${label} share`} className="mt-1 block h-1 overflow-hidden rounded-sm bg-muted-foreground/15" data-share={share.toFixed(1)}>
+                  <span aria-hidden="true" className="block h-full rounded-sm bg-chart-1" style={{ width: `${share}%` }} />
                 </span>
               </button>
               <span className="text-right text-sm tabular-nums">{fmt.number(value)}</span>

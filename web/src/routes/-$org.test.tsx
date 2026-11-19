@@ -124,9 +124,10 @@ describe('organization shell authentication', () => {
     vi.stubGlobal('fetch', meResponse())
     const router = renderRoute('/app/acme')
 
-    // The org name now appears in the sidebar switcher and the breadcrumb.
-    for (const match of await screen.findAllByText('Acme', { exact: true })) expect(match).toBeVisible()
-    expect(router.state.location.pathname).toBe('/app/acme')
+    // The bare organization URL has no page of its own and lands on its projects overview,
+    // still inside the organization shell.
+    expect(await screen.findByText('Organization: Acme', { exact: true })).toBeVisible()
+    expect(router.state.location.pathname).toBe('/app/acme/sites')
     expect(
       screen.queryByText('We could not find that organisation'),
     ).toBeNull()
@@ -178,11 +179,11 @@ describe('organization shell authentication', () => {
 
   it('shows the organization Sites page to every role', () => {
     for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
-      expect(visibleNavigation(role).map((item) => item.label)).toContain('Sites')
+      expect(visibleNavigation(role).map((item) => item.label)).toContain('Projects')
     }
   })
 
-  it('offers Add site only to roles that can create sites', () => {
+  it('offers Add project only to roles that can create sites', () => {
     expect(canCreateSites('owner')).toBe(true)
     expect(canCreateSites('admin')).toBe(true)
     expect(canCreateSites('editor')).toBe(false)
@@ -191,7 +192,7 @@ describe('organization shell authentication', () => {
 
   it('hides site-scoped navigation when the organization has no sites', () => {
     expect(visibleNavigation('owner', false).map((item) => item.label)).toEqual([
-      'Sites',
+      'Projects',
       'Data health',
       'GitHub stars',
     ])

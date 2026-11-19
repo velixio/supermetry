@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react'
+import { InfoTip } from '@/components/InfoTip'
 import { useCapability, AccessDenied } from '@/lib/authorization'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -53,8 +54,7 @@ function ProfileErasureState({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile deletion</CardTitle>
-        <CardDescription>The erasure request is processed in the background and remains safe across restarts.</CardDescription>
+        <CardTitle>Profile deletion <InfoTip label="About profile deletion">The erasure request is processed in the background and remains safe across restarts.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col items-start gap-3">
         <Badge variant={failed ? 'destructive' : done ? 'outline' : 'secondary'}>
@@ -109,7 +109,7 @@ function ProfileDetailPageContent({
 
   if (profile.isError) return <ErrorState level="page" detail={profile.error?.message} onRetry={() => void profile.refetch?.()} />
   if (profile.isPending || !profile.data) return <Skeleton className="h-72 w-full" />
-  if (profile.data.site_id !== siteId) return <AccessDenied subject="read this profile from the selected site" />
+  if (profile.data.site_id !== siteId) return <AccessDenied subject="read this profile from the selected project" />
   const data = profile.data as Paged<typeof profile.data>
   const erasureStatus = erasure.data?.status ?? remove.data?.status
 
@@ -166,8 +166,7 @@ function ProfileDetailPageContent({
       />
       <Card>
         <CardHeader>
-          <CardTitle>Traits</CardTitle>
-          <CardDescription>Latest properties supplied by identify.</CardDescription>
+          <CardTitle>Traits <InfoTip label="About traits">Latest properties supplied by identify.</InfoTip></CardTitle>
         </CardHeader>
         <CardContent>
           {Object.keys(profile.data.traits).length === 0 ? (
@@ -192,7 +191,7 @@ function ProfileDetailPageContent({
         {profile.data.timeline.length === 0 ? (
           <Empty><EmptyHeader><EmptyTitle>No retained events</EmptyTitle><EmptyDescription>This profile has no events in the hot tier.</EmptyDescription></EmptyHeader></Empty>
         ) : (
-          <div className="rounded-xl border bg-card">
+          <div className="rounded-lg border bg-card">
             <Table aria-label="Profile event timeline">
               <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Event</TableHead><TableHead>Path</TableHead>{canReplay ? <TableHead>Replay</TableHead> : null}</TableRow></TableHeader>
               <TableBody>

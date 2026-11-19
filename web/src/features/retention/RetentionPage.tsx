@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react'
 import { useCapability } from '@/lib/authorization'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
-import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -21,9 +22,11 @@ type RetentionPageProps = {
   app?: boolean
   onIntervalChange: (interval: RetentionInterval) => void
   onIdentityChange: (identity: RetentionIdentity) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
-function RetentionContent({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange, app = false }: RetentionPageProps) {
+function RetentionContent({ siteId, dateRange, filters, interval, identity, profilesEnabled, onIntervalChange, onIdentityChange, app = false, toolbar }: RetentionPageProps) {
   const report = useRetentionReport(siteId, dateRange, filters, interval, identity)
 
   return (
@@ -37,12 +40,14 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
         }
         actions={
           <>
+            {toolbar}
             {profilesEnabled ? (
-              <Field className="w-44">
-                <FieldLabel htmlFor="retention-identity">Identify visitors by</FieldLabel>
+              <Field className="w-auto">
+                <FieldLabel htmlFor="retention-identity" className="sr-only">Identify visitors by</FieldLabel>
                 <select
-                  className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   id="retention-identity"
+                  title="Identify visitors by"
                   value={identity}
                   onChange={(event) => onIdentityChange(event.target.value as RetentionIdentity)}
                 >
@@ -51,11 +56,12 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
                 </select>
               </Field>
             ) : null}
-            <Field className="w-44">
-              <FieldLabel htmlFor="retention-interval">Group cohorts by</FieldLabel>
+            <Field className="w-auto">
+              <FieldLabel htmlFor="retention-interval" className="sr-only">Group cohorts by</FieldLabel>
               <select
-                className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 id="retention-interval"
+                title="Group cohorts by"
                 value={interval}
                 onChange={(event) => onIntervalChange(event.target.value as RetentionInterval)}
               >
@@ -70,13 +76,13 @@ function RetentionContent({ siteId, dateRange, filters, interval, identity, prof
       {report.isError ? (
         <ErrorState level="page" detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
-        <div aria-label="Loading retention" className="flex flex-col gap-3 rounded-xl border p-4">
+        <div aria-label="Loading retention" className="flex flex-col gap-3 rounded-lg border p-4">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-4/5" />
           <Skeleton className="h-10 w-3/5" />
         </div>
       ) : !report.data || report.data.cohorts.length === 0 ? (
-        <EmptyState />
+        <FeatureEmptyState kind="retention" />
       ) : (
         <RetentionHeatmap
           cohorts={report.data.cohorts}

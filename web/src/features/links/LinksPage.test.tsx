@@ -69,7 +69,8 @@ describe('LinksPage', () => {
   it('shows an empty state', async () => {
     get.mockResolvedValue({ data: [], response: { status: 200 } })
     renderPage()
-    expect(await screen.findByText('No short links yet.')).toBeInTheDocument()
+    expect(await screen.findByText('No links yet')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Create link' }).length).toBeGreaterThan(0)
   })
 
   it('reports load failures with a retry action', async () => {

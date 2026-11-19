@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { renderWithRouter } from '@/features/onboarding/testUtils'
 import { Onboarding } from '@/features/sites/Onboarding'
 import { landingTarget } from '@/features/sites/SitesOverviewLanding'
 
@@ -44,7 +45,7 @@ describe('onboarding', () => {
       revenue_currency_state: 'configured',
     })
     const navigate = vi.fn()
-    render(wrap(
+    await renderWithRouter(
       <Onboarding
         me={{
           user: { id: 1, name: 'Owner', email: 'owner@example.com' },
@@ -59,7 +60,7 @@ describe('onboarding', () => {
         createSite={createSite}
         navigate={navigate}
       />,
-    ))
+    )
 
     fireEvent.change(screen.getByLabelText('Domain'), {
       target: { value: 'docs.supermetry.com' },
@@ -70,7 +71,7 @@ describe('onboarding', () => {
     fireEvent.change(screen.getByLabelText('Revenue currency (optional)'), {
       target: { value: 'usd' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create site' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }))
 
     await waitFor(() =>
       expect(createSite).toHaveBeenCalledWith({
@@ -81,11 +82,11 @@ describe('onboarding', () => {
         revenue_currency: 'USD',
       }),
     )
-    await waitFor(() =>
-      expect(navigate).toHaveBeenCalledWith(
-        '/app/acme/site_public_123/settings/installation',
-      ),
-    )
+    // The install step replaces the form: snippet tabs and the waiting status, no redirect.
+    expect(await screen.findByRole('heading', { name: 'Install the tracker' })).toBeInTheDocument()
+    expect(screen.getByRole('tablist', { name: 'Installation method' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Go to dashboard' })).toHaveAttribute('href', '/app/acme/site_public_123')
+    expect(navigate).not.toHaveBeenCalledWith('/app/acme/site_public_123/settings/installation')
   })
 
   it('skips site creation and opens the organization empty state', () => {

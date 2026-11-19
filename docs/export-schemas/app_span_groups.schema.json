@@ -1,0 +1,36 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_span_groups.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Child span groups: operation and parameterised label.",
+  "properties": {
+    "first_seen": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "group_id": {
+      "type": "integer"
+    },
+    "label": {
+      "type": "string"
+    },
+    "op": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "group_id",
+    "op",
+    "label",
+    "first_seen"
+  ],
+  "title": "app_span_groups.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "group_id",
+    "op",
+    "label",
+    "first_seen"
+  ],
+  "x-supermetry-schema-version": 1
+}

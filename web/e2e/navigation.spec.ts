@@ -16,7 +16,7 @@ test('keeps the app shell mounted across links, history, and lazy routes', async
   await page.setViewportSize({ width: 1440, height: 900 })
   await owner.login(page, dashboard)
   await expect(page.getByRole('navigation', { name: 'Projects' })).toHaveCount(0)
-  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(48)
 
   let documentRequests = 0
   const countDocuments = (request: Request) => {
@@ -93,7 +93,7 @@ test('keeps the same shell mounted between a site and the account pages', async 
   await page.getByRole('button', { name: 'Account', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Account settings', exact: true }).click()
   await expect(page).toHaveURL('/app/account/profile')
-  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(48)
   await expect(page.getByRole('main')).toHaveCount(1)
   const token = () => shell.evaluate((element) => (element as HTMLElement & { supermetryShellToken?: string }).supermetryShellToken)
   expect(await token()).toBe('persistent')
@@ -110,8 +110,9 @@ test('serves an authenticated nested route as a direct URL', async ({ page, owne
 
   expect(response?.ok()).toBe(true)
   await expect(page).toHaveURL(settings)
-  await expect(page.getByRole('heading', { name: 'Site settings' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'General', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('heading', { name: 'Project settings' })).toBeVisible()
+  // The sidebar's nested item and the page tab both carry the name; check the page's own tab.
+  await expect(page.getByRole('main').getByRole('link', { name: 'General', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   )
@@ -146,11 +147,14 @@ test('starts on the icon rail at tablet width and keeps the saved sidebar state'
   const sidebar = page.locator('[data-slot="sidebar"]')
   await expect(sidebar).toHaveAttribute('data-state', 'collapsed')
   await expect(page.getByRole('link', { name: 'Funnels' })).toBeVisible()
+  // The headless pointer rests at 0,0, over the rail, which makes it peek open over the toggle; move it away first.
+  await page.mouse.move(700, 500)
+  await expect(sidebar).not.toHaveAttribute('data-peek', 'true')
   await page.getByRole('button', { name: 'Toggle sidebar' }).click()
   await expect(sidebar).toHaveAttribute('data-state', 'expanded')
   await page.reload()
   await expect(sidebar).toHaveAttribute('data-state', 'expanded')
-  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(44)
+  expect((await page.getByRole('banner', { name: 'Application header' }).boundingBox())?.height).toBe(48)
 })
 
 test('opens the command palette with Ctrl+K and from the header, and navigates without a reload', async ({ page, owner }) => {
@@ -161,7 +165,7 @@ test('opens the command palette with Ctrl+K and from the header, and navigates w
   page.on('request', (request) => {
     if (request.resourceType() === 'document') documentRequests += 1
   })
-  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Open command palette' })
+  const trigger = page.getByRole('banner', { name: 'Application header' }).getByRole('button', { name: 'Search or jump to…' })
   await expect(trigger).toBeVisible()
   await page.keyboard.press('Control+KeyK')
   const palette = page.getByRole('dialog', { name: 'Command palette' })

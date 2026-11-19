@@ -54,7 +54,7 @@ test('sidebar settings links and account menu work on desktop and mobile with ke
       : page.getByRole('complementary', { name: 'Application sidebar' })
     const settings = sidebar.getByRole('navigation', { name: 'Settings', exact: true })
     await expect(settings.getByRole('link', { name: 'Organization settings', exact: true })).toHaveAttribute('href', `/app/${owner.orgSlug}/settings`)
-    await expect(settings.getByRole('link', { name: 'Site settings', exact: true })).toHaveAttribute('href', `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
+    await expect(settings.getByRole('link', { name: 'Project settings', exact: true })).toHaveAttribute('href', `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`)
     const account = sidebar.getByRole('button', { name: 'Account', exact: true })
     await expect(account).toBeInViewport()
     await account.focus()
@@ -72,12 +72,12 @@ test('sidebar settings links and account menu work on desktop and mobile with ke
   await expect(page.getByRole('navigation', { name: 'Account settings' })).toBeVisible()
   // Account pages render inside the same shell: one 44px header with breadcrumbs, the sidebar and one main.
   const accountHeader = page.getByRole('banner', { name: 'Application header' })
-  expect((await accountHeader.boundingBox())?.height).toBe(44)
+  expect((await accountHeader.boundingBox())?.height).toBe(48)
   await expect(accountHeader.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Account', exact: true })).toHaveAttribute('href', '/app/account')
   await expect(page.getByRole('main')).toHaveCount(1)
   const accountLinks = page.getByRole('complementary', { name: 'Application sidebar' }).getByRole('navigation', { name: 'Account', exact: true })
   await expect(accountLinks.getByRole('link', { name: 'Account settings', exact: true })).toHaveAttribute('aria-current', 'page')
-  await page.getByRole('link', { name: 'Security', exact: true }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Security', exact: true }).click()
   await expect(page).toHaveURL('/app/account/security')
   await page.screenshot({ path: 'e2e/screenshots/account-mobile.png', fullPage: true })
 })
@@ -88,7 +88,7 @@ for (const role of ['viewer', 'editor', 'admin'] as const) {
     await login(page, user.email, owner.orgSlug)
     const settings = page.getByRole('navigation', { name: 'Settings', exact: true })
     await expect(settings.getByRole('link', { name: 'Organization settings', exact: true })).toBeVisible()
-    await expect(settings.getByRole('link', { name: 'Site settings', exact: true })).toHaveCount(role === 'viewer' ? 0 : 1)
+    await expect(settings.getByRole('link', { name: 'Project settings', exact: true })).toHaveCount(role === 'viewer' ? 0 : 1)
     await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible()
   })
 }
@@ -98,7 +98,7 @@ test('no-site and no-organization users can use account pages and log out', asyn
   await login(page, user.email)
   const settings = page.getByRole('navigation', { name: 'Settings', exact: true })
   await expect(settings.getByRole('link', { name: 'Organization settings', exact: true })).toBeVisible()
-  await expect(settings.getByRole('link', { name: 'Site settings', exact: true })).toHaveCount(0)
+  await expect(settings.getByRole('link', { name: 'Project settings', exact: true })).toHaveCount(0)
   if (!/^supermetry_e2e_\d+$/.test(owner.schema)) throw new Error('isolated schema required')
   execFileSync('psql', [process.env.SUPERMETRY_TEST_DSN!, '-v', 'ON_ERROR_STOP=1', '-v', `schema=${owner.schema}`, '-v', `member=${user.id}`], {
     input: 'SET search_path TO :"schema"; DELETE FROM memberships WHERE user_id=:member;',

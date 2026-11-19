@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react'
 import { PageContainer } from '@/components/PageContainer'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageHeader } from '@/components/PageHeader'
-import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Filter } from '@/lib/search'
@@ -23,6 +24,8 @@ type JourneysPageProps = {
   steps: number
   app?: boolean
   onControlsChange: (value: { direction: JourneyDirection; path: string; steps: number }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 export function JourneysPage({
@@ -34,6 +37,7 @@ export function JourneysPage({
   steps,
   app = false,
   onControlsChange,
+  toolbar,
 }: JourneysPageProps) {
   const pages = useStats({
     siteId,
@@ -51,7 +55,7 @@ export function JourneysPage({
 
   return (
     <PageContainer>
-      <PageHeader title={t.title} description={app ? 'Follow the screens installs viewed in sequence. Repeated consecutive screen views are collapsed.' : t.description} />
+      <PageHeader title={t.title} description={app ? 'Follow the screens installs viewed in sequence. Repeated consecutive screen views are collapsed.' : t.description} actions={toolbar} />
       <JourneyControls
         direction={direction}
         path={path}
@@ -62,13 +66,13 @@ export function JourneysPage({
       {report.isError ? (
         <ErrorState level="page" detail={report.error?.detail} onRetry={() => void report.refetch()} />
       ) : report.isPending || report.isLoading ? (
-        <div aria-label={t.loading} className="flex flex-col gap-3 rounded-xl border p-4">
+        <div aria-label={t.loading} className="flex flex-col gap-3 rounded-lg border p-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-4/5" />
           <Skeleton className="h-16 w-3/5" />
         </div>
       ) : !report.data || report.data.nodes.length === 0 ? (
-        <EmptyState />
+        <FeatureEmptyState kind="journeys" />
       ) : (
         <JourneyFlow links={report.data.links} nodes={report.data.nodes} />
       )}

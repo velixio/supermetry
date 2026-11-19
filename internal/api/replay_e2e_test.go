@@ -108,7 +108,7 @@ func TestReplayEndToEnd(t *testing.T) {
 		memory.Touch(session.Hit{SiteID: siteID, TS: now, LocalDay: now, VisitorID: visitorID})
 		w.WriteHeader(http.StatusAccepted)
 	})
-	platform := platformhttp.New(platformhttp.Deps{TrackingMode: privacy.Identified,
+	platform := platformhttp.New(platformhttp.Deps{TrackingMode: privacy.Identified, StepUp: replayE2EStepUp{},
 		Authenticator: replayE2EAuth{principal: authz.Principal{UserID: ownerID, OrgID: orgID, Role: authz.RoleOwner}},
 		Sites:         registry, Store: platformStore, ReplayStore: blobs, ReplayEnv: replayEnv,
 		Mutations: platformhttp.Services{Sites: sitesvc.New(platformStore, registry)},
@@ -197,3 +197,8 @@ func gzipReplayE2E(t *testing.T, value []byte) []byte {
 	}
 	return result.Bytes()
 }
+
+// replayE2EStepUp stands in for a session that signed in a moment ago.
+type replayE2EStepUp struct{}
+
+func (replayE2EStepUp) RequireRecentAuth(context.Context, string) error { return nil }

@@ -84,7 +84,7 @@ export function TrackingSnippet({
     <div className="flex flex-col gap-3">
       {generatedSnippet ? (
         <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-          <p>This URL applies the tracker features selected in Site settings → Tracking, and session replay when it is on.</p>
+          <p>This URL applies the tracker features selected in Project settings → Tracking, and session replay when it is on.</p>
           <p className="text-xs">
             Installed an older snippet with <code>/js/script.js</code> or <code>/js/script.full.js</code>? Replace it with
             this one: session replay only starts from this URL.
@@ -97,7 +97,7 @@ export function TrackingSnippet({
             {scriptOptions.map((option) => (
               <label
                 key={option.id}
-                className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent/5"
+                className="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 text-sm has-[:checked]:bg-muted/50"
               >
                 <span className="flex items-center gap-2 font-medium">
                   <input

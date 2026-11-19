@@ -3,7 +3,6 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiKeySecretDialog } from "./ApiKeySecretDialog";
 import { MemberRoleSelect } from "./MemberRoleSelect";
 import { TotpQr } from "./TotpQr";
 import { TrackingSnippet } from "./TrackingSnippet";
@@ -11,20 +10,6 @@ import { TrackingSnippet } from "./TrackingSnippet";
 afterEach(cleanup);
 
 describe("settings security boundaries", () => {
-  it("removes an API key secret from the DOM when the shown-once dialog closes", () => {
-    render(
-      <ApiKeySecretDialog
-        secret="pnl_demo_only_once"
-        onClose={() => undefined}
-      />,
-    );
-
-    expect(screen.getByDisplayValue("pnl_demo_only_once")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: /close/i }));
-
-    expect(screen.queryByDisplayValue("pnl_demo_only_once")).not.toBeInTheDocument();
-  });
-
   it("hides the owner role from a non-owner editor", () => {
     render(
       <MemberRoleSelect

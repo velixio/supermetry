@@ -79,6 +79,38 @@ describe('sites overview', () => {
     expect(screen.getByText('Receiving')).toBeVisible()
   })
 
+  it('shows the typed highlights as one muted line and in the card name, with quiet as a warning', async () => {
+    const highlights = [
+      { kind: 'quiet', hours: 26 },
+      { kind: 'new_issues', count: 1 },
+      { kind: 'visitors_change', percent: -12.4 },
+    ] as const
+    privateRequest.mockResolvedValue({ data: [{ ...site, highlights }] })
+    renderOverview()
+
+    const line = await screen.findByTestId('project-highlights')
+    expect(line).toHaveTextContent('No events for 26 hours · 1 new issue · Visitors down 12.4%')
+    expect(line).toHaveClass('text-sm', 'text-muted-foreground')
+    expect(screen.getByText('No events for 26 hours')).toHaveClass('text-warning')
+    expect(screen.getByText('1 new issue')).not.toHaveClass('text-warning')
+    expect(screen.getByRole('link', { name: /Docs.*3 live.*No events for 26 hours · 1 new issue · Visitors down/i })).toBeVisible()
+  })
+
+  it('words every highlight kind and shows the line in the table view', async () => {
+    privateRequest.mockResolvedValue({ data: [{ ...site, highlights: [{ kind: 'top_source', name: 'google.com', share: 0.41 }, { kind: 'crash_free_drop', points: 1.4 }] }, { ...site, id: 8, name: 'Calm', highlights: [{ kind: 'steady' }] }] })
+    renderOverview({ view: 'table' })
+
+    const lines = await screen.findAllByTestId('project-highlights')
+    expect(lines.map((line) => line.textContent)).toEqual(['Most visitors came from google.com · Crash-free users down 1.4 points', 'Steady: no big changes'])
+  })
+
+  it('renders no line for a project without highlights', async () => {
+    privateRequest.mockResolvedValue({ data: [site] })
+    renderOverview()
+    await screen.findByRole('link', { name: /Docs/ })
+    expect(screen.queryByTestId('project-highlights')).toBeNull()
+  })
+
   it('links to the readable slug and still uses the public id when a site has none', async () => {
     privateRequest.mockResolvedValue({ data: [{ ...site, slug: 'docs-example-com' }, { ...site, id: 8, public_id: 'shop-public', name: 'Shop' }] })
     renderOverview()
@@ -99,7 +131,7 @@ describe('sites overview', () => {
   it('shows loading, error, and filtered-empty states', async () => {
     privateRequest.mockImplementation(() => new Promise(() => undefined))
     const loading = renderOverview()
-    expect(await screen.findByRole('status', { name: 'Loading sites' })).toBeVisible()
+    expect(await screen.findByRole('status', { name: 'Loading projects' })).toBeVisible()
     loading.unmount()
 
     privateRequest.mockRejectedValue(new Error('overview unavailable'))
@@ -109,12 +141,12 @@ describe('sites overview', () => {
 
     privateRequest.mockResolvedValue({ data: [site] })
     renderOverview({ query: 'missing' })
-    expect(await screen.findByText('No sites match these filters.')).toBeVisible()
+    expect(await screen.findByText('No projects match these filters.')).toBeVisible()
   })
 
   it('switches view through the remembered-preference callback and handles 100 sites', async () => {
     const onViewChange = vi.fn()
-    privateRequest.mockResolvedValue({ data: Array.from({ length: 100 }, (_, index) => ({ ...site, id: index + 1, public_id: `site-${index + 1}`, name: `Site ${index + 1}` })) })
+    privateRequest.mockResolvedValue({ data: Array.from({ length: 100 }, (_, index) => ({ ...site, id: index + 1, public_id: `site-${index + 1}`, name: `Project ${index + 1}` })) })
     renderOverview({ onViewChange })
     expect(await screen.findAllByTestId('site-overview-card')).toHaveLength(100)
     fireEvent.click(screen.getByRole('radio', { name: 'Table view' }))
@@ -126,7 +158,7 @@ describe('sites overview', () => {
     const onSearchChange = vi.fn()
     const onPeriodChange = vi.fn()
     renderOverview({ onSearchChange, onPeriodChange })
-    fireEvent.change(await screen.findByLabelText('Search sites'), { target: { value: 'docs' } })
+    fireEvent.change(await screen.findByLabelText('Search projects'), { target: { value: 'docs' } })
     fireEvent.click(screen.getByLabelText('Period'))
     fireEvent.click(await screen.findByRole('option', { name: '7 days' }))
     expect(onSearchChange).toHaveBeenCalledWith('docs')

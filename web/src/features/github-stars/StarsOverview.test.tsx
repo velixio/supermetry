@@ -151,7 +151,7 @@ describe('StarsOverview', () => {
     ready([])
     render(<StarsOverview org="acme" orgId={1} canManage={false} />)
     expect(screen.getByText('No repositories tracked yet')).toBeVisible()
-    expect(screen.getByText('Ask an owner or admin of this organization to add a repository.')).toBeVisible()
+    expect(screen.getByText('Ask an owner or admin to add a repository.')).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Add repository' })).not.toBeInTheDocument()
   })
 

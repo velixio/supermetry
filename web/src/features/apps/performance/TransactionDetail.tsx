@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -60,7 +61,7 @@ export function TransactionDetail({ org, site, siteId, name, timezone, search, o
         <Figure label="Error rate">{formatRate(data.summary.error_rate)}</Figure>
       </div>
       <Card>
-        <CardHeader><CardTitle>Latency</CardTitle><CardDescription>p50 and p95 per day, in milliseconds.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Latency <InfoTip label="About latency">p50 and p95 per day, in milliseconds.</InfoTip></CardTitle></CardHeader>
         <CardContent>
           {data.series.length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No samples in this period.</p> : (
             <div className="h-64" role="img" aria-label="p50 and p95 latency per day">
@@ -89,7 +90,7 @@ export function TransactionDetail({ org, site, siteId, name, timezone, search, o
         </Card>
       ) : null}
       <Card>
-        <CardHeader><CardTitle>Span breakdown</CardTitle><CardDescription>Where the time goes, grouped by operation and parameterised description. Raw spans are kept for 14 days at most.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Span breakdown <InfoTip label="About span breakdown">Where the time goes, grouped by operation and parameterised description. Raw spans are kept for 14 days at most.</InfoTip></CardTitle></CardHeader>
         <CardContent>
           {data.span_groups.length === 0 ? <p className="text-sm text-muted-foreground">No child spans in this period.</p> : <SpanGroupsTable groups={data.span_groups} label="Span groups" />}
         </CardContent>

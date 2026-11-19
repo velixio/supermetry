@@ -62,7 +62,7 @@ export function AnnotationEditor({
         <DialogHeader>
           <DialogTitle>{annotation ? 'Edit annotation' : 'Add annotation'}</DialogTitle>
           <DialogDescription>
-            Add context to the dashboard chart for this site-local day.
+            Add context to the dashboard chart for this project-local day.
           </DialogDescription>
         </DialogHeader>
         <form className="flex flex-col gap-4" onSubmit={submit}>

@@ -33,8 +33,8 @@ test('app project: product screens feed the Users page (DAU 1 today, MAU 4)', as
   expect(intake.status(), await intake.text()).toBe(202)
 
   await page.goto(`/app/${owner.orgSlug}/${site.slug}/users`)
-  await expect(page.getByRole('heading', { name: 'Sessions & Users' })).toBeVisible()
-  const tiles = page.getByLabel('Active installs')
+  await expect(page.getByRole('heading', { name: 'Sessions & users' })).toBeVisible()
+  const tiles = page.getByLabel('Active installs', { exact: true })
   await expect(async () => {
     await page.reload()
     await expect(tiles.locator('div', { hasText: 'DAU (latest day)' }).first()).toContainText('1')

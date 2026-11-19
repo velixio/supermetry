@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -84,8 +85,7 @@ export function Attachments({ attachments, source }: { attachments: BodyAttachme
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Attachments</CardTitle>
-        <CardDescription>Screenshots and text files sent with the event. Text is scrubbed of personal data; files over 1 MiB, other types and anything past 5 MiB per event are not stored.</CardDescription>
+        <CardTitle className="text-base">Attachments <InfoTip label="About attachments">Screenshots and text files sent with the event. Text is scrubbed of personal data; files over 1 MiB, other types and anything past 5 MiB per event are not stored.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent>
         <ul className="flex flex-col divide-y" aria-label="Attachments">

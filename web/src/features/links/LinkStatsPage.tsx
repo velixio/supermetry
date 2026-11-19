@@ -36,7 +36,7 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
 
   return (
     <PageContainer width="narrow">
-      <Button asChild className="min-h-11 self-start" variant="ghost">
+      <Button asChild className="max-sm:min-h-11 self-start" variant="ghost">
         <Link params={{ org, site: siteSlug }} to="/app/$org/$site/links">
           <ArrowLeftIcon data-icon="inline-start" />
           {t.back}
@@ -68,7 +68,7 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
           <Label htmlFor="link-period">{t.period}</Label>
           <select
             id="link-period"
-            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
+            className="max-sm:min-h-11 rounded-lg border border-input bg-background px-3 text-sm"
             value={period}
             onChange={(event) => setPeriod(event.target.value as Period)}
           >
@@ -91,12 +91,12 @@ export function LinkStatsPage({ org, siteSlug, siteId, linkId, timezone }: Props
       {stats.isError ? (
         <div className="flex items-center gap-3 text-sm" role="alert">
           {stats.error.message}
-          <Button className="min-h-11" variant="outline" onClick={() => void stats.refetch()}>{t.retry}</Button>
+          <Button className="max-sm:min-h-11" variant="outline" onClick={() => void stats.refetch()}>{t.retry}</Button>
         </div>
       ) : null}
       {stats.data ? (
         <>
-          <section aria-labelledby="link-daily" className="rounded-xl border bg-card p-4">
+          <section aria-labelledby="link-daily" className="rounded-lg border bg-card p-4">
             <h2 className="mb-3 text-base font-medium" id="link-daily">{t.dailyTitle}</h2>
             <DailyBars daily={stats.data.daily} from={stats.data.from} title={t.dailyTitle} to={stats.data.to} unit={t.columns.clicks} />
           </section>
@@ -125,7 +125,7 @@ function Breakdown({ title, items, total, label }: {
 }) {
   const heading = `link-breakdown-${title.toLowerCase()}`
   return (
-    <section aria-labelledby={heading} className="min-w-0 rounded-xl border bg-card p-4">
+    <section aria-labelledby={heading} className="min-w-0 rounded-lg border bg-card p-4">
       <h2 className="mb-3 text-base font-medium" id={heading}>{title}</h2>
       {items.length === 0 ? <p className="text-sm text-muted-foreground">{t.noData}</p> : (
         <ul className="flex flex-col gap-3">
@@ -137,8 +137,8 @@ function Breakdown({ title, items, total, label }: {
                   <span className="min-w-0 truncate" title={label(item.value)}>{label(item.value)}</span>
                   <span className="shrink-0 tabular-nums">{fmt.number(item.clicks)} <span className="text-muted-foreground">({share}%)</span></span>
                 </div>
-                <div aria-hidden="true" className="mt-1 h-1.5 rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
+                <div aria-hidden="true" className="mt-1 h-1.5 rounded-sm bg-muted">
+                  <div className="h-full rounded-sm bg-chart-1" style={{ width: `${share}%` }} />
                 </div>
               </li>
             )

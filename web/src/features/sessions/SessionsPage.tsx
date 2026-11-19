@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { useCapability } from '@/lib/authorization'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { ListPager } from '@/components/ListPager'
@@ -76,7 +78,7 @@ function SessionCard({
           <CardTitle>
             <Button
               aria-label={`View session ${session.id}`}
-              className="min-h-11 justify-start px-0 text-left whitespace-normal"
+              className="max-sm:min-h-11 justify-start px-0 text-left whitespace-normal"
               variant="link"
               onClick={() => onSelect(session.id)}
             >
@@ -85,7 +87,7 @@ function SessionCard({
           </CardTitle>
           {canReplay && org && site ? (
             onReplayChange && hasReplay ? (
-              <Button aria-label="Play replay" className="size-11" size="icon" type="button" variant="ghost" onClick={() => onReplayChange(session.id)}>
+              <Button aria-label="Play replay" className="max-sm:size-11" size="icon" type="button" variant="ghost" onClick={() => onReplayChange(session.id)}>
                 <PlayIcon />
               </Button>
             ) : (
@@ -136,6 +138,7 @@ export function SessionsPage({
   site,
   replayId,
   onReplayChange,
+  toolbar,
 }: {
   siteId: number
   dateRange: { from: string; to: string }
@@ -152,6 +155,8 @@ export function SessionsPage({
   site?: string
   replayId?: string
   onReplayChange?: (sessionId?: string, options?: { replace?: boolean }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }) {
   const canReplay = useCapability('replay.read')
   const canReadProfiles = useCapability('profiles.read')
@@ -175,7 +180,7 @@ export function SessionsPage({
 
   return (
     <PageContainer>
-      <PageHeader title="Sessions" description="Inspect anonymous visits without linking people across days." />
+      <PageHeader title="Sessions" description="Inspect anonymous visits without linking people across days." actions={toolbar} />
       {sessions.isError ? (
         <ErrorState level="page" detail={sessions.error?.detail} onRetry={() => void sessions.refetch()} />
       ) : sessions.isPending ? (
@@ -183,6 +188,8 @@ export function SessionsPage({
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-52 w-full" />
         </div>
+      ) : sessions.data.data.length === 0 && filters.length === 0 && !cursor && !hasReplayOnly ? (
+        <FeatureEmptyState kind="sessions" />
       ) : sessions.data.data.length === 0 ? (
         <Empty>
           <EmptyHeader>
@@ -206,7 +213,7 @@ export function SessionsPage({
               />
             ))}
           </ol>
-          <div className="hidden min-w-0 max-w-full overflow-hidden rounded-xl border bg-card md:block">
+          <div className="hidden min-w-0 max-w-full overflow-hidden rounded-lg border bg-card md:block">
             <Table aria-label="Sessions" className="min-w-[680px] lg:min-w-[980px] xl:min-w-[1450px]">
               <TableHeader>
                 <TableRow>
@@ -268,7 +275,7 @@ export function SessionsPage({
         <SheetContent className="overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Session timeline</SheetTitle>
-            <SheetDescription>Anonymous session IDs reset daily and cannot link a visitor across days.</SheetDescription>
+            <SheetDescription>Session IDs reset daily.</SheetDescription>
           </SheetHeader>
           {detail.isError ? (
             <div className="px-4"><ErrorState detail={detail.error?.detail} onRetry={() => void detail.refetch()} /></div>

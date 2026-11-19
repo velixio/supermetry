@@ -133,14 +133,14 @@ function TrackingSettingsForm({ orgId, siteId }: { orgId: number; siteId: number
   return (
     <section
       aria-labelledby="tracking-settings-heading"
-      className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5 text-card-foreground"
+      className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-5 text-card-foreground"
     >
       <header className="flex flex-col gap-1">
         <h2 id="tracking-settings-heading" className="text-lg font-semibold">
           Tracking
         </h2>
         <p className="text-sm text-muted-foreground">
-          Choose which browser events this site's generated script collects. Snippet attributes override these settings.
+          Choose which browser events this project's generated script collects. Snippet attributes override these settings.
         </p>
       </header>
       {settings && savedSettings ? (

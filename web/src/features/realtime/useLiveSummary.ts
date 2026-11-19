@@ -13,7 +13,9 @@ class LiveSummaryError extends Error {
   }
 }
 
-export const liveSummaryKey = (siteId: number) => ['realtime-summary', siteId] as const
+import { liveSummaryKey } from './liveSummaryKey'
+
+export { liveSummaryKey }
 
 export function useLiveSummary(siteId: number) {
   const [visible, setVisible] = useState(() => !document.hidden)

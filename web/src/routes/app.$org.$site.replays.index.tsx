@@ -36,12 +36,10 @@ function ReplaysRoute() {
     void navigate({ search: { ...search, layout: next }, replace: true })
   }
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-3">
       <ReplayRecordingNotice settings={replay.data} pending={replay.isPending} error={replay.isError ? replay.error : null} onRetry={() => void replay.refetch()} org={org} site={siteSlug} />
-      <div className="flex justify-end">
-        <DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })} />
-      </div>
       <ReplaysPage
+        toolbar={<DatePicker labels={en.dashboard} search={search} onChange={(next) => void navigate({ search: firstPage({ ...search, ...next }) })} />}
         cursor={currentCursor(search)}
         filters={{
           q: search.q,

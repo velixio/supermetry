@@ -76,7 +76,7 @@ describe('member permission requests', () => {
     await screen.findByRole('combobox', { name: 'Member role' })
     expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()
     if (field === 'site') {
-      fireEvent.change(screen.getByLabelText('Site access'), { target: { value: 'all' } })
+      fireEvent.change(screen.getByLabelText('Project access'), { target: { value: 'all' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     } else {
       fireEvent.click(screen.getByRole('checkbox', { name: /Read profiles/ }))
@@ -120,7 +120,7 @@ describe('member permission requests', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
       target: { value: 'teammate@example.test' },
     })
-    fireEvent.change(screen.getByLabelText('Site access'), {
+    fireEvent.change(screen.getByLabelText('Project access'), {
       target: { value: 'none' },
     })
     expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()
@@ -174,7 +174,7 @@ describe('member permission requests', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leave organization' }))
     const dialog = await screen.findByRole('alertdialog', { name: 'Leave Acme?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Leave' }))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('You are the last owner.')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Last owner:')
     expect(request).toHaveBeenCalledWith('DELETE', '/api/private/orgs/1/membership', { orgId: 1 })
   })
 
@@ -185,7 +185,7 @@ describe('member permission requests', () => {
     provider(<InvitationsPage orgId={1} actorRole="owner" sites={sites} now={Date.parse('2026-10-17T12:00:00Z')} />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'new@example.test' } })
     fireEvent.click(screen.getByRole('button', { name: 'Invite' }))
-    expect(await screen.findByText(/Invitation created for new@example.test/)).toHaveAttribute('role', 'status')
+    expect(await screen.findByText(/Invitation for new@example.test created/)).toHaveAttribute('role', 'status')
     expect(screen.getByRole('button', { name: 'Copy invitation link' })).toBeVisible()
 
     expect(await screen.findByText('Expired')).toBeVisible()
@@ -194,6 +194,6 @@ describe('member permission requests', () => {
     await waitFor(() => expect(request).toHaveBeenCalledWith('POST', '/api/private/orgs/1/invitations', {
       orgId: 1, body: { email: 'late@example.test', role: 'editor', site_ids: [7], capabilities: ['replay.read'] },
     }))
-    expect(await screen.findByText(/A new invitation was sent to late@example.test/)).toBeVisible()
+    expect(await screen.findByText(/New invitation sent to late@example.test/)).toBeVisible()
   })
 })

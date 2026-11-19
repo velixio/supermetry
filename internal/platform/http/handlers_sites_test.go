@@ -47,7 +47,7 @@ func TestCreateSiteAcceptsPixelKind(t *testing.T) {
 	t.Cleanup(registry.Close)
 	service := sitesvc.New(data, registry)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
 		Mutations: platformhttp.Services{Sites: service}, Store: data,
 	})
@@ -84,7 +84,7 @@ func TestSiteExclusionAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
 		Mutations: platformhttp.Services{Sites: sites}, Store: data,
 		BaseURL: "https://supermetry.example", TrackerPath: "/js/script.js",
@@ -217,7 +217,7 @@ func TestSiteResponseDerivesInstallStatusFromLastAcceptedEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Now: nowFunc(now), Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
 		Mutations: platformhttp.Services{Sites: service}, Store: data,
 	})
@@ -272,7 +272,7 @@ func nowFunc(now time.Time) func() time.Time { return func() time.Time { return 
 
 func TestPublicSiteResponseOmitsDemoState(t *testing.T) {
 	principal := authz.Principal{KeyID: 1, OrgID: 1, Role: authz.RoleKey, Scopes: []string{"stats:read"}}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"key": principal},
 		Sites: siteRegistry{7: {
 			ID: 7, OrgID: 1, PublicID: "demo-public", Demo: true, TZ: time.UTC,
@@ -321,7 +321,7 @@ func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := platformhttp.New(platformhttp.Deps{TrackingMode: privacy.Identified,
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{}, TrackingMode: privacy.Identified,
 		Authenticator: actorAuthenticator{
 			"owner":  owner,
 			"admin":  {UserID: userID, OrgID: orgID, Role: authz.RoleAdmin},
@@ -361,7 +361,7 @@ func TestProfilesSettingIsOwnerAdminOnlyAndAudited(t *testing.T) {
 
 func TestCurrentIPUsesResolvedClientAddress(t *testing.T) {
 	principal := authz.Principal{UserID: 1, OrgID: 1, Role: authz.RoleOwner}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator:  actorAuthenticator{"owner": principal},
 		TrustedProxies: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
 	})
@@ -401,7 +401,7 @@ func TestRefetchSiteIconAuthorizationAndRateLimit(t *testing.T) {
 	admin := authz.Principal{UserID: 2, OrgID: 1, Role: authz.RoleAdmin}
 	editor := authz.Principal{UserID: 3, OrgID: 1, Role: authz.RoleEditor}
 	mutations := &iconMutations{}
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": owner, "admin": admin, "editor": editor},
 		Sites: siteRegistry{siteID: {
 			ID: siteID, OrgID: 1, PublicID: "abcdefgh2345", TZ: time.UTC,
@@ -448,7 +448,7 @@ func TestCreateSiteReturnsBeforeIconDiscoveryFinishes(t *testing.T) {
 			close(release)
 		}
 	})
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal},
 		Mutations:     mutations,
 		BaseURL:       "https://supermetry.example",
@@ -493,7 +493,7 @@ func TestCreateSiteLimitsConcurrentIconDiscovery(t *testing.T) {
 			close(release)
 		}
 	})
-	handler := platformhttp.New(platformhttp.Deps{
+	handler := platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal},
 		Mutations:     mutations,
 	})
@@ -608,6 +608,10 @@ func (noopSiteMutations) UpdateSite(context.Context, authz.Principal, int32, sit
 
 func (noopSiteMutations) DeleteSite(context.Context, authz.Principal, int32) error { return nil }
 
+func (noopSiteMutations) RollAPIKey(context.Context, authz.Principal, int64, platformhttp.RollAPIKeyRequest) (platformhttp.RolledAPIKey, error) {
+	return platformhttp.RolledAPIKey{}, nil
+}
+
 func (noopSiteMutations) CreateAPIKey(context.Context, authz.Principal, platformhttp.CreateAPIKeyRequest) (platformhttp.CreatedAPIKey, error) {
 	return platformhttp.CreatedAPIKey{}, nil
 }
@@ -648,7 +652,7 @@ func appKindHandler(t *testing.T, slug string, requireDomain bool) (http.Handler
 	service := sitesvc.New(data, registry)
 	service.SetRequireDomain(requireDomain)
 	principal := authz.Principal{UserID: userID, OrgID: orgID, Role: authz.RoleOwner}
-	return platformhttp.New(platformhttp.Deps{
+	return platformhttp.New(platformhttp.Deps{StepUp: freshSession{},
 		Authenticator: actorAuthenticator{"owner": principal}, Sites: registry,
 		Mutations: platformhttp.Services{Sites: service}, Store: data,
 	}), pool

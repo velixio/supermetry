@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { InfoTip } from '@/components/InfoTip'
+import { FeatureEmptyState } from '@/features/onboarding/FeatureEmptyState'
 
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
@@ -28,6 +30,8 @@ type HeatmapsPageProps = {
   device: HeatmapDevice
   path: string
   onChange: (value: { device: HeatmapDevice; path: string }) => void
+  /** Filter and date controls, placed in the page header row. */
+  toolbar?: ReactNode
 }
 
 function pageHeight(cells: HeatmapCell[]): number {
@@ -86,10 +90,10 @@ function ScrollOverlay({ bands }: { bands: ScrollBand[] }) {
         return (
           <div
             key={item.band}
-            className="absolute inset-x-0 border-t border-background/60 bg-accent/10"
+            className="absolute inset-x-0 border-t border-background/60 bg-chart-1/10"
             style={{ top: `${Math.max(0, item.band - 10)}%`, height: '10%' }}
           >
-            <span className="absolute right-2 top-1 rounded-md bg-background/90 px-2 py-1 text-xs font-medium shadow-sm">
+            <span className="absolute right-2 top-1 rounded-md bg-background/90 px-2 py-1 text-xs font-medium">
               {item.band}% depth · {percentage}% reached
             </span>
           </div>
@@ -133,13 +137,13 @@ function Preview({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-muted/30 p-3">
+    <div className="overflow-x-auto rounded-md bg-muted/40 p-3">
       <div className="mx-auto" style={{ width: `${width}px`, maxWidth: '100%' }}>
         {frameState === 'blocked' || source === '' ? (
-          <div className="mb-3 rounded-lg border bg-card p-4 text-sm">
+          <div className="mb-3 rounded-md bg-muted/50 px-3 py-2 text-sm">
             <p className="font-medium">Page preview blocked</p>
             <p className="mt-1 text-muted-foreground">
-              The site may block embedding with X-Frame-Options or CSP. Allow Supermetry&apos;s host in the site&apos;s frame-ancestors directive to show the live page.
+              The website may block embedding with X-Frame-Options or CSP. Allow Supermetry&apos;s host in the website&apos;s frame-ancestors directive to show the live page.
             </p>
           </div>
         ) : null}
@@ -176,7 +180,7 @@ function Preview({
   )
 }
 
-export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange }: HeatmapsPageProps) {
+export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange, toolbar }: HeatmapsPageProps) {
   const [showScroll, setShowScroll] = useState(false)
   const site = useHeatmapSite(siteId, orgId)
   const pages = useStats({
@@ -207,16 +211,7 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
   }
 
   if (!enabled) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>Heatmaps are not collecting yet</EmptyTitle>
-          <EmptyDescription>
-            Enable heatmaps in site settings and install the full tracker script to start collecting private, aggregated clicks.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
+    return <FeatureEmptyState kind="heatmaps" />
   }
 
   const cells = report.data?.cells ?? []
@@ -231,20 +226,22 @@ export function HeatmapsPage({ siteId, orgId, dateRange, device, path, onChange 
         title="Heatmaps"
         description="See aggregated clicks and how far visitors scroll, without recording sessions."
         actions={
-          <Button
-            type="button"
-            variant={showScroll ? 'secondary' : 'outline'}
-            aria-pressed={showScroll}
-            onClick={() => setShowScroll((current) => !current)}
-          >
-            Scroll map
-          </Button>
+          <>
+            {toolbar}
+            <Button
+              type="button"
+              variant={showScroll ? 'secondary' : 'outline'}
+              aria-pressed={showScroll}
+              onClick={() => setShowScroll((current) => !current)}
+            >
+              Scroll map
+            </Button>
+          </>
         }
       />
       <Card>
         <CardHeader>
-          <CardTitle>Page preview</CardTitle>
-          <CardDescription>Choose a popular page and viewport.</CardDescription>
+          <CardTitle>Page preview <InfoTip label="About page preview">Choose a popular page and viewport.</InfoTip></CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-4">
           <Field className="min-w-56 flex-1">

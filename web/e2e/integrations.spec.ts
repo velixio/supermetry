@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test, type Owner } from './fixtures'
+import { setTheme } from './theme'
 
 const shots = 'e2e/screenshots/integrations'
 const settings = (owner: Owner) => `/app/${owner.orgSlug}/${owner.siteSlug}/settings/integrations`
@@ -41,7 +42,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
   await owner.login(page, settings(owner))
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
   await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Site settings' }).getByRole('link', { name: 'Integrations' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('navigation', { name: 'Project settings' }).getByRole('link', { name: 'Integrations' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByText('Not connected')).toBeVisible()
 
   // Only the Google side is mocked: the browser must be sent to the authorization URL.
@@ -68,7 +69,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
 
   seedConnection(owner)
   await page.goto(`${settings(owner)}?integration=search-console&status=connected`)
-  await expect(page.getByRole('status').filter({ hasText: 'Google Search Console is connected' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Connected. The first import runs shortly.' })).toBeVisible()
   await expect(page.getByText('sc-domain:example.test')).toBeVisible()
   await expect(page.getByText(/^Status: Connected$/)).toBeVisible()
   await expect(page.getByText('Synced through')).toBeVisible()
@@ -91,7 +92,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
   for (const [name, width, height, scheme] of [['1440-light', 1440, 1000, 'light'], ['1440-dark', 1440, 1000, 'dark'], ['1024', 1024, 900, 'light'], ['390', 390, 900, 'light']] as const) {
     const dark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
     if ((scheme === 'dark') !== dark) {
-      await page.getByRole('button', { name: scheme === 'dark' ? 'Use dark theme' : 'Use light theme' }).click()
+      await setTheme(page, scheme)
     }
     await page.setViewportSize({ width, height })
     await noHorizontalScroll(page)
@@ -105,7 +106,7 @@ test('connect flow sends the browser to Google, the result is reported, then the
   await disconnect.focus()
   await page.keyboard.press('Enter')
   const dialog = page.getByRole('alertdialog')
-  await expect(dialog).toContainText('deletes the stored access tokens and every imported Search Console row')
+  await expect(dialog).toContainText('Deletes the stored tokens and all imported Search Console rows')
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   expect(syntheticSQL(owner, `select count(*) from search_console_rows where site_id=${owner.siteId}`)).toBe('3')

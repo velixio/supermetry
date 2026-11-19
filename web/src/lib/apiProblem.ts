@@ -1,8 +1,10 @@
-export type ApiProblemBody = { type?: string; title?: string; status?: number; detail?: string; position?: number }
+export type ApiProblemBody = { code?: string; type?: string; title?: string; status?: number; detail?: string; position?: number }
 
 export class ApiProblem extends Error {
   readonly status: number
   readonly type?: string
+  /** Machine-readable error code from the body, e.g. "reauth_required". */
+  readonly code?: string
   readonly title?: string
   readonly detail?: string
   /** For a rejected search: the character offset of the problem. */
@@ -13,6 +15,7 @@ export class ApiProblem extends Error {
     this.name = 'ApiProblem'
     this.status = status
     this.type = body.type
+    this.code = typeof body.code === 'string' ? body.code : undefined
     this.title = body.title
     this.detail = body.detail
     this.position = typeof body.position === 'number' ? body.position : undefined

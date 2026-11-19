@@ -15,8 +15,8 @@ export function FunnelChart({ steps, countLabel }: { steps: ChartStep[]; countLa
           const width = maximum > 0 ? Math.max(4, (step.count / maximum) * 100) : 4
           return (
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3" key={`${step.label}:${index}`}>
-              <div className="relative min-w-0 overflow-hidden rounded-lg border bg-muted/30 px-3 py-2">
-                <span className="absolute inset-y-0 left-0 bg-accent/15" style={{ width: `${width}%` }} />
+              <div className="relative min-w-0 overflow-hidden rounded-md bg-muted/40 px-3 py-2">
+                <span className="absolute inset-y-0 left-0 bg-chart-1/15" style={{ width: `${width}%` }} />
                 <span className="relative block truncate text-sm" title={step.label}>{step.label}</span>
               </div>
               <div className="min-w-24 text-right tabular-nums">

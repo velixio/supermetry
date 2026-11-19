@@ -19,7 +19,7 @@ test('creates and safely edits a disabled Telegram notification channel', async 
   await page.getByRole('button', { name: 'Create channel' }).click()
   expect((await createResponse).ok()).toBe(true)
 
-  const channel = page.locator('section').filter({ hasText: 'Telegram incidents' })
+  const channel = page.getByRole('listitem').filter({ hasText: 'Telegram incidents' })
   await expect(channel).toContainText('Disabled')
   await channel.getByRole('button', { name: 'Edit' }).click()
   await expect(page.getByLabel('Bot token')).toHaveValue('')

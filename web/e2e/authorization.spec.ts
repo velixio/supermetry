@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import type { APIRequestContext, Page } from '@playwright/test'
 import { expect, test, type Owner } from './fixtures'
+import { navLink } from './nav'
 
 const password = 'supermetry-authorization-test-password'
 
@@ -77,7 +78,7 @@ test('billing-only no-site member reaches organization and account pages without
   ).toHaveCount(0)
   await expect(page.locator('[data-slot="sidebar-wrapper"]')).toBeVisible()
   for (const name of ['Dashboard', 'Profiles', 'Replays'])
-    await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0)
+    await expect(await navLink(page, name)).toHaveCount(0)
   await expect(
     page.getByRole('heading', { name: 'Create your first site' }),
   ).toHaveCount(0)
@@ -107,7 +108,7 @@ test('stats-only viewer cannot fetch sensitive direct URLs or see export and rep
     page.getByRole('button', { name: 'Export CSV', exact: true }),
   ).toHaveCount(0)
   for (const name of ['Profiles', 'Replays'])
-    await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0)
+    await expect(await navLink(page, name)).toHaveCount(0)
   for (const suffix of ['profiles', 'profiles/123', 'replays', 'replays/123']) {
     await page.goto(`/app/${owner.orgSlug}/${owner.siteSlug}/${suffix}`)
     await expect(
@@ -143,7 +144,7 @@ test('revoking grants and all project access removes sensitive controls after me
   })
   await login(page, email)
   await expect(
-    page.getByRole('link', { name: 'Profiles', exact: true }),
+    (await navLink(page, 'Profiles')),
   ).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Export CSV', exact: true }),
@@ -167,7 +168,7 @@ test('revoking grants and all project access removes sensitive controls after me
     page.getByRole('link', { name: 'Dashboard', exact: true }),
   ).toBeVisible()
   await expect(
-    page.getByRole('link', { name: 'Profiles', exact: true }),
+    (await navLink(page, 'Profiles')),
   ).toHaveCount(0)
   await expect(
     page.getByRole('button', { name: 'Export CSV', exact: true }),
@@ -212,19 +213,19 @@ INSERT INTO profiles(site_id,external_id,first_seen_at,last_seen_at) VALUES (:si
   await login(page, email)
   await expect.poll(() => meStatuses.at(-1), { message: 'multi-organization session must bootstrap without an organization header' }).toBe(200)
   expect(meStatuses.filter((status) => status !== 200 && status !== 401)).toEqual([])
-  await page.getByRole('link', { name: 'Profiles', exact: true }).click()
+  await (await navLink(page, 'Profiles')).click()
   await expect(page.getByText('Acme-only-profile', { exact: true })).toBeVisible()
   const reads = recordSensitiveReads(page)
   await page.getByRole('button', { name: /Acme$/ }).click()
   await page.getByRole('menuitem', { name: 'Restricted organization', exact: true }).click()
   await expect(page).toHaveURL('/app/restricted-org/settings')
   await expect(page.getByText('Acme-only-profile', { exact: true })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Profiles', exact: true })).toHaveCount(0)
+  await expect((await navLink(page, 'Profiles'))).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Export CSV', exact: true })).toHaveCount(0)
   expect(reads).toEqual([])
-  await page.getByRole('button', { name: /Restricted organization$/ }).click()
+  await page.getByRole('complementary', { name: 'Application sidebar' }).getByRole('button', { name: /Restricted organization$/ }).click()
   await page.getByRole('menuitem', { name: 'Acme', exact: true }).click()
-  await page.getByRole('link', { name: 'Profiles', exact: true }).click()
+  await (await navLink(page, 'Profiles')).click()
   await expect(page.getByText('Acme-only-profile', { exact: true })).toBeVisible()
   expect(reads).toContain(`/api/private/sites/${owner.siteId}/profiles`)
 })
@@ -235,7 +236,7 @@ test('owner invitation controls copy a working no-site invitation without billin
   owner,
 }) => {
   await owner.login(page, `/app/${owner.orgSlug}/settings/invites`)
-  await page.getByRole('combobox', { name: 'Site access', exact: true }).selectOption('none')
+  await page.getByRole('combobox', { name: 'Project access', exact: true }).selectOption('none')
   await expect(page.getByRole('checkbox', { name: /Billing Admin/ })).toHaveCount(0)
   for (const name of [/Read profiles/, /Watch replays/, /Export data/])
     await expect(page.getByRole('checkbox', { name })).not.toBeChecked()

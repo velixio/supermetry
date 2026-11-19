@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -21,8 +22,7 @@ export function RegressionsCard({ org, site, siteId, timezone, search }: { org: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Regressions</CardTitle>
-        <CardDescription>Transactions whose p95 grew by at least 20% from one release to another, with at least 30 samples in each.</CardDescription>
+        <CardTitle>Regressions <InfoTip label="About regressions">Transactions whose p95 grew by at least 20% from one release to another, with at least 30 samples in each.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {names.length < 2 ? <p className="text-sm text-muted-foreground">Two releases with transactions are needed to compare.</p> : (

@@ -55,13 +55,13 @@ describe('CohortsPage', () => {
   it('explains the policy instead of building audiences in anonymous mode', async () => {
     await show(['profiles.read'], { policy: 'anonymous' })
     expect(screen.getByRole('heading', { level: 1, name: 'Cohorts need identified tracking' })).toBeVisible()
-    expect(screen.getByText(/keeps no person-level history/i)).toBeVisible()
+    expect(screen.getByText(/keeps no per-person history/i)).toBeVisible()
     expect(mocks.useCohorts).not.toHaveBeenCalled()
   })
 
   it('explains that profiles must be enabled', async () => {
     await show(['profiles.read'], { policy: 'profiles_disabled' })
-    expect(screen.getByRole('heading', { name: 'Profiles are disabled for this site' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Profiles are disabled for this project' })).toBeVisible()
   })
 
   it('lists cohorts in plain language with accessible actions and a dashboard filter link', async () => {
@@ -103,7 +103,7 @@ describe('CohortsPage', () => {
     })
     await show(['profiles.read'])
     fireEvent.click(screen.getByRole('button', { name: 'Evaluate Pro signups' }))
-    expect(screen.getByText(/needs permission to read profiles/i)).toBeVisible()
+    expect(screen.getByText(/needs profile permission/i)).toBeVisible()
     expect(screen.queryByRole('cell', { name: 'alice' })).not.toBeInTheDocument()
   })
 

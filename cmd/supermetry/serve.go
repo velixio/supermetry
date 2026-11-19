@@ -46,6 +46,7 @@ import (
 	"supermetry/internal/demo"
 	"supermetry/internal/dict"
 	"supermetry/internal/dropstats"
+	"supermetry/internal/exportschedule"
 	"supermetry/internal/geoupdate"
 	"supermetry/internal/ghstars"
 	"supermetry/internal/ghtrending"
@@ -61,6 +62,7 @@ import (
 	"supermetry/internal/obsmetrics"
 	"supermetry/internal/obsquota"
 	"supermetry/internal/opencounters"
+	"supermetry/internal/orgbundle"
 	"supermetry/internal/otlpingest"
 	"supermetry/internal/pixels"
 	"supermetry/internal/platform/admin"
@@ -314,6 +316,13 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	orgService := orgs.New(platformStore, databaseRegistry)
 	keyService := keys.New(platformStore)
 	defer keyService.Close()
+	// Last-use country comes from the local GeoIP database; the address is not kept.
+	keyService.SetCountryResolver(func(r *http.Request) string {
+		if ip, ok := clientip.ResolveAccessClient(r, cfg.TrustedProxies); ok && ip.IsGlobalUnicast() && !ip.IsPrivate() && !ip.IsLoopback() {
+			return enricher.Country(ip)
+		}
+		return ""
+	})
 	shareService := shares.New(platformStore)
 	inviteService := invites.New(platformStore, accounts, sender, cfg.BaseURL)
 	definitionService := goals.New(platformStore, 30*time.Second)
@@ -378,9 +387,35 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	if err := importStore.FailRunningAtStartup(ctx); err != nil {
 		return fmt.Errorf("recover interrupted imports: %w", err)
 	}
-	importManager := imports.NewManager(importStore, 1)
+	importBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/imports/v1")
+	if err != nil {
+		return fmt.Errorf("initialize import encryption: %w", err)
+	}
+	importPulls := imports.NewPullService(importStore, importBox, imports.PullOptions{
+		GA4: imports.GA4Config{ClientID: cfg.GA4OAuthClientID, ClientSecret: cfg.GA4OAuthClientSecret, BaseURL: cfg.BaseURL},
+	})
+	importManager := imports.NewManager(importStore, 32)
+	importManager.SetPullRunner(importPulls)
+	// Pull imports resume from their stored cursor; file imports cannot, so
+	// FailRunningAtStartup above left only pulls to requeue here.
+	resumable, err := importPulls.Recover(ctx)
+	if err != nil {
+		return fmt.Errorf("recover interrupted pull imports: %w", err)
+	}
+	for _, id := range resumable {
+		if err := importManager.Queue(imports.Job{ImportID: id, Pull: true}); err != nil {
+			_ = importStore.SetFailed(ctx, id, errors.New("import interrupted by server restart"))
+		}
+	}
 	exporter := siteexport.New(pool)
 	exporter.SetTrackingMode(cfg.Tracking.Mode)
+	exportBox, err := platformcrypto.NewSecretBox(cfg.SecretKey, "supermetry/export-schedules/v1")
+	if err != nil {
+		return fmt.Errorf("initialize export encryption: %w", err)
+	}
+	exportSchedules := exportschedule.New(pool, exportBox, exporter, exportschedule.Options{
+		Mailer: sender, BaseURL: cfg.BaseURL, AllowPrivate: cfg.AllowPrivateExportEndpoints, Now: settings.clock.Now,
+	})
 	apiAuthenticator := authn.New(authService, keyService, shareService, orgService)
 	serviceAuthenticator := platformhttp.NewAuthenticator(authService, keyService, shareService, orgService)
 	siteService := sitesvc.New(platformStore, databaseRegistry, cfg.Tracking.Mode)
@@ -389,6 +424,8 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	siteService.SetRequireDomain(cfg.Managed)
 	siteService.SetRetentionPolicy(cfg.DefaultRetentionDays, cfg.RetentionForever)
 	siteService.SetQueryInvalidator(engine.InvalidateSite)
+	orgBundle := orgbundle.New(pool, siteService, inviteService, settings.clock.Now)
+	orgBundle.Refresh = refreshRegistry
 	overviewService := sitesvc.NewOverview(platformStore, sessions)
 	overviewService.SetClock(settings.clock.Now)
 	linkRecorder := links.NewRecorder(pool, links.RecorderOptions{})
@@ -491,11 +528,14 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 		Query:              engine,
 		Imports:            importStore,
 		ImportQueue:        importManager,
+		ImportPulls:        importPulls,
 		ProfileTombstones:  profileTombstones,
 		ProfileErasures:    profileErasures,
 		AppErasures:        appErasures,
 		ReplayStore:        replayStore,
 		Exporter:           exporter,
+		ExportSchedules:    exportSchedules,
+		OrgBundle:          orgBundle,
 		ReplayEnv:          cfg.Replay,
 		DataDir:            cfg.DataDir,
 		SecretKey:          cfg.SecretKey,
@@ -758,7 +798,7 @@ func serve(ctx context.Context, cfg config.Config, options ...serveOption) error
 	starService.AlertSender = alertDispatcher
 	jobs = append(jobs, starService.ReconcileJob(), starService.ImportJob(), starService.AlertsJob(), trendingService.Job())
 	dataPurgeWorker := datapurge.NewWorker(pool, engine.InvalidateSite)
-	jobs = append(jobs, deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
+	jobs = append(jobs, exportSchedules.Job(), deletionNotices.Job(), profileErasureWorker.Job(), appErasureWorker.Job(), dataPurgeWorker.Job(), rollupBackfill.Job(), demoService.Job(), demoService.ExpiryJob())
 	ruleEvaluator := alerts.NewRuleEvaluator(alertService, alertService, appAlertStore, appAlertStore, alertDispatcher, registry, settings.clock.Now,
 		func(alertID, channelID int64, kind alerts.ChannelKind, deliveryErr error) {
 			health.AlertDeliveryFailures.Add(1)
@@ -1088,7 +1128,14 @@ func appSecurityHeaders(cfg config.Config, next http.Handler, sharePolicies ...s
 				policy.resourcePolicy = "cross-origin"
 			}
 		}
-		setOptionalHeader(w.Header(), "Content-Security-Policy", policy.contentSecurityPolicy)
+		csp := applyCSPExtra(policy.contentSecurityPolicy, cfg.CSPExtra)
+		switch cfg.CSPMode {
+		case "off":
+		case "report-only":
+			setOptionalHeader(w.Header(), "Content-Security-Policy-Report-Only", csp)
+		default:
+			setOptionalHeader(w.Header(), "Content-Security-Policy", csp)
+		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", policy.referrerPolicy)
 		w.Header().Set("Permissions-Policy", policy.permissionsPolicy)

@@ -8,9 +8,11 @@ import { AppCreateFlow } from '@/features/sites/AppCreateFlow'
 import { KindChoice } from '@/features/sites/KindChoice'
 import { PixelProjectForm } from '@/features/sites/PixelProjectForm'
 import { SiteForm } from '@/features/sites/SiteForm'
+import { SiteInstallStep } from '@/features/sites/SiteInstallStep'
 import { createSite } from '@/features/sites/api'
-import type { SiteInput, SiteKind } from '@/features/sites/types'
+import type { ManagedSite, SiteInput, SiteKind } from '@/features/sites/types'
 import { en } from '@/messages/en'
+import { defaultSearch } from '@/lib/search'
 import { retentionPolicy, useInstanceConfig } from '@/lib/instanceConfig'
 import { useMe } from './app.$org'
 
@@ -18,6 +20,7 @@ export const Route = createFileRoute('/app/$org/sites/new')({ component: NewSite
 
 function NewSiteRoute() {
   const [kind, setKind] = useState<SiteKind>('web')
+  const [created, setCreated] = useState<ManagedSite | null>(null)
   const { org } = Route.useParams()
   const navigate = Route.useNavigate()
   const me = useMe()
@@ -26,24 +29,39 @@ function NewSiteRoute() {
   const config = useInstanceConfig()
 
   if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
-    return <p role="alert" className="text-sm text-muted-foreground">You do not have permission to add sites.</p>
+    return <p role="alert" className="text-sm text-muted-foreground">You do not have permission to add projects.</p>
   }
 
   async function submit(input: SiteInput) {
     if (!membership) return
     const site = await createSite(input, membership.org.id)
     await queryClient.invalidateQueries({ queryKey: ['me'] })
+    if (input.kind !== 'pixel') {
+      setCreated(site)
+      return
+    }
     await navigate({
-      to: input.kind === 'pixel' ? '/app/$org/$site' : '/app/$org/$site/settings/installation',
+      to: '/app/$org/$site',
       params: { org, site: site.slug ?? site.public_id },
-      search: input.kind === 'pixel' ? { period: '30d', compare: 'off', metric: 'visitors', f: [] } : undefined,
+      search: defaultSearch(),
     })
+  }
+
+  if (created) {
+    return (
+      <PageContainer width="narrow">
+        <PageHeader title={created.name} />
+        <section className="rounded-lg border bg-card p-4 md:p-5">
+          <SiteInstallStep orgId={membership.org.id} siteId={created.id} publicId={created.public_id ?? String(created.id)} dashboardHref={`/app/${org}/${created.slug ?? created.public_id}`} />
+        </section>
+      </PageContainer>
+    )
   }
 
   return (
     <PageContainer width="narrow">
       <PageHeader title={en.pixels.measureTitle} description="Choose web analytics or count views where JavaScript cannot run." />
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:p-5">
+      <section className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-5">
         <KindChoice value={kind} onChange={setKind} />
         {kind === 'app'
           ? <AppCreateFlow
@@ -57,7 +75,7 @@ function NewSiteRoute() {
             />
           : kind === 'pixel'
           ? <PixelProjectForm submitLabel={en.pixels.createProject} onSubmit={submit} />
-          : <SiteForm submitLabel="Add site" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} requireDomain={config.data?.managed === true} />}
+          : <SiteForm submitLabel="Add project" onSubmit={submit} retention={config.data ? retentionPolicy(config.data) : undefined} requireDomain={config.data?.managed === true} />}
       </section>
     </PageContainer>
   )

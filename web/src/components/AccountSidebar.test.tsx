@@ -47,7 +47,10 @@ describe('AccountSidebar', () => {
   it('links account settings, marks it current, and keeps the brand link and account menu', async () => {
     const sidebar = await show('/app/account/security')
     const nav = within(sidebar).getByRole('navigation', { name: 'Account' })
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Account settings'])
+    // The section on screen opens its second level: Account settings, then its four pages.
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Account settings', 'Profile', 'Security', 'Sessions', 'Notifications'])
+    expect(within(nav).getByRole('link', { name: 'Security' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Profile' })).not.toHaveAttribute('aria-current')
     const link = within(nav).getByRole('link', { name: 'Account settings' })
     expect(link).toHaveAttribute('href', '/app/account/profile')
     expect(link).toHaveAttribute('aria-current', 'page')
@@ -76,12 +79,12 @@ describe('AccountSidebar', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Acme' }).getAttribute('href')).toMatch(/^\/app\/acme\/docs\?/)
     expect(within(menu).getByRole('menuitem', { name: 'Other' })).toHaveAttribute('href', '/app/other/settings')
     expect(within(menu).getByRole('menuitem', { name: /Add organization/ })).toHaveAttribute('href', '/app/account/organizations/new')
-    expect(within(menu).queryByRole('menuitem', { name: /Add site/ })).toBeNull()
+    expect(within(menu).queryByRole('menuitem', { name: /Add project/ })).toBeNull()
     expect(within(menu).queryByText('Projects')).toBeNull()
   })
 
   it('offers only Add organization to a user without memberships', async () => {
     const menu = await openSwitcher(await show('/app/account/profile', { ...me, memberships: [] }))
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['+ Add organization'])
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Add organization'])
   })
 })

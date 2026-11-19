@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 
 import { expect, test } from './fixtures'
+import { setTheme } from './theme'
 
 const screenshotDir = 'e2e/screenshots/where-when'
 const range = '?period=custom&from=2026-09-28&to=2026-09-30&metric=visitors'
@@ -118,12 +119,12 @@ test('dashboard geography and weekly rhythm support pointer, keyboard, details, 
   await noHorizontalOverflow(page, 1440)
   await page.screenshot({ path: `${screenshotDir}/dashboard-1440-light.png` })
   await screenshotLocator(rhythm, `${screenshotDir}/weekly-rhythm-1440-light.png`)
-  await page.getByRole('button', { name: 'Use dark theme' }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await settleBand(page)
   await page.screenshot({ path: `${screenshotDir}/dashboard-1440-dark.png` })
 
-  await page.getByRole('button', { name: 'Use light theme' }).click()
+  await setTheme(page, 'light')
   await country.click()
   await expect(page.getByRole('button', { name: 'Filter the dashboard to this country' })).toBeVisible()
   await settleBand(page)

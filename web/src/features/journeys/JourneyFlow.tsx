@@ -66,7 +66,7 @@ export function JourneyFlow({ nodes, links }: { nodes: JourneyNode[]; links: Jou
   const maximumLink = Math.max(1, ...links.map((link) => link.visitors))
 
   return (
-    <section aria-label={t.results} className="min-w-0 overflow-x-auto rounded-xl border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0}>
+    <section aria-label={t.results} className="min-w-0 overflow-x-auto rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0}>
       <svg
         aria-label={t.diagram}
         className="min-w-[60rem]"
@@ -101,10 +101,10 @@ export function JourneyFlow({ nodes, links }: { nodes: JourneyNode[]; links: Jou
               x={node.x}
               y={node.y}
             />
-            <text className="fill-foreground text-[12px] font-medium" x={node.x + 10} y={node.y + 17}>
+            <text className="fill-foreground text-xs font-medium" x={node.x + 10} y={node.y + 17}>
               {displayPath(node.path).length > 18 ? `${displayPath(node.path).slice(0, 17)}…` : displayPath(node.path)}
             </text>
-            <text className="fill-muted-foreground text-[11px]" x={node.x + 10} y={node.y + 32}>
+            <text className="fill-muted-foreground text-xs" x={node.x + 10} y={node.y + 32}>
               {t.visitors(fmt.number(node.visitors))}
             </text>
           </g>

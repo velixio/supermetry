@@ -18,7 +18,7 @@ test('app project: create a metric rule, silence it, and open the history', asyn
 
   const base = `/app/${owner.orgSlug}/${site.slug}/settings`
   await page.goto(`${base}/alerts`)
-  await expect(page.getByText('No alert rules yet. Rules notify you about new issues, spikes, crash rates, slow transactions and missed cron jobs.')).toBeVisible()
+  await expect(page.getByText('No alert rules yet.', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Create rule' }).click()
   const dialog = page.getByRole('dialog')
@@ -40,5 +40,5 @@ test('app project: create a metric rule, silence it, and open the history', asyn
   await page.goto(`${base}/notification-history`)
   await expect(page.getByRole('heading', { name: 'Notification history' })).toBeVisible()
   await page.getByLabel('Status').selectOption('suppressed')
-  await expect(page.getByText('No deliveries match these filters.')).toBeVisible()
+  await expect(page.getByText('No deliveries match.')).toBeVisible()
 })

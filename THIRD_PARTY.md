@@ -168,6 +168,12 @@ the License.
   dashboard or the binary. Source and license:
   <https://github.com/dequelabs/axe-core> (Mozilla Public License 2.0).
 
+## SIL OFL 1.1 fonts
+
+- `@fontsource-variable/geist` (Geist variable font, self-hosted woff2 bundled into the dashboard; no CDN).
+  Copyright The Geist Project Authors (<https://github.com/vercel/geist-font>). Licensed under the
+  [SIL Open Font License 1.1](https://openfontlicense.org/).
+
 ## CC BY 4.0 data
 
 - DB-IP IP to Country Lite database, refreshed monthly and bundled without

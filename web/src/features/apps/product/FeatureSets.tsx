@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -51,8 +52,7 @@ export function FeatureSets({ siteId, search, timezone, canEdit }: { siteId: num
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Feature adoption</CardTitle>
-        <CardDescription>Group 1 to 20 product events into a feature and see the share of active installs that used it.</CardDescription>
+        <CardTitle>Feature adoption <InfoTip label="About feature adoption">Group 1 to 20 product events into a feature and see the share of active installs that used it.</InfoTip></CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {features.isError ? <p role="alert" className="text-sm text-destructive">{features.error.message}</p> : null}

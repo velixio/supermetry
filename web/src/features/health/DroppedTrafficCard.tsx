@@ -11,7 +11,7 @@ export const reasonLabels: Record<string, string> = {
   bot_headless: "Headless browser",
   bot_spam_referrer: "Spam referrer",
   rate_limited_ip: "IP rate limit",
-  rate_limited_site: "Site rate limit",
+  rate_limited_site: "Project rate limit",
   rate_limited_global: "Global rate limit",
   privacy_signal: "Privacy signal",
   dimension_overflow: "Dimension overflow",
@@ -28,7 +28,7 @@ export function DroppedTrafficCard({ site }: { site: SiteDropHealth }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{site.site_public_id || `Site ${site.site_id}`}</CardTitle>
+        <CardTitle>{site.site_public_id || `Project ${site.site_id}`}</CardTitle>
         <CardDescription>Today compared with the previous seven complete local days.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

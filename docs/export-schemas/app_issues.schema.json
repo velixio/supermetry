@@ -1,0 +1,118 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_issues.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Grouped error issues that were active in the range.",
+  "properties": {
+    "assignee_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "culprit": {
+      "type": "string"
+    },
+    "error_type": {
+      "type": "string"
+    },
+    "first_release": {
+      "type": "string"
+    },
+    "first_seen": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "github_url": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "issue_id": {
+      "type": "integer"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "last_release": {
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "level": {
+      "type": "string"
+    },
+    "merged_into": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "occurrences": {
+      "type": "integer"
+    },
+    "priority": {
+      "type": "string"
+    },
+    "resolved_in_release": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "issue_id",
+    "title",
+    "culprit",
+    "level",
+    "status",
+    "kind",
+    "error_type",
+    "first_seen",
+    "last_seen",
+    "occurrences",
+    "first_release",
+    "last_release",
+    "resolved_in_release",
+    "priority",
+    "assignee_id",
+    "github_url",
+    "merged_into"
+  ],
+  "title": "app_issues.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "issue_id",
+    "title",
+    "culprit",
+    "level",
+    "status",
+    "kind",
+    "error_type",
+    "first_seen",
+    "last_seen",
+    "occurrences",
+    "first_release",
+    "last_release",
+    "resolved_in_release",
+    "priority",
+    "assignee_id",
+    "github_url",
+    "merged_into"
+  ],
+  "x-supermetry-schema-version": 1
+}

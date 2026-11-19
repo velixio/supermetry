@@ -1,24 +1,24 @@
 import { Link, useRouterState } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { Building2Icon, ShieldCheckIcon, UserRoundIcon } from 'lucide-react'
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem,
+  SidebarMenuSubButton,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { useSidebarPrefs } from '@/lib/shellPrefs'
 import { useManaged } from '@/lib/instanceConfig'
 import type { Me } from '@/lib/me'
 import { en } from '@/messages/en'
 import { ui } from '@/messages/ui'
 
+import { useRovingNav } from './sidebar/roving'
+import { MenuEntry, MenuGroup, rowClass, subRowClass, type MenuRow } from './sidebar/menu'
 import { OrganizationMenuGroup, SidebarAccountFooter, SidebarBrandLink } from './Sidebar'
 
 export type AccountDestination = 'account' | 'admin'
@@ -41,54 +41,80 @@ export function accountDestinationIsActive(destination: AccountDestination, path
  */
 export function AccountSidebar({ me }: { me: Me }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const { setOpenMobile } = useSidebar()
+  const { setOpenMobile, setPeek } = useSidebar()
   const managed = useManaged()
+  const { prefs, setGroupOpen } = useSidebarPrefs(me.user.id)
   const closeMobile = () => setOpenMobile(false)
+  const nav = useRovingNav({ onRailExpand: () => setPeek(true) })
+
+  const entries: MenuRow[] = accountDestinations(me, managed).map((destination) => {
+    const active = accountDestinationIsActive(destination, pathname)
+    const label = destination === 'admin' ? en.admin.link : ui.menus.accountSettings
+    const href = destination === 'admin' ? '/app/admin/users' : '/app/account/profile'
+    const children: MenuRow[] = destination === 'admin' ? [] : accountSections.map((section) => {
+      const name = section.split('/').pop() ?? ''
+      const on = pathname === section || pathname.startsWith(`${section}/`)
+      return {
+        key: `account:${name}`,
+        label: ui.crumbs.segments[name] ?? name,
+        href: section,
+        active: on,
+        render: ({ label: text, id, kbd }) => (
+          <SidebarMenuSubButton asChild className={subRowClass} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={on}>
+            <Link aria-current={on ? 'page' : undefined} onClick={closeMobile} to={section as never}><span>{text}</span></Link>
+          </SidebarMenuSubButton>
+        ),
+      }
+    })
+    return {
+      key: `account:${destination}`,
+      label,
+      href,
+      active,
+      children,
+      render: ({ label: text, id, kbd }) => (
+        <SidebarMenuButton asChild className={rowClass} data-kbd={kbd || undefined} data-nav-item="" id={id} isActive={active} tooltip={label}>
+          <Link aria-current={active ? 'page' : undefined} onClick={closeMobile} to={href}>
+            {destination === 'admin' ? <ShieldCheckIcon /> : <UserRoundIcon />}
+            <span>{text}</span>
+          </Link>
+        </SidebarMenuButton>
+      ),
+    }
+  })
+  const activeKey = entries.find((entry) => entry.active)?.key
+  // Landing inside account settings opens its section list again if it was collapsed.
+  useEffect(() => {
+    if (activeKey && prefs.open[activeKey] === false) setGroupOpen(activeKey, true)
+    // Only a change of route should reopen it, not the user collapsing it afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey, pathname])
 
   return (
     <Sidebar aria-label={en.a11y2.applicationSidebar} collapsible="icon" role="complementary">
-      <SidebarHeader>
+      <SidebarHeader className="sticky top-0 z-10 h-12 flex-row items-center border-b bg-sidebar p-0 px-2">
         <SidebarBrandLink onClick={closeMobile} />
+      </SidebarHeader>
+      <div className="px-2 pt-2 pb-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="h-auto py-1.5 group-data-[collapsible=icon]:p-1.5!" tooltip={ui.sidebar.chooseOrganization}>
+            <SidebarMenuButton className="h-11 gap-2 px-2 text-sm font-medium md:h-9 hover:bg-accent/60 hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!" tooltip={ui.sidebar.chooseOrganization}>
               <Building2Icon aria-hidden="true" />
-              <span className="truncate">{ui.sidebar.chooseOrganization}</span>
+              <span className="truncate group-data-[collapsible=icon]:hidden">{ui.sidebar.chooseOrganization}</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-56">
             <OrganizationMenuGroup me={me} onSelect={closeMobile} />
           </DropdownMenuContent>
         </DropdownMenu>
-      </SidebarHeader>
-      <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
-        <SidebarGroup>
-          <SidebarGroupLabel asChild><h2 id="sidebar-account-heading">{ui.menus.account}</h2></SidebarGroupLabel>
-          <SidebarGroupContent>
-            <nav aria-labelledby="sidebar-account-heading">
-              <SidebarMenu>
-                {accountDestinations(me, managed).map((destination) => {
-                  const active = accountDestinationIsActive(destination, pathname)
-                  const label = destination === 'admin' ? en.admin.link : ui.menus.accountSettings
-                  return (
-                    <SidebarMenuItem key={destination}>
-                      <SidebarMenuButton asChild className="h-11 md:h-8" isActive={active} tooltip={label}>
-                        <Link
-                          aria-current={active ? 'page' : undefined}
-                          onClick={closeMobile}
-                          to={destination === 'admin' ? '/app/admin/users' : '/app/account/profile'}
-                        >
-                          {destination === 'admin' ? <ShieldCheckIcon /> : <UserRoundIcon />}
-                          <span>{label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </nav>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      </div>
+      <SidebarContent ref={nav.ref} className="gap-2 px-2 pt-1 group-data-[collapsible=icon]:overflow-auto" onFocus={nav.onFocus} onKeyDown={nav.onKeyDown}>
+        <MenuGroup fixed id="account" label={ui.menus.account} onToggle={() => undefined} open>
+          {entries.map((entry) => {
+            const open = prefs.open[entry.key] ?? entry.active
+            return <MenuEntry key={entry.key} cursor={null} entry={entry} onToggle={() => setGroupOpen(entry.key, !open)} open={open} query="" />
+          })}
+        </MenuGroup>
       </SidebarContent>
       <SidebarAccountFooter me={me} />
     </Sidebar>

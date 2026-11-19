@@ -9,6 +9,7 @@ import {
   TabletIcon,
 } from 'lucide-react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { PageContainer } from '@/components/PageContainer'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorState } from '@/components/ErrorState'
@@ -74,7 +75,7 @@ function RankedList({ items, empty = 'No activity yet.' }: { items: RankedItem[]
     <ol className="flex flex-col gap-1">
       {items.slice(0, 10).map((item, index) => (
         <li className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md px-2 py-1.5 text-sm" key={`${item.label}:${index}`}>
-          <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-primary/10 dark:bg-primary/15" style={{ width: `${Math.max(2, (item.value / maximum) * 100)}%` }} />
+          <span aria-hidden="true" className="absolute inset-y-1 left-0 min-w-1.5 rounded-sm bg-chart-1/10 dark:bg-chart-1/15" style={{ width: `${Math.max(2, (item.value / maximum) * 100)}%` }} />
           <span className="relative flex min-w-0 items-center gap-2 truncate" title={item.label}>
             {item.countryCode ? <Flag code={item.countryCode} /> : null}
             <span className="truncate">{item.label}</span>
@@ -228,12 +229,12 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
     : chartInterval === 'hour'
       ? {
           title: 'Visitors per hour',
-          description: 'Today in the site’s timezone.',
+          description: 'Today in the project’s timezone.',
           label: 'Visitors per hour today',
         }
       : {
           title: 'Visitors per day',
-          description: 'The last 30 days in the site’s timezone.',
+          description: 'The last 30 days in the project’s timezone.',
           label: 'Visitors per day during the last 30 days',
         }
   const chartPending = chartInterval !== 'minute' && historical.isPending
@@ -244,18 +245,17 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
       <PageHeader title="Realtime" description="A live view of the last 30 minutes. Updates every 5 seconds." />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(17rem,0.9fr)_minmax(0,2fr)]">
-        <Card className="overflow-hidden border-primary/30 bg-primary/[0.03]" data-testid="live-visitors-card">
+        <Card className="overflow-hidden bg-primary/[0.03]" data-testid="live-visitors-card">
           <CardHeader className="sr-only">
-            <CardTitle>Live visitors</CardTitle>
-            <CardDescription>Visitor counts from the last 5 and 30 minutes.</CardDescription>
+            <CardTitle>Live visitors <InfoTip label="About live visitors">Visitor counts from the last 5 and 30 minutes.</InfoTip></CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
               <section className="flex flex-col gap-2" aria-labelledby="live-now-title" aria-describedby="live-now-note">
                 <h2 className="flex items-center gap-2 text-sm font-medium" id="live-now-title">
                   <span className="relative flex size-2" aria-hidden="true">
-                    <span className="absolute inline-flex size-full rounded-full bg-primary opacity-50 motion-safe:animate-ping" />
-                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                    <span className="absolute inline-flex size-full rounded-full bg-chart-1 opacity-50 motion-safe:animate-ping" />
+                    <span className="relative inline-flex size-2 rounded-full bg-chart-1" />
                   </span>
                   Live now
                 </h2>
@@ -287,16 +287,16 @@ export function RealtimePage({ siteId, dateRange, timezone }: RealtimePageProps)
               type="single"
               value={chartInterval}
             >
-              <ToggleGroupItem aria-label="Minute" className="h-11 px-3" value="minute">Minute</ToggleGroupItem>
-              <ToggleGroupItem aria-label="Hour" className="h-11 px-3" value="hour">Hour</ToggleGroupItem>
-              <ToggleGroupItem aria-label="Day" className="h-11 px-3" value="day">Day</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Minute" className="max-sm:h-11 px-3" value="minute">Minute</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Hour" className="max-sm:h-11 px-3" value="hour">Hour</ToggleGroupItem>
+              <ToggleGroupItem aria-label="Day" className="max-sm:h-11 px-3" value="day">Day</ToggleGroupItem>
             </ToggleGroup>
           </CardHeader>
           <CardContent>
             {chartPending ? <Skeleton aria-label={`Loading ${chartCopy.title.toLowerCase()}`} className="h-44 w-full" /> : null}
             {chartError ? <ErrorState detail={historical.error?.detail} onRetry={() => void historical.refetch()} /> : null}
             {!chartPending && !chartError && chartPoints.every((point) => point.visitors === 0) ? (
-              <p className="flex h-44 w-full items-center justify-center rounded-md border border-dashed px-4 text-center text-sm text-muted-foreground" data-testid="realtime-empty">
+              <p className="flex h-44 w-full items-center justify-center rounded-md bg-muted/50 px-4 text-center text-sm text-muted-foreground" data-testid="realtime-empty">
                 {en.uiFix.realtimeEmpty}
               </p>
             ) : null}

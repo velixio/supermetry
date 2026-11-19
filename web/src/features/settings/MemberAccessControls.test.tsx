@@ -25,7 +25,7 @@ describe('member access controls', () => {
         onChange={onChange}
       />,
     )
-    fireEvent.change(screen.getByLabelText('Site access'), {
+    fireEvent.change(screen.getByLabelText('Project access'), {
       target: { value: 'none' },
     })
     expect(onChange).toHaveBeenLastCalledWith({ site_ids: [] })
@@ -38,7 +38,7 @@ describe('member access controls', () => {
       />,
     )
     expect(screen.getByText(/No project data access/)).toBeVisible()
-    fireEvent.change(screen.getByLabelText('Site access'), {
+    fireEvent.change(screen.getByLabelText('Project access'), {
       target: { value: 'all' },
     })
     expect(onChange).toHaveBeenLastCalledWith({ site_ids: null })
@@ -100,7 +100,7 @@ describe('member access controls', () => {
       />,
     )
     expect(screen.queryByText(/billing/i)).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Site access')).toHaveValue('none')
+    expect(screen.getByLabelText('Project access')).toHaveValue('none')
     for (const name of [/Read profiles/, /Watch replays/, /Export data/])
       expect(screen.getByRole('checkbox', { name })).not.toBeChecked()
   })

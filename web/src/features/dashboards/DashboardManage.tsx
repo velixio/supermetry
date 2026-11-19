@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { PencilIcon, PlusIcon } from 'lucide-react'
+import { PencilIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -20,11 +20,13 @@ type DashboardManageProps = {
   editing: boolean
   onEdit: (id: number) => void
   onNew: (template: TemplateKey) => void
+  /** The new-dashboard dialog is opened from the dashboard switcher, so its state lives with the page. */
+  newOpen: boolean
+  onNewOpenChange: (open: boolean) => void
 }
 
-/** Entry points to the editor: edit the dashboard on screen, or start a new one from a template. */
-export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew }: DashboardManageProps) {
-  const [open, setOpen] = useState(false)
+/** Entry points to the editor: edit the dashboard on screen; the new-from-template dialog opens from the switcher. */
+export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew, newOpen: open, onNewOpenChange: setOpen }: DashboardManageProps) {
   const [template, setTemplate] = useState<TemplateKey>('standard')
   if (!canWrite || editing) return null
 
@@ -37,13 +39,10 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew }:
   return (
     <div className="flex flex-wrap items-center gap-2">
       {currentId !== undefined ? (
-        <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={() => onEdit(currentId)}>
+        <Button className="max-sm:min-h-11" size="sm" type="button" variant="ghost" onClick={() => onEdit(currentId)}>
           <PencilIcon />{t.edit}
         </Button>
       ) : null}
-      <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={() => setOpen(true)}>
-        <PlusIcon />{t.newDashboard}
-      </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -54,7 +53,7 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew }:
             <Field>
               <FieldLabel htmlFor="dash-new-template">{t.templateLabel}</FieldLabel>
               <Select value={template} onValueChange={(value) => setTemplate(value as TemplateKey)}>
-                <SelectTrigger className="min-h-11 w-full sm:min-h-9" id="dash-new-template"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="max-sm:min-h-11 w-full sm:min-h-9" id="dash-new-template"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     {templateKeys.map((key) => <SelectItem key={key} value={key}>{t.templates[key]}</SelectItem>)}
@@ -64,8 +63,8 @@ export function DashboardManage({ canWrite, currentId, editing, onEdit, onNew }:
               <FieldDescription>{t.templateNotes[template]}</FieldDescription>
             </Field>
             <DialogFooter className="gap-2">
-              <Button className="min-h-11 sm:min-h-9" type="button" variant="outline" onClick={() => setOpen(false)}>{t.cancel}</Button>
-              <Button className="min-h-11 sm:min-h-9" type="submit">{t.start}</Button>
+              <Button className="max-sm:min-h-11" type="button" variant="outline" onClick={() => setOpen(false)}>{t.cancel}</Button>
+              <Button className="max-sm:min-h-11" type="submit">{t.start}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

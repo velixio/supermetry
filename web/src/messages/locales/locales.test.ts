@@ -7,6 +7,7 @@ import { ui } from '@/messages/ui'
 import { uiAccount } from '@/messages/uiAccount'
 import { uiFlows } from '@/messages/uiFlows'
 import { uiAlerts } from '@/messages/uiAlerts'
+import { contextPanel } from '@/messages/contextPanel'
 import de from './de'
 import deDashEdit from './de.dashEdit'
 import es from './es'
@@ -25,6 +26,9 @@ import bnUiFlows from './bn.uiFlows'
 import esUiAlerts from './es.uiAlerts'
 import deUiAlerts from './de.uiAlerts'
 import bnUiAlerts from './bn.uiAlerts'
+import esContextPanel from './es.contextPanel'
+import deContextPanel from './de.contextPanel'
+import bnContextPanel from './bn.contextPanel'
 
 const english = en as unknown as MessageTree
 const englishDashEdit = dashEdit as unknown as MessageTree
@@ -32,12 +36,13 @@ const englishUi = ui as unknown as MessageTree
 const englishUiAccount = uiAccount as unknown as MessageTree
 const englishUiFlows = uiFlows as unknown as MessageTree
 const englishUiAlerts = uiAlerts as unknown as MessageTree
+const englishContextPanel = contextPanel as unknown as MessageTree
 
 describe.each([
-  ['es', es, esDashEdit, esUi, esUiAccount, esUiFlows, esUiAlerts],
-  ['de', de, deDashEdit, deUi, deUiAccount, deUiFlows, deUiAlerts],
-  ['bn', bn, bnDashEdit, bnUi, bnUiAccount, bnUiFlows, bnUiAlerts],
-] as const)('%s catalogue', (_code, main, editor, uiTree, accountTree, flowsTree, alertsTree) => {
+  ['es', es, esDashEdit, esUi, esUiAccount, esUiFlows, esUiAlerts, esContextPanel],
+  ['de', de, deDashEdit, deUi, deUiAccount, deUiFlows, deUiAlerts, deContextPanel],
+  ['bn', bn, bnDashEdit, bnUi, bnUiAccount, bnUiFlows, bnUiAlerts, bnContextPanel],
+] as const)('%s catalogue', (_code, main, editor, uiTree, accountTree, flowsTree, alertsTree, panelTree) => {
   it('has every English key, no extras, and matching placeholders and function arguments', () => {
     expect(compareCatalogue(english, main)).toEqual([])
   })
@@ -51,6 +56,7 @@ describe.each([
     expect(compareCatalogue(englishUiAccount, accountTree)).toEqual([])
     expect(compareCatalogue(englishUiFlows, flowsTree)).toEqual([])
     expect(compareCatalogue(englishUiAlerts, alertsTree)).toEqual([])
+    expect(compareCatalogue(englishContextPanel, panelTree)).toEqual([])
   })
 
   it('translates rather than copying English for most strings', () => {

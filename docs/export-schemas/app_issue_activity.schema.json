@@ -1,0 +1,51 @@
+{
+  "$id": "https://supermetry.com/schemas/export/v1/app_issue_activity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Issue timeline entries (status changes, assignments).",
+  "properties": {
+    "activity_id": {
+      "type": "integer"
+    },
+    "actor_id": {
+      "description": "An empty CSV cell is null.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "data": {
+      "description": "A JSON document stored as text.",
+      "type": "string"
+    },
+    "issue_id": {
+      "type": "integer"
+    },
+    "kind": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "activity_id",
+    "issue_id",
+    "at",
+    "kind",
+    "actor_id",
+    "data"
+  ],
+  "title": "app_issue_activity.csv",
+  "type": "object",
+  "x-supermetry-columns": [
+    "activity_id",
+    "issue_id",
+    "at",
+    "kind",
+    "actor_id",
+    "data"
+  ],
+  "x-supermetry-schema-version": 1
+}

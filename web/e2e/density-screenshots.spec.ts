@@ -14,7 +14,7 @@ test('captures the dashboard, site settings and admin users at desktop and phone
   mkdirSync(directory, { recursive: true })
   const pages = [
     ['dashboard', `/app/${owner.orgSlug}/${owner.siteSlug}?period=custom&from=2026-09-28&to=2026-09-30`, 'Dashboard'],
-    ['site-settings', `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`, 'Site settings'],
+    ['site-settings', `/app/${owner.orgSlug}/${owner.siteSlug}/settings/general`, 'Project settings'],
     ['admin-users', '/app/admin/users', 'Users'],
   ] as const
   await owner.login(page, pages[0][1])

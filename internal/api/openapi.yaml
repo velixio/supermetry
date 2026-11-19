@@ -451,6 +451,141 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /api/private/orgs/{org}/export-schedules:
+    get:
+      operationId: orgListExportSchedules
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      summary: List scheduled exports to S3-compatible storage
+      description: Owners and admins only. The secret is never returned; secret_set says whether one is stored. Sensitive; the step-up re-authentication check applies when enabled.
+      responses:
+        '200': { description: Schedules., content: { application/json: { schema: { type: object, required: [schedules], properties: { schedules: { type: array, items: { $ref: '#/components/schemas/ExportSchedule' } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: orgCreateExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      summary: Create a scheduled export
+      description: site_id omitted exports every site of the organization. Endpoints on private or loopback addresses, and plain http, are refused unless the operator sets SUPERMETRY_ALLOW_PRIVATE_EXPORT_ENDPOINTS. First run is at the next 03:00 UTC window; days are the site's closed days.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportScheduleInput' }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/ExportSchedule' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}:
+    patch:
+      operationId: orgUpdateExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Change a scheduled export
+      description: Omitted fields are kept. An empty or omitted secret keeps the stored secret.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportSchedulePatch' }
+      responses:
+        '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/ExportSchedule' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: orgDeleteExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Delete a scheduled export and its history
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}/run:
+    post:
+      operationId: orgRunExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Queue a run now
+      description: The scheduler starts it within a minute. Enabled schedules only.
+      responses:
+        '202': { description: Queued., content: { application/json: { schema: { type: object, properties: { status: { type: string } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}/test:
+    post:
+      operationId: orgTestExportSchedule
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      summary: Check the destination by writing and deleting a small object
+      responses:
+        '200': { description: Result; ok false carries the error text., content: { application/json: { schema: { type: object, required: [ok], properties: { ok: { type: boolean }, error: { type: string } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/export-schedules/{schedule}/runs:
+    get:
+      operationId: orgListExportRuns
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: schedule, in: path, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      summary: Run history, newest first
+      responses:
+        '200': { description: Runs., content: { application/json: { schema: { type: object, required: [runs], properties: { runs: { type: array, items: { $ref: '#/components/schemas/ExportRun' } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/settings-export:
+    get:
+      operationId: orgExportSettings
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrgPathID' }]
+      summary: Download the organization's settings as a JSON bundle
+      description: Sites, goals, funnels, segments, supported alerts, share-link settings and member emails with roles. No secrets, tokens or channel configuration. Owners and admins only; audited. Sensitive.
+      responses:
+        '200': { description: The bundle (attachment)., content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/private/orgs/{org}/settings-import:
+    post:
+      operationId: orgImportSettings
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrgPathID' }
+        - { name: dry_run, in: query, schema: { type: boolean }, description: Report what would happen and write nothing. }
+        - { name: invite_members, in: query, schema: { type: boolean }, description: Invite the bundle's members (never owners). Off by default. }
+      summary: Recreate a settings bundle in this organization
+      description: Sites that already exist (same slug, or same name and kind) are left unchanged. Share links and alert rules are never recreated; alerts whose channel is missing arrive disabled. Body up to 8 MiB. Owners and admins only. Sensitive.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Import report., content: { application/json: { schema: { $ref: '#/components/schemas/SettingsImportReport' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/private/orgs/{org}/github-stars/repos:
     get:
       operationId: orgListGitHubStarsRepos
@@ -4285,7 +4420,7 @@ paths:
     post:
       operationId: createApiKey
       summary: Create a narrower API key
-      description: Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated.
+      description: Requires keys:manage. Scopes, site access, and expiry cannot exceed the caller key; keys:manage itself cannot be delegated. Without an expiry field the key expires after 90 days (clamped to the caller key's own expiry); send never_expires only to create a key that does not expire.
       requestBody:
         required: true
         content:
@@ -4312,6 +4447,52 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/public/v1/api-keys/{key_id}/roll:
+    parameters:
+      - name: key_id
+        in: path
+        required: true
+        schema: { type: integer, format: int64, minimum: 1 }
+    post:
+      operationId: rollApiKey
+      summary: Roll an API key
+      description: >-
+        Requires keys:manage. Creates a successor with the same name, scopes, site access and expiry policy,
+        and lets the old key keep working for grace_hours (default 24). The caller needs authority over the
+        key being rolled: a key cannot roll a key with broader scopes or sites, nor a keys:manage key.
+        The successor never outlives the caller key.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollAPIKeyRequest'
+      responses:
+        '201':
+          description: Successor created; its secret is returned only in this response.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolledAPIKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -5296,6 +5477,103 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    ExportSchedule:
+      type: object
+      required: [id, org_id, site_id, name, frequency, incremental, enabled, endpoint, region, bucket, prefix, access_key_id, secret_set, path_style, next_run_at, last_run_at, last_status, last_error, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        org_id: { type: integer, format: int64 }
+        site_id: { type: [integer, 'null'], format: int32, description: Null means every site of the organization. }
+        name: { type: string }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        incremental: { type: boolean, description: After the first full export only new days are written. }
+        enabled: { type: boolean }
+        endpoint: { type: string }
+        region: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        access_key_id: { type: string }
+        secret_set: { type: boolean }
+        path_style: { type: boolean }
+        next_run_at: { type: string, format: date-time }
+        last_run_at: { type: [string, 'null'], format: date-time }
+        last_status: { type: [string, 'null'], enum: [succeeded, failed, skipped, null] }
+        last_error: { type: string }
+        created_at: { type: string, format: date-time }
+    ExportScheduleInput:
+      type: object
+      required: [name, frequency, endpoint, region, bucket, access_key_id, secret]
+      properties:
+        name: { type: string, maxLength: 80 }
+        site_id: { type: [integer, 'null'], format: int32 }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        incremental: { type: boolean, description: Defaults to true. }
+        endpoint: { type: string, description: 'Bare https://host[:port], no path.' }
+        region: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        access_key_id: { type: string }
+        secret: { type: string, writeOnly: true }
+        path_style: { type: boolean }
+    ExportSchedulePatch:
+      type: object
+      properties:
+        name: { type: string }
+        frequency: { type: string, enum: [daily, weekly, monthly] }
+        incremental: { type: boolean }
+        enabled: { type: boolean }
+        endpoint: { type: string }
+        region: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        access_key_id: { type: string }
+        secret: { type: string, writeOnly: true }
+        path_style: { type: boolean }
+    ExportRun:
+      type: object
+      required: [id, schedule_id, site_id, started_at, finished_at, status, from_day, to_day, bytes, object_key, error]
+      properties:
+        id: { type: integer, format: int64 }
+        schedule_id: { type: integer, format: int64 }
+        site_id: { type: [integer, 'null'], format: int32 }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
+        status: { type: string, enum: [running, succeeded, failed, skipped] }
+        from_day: { type: [string, 'null'], format: date }
+        to_day: { type: [string, 'null'], format: date }
+        bytes: { type: integer, format: int64 }
+        object_key: { type: string }
+        error: { type: string }
+    SettingsImportReport:
+      type: object
+      required: [dry_run, sites, members, warnings]
+      properties:
+        dry_run: { type: boolean }
+        sites:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              slug: { type: string }
+              action: { type: string, enum: [create, created, skip_exists, failed] }
+              goals: { type: integer }
+              funnels: { type: integer }
+              segments: { type: integer }
+              alerts: { type: integer }
+              alerts_disabled: { type: integer }
+              share_links_not_recreated: { type: integer }
+              error: { type: string }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: string }
+              role: { type: string }
+              action: { type: string, enum: [listed_only, would_invite, invited, already_member, not_invited, failed] }
+              note: { type: string }
+        warnings: { type: array, items: { type: string } }
     AppSettings:
       type: object
       properties:
@@ -6371,6 +6649,7 @@ components:
         landing_page: { type: string, enum: [overview, last_site] }
         sites_view: { type: string, enum: [cards, table] }
         last_site_id: { type: [integer, 'null'], format: int32 }
+        summary_collapsed: { type: boolean, description: 'True hides the plain-language summary above the dashboard metrics; absent or false shows it.' }
         locale: { type: string, enum: ['', en, es, de, bn, en-XA], description: 'Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.' }
     UpdateCurrentUserRequest:
       type: object
@@ -6386,6 +6665,7 @@ components:
             landing_page: { type: string, enum: [overview, last_site] }
             sites_view: { type: string, enum: [cards, table] }
             last_site_id: { type: [integer, 'null'], format: int32 }
+            summary_collapsed: { type: boolean }
             locale: { type: string, enum: ['', en, es, de, bn, en-XA], description: 'Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.' }
     SitesOverviewResponse:
       type: object
@@ -6400,7 +6680,7 @@ components:
     SitesOverviewItem:
       type: object
       additionalProperties: false
-      required: [id, org_id, public_id, slug, name, domain, timezone, organization, role, created_at, visitors, previous_visitors, change_percent, sparkline, live_visitors, last_event_at, install_status, tracking_snippet]
+      required: [id, org_id, public_id, slug, name, domain, timezone, organization, role, created_at, visitors, previous_visitors, change_percent, sparkline, live_visitors, last_event_at, install_status, tracking_snippet, highlights]
       properties:
         id: { type: integer, format: int32 }
         org_id: { type: integer, format: int64 }
@@ -6440,6 +6720,24 @@ components:
           type: string
           description: Tracking state (waiting, receiving, or quiet).
         tracking_snippet: { type: string }
+        highlights:
+          type: array
+          maxItems: 3
+          description: Up to three typed facts for the project status line, in priority order. The client words them.
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind]
+            properties:
+              kind:
+                type: string
+                enum: [quiet, new_issues, crash_free_drop, visitors_change, top_source, steady]
+              percent: { type: number, format: double, description: "visitors_change: signed percent change against the previous period." }
+              name: { type: string, description: "top_source: the source name." }
+              share: { type: number, format: double, description: "top_source: share of visitors, 0 to 1." }
+              count: { type: integer, format: int64, description: "new_issues: issues first seen in the period." }
+              hours: { type: integer, format: int64, description: "quiet: whole hours since the last event." }
+              points: { type: number, format: double, description: "crash_free_drop: percentage points lost." }
     ShareExpiryDays:
       type: integer
       enum: [7, 30, 90, 365]
@@ -6562,7 +6860,7 @@ components:
     APIKey:
       type: object
       additionalProperties: false
-      required: [id, name, scopes, site_ids, created_at, expires_at, last_used_at, revoked]
+      required: [id, name, scopes, site_ids, created_at, expires_at, last_used_at, last_used_country, last_used_client, revoked, never_expires, expiring_soon]
       properties:
         id: { type: integer, format: int64 }
         name: { type: string }
@@ -6576,7 +6874,16 @@ components:
         created_at: { type: string, format: date-time }
         expires_at: { type: [string, 'null'], format: date-time }
         last_used_at: { type: [string, 'null'], format: date-time }
+        last_used_country:
+          type: [string, 'null']
+          description: Two-letter country of the last request, from the local GeoIP database. The IP address is never stored.
+        last_used_client:
+          type: [string, 'null']
+          enum: [mcp, curl, sdk-js, sdk-python, browser, other, null]
+          description: Coarse client family of the last request. The raw User-Agent is never stored.
         revoked: { type: boolean }
+        never_expires: { type: boolean, description: True when expires_at is null. }
+        expiring_soon: { type: boolean, description: True for a live key that expires within 14 days. }
     APIKeyList:
       type: object
       additionalProperties: false
@@ -6598,16 +6905,46 @@ components:
         site_ids:
           type: array
           items: { type: integer, format: int32 }
-        expires_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time, description: Explicit expiry. Choose at most one of expires_at, expires_in_days and never_expires. }
+        expires_in_days:
+          type: integer
+          minimum: 1
+          maximum: 3650
+          description: Expire this many days from now.
+        never_expires:
+          type: boolean
+          description: Create a key without an expiry. When none of the three expiry fields is sent, the key expires after 90 days.
     CreatedAPIKey:
       type: object
       additionalProperties: false
-      required: [id, key]
+      required: [id, key, expires_at]
       properties:
         id: { type: integer, format: int64 }
         key:
           type: string
           description: The secret value. It is shown once and cannot be retrieved later.
+        expires_at: { type: [string, 'null'], format: date-time }
+    RollAPIKeyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        grace_hours:
+          type: integer
+          enum: [0, 1, 24, 168]
+          default: 24
+          description: How long the old key keeps working after the roll. 0 ends it immediately.
+    RolledAPIKey:
+      type: object
+      additionalProperties: false
+      required: [id, key, expires_at, old_key_id, old_key_expires_at]
+      properties:
+        id: { type: integer, format: int64 }
+        key:
+          type: string
+          description: The successor's secret. It is shown once and cannot be retrieved later.
+        expires_at: { type: [string, 'null'], format: date-time }
+        old_key_id: { type: integer, format: int64 }
+        old_key_expires_at: { type: string, format: date-time }
     MCPMessage:
       oneOf:
         - $ref: '#/components/schemas/MCPRequest'

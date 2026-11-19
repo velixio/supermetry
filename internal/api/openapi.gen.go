@@ -16,6 +16,39 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for APIKeyLastUsedClient.
+const (
+	APIKeyLastUsedClientBrowser     APIKeyLastUsedClient = "browser"
+	APIKeyLastUsedClientCurl        APIKeyLastUsedClient = "curl"
+	APIKeyLastUsedClientLessThannil APIKeyLastUsedClient = "<nil>"
+	APIKeyLastUsedClientMcp         APIKeyLastUsedClient = "mcp"
+	APIKeyLastUsedClientOther       APIKeyLastUsedClient = "other"
+	APIKeyLastUsedClientSdkJs       APIKeyLastUsedClient = "sdk-js"
+	APIKeyLastUsedClientSdkPython   APIKeyLastUsedClient = "sdk-python"
+)
+
+// Valid indicates whether the value is a known member of the APIKeyLastUsedClient enum.
+func (e APIKeyLastUsedClient) Valid() bool {
+	switch e {
+	case APIKeyLastUsedClientBrowser:
+		return true
+	case APIKeyLastUsedClientCurl:
+		return true
+	case APIKeyLastUsedClientLessThannil:
+		return true
+	case APIKeyLastUsedClientMcp:
+		return true
+	case APIKeyLastUsedClientOther:
+		return true
+	case APIKeyLastUsedClientSdkJs:
+		return true
+	case APIKeyLastUsedClientSdkPython:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminDeleteUserLastOwnerError.
 const (
 	LastOwner AdminDeleteUserLastOwnerError = "last_owner"
@@ -1090,6 +1123,117 @@ func (e EventPayloadV) Valid() bool {
 	}
 }
 
+// Defines values for ExportRunStatus.
+const (
+	ExportRunStatusFailed    ExportRunStatus = "failed"
+	ExportRunStatusRunning   ExportRunStatus = "running"
+	ExportRunStatusSkipped   ExportRunStatus = "skipped"
+	ExportRunStatusSucceeded ExportRunStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the ExportRunStatus enum.
+func (e ExportRunStatus) Valid() bool {
+	switch e {
+	case ExportRunStatusFailed:
+		return true
+	case ExportRunStatusRunning:
+		return true
+	case ExportRunStatusSkipped:
+		return true
+	case ExportRunStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportScheduleFrequency.
+const (
+	ExportScheduleFrequencyDaily   ExportScheduleFrequency = "daily"
+	ExportScheduleFrequencyMonthly ExportScheduleFrequency = "monthly"
+	ExportScheduleFrequencyWeekly  ExportScheduleFrequency = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the ExportScheduleFrequency enum.
+func (e ExportScheduleFrequency) Valid() bool {
+	switch e {
+	case ExportScheduleFrequencyDaily:
+		return true
+	case ExportScheduleFrequencyMonthly:
+		return true
+	case ExportScheduleFrequencyWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportScheduleLastStatus.
+const (
+	ExportScheduleLastStatusFailed      ExportScheduleLastStatus = "failed"
+	ExportScheduleLastStatusLessThannil ExportScheduleLastStatus = "<nil>"
+	ExportScheduleLastStatusSkipped     ExportScheduleLastStatus = "skipped"
+	ExportScheduleLastStatusSucceeded   ExportScheduleLastStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the ExportScheduleLastStatus enum.
+func (e ExportScheduleLastStatus) Valid() bool {
+	switch e {
+	case ExportScheduleLastStatusFailed:
+		return true
+	case ExportScheduleLastStatusLessThannil:
+		return true
+	case ExportScheduleLastStatusSkipped:
+		return true
+	case ExportScheduleLastStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportScheduleInputFrequency.
+const (
+	ExportScheduleInputFrequencyDaily   ExportScheduleInputFrequency = "daily"
+	ExportScheduleInputFrequencyMonthly ExportScheduleInputFrequency = "monthly"
+	ExportScheduleInputFrequencyWeekly  ExportScheduleInputFrequency = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the ExportScheduleInputFrequency enum.
+func (e ExportScheduleInputFrequency) Valid() bool {
+	switch e {
+	case ExportScheduleInputFrequencyDaily:
+		return true
+	case ExportScheduleInputFrequencyMonthly:
+		return true
+	case ExportScheduleInputFrequencyWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportSchedulePatchFrequency.
+const (
+	ExportSchedulePatchFrequencyDaily   ExportSchedulePatchFrequency = "daily"
+	ExportSchedulePatchFrequencyMonthly ExportSchedulePatchFrequency = "monthly"
+	ExportSchedulePatchFrequencyWeekly  ExportSchedulePatchFrequency = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the ExportSchedulePatchFrequency enum.
+func (e ExportSchedulePatchFrequency) Valid() bool {
+	switch e {
+	case ExportSchedulePatchFrequencyDaily:
+		return true
+	case ExportSchedulePatchFrequencyMonthly:
+		return true
+	case ExportSchedulePatchFrequencyWeekly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterOperator.
 const (
 	Contains   FilterOperator = "contains"
@@ -1888,6 +2032,30 @@ func (e RetentionResponseRetentionMode) Valid() bool {
 	}
 }
 
+// Defines values for RollAPIKeyRequestGraceHours.
+const (
+	RollAPIKeyRequestGraceHoursN0   RollAPIKeyRequestGraceHours = 0
+	RollAPIKeyRequestGraceHoursN1   RollAPIKeyRequestGraceHours = 1
+	RollAPIKeyRequestGraceHoursN168 RollAPIKeyRequestGraceHours = 168
+	RollAPIKeyRequestGraceHoursN24  RollAPIKeyRequestGraceHours = 24
+)
+
+// Valid indicates whether the value is a known member of the RollAPIKeyRequestGraceHours enum.
+func (e RollAPIKeyRequestGraceHours) Valid() bool {
+	switch e {
+	case RollAPIKeyRequestGraceHoursN0:
+		return true
+	case RollAPIKeyRequestGraceHoursN1:
+		return true
+	case RollAPIKeyRequestGraceHoursN168:
+		return true
+	case RollAPIKeyRequestGraceHoursN24:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchConsoleTopDimension.
 const (
 	SearchConsoleTopDimensionPage  SearchConsoleTopDimension = "page"
@@ -1918,6 +2086,60 @@ func (e SessionTimelineItemKind) Valid() bool {
 	case SessionEvent:
 		return true
 	case SessionPageview:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingsImportReportMembersAction.
+const (
+	SettingsImportReportMembersActionAlreadyMember SettingsImportReportMembersAction = "already_member"
+	SettingsImportReportMembersActionFailed        SettingsImportReportMembersAction = "failed"
+	SettingsImportReportMembersActionInvited       SettingsImportReportMembersAction = "invited"
+	SettingsImportReportMembersActionListedOnly    SettingsImportReportMembersAction = "listed_only"
+	SettingsImportReportMembersActionNotInvited    SettingsImportReportMembersAction = "not_invited"
+	SettingsImportReportMembersActionWouldInvite   SettingsImportReportMembersAction = "would_invite"
+)
+
+// Valid indicates whether the value is a known member of the SettingsImportReportMembersAction enum.
+func (e SettingsImportReportMembersAction) Valid() bool {
+	switch e {
+	case SettingsImportReportMembersActionAlreadyMember:
+		return true
+	case SettingsImportReportMembersActionFailed:
+		return true
+	case SettingsImportReportMembersActionInvited:
+		return true
+	case SettingsImportReportMembersActionListedOnly:
+		return true
+	case SettingsImportReportMembersActionNotInvited:
+		return true
+	case SettingsImportReportMembersActionWouldInvite:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingsImportReportSitesAction.
+const (
+	SettingsImportReportSitesActionCreate     SettingsImportReportSitesAction = "create"
+	SettingsImportReportSitesActionCreated    SettingsImportReportSitesAction = "created"
+	SettingsImportReportSitesActionFailed     SettingsImportReportSitesAction = "failed"
+	SettingsImportReportSitesActionSkipExists SettingsImportReportSitesAction = "skip_exists"
+)
+
+// Valid indicates whether the value is a known member of the SettingsImportReportSitesAction enum.
+func (e SettingsImportReportSitesAction) Valid() bool {
+	switch e {
+	case SettingsImportReportSitesActionCreate:
+		return true
+	case SettingsImportReportSitesActionCreated:
+		return true
+	case SettingsImportReportSitesActionFailed:
+		return true
+	case SettingsImportReportSitesActionSkipExists:
 		return true
 	default:
 		return false
@@ -2083,6 +2305,36 @@ func (e SiteRevenueCurrencyState) Valid() bool {
 	case SiteRevenueCurrencyConflict:
 		return true
 	case SiteRevenueCurrencyUnconfigured:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SitesOverviewItemHighlightsKind.
+const (
+	SitesOverviewItemHighlightsKindCrashFreeDrop  SitesOverviewItemHighlightsKind = "crash_free_drop"
+	SitesOverviewItemHighlightsKindNewIssues      SitesOverviewItemHighlightsKind = "new_issues"
+	SitesOverviewItemHighlightsKindQuiet          SitesOverviewItemHighlightsKind = "quiet"
+	SitesOverviewItemHighlightsKindSteady         SitesOverviewItemHighlightsKind = "steady"
+	SitesOverviewItemHighlightsKindTopSource      SitesOverviewItemHighlightsKind = "top_source"
+	SitesOverviewItemHighlightsKindVisitorsChange SitesOverviewItemHighlightsKind = "visitors_change"
+)
+
+// Valid indicates whether the value is a known member of the SitesOverviewItemHighlightsKind enum.
+func (e SitesOverviewItemHighlightsKind) Valid() bool {
+	switch e {
+	case SitesOverviewItemHighlightsKindCrashFreeDrop:
+		return true
+	case SitesOverviewItemHighlightsKindNewIssues:
+		return true
+	case SitesOverviewItemHighlightsKindQuiet:
+		return true
+	case SitesOverviewItemHighlightsKindSteady:
+		return true
+	case SitesOverviewItemHighlightsKindTopSource:
+		return true
+	case SitesOverviewItemHighlightsKindVisitorsChange:
 		return true
 	default:
 		return false
@@ -2559,17 +2811,32 @@ func (e TrackingPixelParamsStyle) Valid() bool {
 
 // APIKey defines model for APIKey.
 type APIKey struct {
-	CreatedAt  time.Time  `json:"created_at"`
-	ExpiresAt  *time.Time `json:"expires_at"`
-	Id         int64      `json:"id"`
-	LastUsedAt *time.Time `json:"last_used_at"`
-	Name       string     `json:"name"`
-	Revoked    bool       `json:"revoked"`
-	Scopes     []string   `json:"scopes"`
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at"`
+
+	// ExpiringSoon True for a live key that expires within 14 days.
+	ExpiringSoon bool       `json:"expiring_soon"`
+	Id           int64      `json:"id"`
+	LastUsedAt   *time.Time `json:"last_used_at"`
+
+	// LastUsedClient Coarse client family of the last request. The raw User-Agent is never stored.
+	LastUsedClient *APIKeyLastUsedClient `json:"last_used_client"`
+
+	// LastUsedCountry Two-letter country of the last request, from the local GeoIP database. The IP address is never stored.
+	LastUsedCountry *string `json:"last_used_country"`
+	Name            string  `json:"name"`
+
+	// NeverExpires True when expires_at is null.
+	NeverExpires bool     `json:"never_expires"`
+	Revoked      bool     `json:"revoked"`
+	Scopes       []string `json:"scopes"`
 
 	// SiteIds Null grants every site in the organization; an empty array grants none.
 	SiteIds *[]int32 `json:"site_ids"`
 }
+
+// APIKeyLastUsedClient Coarse client family of the last request. The raw User-Agent is never stored.
+type APIKeyLastUsedClient string
 
 // APIKeyList defines model for APIKeyList.
 type APIKeyList struct {
@@ -4166,10 +4433,17 @@ type ComparisonResult struct {
 
 // CreateAPIKeyRequest defines model for CreateAPIKeyRequest.
 type CreateAPIKeyRequest struct {
+	// ExpiresAt Explicit expiry. Choose at most one of expires_at
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-	Name      string     `json:"name"`
-	Scopes    []string   `json:"scopes"`
-	SiteIds   *[]int32   `json:"site_ids,omitempty"`
+
+	// ExpiresInDays Expire this many days from now.
+	ExpiresInDays *int   `json:"expires_in_days,omitempty"`
+	Name          string `json:"name"`
+
+	// NeverExpires Create a key without an expiry. When none of the three expiry fields is sent, the key expires after 90 days.
+	NeverExpires *bool    `json:"never_expires,omitempty"`
+	Scopes       []string `json:"scopes"`
+	SiteIds      *[]int32 `json:"site_ids,omitempty"`
 }
 
 // CreateDemoRequest defines model for CreateDemoRequest.
@@ -4209,7 +4483,8 @@ type CreateSiteRequestRetentionDays int
 
 // CreatedAPIKey defines model for CreatedAPIKey.
 type CreatedAPIKey struct {
-	Id int64 `json:"id"`
+	ExpiresAt *time.Time `json:"expires_at"`
+	Id        int64      `json:"id"`
 
 	// Key The secret value. It is shown once and cannot be retrieved later.
 	Key string `json:"key"`
@@ -4512,6 +4787,97 @@ type EventPayload_Revenue_Amount struct {
 
 // EventPayloadV Event payload contract version.
 type EventPayloadV int
+
+// ExportRun defines model for ExportRun.
+type ExportRun struct {
+	Bytes      int64               `json:"bytes"`
+	Error      string              `json:"error"`
+	FinishedAt *time.Time          `json:"finished_at"`
+	FromDay    *openapi_types.Date `json:"from_day"`
+	Id         int64               `json:"id"`
+	ObjectKey  string              `json:"object_key"`
+	ScheduleId int64               `json:"schedule_id"`
+	SiteId     *int32              `json:"site_id"`
+	StartedAt  time.Time           `json:"started_at"`
+	Status     ExportRunStatus     `json:"status"`
+	ToDay      *openapi_types.Date `json:"to_day"`
+}
+
+// ExportRunStatus defines model for ExportRun.Status.
+type ExportRunStatus string
+
+// ExportSchedule defines model for ExportSchedule.
+type ExportSchedule struct {
+	AccessKeyId string                  `json:"access_key_id"`
+	Bucket      string                  `json:"bucket"`
+	CreatedAt   time.Time               `json:"created_at"`
+	Enabled     bool                    `json:"enabled"`
+	Endpoint    string                  `json:"endpoint"`
+	Frequency   ExportScheduleFrequency `json:"frequency"`
+	Id          int64                   `json:"id"`
+
+	// Incremental After the first full export only new days are written.
+	Incremental bool                      `json:"incremental"`
+	LastError   string                    `json:"last_error"`
+	LastRunAt   *time.Time                `json:"last_run_at"`
+	LastStatus  *ExportScheduleLastStatus `json:"last_status"`
+	Name        string                    `json:"name"`
+	NextRunAt   time.Time                 `json:"next_run_at"`
+	OrgId       int64                     `json:"org_id"`
+	PathStyle   bool                      `json:"path_style"`
+	Prefix      string                    `json:"prefix"`
+	Region      string                    `json:"region"`
+	SecretSet   bool                      `json:"secret_set"`
+
+	// SiteId Null means every site of the organization.
+	SiteId *int32 `json:"site_id"`
+}
+
+// ExportScheduleFrequency defines model for ExportSchedule.Frequency.
+type ExportScheduleFrequency string
+
+// ExportScheduleLastStatus defines model for ExportSchedule.LastStatus.
+type ExportScheduleLastStatus string
+
+// ExportScheduleInput defines model for ExportScheduleInput.
+type ExportScheduleInput struct {
+	AccessKeyId string `json:"access_key_id"`
+	Bucket      string `json:"bucket"`
+
+	// Endpoint Bare https://host[:port], no path.
+	Endpoint  string                       `json:"endpoint"`
+	Frequency ExportScheduleInputFrequency `json:"frequency"`
+
+	// Incremental Defaults to true.
+	Incremental *bool   `json:"incremental,omitempty"`
+	Name        string  `json:"name"`
+	PathStyle   *bool   `json:"path_style,omitempty"`
+	Prefix      *string `json:"prefix,omitempty"`
+	Region      string  `json:"region"`
+	Secret      *string `json:"secret,omitempty"`
+	SiteId      *int32  `json:"site_id,omitempty"`
+}
+
+// ExportScheduleInputFrequency defines model for ExportScheduleInput.Frequency.
+type ExportScheduleInputFrequency string
+
+// ExportSchedulePatch defines model for ExportSchedulePatch.
+type ExportSchedulePatch struct {
+	AccessKeyId *string                       `json:"access_key_id,omitempty"`
+	Bucket      *string                       `json:"bucket,omitempty"`
+	Enabled     *bool                         `json:"enabled,omitempty"`
+	Endpoint    *string                       `json:"endpoint,omitempty"`
+	Frequency   *ExportSchedulePatchFrequency `json:"frequency,omitempty"`
+	Incremental *bool                         `json:"incremental,omitempty"`
+	Name        *string                       `json:"name,omitempty"`
+	PathStyle   *bool                         `json:"path_style,omitempty"`
+	Prefix      *string                       `json:"prefix,omitempty"`
+	Region      *string                       `json:"region,omitempty"`
+	Secret      *string                       `json:"secret,omitempty"`
+}
+
+// ExportSchedulePatchFrequency defines model for ExportSchedulePatch.Frequency.
+type ExportSchedulePatchFrequency string
 
 // Filter defines model for Filter.
 type Filter struct {
@@ -5831,6 +6197,26 @@ type RevenueReportRow struct {
 	UniqueCustomers *int64   `json:"unique_customers,omitempty"`
 }
 
+// RollAPIKeyRequest defines model for RollAPIKeyRequest.
+type RollAPIKeyRequest struct {
+	// GraceHours How long the old key keeps working after the roll. 0 ends it immediately.
+	GraceHours *RollAPIKeyRequestGraceHours `json:"grace_hours,omitempty"`
+}
+
+// RollAPIKeyRequestGraceHours How long the old key keeps working after the roll. 0 ends it immediately.
+type RollAPIKeyRequestGraceHours int
+
+// RolledAPIKey defines model for RolledAPIKey.
+type RolledAPIKey struct {
+	ExpiresAt *time.Time `json:"expires_at"`
+	Id        int64      `json:"id"`
+
+	// Key The successor's secret. It is shown once and cannot be retrieved later.
+	Key             string    `json:"key"`
+	OldKeyExpiresAt time.Time `json:"old_key_expires_at"`
+	OldKeyId        int64     `json:"old_key_id"`
+}
+
 // SavedFunnel defines model for SavedFunnel.
 type SavedFunnel struct {
 	Id     int64        `json:"id"`
@@ -5935,6 +6321,36 @@ type SessionTimelineItem struct {
 
 // SessionTimelineItemKind defines model for SessionTimelineItem.Kind.
 type SessionTimelineItemKind string
+
+// SettingsImportReport defines model for SettingsImportReport.
+type SettingsImportReport struct {
+	DryRun  bool `json:"dry_run"`
+	Members []struct {
+		Action *SettingsImportReportMembersAction `json:"action,omitempty"`
+		Email  *string                            `json:"email,omitempty"`
+		Note   *string                            `json:"note,omitempty"`
+		Role   *string                            `json:"role,omitempty"`
+	} `json:"members"`
+	Sites []struct {
+		Action                 *SettingsImportReportSitesAction `json:"action,omitempty"`
+		Alerts                 *int                             `json:"alerts,omitempty"`
+		AlertsDisabled         *int                             `json:"alerts_disabled,omitempty"`
+		Error                  *string                          `json:"error,omitempty"`
+		Funnels                *int                             `json:"funnels,omitempty"`
+		Goals                  *int                             `json:"goals,omitempty"`
+		Name                   *string                          `json:"name,omitempty"`
+		Segments               *int                             `json:"segments,omitempty"`
+		ShareLinksNotRecreated *int                             `json:"share_links_not_recreated,omitempty"`
+		Slug                   *string                          `json:"slug,omitempty"`
+	} `json:"sites"`
+	Warnings []string `json:"warnings"`
+}
+
+// SettingsImportReportMembersAction defines model for SettingsImportReport.Members.Action.
+type SettingsImportReportMembersAction string
+
+// SettingsImportReportSitesAction defines model for SettingsImportReport.Sites.Action.
+type SettingsImportReportSitesAction string
 
 // Share defines model for Share.
 type Share struct {
@@ -6069,8 +6485,30 @@ type SitesOverviewItem struct {
 	ChangePercent *float64  `json:"change_percent"`
 	CreatedAt     time.Time `json:"created_at"`
 	Domain        string    `json:"domain"`
-	IconUrl       *string   `json:"icon_url,omitempty"`
-	Id            int32     `json:"id"`
+
+	// Highlights Up to three typed facts for the project status line, in priority order. The client words them.
+	Highlights []struct {
+		// Count new_issues: issues first seen in the period.
+		Count *int64 `json:"count,omitempty"`
+
+		// Hours quiet: whole hours since the last event.
+		Hours *int64                          `json:"hours,omitempty"`
+		Kind  SitesOverviewItemHighlightsKind `json:"kind"`
+
+		// Name top_source: the source name.
+		Name *string `json:"name,omitempty"`
+
+		// Percent visitors_change: signed percent change against the previous period.
+		Percent *float64 `json:"percent,omitempty"`
+
+		// Points crash_free_drop: percentage points lost.
+		Points *float64 `json:"points,omitempty"`
+
+		// Share top_source: share of visitors, 0 to 1.
+		Share *float64 `json:"share,omitempty"`
+	} `json:"highlights"`
+	IconUrl *string `json:"icon_url,omitempty"`
+	Id      int32   `json:"id"`
 
 	// InstallStatus Tracking state (waiting, receiving, or quiet).
 	InstallStatus string     `json:"install_status"`
@@ -6099,6 +6537,9 @@ type SitesOverviewItem struct {
 	TrackingSnippet string `json:"tracking_snippet"`
 	Visitors        int64  `json:"visitors"`
 }
+
+// SitesOverviewItemHighlightsKind defines model for SitesOverviewItem.Highlights.Kind.
+type SitesOverviewItemHighlightsKind string
 
 // SitesOverviewResponse defines model for SitesOverviewResponse.
 type SitesOverviewResponse struct {
@@ -6168,8 +6609,9 @@ type UpdateCurrentUserRequest struct {
 		LastSiteId  *int32                                          `json:"last_site_id,omitempty"`
 
 		// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
-		Locale    *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
-		SitesView *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
+		Locale           *UpdateCurrentUserRequestPreferencesLocale    `json:"locale,omitempty"`
+		SitesView        *UpdateCurrentUserRequestPreferencesSitesView `json:"sites_view,omitempty"`
+		SummaryCollapsed *bool                                         `json:"summary_collapsed,omitempty"`
 	} `json:"preferences,omitempty"`
 }
 
@@ -6219,6 +6661,9 @@ type UserPreferences struct {
 	// Locale Interface language; empty follows the browser. Bengali uses Latin digits; en-XA is a pseudo-locale for layout testing.
 	Locale    *UserPreferencesLocale   `json:"locale,omitempty"`
 	SitesView UserPreferencesSitesView `json:"sites_view"`
+
+	// SummaryCollapsed True hides the plain-language summary above the dashboard metrics; absent or false shows it.
+	SummaryCollapsed *bool `json:"summary_collapsed,omitempty"`
 }
 
 // UserPreferencesLandingPage defines model for UserPreferences.LandingPage.
@@ -6493,6 +6938,11 @@ type RenameOrganizationJSONBody struct {
 	Name string `json:"name"`
 }
 
+// OrgListExportRunsParams defines parameters for OrgListExportRuns.
+type OrgListExportRunsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // OrgListGitHubStarsAnnotationsParams defines parameters for OrgListGitHubStarsAnnotations.
 type OrgListGitHubStarsAnnotationsParams struct {
 	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
@@ -6536,6 +6986,18 @@ type OrgGetGitHubStarsSummaryParams struct {
 // OrgEraseGitHubStarsUserParams defines parameters for OrgEraseGitHubStarsUser.
 type OrgEraseGitHubStarsUserParams struct {
 	RepoId GitHubStarsRepoID `form:"repo_id" json:"repo_id"`
+}
+
+// OrgImportSettingsJSONBody defines parameters for OrgImportSettings.
+type OrgImportSettingsJSONBody map[string]interface{}
+
+// OrgImportSettingsParams defines parameters for OrgImportSettings.
+type OrgImportSettingsParams struct {
+	// DryRun Report what would happen and write nothing.
+	DryRun *bool `form:"dry_run,omitempty" json:"dry_run,omitempty"`
+
+	// InviteMembers Invite the bundle's members (never owners). Off by default.
+	InviteMembers *bool `form:"invite_members,omitempty" json:"invite_members,omitempty"`
 }
 
 // GetSitesOverviewParams defines parameters for GetSitesOverview.
@@ -7304,6 +7766,12 @@ type RenameOrganizationJSONRequestBody RenameOrganizationJSONBody
 // CreateDemoProjectJSONRequestBody defines body for CreateDemoProject for application/json ContentType.
 type CreateDemoProjectJSONRequestBody = CreateDemoRequest
 
+// OrgCreateExportScheduleJSONRequestBody defines body for OrgCreateExportSchedule for application/json ContentType.
+type OrgCreateExportScheduleJSONRequestBody = ExportScheduleInput
+
+// OrgUpdateExportScheduleJSONRequestBody defines body for OrgUpdateExportSchedule for application/json ContentType.
+type OrgUpdateExportScheduleJSONRequestBody = ExportSchedulePatch
+
 // OrgCreateGitHubStarsAnnotationJSONRequestBody defines body for OrgCreateGitHubStarsAnnotation for application/json ContentType.
 type OrgCreateGitHubStarsAnnotationJSONRequestBody = GitHubStarsAnnotationInput
 
@@ -7324,6 +7792,9 @@ type SaveNotificationTemplateJSONRequestBody = NotificationTemplateInput
 
 // PreviewNotificationTemplateJSONRequestBody defines body for PreviewNotificationTemplate for application/json ContentType.
 type PreviewNotificationTemplateJSONRequestBody = NotificationTemplateInput
+
+// OrgImportSettingsJSONRequestBody defines body for OrgImportSettings for application/json ContentType.
+type OrgImportSettingsJSONRequestBody OrgImportSettingsJSONBody
 
 // OpenSharedLinkJSONRequestBody defines body for OpenSharedLink for application/json ContentType.
 type OpenSharedLinkJSONRequestBody = OpenShareRequest
@@ -7435,6 +7906,9 @@ type UpdateAnnotationJSONRequestBody = AnnotationPatch
 
 // CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
 type CreateApiKeyJSONRequestBody = CreateAPIKeyRequest
+
+// RollApiKeyJSONRequestBody defines body for RollApiKey for application/json ContentType.
+type RollApiKeyJSONRequestBody = RollAPIKeyRequest
 
 // SubmitAppEventsJSONRequestBody defines body for SubmitAppEvents for application/json ContentType.
 type SubmitAppEventsJSONRequestBody = AppEventsRequest
@@ -8115,6 +8589,27 @@ type ServerInterface interface {
 	// CreateDemoProject Create and start seeding the organization's demo project
 	// (POST /api/private/orgs/{org}/demo)
 	CreateDemoProject(w http.ResponseWriter, r *http.Request, org int64)
+	// OrgListExportSchedules List scheduled exports to S3-compatible storage
+	// (GET /api/private/orgs/{org}/export-schedules)
+	OrgListExportSchedules(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgCreateExportSchedule Create a scheduled export
+	// (POST /api/private/orgs/{org}/export-schedules)
+	OrgCreateExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgDeleteExportSchedule Delete a scheduled export and its history
+	// (DELETE /api/private/orgs/{org}/export-schedules/{schedule})
+	OrgDeleteExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
+	// OrgUpdateExportSchedule Change a scheduled export
+	// (PATCH /api/private/orgs/{org}/export-schedules/{schedule})
+	OrgUpdateExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
+	// OrgRunExportSchedule Queue a run now
+	// (POST /api/private/orgs/{org}/export-schedules/{schedule}/run)
+	OrgRunExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
+	// OrgListExportRuns Run history, newest first
+	// (GET /api/private/orgs/{org}/export-schedules/{schedule}/runs)
+	OrgListExportRuns(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64, params OrgListExportRunsParams)
+	// OrgTestExportSchedule Check the destination by writing and deleting a small object
+	// (POST /api/private/orgs/{org}/export-schedules/{schedule}/test)
+	OrgTestExportSchedule(w http.ResponseWriter, r *http.Request, org OrgPathID, schedule int64)
 	// OrgListGitHubStarsAnnotations List chart annotations
 	// (GET /api/private/orgs/{org}/github-stars/annotations)
 	OrgListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgListGitHubStarsAnnotationsParams)
@@ -8181,6 +8676,12 @@ type ServerInterface interface {
 	// PreviewNotificationTemplate Validate and preview a template with sample alert data
 	// (POST /api/private/orgs/{org}/notification-templates/{kind}/preview)
 	PreviewNotificationTemplate(w http.ResponseWriter, r *http.Request, org OrgPathID, kind NotificationChannelKind)
+	// OrgExportSettings Download the organization's settings as a JSON bundle
+	// (GET /api/private/orgs/{org}/settings-export)
+	OrgExportSettings(w http.ResponseWriter, r *http.Request, org OrgPathID)
+	// OrgImportSettings Recreate a settings bundle in this organization
+	// (POST /api/private/orgs/{org}/settings-import)
+	OrgImportSettings(w http.ResponseWriter, r *http.Request, org OrgPathID, params OrgImportSettingsParams)
 	// ListDeletedSites List restorable sites in an organization
 	// (GET /api/private/orgs/{org}/sites/deleted)
 	ListDeletedSites(w http.ResponseWriter, r *http.Request, org OrgPathID)
@@ -8583,6 +9084,9 @@ type ServerInterface interface {
 	// RevokeApiKey Revoke an API key
 	// (DELETE /api/public/v1/api-keys/{key_id})
 	RevokeApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
+	// RollApiKey Roll an API key
+	// (POST /api/public/v1/api-keys/{key_id}/roll)
+	RollApiKey(w http.ResponseWriter, r *http.Request, keyId int64)
 	// PreflightAppEvents Negotiate cross-origin app report submission
 	// (OPTIONS /api/public/v1/app-events)
 	PreflightAppEvents(w http.ResponseWriter, r *http.Request)
@@ -10047,6 +10551,249 @@ func (siw *ServerInterfaceWrapper) CreateDemoProject(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// OrgListExportSchedules operation middleware
+func (siw *ServerInterfaceWrapper) OrgListExportSchedules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgListExportSchedules(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgCreateExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgCreateExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgCreateExportSchedule(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgDeleteExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgDeleteExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgDeleteExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgUpdateExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgUpdateExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgUpdateExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgRunExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgRunExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgRunExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgListExportRuns operation middleware
+func (siw *ServerInterfaceWrapper) OrgListExportRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgListExportRunsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgListExportRuns(w, r, org, schedule, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgTestExportSchedule operation middleware
+func (siw *ServerInterfaceWrapper) OrgTestExportSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "schedule" -------------
+	var schedule int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "schedule", r.PathValue("schedule"), &schedule, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgTestExportSchedule(w, r, org, schedule)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // OrgListGitHubStarsAnnotations operation middleware
 func (siw *ServerInterfaceWrapper) OrgListGitHubStarsAnnotations(w http.ResponseWriter, r *http.Request) {
 
@@ -10920,6 +11667,87 @@ func (siw *ServerInterfaceWrapper) PreviewNotificationTemplate(w http.ResponseWr
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PreviewNotificationTemplate(w, r, org, kind)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgExportSettings operation middleware
+func (siw *ServerInterfaceWrapper) OrgExportSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgExportSettings(w, r, org)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OrgImportSettings operation middleware
+func (siw *ServerInterfaceWrapper) OrgImportSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "org" -------------
+	var org OrgPathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "org", r.PathValue("org"), &org, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OrgImportSettingsParams
+
+	// ------------- Optional query parameter "dry_run" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "dry_run", r.URL.Query(), &params.DryRun, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "dry_run"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dry_run", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "invite_members" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "invite_members", r.URL.Query(), &params.InviteMembers, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "invite_members"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "invite_members", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OrgImportSettings(w, r, org, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16991,6 +17819,32 @@ func (siw *ServerInterfaceWrapper) RevokeApiKey(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// RollApiKey operation middleware
+func (siw *ServerInterfaceWrapper) RollApiKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key_id" -------------
+	var keyId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key_id", r.PathValue("key_id"), &keyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RollApiKey(w, r, keyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PreflightAppEvents operation middleware
 func (siw *ServerInterfaceWrapper) PreflightAppEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -19986,6 +20840,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminResetReplayRetentionCap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminGetReplayRetentionCap)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/private/admin/organizations/{org}/replay-retention-cap", wrapper.AdminSetReplayRetentionCap)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules", wrapper.OrgListExportSchedules)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules", wrapper.OrgCreateExportSchedule)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}", wrapper.OrgDeleteExportSchedule)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}", wrapper.OrgUpdateExportSchedule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}/run", wrapper.OrgRunExportSchedule)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}/test", wrapper.OrgTestExportSchedule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/export-schedules/{schedule}/runs", wrapper.OrgListExportRuns)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/settings-export", wrapper.OrgExportSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/settings-import", wrapper.OrgImportSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgListGitHubStarsRepos)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos", wrapper.OrgCreateGitHubStarsRepo)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/private/orgs/{org}/github-stars/repos/{id}", wrapper.OrgDeleteGitHubStarsRepo)
@@ -20186,6 +21049,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/metrics", wrapper.Metrics)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.ListApiKeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys", wrapper.CreateApiKey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}/roll", wrapper.RollApiKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/public/v1/api-keys/{key_id}", wrapper.RevokeApiKey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/report", wrapper.GetRevenueReport)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/private/sites/{site}/revenue/customers", wrapper.ListRevenueCustomers)

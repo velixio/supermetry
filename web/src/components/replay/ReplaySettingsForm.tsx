@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
+import { InfoTip } from '@/components/InfoTip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -83,8 +84,7 @@ export function ReplaySettingsForm({
     <form onSubmit={submit}>
       <Card>
         <CardHeader>
-          <CardTitle>Session replay</CardTitle>
-          <CardDescription>Capture sampled browser sessions within instance privacy limits.</CardDescription>
+          <CardTitle>Session replay <InfoTip label="About session replay">Capture sampled browser sessions within instance privacy limits.</InfoTip></CardTitle>
         </CardHeader>
         <CardContent>
           <FieldGroup>

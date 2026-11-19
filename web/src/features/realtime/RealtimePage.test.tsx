@@ -74,7 +74,7 @@ describe('RealtimePage', () => {
     expect(screen.getByText('12')).toBeVisible()
     expect(screen.getByText('Live now')).toBeVisible()
     expect(screen.getByRole('region', { name: 'Live now' })).toHaveAccessibleDescription(
-      'Distinct visitors with an accepted pageview or custom event in the last 5 minutes. Privacy signals, bots, and site exclusions are not counted.',
+      'Visitors with a pageview or event in the last 5 minutes. Bots, privacy signals and exclusions are not counted.',
     )
     expect(screen.getByText('41')).toBeVisible()
     expect(screen.getByText('Last 30 minutes')).toBeVisible()

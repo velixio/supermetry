@@ -2,8 +2,10 @@ import { ErrorState } from './ErrorState'
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import {
   Area,
-  AreaChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -33,6 +35,9 @@ import type { Compare } from '../lib/search'
 import { useTimeseries, type StatsQuery } from '../lib/stats'
 import { en } from '../messages/en'
 import { activeLocale } from '@/lib/i18n/intl'
+import { lastBucketIsPartial, splitSeries } from '@/lib/chart-ranges'
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion'
+import { dashboardView } from '@/messages/dashboardView'
 
 export { autoInterval, type ChartInterval } from '@/lib/chart'
 
@@ -54,6 +59,15 @@ type MainChartProps = {
   canEditAnnotations?: boolean
   onEditAnnotation?: (annotation: Annotation) => void
   onDeleteAnnotation?: (annotation: Annotation) => void
+  /** Inside a parent card: no border or background of its own. */
+  embedded?: boolean
+  /** Extra chart controls (the dashboard's comparison choice), shown before the interval. */
+  controls?: ReactNode
+  /**
+   * Keep the controls visible. Otherwise, on devices that hover, they appear while the pointer or focus is
+   * on the chart or one of their menus is open; touch screens always show them.
+   */
+  controlsPinned?: boolean
 }
 
 type ChartPoint = {
@@ -187,6 +201,42 @@ function chronological(rows: Array<Record<string, unknown>>): Array<Record<strin
   return [...rows].sort((left, right) => timeValue(left).localeCompare(timeValue(right)))
 }
 
+type TooltipPayloadItem = { payload?: ChartPoint & { partialBucket?: boolean; noData?: boolean } }
+
+/** Crosshair tooltip: the exact date and value, and a note when the bucket is still filling or precedes tracking. */
+function ChartHoverCard({
+  active,
+  payload,
+  metric,
+  interval,
+  timezone,
+  showComparison,
+}: {
+  active?: boolean
+  payload?: TooltipPayloadItem[]
+  metric: ChartMetric
+  interval: ChartInterval
+  timezone: string
+  showComparison: boolean
+}) {
+  const point = payload?.find((item) => item.payload)?.payload
+  if (!active || !point) return null
+  return (
+    <div className="rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md" data-testid="chart-hover-card">
+      <p className="mb-1 text-muted-foreground">{timeBucketLabel(point.time, interval, timezone)}</p>
+      <p className="text-sm font-medium tabular-nums">
+        {point.value === null ? '–' : metricValue(metric, point.value)}
+        <span className="ml-1.5 font-normal text-muted-foreground">{metricLabel(metric)}</span>
+      </p>
+      {point.partialBucket ? <p className="mt-1 text-muted-foreground">{interval === 'hour' || interval === 'day' ? dashboardView.todaySoFar : dashboardView.partialPeriod}</p> : null}
+      {point.noData ? <p className="mt-1 text-muted-foreground">{dashboardView.noDataYet}</p> : null}
+      {showComparison && point.comparison !== undefined ? (
+        <p className="mt-1 tabular-nums text-muted-foreground">{metricValue(metric, point.comparison)} compared</p>
+      ) : null}
+    </div>
+  )
+}
+
 function ChartContainer({ children }: { children: ReactNode }) {
   return <div className="relative h-64 min-h-64 w-full">{children}</div>
 }
@@ -233,10 +283,10 @@ function AnnotationMarkers({
             <AnnotationTooltip key={day}>
               <TooltipTrigger asChild>
                 <Button
-                  className="pointer-events-auto absolute -translate-x-1/2"
+                  className="pointer-events-auto absolute -translate-x-1/2 text-muted-foreground hover:bg-transparent hover:text-foreground"
                   style={{ left: `${left}%` }}
                   size="icon-xs"
-                  variant="secondary"
+                  variant="ghost"
                   aria-label={`${items.length} ${items.length === 1 ? 'annotation' : 'annotations'} on ${label}`}
                 >
                   <FlagIcon />
@@ -290,8 +340,12 @@ export function MainChart({
   canEditAnnotations = false,
   onEditAnnotation,
   onDeleteAnnotation,
+  embedded = false,
+  controls,
+  controlsPinned = false,
 }: MainChartProps) {
   const summaryId = useId()
+  const reducedMotion = usePrefersReducedMotion()
   const [chartWidth, setChartWidth] = useState(0)
   const [localInterval, setLocalInterval] = useState<ChartInterval | undefined>(interval)
 
@@ -338,6 +392,10 @@ export function MainChart({
     timezone,
   )
   const lastBucket = points[points.length - 1]?.time
+  const partialLast = lastBucketIsPartial(lastBucket, query.dateRange.to, resolvedInterval, now ?? new Date(), timezone)
+  const drawn = splitSeries(points, partialLast)
+  const noDataCount = drawn.filter((point) => point.noData).length
+  const trackingStarted = noDataCount > 0 ? drawn[noDataCount]?.time : undefined
   // Annotations are placed across the drawn days only.
   const drawnRange = lastBucket && lastBucket.slice(0, 10) < query.dateRange.to
     ? { from: query.dateRange.from, to: lastBucket.slice(0, 10) }
@@ -368,9 +426,32 @@ export function MainChart({
       aria-label={label}
       data-interval={resolvedInterval}
       data-last-bucket={lastBucket}
-      className="rounded-xl border bg-card p-4 text-card-foreground shadow-xs"
+      className={embedded ? 'group/chart p-4 text-card-foreground' : 'rounded-lg border bg-card p-4 text-card-foreground'}
     >
-      <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <ul aria-label="Chart notes" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <li className="font-medium text-foreground">{dashboardView.kpi.labels[chartMetric] ?? metricLabel(chartMetric)}</li>
+          {trackingStarted ? (
+            <li className="flex items-center gap-1.5" data-testid="tracking-started">
+              <span aria-hidden="true" className="inline-block h-3 w-4 rounded-sm bg-muted ring-1 ring-border" />
+              {dashboardView.trackingStarted(fmt.date(trackingStarted, timezone))}
+            </li>
+          ) : null}
+          {partialLast ? (
+            <li className="flex items-center gap-1.5" data-testid="partial-note">
+              <span aria-hidden="true" className="inline-block w-4 border-t-2 border-dashed border-chart-1" />
+              {resolvedInterval === 'hour' || resolvedInterval === 'day' ? dashboardView.todaySoFar : dashboardView.partialPeriod}
+            </li>
+          ) : null}
+        </ul>
+        <div
+          className={embedded
+            ? 'flex flex-wrap items-center justify-end gap-2 transition-opacity duration-150 motion-reduce:transition-none [@media(hover:hover)]:opacity-0 group-hover/chart:opacity-100 group-focus-within/chart:opacity-100 has-[[data-state=open]]:opacity-100 data-[pinned=true]:opacity-100'
+            : 'flex flex-wrap items-center justify-end gap-2'}
+          data-pinned={embedded ? controlsPinned : undefined}
+          data-testid="chart-controls"
+        >
+        {controls}
         {headerActions}
         <Select value={resolvedInterval} onValueChange={(value) => chooseInterval(value as ChartInterval)}>
           <SelectTrigger aria-label="Chart interval" size="sm">
@@ -385,6 +466,7 @@ export function MainChart({
             </SelectGroup>
           </SelectContent>
         </Select>
+        </div>
       </div>
       <p className="sr-only" id={summaryId}>{summary}</p>
       <ChartContainer>
@@ -398,7 +480,7 @@ export function MainChart({
         />
         <div aria-describedby={summaryId} aria-label={label} className="size-full" role="img">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} onResize={(width) => setChartWidth(width)}>
-            <AreaChart accessibilityLayer data={points}>
+            <ComposedChart accessibilityLayer data={drawn}>
               <defs>
                 <linearGradient id="main-chart-fill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.25} />
@@ -406,40 +488,56 @@ export function MainChart({
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
+              {noDataCount > 0 ? (
+                <ReferenceArea
+                  x1={drawn[0]!.time}
+                  x2={drawn[noDataCount - 1]!.time}
+                  fill="var(--muted)"
+                  fillOpacity={0.6}
+                  ifOverflow="visible"
+                  data-testid="no-data-shade"
+                />
+              ) : null}
               <XAxis dataKey="time" axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} tickLine={false} tickMargin={8} interval="preserveStartEnd" minTickGap={xTickGap(chartWidth)} tickFormatter={(value) => axisBucketLabel(String(value), resolvedInterval, timezone)} />
               <YAxis axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} tickLine={false} tickMargin={8} width={44} />
               <Tooltip
-                cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                contentStyle={{
-                  background: 'var(--popover)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-lg)',
-                  color: 'var(--popover-foreground)',
-                  fontSize: 12,
-                  boxShadow: '0 8px 24px -12px rgb(0 0 0 / 0.4)',
-                }}
-                labelStyle={{ color: 'var(--muted-foreground)', marginBottom: 2 }}
-                itemStyle={{ color: 'var(--popover-foreground)' }}
-                labelFormatter={(value) => timeBucketLabel(String(value), resolvedInterval, timezone)}
+                cursor={{ stroke: 'var(--muted-foreground)', strokeWidth: 1, strokeDasharray: '3 3' }}
+                content={<ChartHoverCard metric={chartMetric} interval={resolvedInterval} timezone={timezone} showComparison={compare !== 'off'} />}
               />
               <Area
-                type="monotone"
-                dataKey="value"
+                type="linear"
+                dataKey="solid"
                 fill="url(#main-chart-fill)"
+                isAnimationActive={!reducedMotion}
                 stroke="var(--chart-1)"
                 strokeWidth={2}
                 activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--card)' }}
               />
+              {partialLast ? (
+                <Line
+                  type="linear"
+                  dataKey="partial"
+                  dot={false}
+                  isAnimationActive={!reducedMotion}
+                  stroke="var(--chart-1)"
+                  strokeDasharray="5 4"
+                  strokeWidth={2}
+                  activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--card)' }}
+                />
+              ) : null}
               {compare === 'off' ? null : (
-                <Area
+                <Line
+                  type="linear"
                   dataKey="comparison"
-                  fill="none"
+                  dot={false}
+                  isAnimationActive={!reducedMotion}
                   stroke="var(--chart-2)"
-                  strokeDasharray="6 6"
-                  strokeOpacity={0.4}
+                  strokeDasharray="2 4"
+                  strokeOpacity={0.7}
+                  strokeWidth={1.5}
                 />
               )}
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </ChartContainer>

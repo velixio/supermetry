@@ -48,7 +48,7 @@ export function AppRulesSection({ orgId, siteId, canEdit }: { orgId: number; sit
   }
 
   return (
-    <section className="flex flex-col gap-6 rounded-xl border bg-card p-4" aria-label="Issue rules">
+    <section className="flex flex-col gap-6 rounded-lg border bg-card p-4" aria-label="Issue rules">
       <div className="flex flex-col gap-3">
         <div>
           <h3 className="text-sm font-semibold">Ownership</h3>

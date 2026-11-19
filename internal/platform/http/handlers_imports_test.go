@@ -129,7 +129,7 @@ func TestImportAndExportRoutesRequireOwnerOrAdmin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			data := &importTestStore{}
 			queue := &importTestQueue{}
-			handler := New(Deps{TrackingMode: privacy.Identified,
+			handler := New(Deps{StepUp: freshStepUp{}, TrackingMode: privacy.Identified,
 				Authenticator: importTestAuth{principal: authz.Principal{UserID: 1, OrgID: 4, Role: tt.role}},
 				Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}}, Imports: data, ImportQueue: queue,
 				Exporter: importTestExporter{},
@@ -168,7 +168,7 @@ func TestImportAndExportRoutesRequireOwnerOrAdmin(t *testing.T) {
 func TestDuplicateImportReturnsConflictAndReplaceIsForwarded(t *testing.T) {
 	importedAt := time.Date(2026, 10, 7, 9, 0, 0, 0, time.UTC)
 	data := &importTestStore{err: &imports.AlreadyImportedError{ImportID: 3, ImportedAt: importedAt}}
-	handler := New(Deps{TrackingMode: privacy.Identified,
+	handler := New(Deps{StepUp: freshStepUp{}, TrackingMode: privacy.Identified,
 		Authenticator: importTestAuth{principal: authz.Principal{UserID: 1, OrgID: 4, Role: authz.RoleOwner}},
 		Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}}, Imports: data, ImportQueue: &importTestQueue{},
 	})
@@ -213,7 +213,7 @@ func importUploadRequest(t *testing.T, target, contents string) *http.Request {
 }
 
 func TestExportRouteStreamsZIP(t *testing.T) {
-	handler := New(Deps{TrackingMode: privacy.Identified,
+	handler := New(Deps{StepUp: freshStepUp{}, TrackingMode: privacy.Identified,
 		Authenticator: importTestAuth{principal: authz.Principal{UserID: 1, OrgID: 4, Role: authz.RoleOwner}},
 		Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}},
 		Exporter:      importTestExporter{},
@@ -245,7 +245,7 @@ func TestImportAndExportMutationsWriteAuditEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	importStore := imports.NewStore(pool)
-	handler := New(Deps{TrackingMode: privacy.Identified,
+	handler := New(Deps{StepUp: freshStepUp{}, TrackingMode: privacy.Identified,
 		Authenticator: importTestAuth{principal: authz.Principal{UserID: 11, OrgID: 4, Role: authz.RoleOwner}},
 		Sites:         importTestSites{7: {ID: 7, OrgID: 4, TZ: time.UTC}},
 		Store:         &platformstore.Store{Pool: pool},
