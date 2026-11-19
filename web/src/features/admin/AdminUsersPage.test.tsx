@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('@tanstack/react-router', () => ({ Link: ({ children }: { children?: ReactNode }) => <a href="#">{children}</a> }))
 const mutate = vi.fn()
 const { privateRequest } = vi.hoisted(() => ({ privateRequest: vi.fn() }))
 vi.mock('@/features/settings/privateApi', async (original) => ({

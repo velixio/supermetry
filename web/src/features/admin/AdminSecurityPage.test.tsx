@@ -13,7 +13,6 @@ vi.mock('./adminApi', async (original) => ({
   useAdminUsers: () => ({ data: { data: [{ id: 5, email: 'ops@example.test', name: 'Ops' }] } }),
   useSetExemption: () => ({ mutate: grant, isPending: false, isSuccess: false, error: null }),
   useRemoveExemption: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false, error: null }),
-  useAdminAudit: () => ({ data: { data: [{ id: 1, action: 'admin.policy.update', target_type: 'instance', target_id: 1, metadata: {}, created_at: '2026-10-12T08:00:00Z' }] }, error: null }),
 }))
 
 import { AdminSecurityPage } from './AdminSecurityPage'
@@ -37,6 +36,5 @@ describe('AdminSecurityPage', () => {
     fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Hardware key lost' } })
     fireEvent.click(screen.getByRole('button', { name: 'Grant exemption' }))
     expect(grant).toHaveBeenCalledWith({ userId: 5, exemption: { reason: 'Hardware key lost', expires_at: undefined } })
-    expect(screen.getByText('admin.policy.update')).toBeVisible()
   })
 })

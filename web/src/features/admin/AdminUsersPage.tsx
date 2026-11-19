@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
 import {
@@ -15,10 +16,10 @@ import { useCopyStatus } from '@/features/settings/InstallRecipes'
 import { en } from '@/messages/en'
 import { uiFlows } from '@/messages/uiFlows'
 import {
-  useAdminUsers, useCreateAdminUser, useImpersonateUser, useUpdateAdminUser,
+  useAdminUsers, type AdminSort, useCreateAdminUser, useImpersonateUser, useUpdateAdminUser,
   type AdminUser, type AdminUserCreated, type AdminUserPatch,
 } from './adminApi'
-import { AdminPage, ErrorLine, SearchForm, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
+import { AdminPage, ErrorLine, LoadMore, SearchForm, SortHeader, useAdminSort, cellClass, formatDate, tableClass, useAdminSearch } from './AdminCommon'
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
@@ -154,16 +155,19 @@ function ImpersonateDialog({ user, adminTotpEnabled, onClose, onSignedIn }: { us
 
 type PendingAction = { user: AdminUser; patch: AdminUserPatch; title: string; body: string } | null
 
-export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search: urlSearch, onSearch, onImpersonated = () => window.location.assign('/app') }: {
+export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search: urlSearch, onSearch, sort: urlSort, onSort, onImpersonated = () => window.location.assign('/app') }: {
   currentUserId?: number
   /** Whether the signed-in admin uses two-factor authentication (their code is then required to sign in as a user). */
   adminTotpEnabled?: boolean
   search?: string
   onSearch?: (value: string) => void
+  sort?: AdminSort
+  onSort?: (sort: AdminSort) => void
   onImpersonated?: () => void
 }) {
   const [search, setSearch] = useAdminSearch(urlSearch, onSearch)
-  const users = useAdminUsers(search)
+  const [sort, setSort] = useAdminSort(urlSort, onSort)
+  const users = useAdminUsers(search, sort)
   const update = useUpdateAdminUser()
   const [pending, setPending] = useState<PendingAction>(null)
   const [creating, setCreating] = useState(false)
@@ -190,7 +194,7 @@ export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search
           <table className={tableClass}>
             <caption className="sr-only">{en.admin.users}</caption>
             <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
-              <tr><th scope="col" className={cellClass}>User</th><th scope="col" className={cellClass}>Status</th><th scope="col" className={cellClass}>Last sign-in</th><th scope="col" className={cellClass}>Actions</th></tr>
+              <tr><SortHeader field="email" label="User" sort={sort} onSort={setSort} /><th scope="col" className={cellClass}>Status</th><SortHeader field="created_at" label="Created" sort={sort} onSort={setSort} /><th scope="col" className={cellClass}>Last sign-in</th><th scope="col" className={cellClass}>Actions</th></tr>
             </thead>
             <tbody>
               {users.data.data.map((user) => {
@@ -204,8 +208,10 @@ export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search
                         {user.disabled ? <Badge variant="destructive">{en.admin.disabled}</Badge> : null}
                         {user.password_reset_required ? <Badge variant="outline">{en.admin.resetRequired}</Badge> : null}
                         {user.totp_enabled ? <Badge variant="outline">{en.admin.twoFactorOn}</Badge> : null}
+                        <Link to="/app/admin/users/$userId" params={{ userId: String(user.id) }} className="text-xs underline">{en.admin.details}</Link>
                       </div>
                     </td>
+                    <td className={cellClass}>{formatDate(user.created_at, '')}</td>
                     <td className={cellClass}>{formatDate(user.last_login_at)}</td>
                     <td className={cellClass}>
                       <div className="flex flex-wrap gap-1">
@@ -241,6 +247,7 @@ export function AdminUsersPage({ currentUserId, adminTotpEnabled = false, search
           </table>
         </div>
       ) : null}
+      <LoadMore query={users} />
       <AlertDialog open={pending !== null} onOpenChange={(open) => { if (!open && !update.isPending) { update.reset(); setPending(null) } }}>
         <AlertDialogContent>
           <AlertDialogHeader>

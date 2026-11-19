@@ -32,12 +32,14 @@ import { Route as AppAccountNotificationsRouteImport } from './routes/app.accoun
 import { Route as AppAccountProfileRouteImport } from './routes/app.account.profile'
 import { Route as AppAccountSecurityRouteImport } from './routes/app.account.security'
 import { Route as AppAccountSessionsRouteImport } from './routes/app.account.sessions'
+import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 import { Route as AppAdminEmailRouteImport } from './routes/app.admin.email'
 import { Route as AppAdminGithubStarsRouteImport } from './routes/app.admin.github-stars'
 import { Route as AppAdminOrganizationsRouteImport } from './routes/app.admin.organizations'
 import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
 import { Route as AppAdminSettingsRouteImport } from './routes/app.admin.settings'
 import { Route as AppAdminSitesRouteImport } from './routes/app.admin.sites'
+import { Route as AppAdminSystemRouteImport } from './routes/app.admin.system'
 import { Route as AppAdminUpdateRouteImport } from './routes/app.admin.update'
 import { Route as AppAdminUsersRouteImport } from './routes/app.admin.users'
 import { Route as AppOrgSiteIndexRouteImport } from './routes/app.$org.$site.index'
@@ -69,6 +71,7 @@ import { Route as AppOrgSettingsReplayStorageRouteImport } from './routes/app.$o
 import { Route as AppOrgSitesIndexRouteImport } from './routes/app.$org.sites.index'
 import { Route as AppOrgSitesNewRouteImport } from './routes/app.$org.sites.new'
 import { Route as AppAccountOrganizationsNewRouteImport } from './routes/app.account.organizations.new'
+import { Route as AppAdminUsersUserIdRouteImport } from './routes/app.admin.users_.$userId'
 import { Route as AppOrgSiteFunnelsIndexRouteImport } from './routes/app.$org.$site.funnels.index'
 import { Route as AppOrgSiteFunnelsIdRouteImport } from './routes/app.$org.$site.funnels.$id'
 import { Route as AppOrgSiteIssuesIndexRouteImport } from './routes/app.$org.$site.issues.index'
@@ -223,6 +226,11 @@ const AppAccountSessionsRoute = AppAccountSessionsRouteImport.update({
   path: '/sessions',
   getParentRoute: () => AppAccountRoute,
 } as any)
+const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminEmailRoute = AppAdminEmailRouteImport.update({
   id: '/email',
   path: '/email',
@@ -251,6 +259,11 @@ const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
 const AppAdminSitesRoute = AppAdminSitesRouteImport.update({
   id: '/sites',
   path: '/sites',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSystemRoute = AppAdminSystemRouteImport.update({
+  id: '/system',
+  path: '/system',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminUpdateRoute = AppAdminUpdateRouteImport.update({
@@ -411,6 +424,11 @@ const AppAccountOrganizationsNewRoute =
     path: '/organizations/new',
     getParentRoute: () => AppAccountRoute,
   } as any)
+const AppAdminUsersUserIdRoute = AppAdminUsersUserIdRouteImport.update({
+  id: '/users_/$userId',
+  path: '/users/$userId',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppOrgSiteFunnelsIndexRoute = AppOrgSiteFunnelsIndexRouteImport.update({
   id: '/$site/funnels/',
   path: '/$site/funnels/',
@@ -645,12 +663,14 @@ export interface FileRoutesByFullPath {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/email': typeof AppAdminEmailRoute
   '/app/admin/github-stars': typeof AppAdminGithubStarsRoute
   '/app/admin/organizations': typeof AppAdminOrganizationsRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/system': typeof AppAdminSystemRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/': typeof AppOrgIndexRoute
@@ -679,6 +699,7 @@ export interface FileRoutesByFullPath {
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
   '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
+  '/app/admin/users/$userId': typeof AppAdminUsersUserIdRoute
   '/app/$org/$site/': typeof AppOrgSiteIndexRoute
   '/app/$org/github-stars/': typeof AppOrgGithubStarsIndexRoute
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
@@ -741,12 +762,14 @@ export interface FileRoutesByTo {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/email': typeof AppAdminEmailRoute
   '/app/admin/github-stars': typeof AppAdminGithubStarsRoute
   '/app/admin/organizations': typeof AppAdminOrganizationsRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/system': typeof AppAdminSystemRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org': typeof AppOrgIndexRoute
@@ -774,6 +797,7 @@ export interface FileRoutesByTo {
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
   '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
+  '/app/admin/users/$userId': typeof AppAdminUsersUserIdRoute
   '/app/$org/$site': typeof AppOrgSiteIndexRoute
   '/app/$org/github-stars': typeof AppOrgGithubStarsIndexRoute
   '/app/$org/settings': typeof AppOrgSettingsIndexRoute
@@ -841,12 +865,14 @@ export interface FileRoutesById {
   '/app/account/profile': typeof AppAccountProfileRoute
   '/app/account/security': typeof AppAccountSecurityRoute
   '/app/account/sessions': typeof AppAccountSessionsRoute
+  '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/email': typeof AppAdminEmailRoute
   '/app/admin/github-stars': typeof AppAdminGithubStarsRoute
   '/app/admin/organizations': typeof AppAdminOrganizationsRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/settings': typeof AppAdminSettingsRoute
   '/app/admin/sites': typeof AppAdminSitesRoute
+  '/app/admin/system': typeof AppAdminSystemRoute
   '/app/admin/update': typeof AppAdminUpdateRoute
   '/app/admin/users': typeof AppAdminUsersRoute
   '/app/$org/': typeof AppOrgIndexRoute
@@ -875,6 +901,7 @@ export interface FileRoutesById {
   '/app/$org/settings/replay-storage': typeof AppOrgSettingsReplayStorageRoute
   '/app/$org/sites/new': typeof AppOrgSitesNewRoute
   '/app/account/organizations/new': typeof AppAccountOrganizationsNewRoute
+  '/app/admin/users_/$userId': typeof AppAdminUsersUserIdRoute
   '/app/$org/$site/': typeof AppOrgSiteIndexRoute
   '/app/$org/github-stars/': typeof AppOrgGithubStarsIndexRoute
   '/app/$org/settings/': typeof AppOrgSettingsIndexRoute
@@ -943,12 +970,14 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/audit'
     | '/app/admin/email'
     | '/app/admin/github-stars'
     | '/app/admin/organizations'
     | '/app/admin/security'
     | '/app/admin/settings'
     | '/app/admin/sites'
+    | '/app/admin/system'
     | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/'
@@ -977,6 +1006,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/replay-storage'
     | '/app/$org/sites/new'
     | '/app/account/organizations/new'
+    | '/app/admin/users/$userId'
     | '/app/$org/$site/'
     | '/app/$org/github-stars/'
     | '/app/$org/settings/'
@@ -1039,12 +1069,14 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/audit'
     | '/app/admin/email'
     | '/app/admin/github-stars'
     | '/app/admin/organizations'
     | '/app/admin/security'
     | '/app/admin/settings'
     | '/app/admin/sites'
+    | '/app/admin/system'
     | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org'
@@ -1072,6 +1104,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/replay-storage'
     | '/app/$org/sites/new'
     | '/app/account/organizations/new'
+    | '/app/admin/users/$userId'
     | '/app/$org/$site'
     | '/app/$org/github-stars'
     | '/app/$org/settings'
@@ -1138,12 +1171,14 @@ export interface FileRouteTypes {
     | '/app/account/profile'
     | '/app/account/security'
     | '/app/account/sessions'
+    | '/app/admin/audit'
     | '/app/admin/email'
     | '/app/admin/github-stars'
     | '/app/admin/organizations'
     | '/app/admin/security'
     | '/app/admin/settings'
     | '/app/admin/sites'
+    | '/app/admin/system'
     | '/app/admin/update'
     | '/app/admin/users'
     | '/app/$org/'
@@ -1172,6 +1207,7 @@ export interface FileRouteTypes {
     | '/app/$org/settings/replay-storage'
     | '/app/$org/sites/new'
     | '/app/account/organizations/new'
+    | '/app/admin/users_/$userId'
     | '/app/$org/$site/'
     | '/app/$org/github-stars/'
     | '/app/$org/settings/'
@@ -1392,6 +1428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountSessionsRouteImport
       parentRoute: typeof AppAccountRoute
     }
+    '/app/admin/audit': {
+      id: '/app/admin/audit'
+      path: '/audit'
+      fullPath: '/app/admin/audit'
+      preLoaderRoute: typeof AppAdminAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/email': {
       id: '/app/admin/email'
       path: '/email'
@@ -1432,6 +1475,13 @@ declare module '@tanstack/react-router' {
       path: '/sites'
       fullPath: '/app/admin/sites'
       preLoaderRoute: typeof AppAdminSitesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/system': {
+      id: '/app/admin/system'
+      path: '/system'
+      fullPath: '/app/admin/system'
+      preLoaderRoute: typeof AppAdminSystemRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/app/admin/update': {
@@ -1650,6 +1700,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/account/organizations/new'
       preLoaderRoute: typeof AppAccountOrganizationsNewRouteImport
       parentRoute: typeof AppAccountRoute
+    }
+    '/app/admin/users_/$userId': {
+      id: '/app/admin/users_/$userId'
+      path: '/users/$userId'
+      fullPath: '/app/admin/users/$userId'
+      preLoaderRoute: typeof AppAdminUsersUserIdRouteImport
+      parentRoute: typeof AppAdminRoute
     }
     '/app/$org/$site/funnels/': {
       id: '/app/$org/$site/funnels/'
@@ -2119,25 +2176,31 @@ const AppAccountRouteWithChildren = AppAccountRoute._addFileChildren(
 )
 
 interface AppAdminRouteChildren {
+  AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminEmailRoute: typeof AppAdminEmailRoute
   AppAdminGithubStarsRoute: typeof AppAdminGithubStarsRoute
   AppAdminOrganizationsRoute: typeof AppAdminOrganizationsRoute
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSitesRoute: typeof AppAdminSitesRoute
+  AppAdminSystemRoute: typeof AppAdminSystemRoute
   AppAdminUpdateRoute: typeof AppAdminUpdateRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
+  AppAdminUsersUserIdRoute: typeof AppAdminUsersUserIdRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminEmailRoute: AppAdminEmailRoute,
   AppAdminGithubStarsRoute: AppAdminGithubStarsRoute,
   AppAdminOrganizationsRoute: AppAdminOrganizationsRoute,
   AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSitesRoute: AppAdminSitesRoute,
+  AppAdminSystemRoute: AppAdminSystemRoute,
   AppAdminUpdateRoute: AppAdminUpdateRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
+  AppAdminUsersUserIdRoute: AppAdminUsersUserIdRoute,
 }
 
 const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(

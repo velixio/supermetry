@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { components } from '@/lib/api.gen'
 import { privateRequest } from '@/features/settings/privateApi'
@@ -18,6 +18,9 @@ export type AdminEmailTestResult = Schemas['AdminEmailTestResult']
 export type AdminSettingsPatch = Schemas['AdminSettingsPatch']
 export type AdminTwoFactorPolicy = Schemas['AdminTwoFactorPolicy']
 export type AdminTwoFactorExemption = Schemas['AdminTwoFactorExemption']
+export type AdminUserDetail = Schemas['AdminUserDetail']
+export type AdminPasswordReset = Schemas['AdminPasswordReset']
+export type AdminSystem = Schemas['AdminSystem']
 export type AdminAuditEntry = Schemas['AdminAuditEntry']
 export type AdminUpdateStatus = Schemas['AdminUpdateStatus']
 export type AdminApplyUpdateRequest = Schemas['AdminApplyUpdateRequest']
@@ -40,14 +43,31 @@ export const adminKeys = {
   update: ['admin', 'update'] as const,
 }
 
-function withSearch(path: string, search: string) {
+export type AdminSort = { sort?: string; order?: 'asc' | 'desc' }
+type Page<T> = { data: T[]; next_cursor?: string | null }
+
+function listPath(path: string, search: string, sort: AdminSort, cursor: string) {
   const query = new URLSearchParams({ limit: '100' })
   if (search.trim()) query.set('search', search.trim())
+  if (sort.sort) query.set('sort', sort.sort)
+  if (sort.order) query.set('order', sort.order)
+  if (cursor) query.set('cursor', cursor)
   return `${path}?${query}`
 }
 
-export function useAdminUsers(search: string) {
-  return useQuery({ queryKey: adminKeys.users(search), queryFn: () => privateRequest<{ data: AdminUser[] }>('GET', withSearch(`${base}/users`, search)) })
+/** A cursor-paged admin list: `data` is every loaded page flattened; fetchNextPage loads more. */
+function useAdminList<T>(kind: string, path: string, search: string, sort: AdminSort) {
+  return useInfiniteQuery({
+    queryKey: ['admin', kind, search, sort.sort ?? '', sort.order ?? ''],
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => privateRequest<Page<T>>('GET', listPath(path, search, sort, pageParam)),
+    getNextPageParam: (last) => last.next_cursor || undefined,
+    select: (result) => ({ data: result.pages.flatMap((page) => page.data) }),
+  })
+}
+
+export function useAdminUsers(search: string, sort: AdminSort = {}) {
+  return useAdminList<AdminUser>('users', `${base}/users`, search, sort)
 }
 
 export function useUpdateAdminUser() {
@@ -99,8 +119,8 @@ export function useSetAdminSiteRetention() {
   })
 }
 
-export function useAdminOrganizations(search: string) {
-  return useQuery({ queryKey: adminKeys.organizations(search), queryFn: () => privateRequest<{ data: AdminOrganization[] }>('GET', withSearch(`${base}/organizations`, search)) })
+export function useAdminOrganizations(search: string, sort: AdminSort = {}) {
+  return useAdminList<AdminOrganization>('organizations', `${base}/organizations`, search, sort)
 }
 
 export function useAdminOrganization(id: number | null) {
@@ -111,8 +131,8 @@ export function useAdminOrganization(id: number | null) {
   })
 }
 
-export function useAdminSites(search: string) {
-  return useQuery({ queryKey: adminKeys.sites(search), queryFn: () => privateRequest<{ data: AdminSite[] }>('GET', withSearch(`${base}/sites`, search)) })
+export function useAdminSites(search: string, sort: AdminSort = {}) {
+  return useAdminList<AdminSite>('sites', `${base}/sites`, search, sort)
 }
 
 export function useAdminSettings() {
@@ -162,8 +182,43 @@ export function useRemoveExemption() {
   })
 }
 
-export function useAdminAudit() {
-  return useQuery({ queryKey: adminKeys.audit, queryFn: () => privateRequest<{ data: AdminAuditEntry[] }>('GET', `${base}/audit?limit=50`) })
+export type AuditFilters = { actor?: string; action?: string; org?: string; from?: string; to?: string }
+
+export function useAdminAudit(filters: AuditFilters = {}) {
+  return useInfiniteQuery({
+    queryKey: [...adminKeys.audit, filters] as const,
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => {
+      const query = new URLSearchParams({ limit: '50' })
+      for (const [key, value] of Object.entries(filters)) if (value) query.set(key, key === 'from' || key === 'to' ? new Date(value).toISOString() : value)
+      if (pageParam) query.set('cursor', pageParam)
+      return privateRequest<Page<AdminAuditEntry>>('GET', `${base}/audit?${query}`)
+    },
+    getNextPageParam: (last) => last.next_cursor || undefined,
+    select: (result) => ({ data: result.pages.flatMap((page) => page.data) }),
+  })
+}
+
+export function useAdminSystem() {
+  return useQuery({ queryKey: ['admin', 'system'] as const, queryFn: () => privateRequest<AdminSystem>('GET', `${base}/system`), refetchInterval: 15_000 })
+}
+
+export function useAdminUser(id: number) {
+  return useQuery({ queryKey: ['admin', 'user', id] as const, queryFn: () => privateRequest<AdminUserDetail>('GET', `${base}/users/${id}`) })
+}
+
+export function useRevokeUserSessions() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => privateRequest<unknown>('POST', `${base}/users/${id}/sessions/revoke`),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['admin', 'user'] }),
+  })
+}
+
+export function useSendPasswordReset() {
+  return useMutation({
+    mutationFn: (id: number) => privateRequest<AdminPasswordReset>('POST', `${base}/users/${id}/password-reset`),
+  })
 }
 
 export function useUpdateStatus(enabled: boolean) {

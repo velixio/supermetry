@@ -6,7 +6,9 @@ import { AdminOrganizationsPage } from '@/features/admin/AdminOrganizationsPage'
 export const Route = createFileRoute('/app/admin/organizations')({ validateSearch: parseAdminSearch, component: OrganizationsRoute })
 
 function OrganizationsRoute() {
-  const { q } = Route.useSearch()
+  const { q, sort, order } = Route.useSearch()
   const navigate = Route.useNavigate()
-  return <AdminOrganizationsPage search={q ?? ''} onSearch={(value) => void navigate({ search: value.trim() ? { q: value.trim() } : {} })} />
+  return <AdminOrganizationsPage search={q ?? ''} onSearch={(value) => void navigate({ search: (prev) => ({ ...prev, q: value.trim() || undefined }) })}
+      sort={{ sort, order }}
+      onSort={(next) => void navigate({ search: (prev) => ({ ...prev, ...next }) })} />
 }
