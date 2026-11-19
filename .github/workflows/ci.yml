@@ -314,7 +314,7 @@ jobs:
         run: bunx playwright test e2e/a11y-audit.spec.ts e2e/api-docs.spec.ts e2e/dashboard.spec.ts e2e/dashboard-where-when.spec.ts e2e/navigation.spec.ts e2e/privacy.spec.ts e2e/revenue.spec.ts e2e/sessions.spec.ts e2e/settings.spec.ts e2e/vitals.spec.ts --reporter=list --workers=1
 
       - name: End-to-end account and extended features
-        if: matrix.group == 'b'
+        if: matrix.group == 'a'
         working-directory: web
         env:
           SUPERMETRY_E2E_PORT: "18090"
