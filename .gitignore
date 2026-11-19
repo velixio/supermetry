@@ -5,6 +5,7 @@ goal
 nohup.out
 bin
 /data/
+/web/data/
 # Secrets and credentials (never commit)
 .env
 .env.*
