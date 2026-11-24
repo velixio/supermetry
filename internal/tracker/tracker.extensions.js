@@ -21,6 +21,8 @@
     if (d.clicks == "false") return;
     var a = e.target;
     for (var l = 0; a && l < 4; l++, a = a.parentElement) {
+      // A click inside a form reaches the form again as a submit event; count it there once.
+      if (e.type == "click" && a.tagName == "FORM") return;
       var n = a.getAttribute?.("data-supermetry-event");
       if (n) {
         var p = {};

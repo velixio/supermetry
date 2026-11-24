@@ -17,6 +17,8 @@
   function custom(event) {
     var element = event.target;
     for (var level = 0; element && level < 4; level++, element = element.parentElement) {
+      // A click inside a form reaches the form again as a submit event; count it there once.
+      if (event.type == "click" && element.tagName == "FORM") return;
       var name = element.getAttribute?.("data-supermetry-event");
       if (name) {
         var props = {}, bytes = 0, count = 0;

@@ -11,7 +11,7 @@ function buildSource(full) {
     .replace(/\/\*@core\*\/([\s\S]*?)\/\*@end\*\//g, full ? "" : "$1");
 }
 
-function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, doNotTrack = "0", ignored = false, crypto = {}, loadInjectedFull = false, windowValues = {}, injectionError = false} = {}) {
+function loadTracker({full = false, dataset = {}, withExtensions = false, prelude = "", includeSite = true, globalPrivacyControl = false, doNotTrack = "0", ignored = false, crypto = {}, loadInjectedFull = false, windowValues = {}, injectionError = false, modules = []} = {}) {
   const events = new Map();
   const listeners = new Map();
   const payloads = [];
@@ -187,6 +187,9 @@ function loadTracker({full = false, dataset = {}, withExtensions = false, prelud
   }
   if (withExtensions) {
     vm.runInNewContext(extensions, context, {filename: "tracker.extensions.js"});
+  }
+  for (const module of modules) {
+    vm.runInNewContext(fs.readFileSync(`${__dirname}/${module}`, "utf8"), context, {filename: module});
   }
   return {context, events, supermetry: window.supermetry, payloads, storage, loadedScripts, setNow: (value) => now = value};
 }
@@ -637,6 +640,37 @@ function testMalformedClassTagsAreIgnored() {
   assert.equal(props.long, undefined);
 }
 
+function taggedFormClickThenSubmit(tracker) {
+  const form = element({tagName: "FORM", attributes: {"data-supermetry-event": "Demo start"}});
+  const wrapped = element({tagName: "DIV", attributes: {"data-supermetry-event": "Wrapper"}});
+  const inner = element({tagName: "FORM", parentElement: wrapped});
+  for (const target of [form, inner]) {
+    const button = element({parentElement: target});
+    tracker.events.get("document:click")({type: "click", button: 0, target: button});
+    tracker.events.get("document:submit")({type: "submit", target});
+  }
+  return tracker.payloads.slice(1).map((payload) => payload.name);
+}
+
+function testTaggedFormCountsOncePerSubmitInFullBuild() {
+  const tracker = loadTracker({full: true, withExtensions: true, dataset: {forms: "false"}});
+  assert.deepEqual(taggedFormClickThenSubmit(tracker), ["Demo start", "Wrapper"]);
+}
+
+function testTaggedFormCountsOncePerSubmitInClicksModule() {
+  const tracker = loadTracker({full: true, modules: ["tracker.clicks.js"]});
+  assert.deepEqual(taggedFormClickThenSubmit(tracker), ["Demo start", "Wrapper"]);
+}
+
+function testTaggedButtonInsideFormStillCountsOnClick() {
+  const tracker = loadTracker({full: true, modules: ["tracker.clicks.js"]});
+  const form = element({tagName: "FORM"});
+  const button = element({parentElement: form, attributes: {"data-supermetry-event": "Signup click"}});
+  tracker.events.get("document:click")({type: "click", button: 0, target: button});
+  tracker.events.get("document:submit")({type: "submit", target: form});
+  assert.deepEqual(tracker.payloads.slice(1).map((payload) => payload.name), ["Signup click"]);
+}
+
 function testDataAttributeTakesPrecedenceOverClassTag() {
   const tracker = loadTracker({full: true, withExtensions: true});
   const button = element({
@@ -797,3 +831,6 @@ function testDisabledProfilesDoNotCollectIdentity() {
 testPrivacySignalsBlockAllCollection();
 testHeatmapConsentWithdrawalDiscardsPoints();
 testDisabledProfilesDoNotCollectIdentity();
+testTaggedFormCountsOncePerSubmitInFullBuild();
+testTaggedFormCountsOncePerSubmitInClicksModule();
+testTaggedButtonInsideFormStillCountsOnClick();
