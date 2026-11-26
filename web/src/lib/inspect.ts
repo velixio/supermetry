@@ -4,7 +4,7 @@ import { isAnonymousDimensionAllowed, isAnonymousFilterAllowed } from '@/lib/tra
 /** Dimensions the dashboard can inspect: every BreakdownCard tab dimension plus one Weekly rhythm cell. */
 export const inspectDimensions = [
   'page', 'entry', 'exit',
-  'source', 'channel', 'utm_source', 'utm_medium', 'utm_campaign',
+  'source', 'channel', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
   'country', 'region', 'city', 'language', 'hostname',
   'browser', 'browser_version', 'os', 'os_version', 'device', 'screen_size',
   'goal', 'event',

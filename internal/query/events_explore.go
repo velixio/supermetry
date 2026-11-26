@@ -422,7 +422,7 @@ func eventExploreResolver(alias string) dimensionResolver {
 		case "utm_source":
 			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
-			return prefix + "medium_id", dictionaryKind(dict.Medium), nil
+			return prefix + "utm_medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":
 			return prefix + "campaign_id", dictionaryKind(dict.Campaign), nil
 		case "utm_content":

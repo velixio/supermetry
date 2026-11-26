@@ -88,6 +88,8 @@ function breakdownCards(): BreakdownCardDefinition[] {
     { key: 'utm-source', label: t.utmSource, dimension: 'utm_source', metric: 'visitors' },
     { key: 'medium', label: t.medium, dimension: 'utm_medium', metric: 'visitors' },
     { key: 'campaign', label: t.campaign, dimension: 'utm_campaign', metric: 'visitors' },
+    { key: 'content', label: t.content, dimension: 'utm_content', metric: 'visitors' },
+    { key: 'term', label: t.term, dimension: 'utm_term', metric: 'visitors' },
   ] },
   { id: 'location', title: ui.breakdown.location, tabs: [
     { key: 'country', label: t.countries, dimension: 'country', metric: 'visitors' },

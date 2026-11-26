@@ -36,7 +36,7 @@ function ProfileRoute() {
       onFirst={() => void navigate({ search: firstPage(search) })}
       onNext={(cursor) => void navigate({ search: nextPage(search, cursor) })}
       onPrevious={() => void navigate({ search: previousPage(search) })}
-      onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace })}
+      onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace, resetScroll: false })}
     />
   )
 }

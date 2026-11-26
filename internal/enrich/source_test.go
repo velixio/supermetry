@@ -111,6 +111,8 @@ func TestSourceClassifierFallbacks(t *testing.T) {
 		{name: "paid medium", pageURL: "https://site.test/", utm: UTM{Source: "GOOGLE", Medium: "CPC"}, want: "Google", medium: "paid"},
 		{name: "explicit social medium", pageURL: "https://site.test/", utm: UTM{Source: "newsletter", Medium: "SOCIAL"}, want: "newsletter", medium: "social"},
 		{name: "unknown medium stays original", pageURL: "https://site.test/", utm: UTM{Source: "newsletter", Medium: "partner"}, want: "newsletter", medium: "partner"},
+		{name: "medium without source keeps referrer source", referrer: "https://www.bing.com/", pageURL: "https://site.test/", utm: UTM{Medium: "CPC"}, want: "Bing", medium: "paid"},
+		{name: "medium without source or referrer", pageURL: "https://site.test/", utm: UTM{Medium: "Email"}, want: "", medium: "email"},
 		{name: "internal referrer", referrer: "https://www.site.test/page", pageURL: "https://site.test/", want: "", medium: ""},
 		{name: "malformed referrer", referrer: "://bad", pageURL: "https://site.test/", want: "", medium: ""},
 	}

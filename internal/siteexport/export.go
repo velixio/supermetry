@@ -70,7 +70,7 @@ type attribution struct {
 
 var attributions = []attribution{
 	{file: "utm_sources.csv", column: "utm_source_id", kind: dict.Source},
-	{file: "utm_mediums.csv", column: "medium_id", kind: dict.Medium},
+	{file: "utm_mediums.csv", column: "utm_medium_id", kind: dict.Medium},
 	{file: "utm_campaigns.csv", column: "campaign_id", kind: dict.Campaign},
 	{file: "utm_contents.csv", column: "utm_content_id", kind: dict.UTMContent},
 	{file: "utm_terms.csv", column: "utm_term_id", kind: dict.UTMTerm},

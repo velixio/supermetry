@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ReplayPlayer } from './ReplayPlayer'
@@ -27,6 +27,30 @@ afterEach(() => {
 })
 
 describe('ReplayPlayer', () => {
+  it('pauses and resumes playback and follows the player\'s own controls', async () => {
+    const play = vi.fn()
+    const pause = vi.fn()
+    let notify: ((state: 'playing' | 'paused') => void) | undefined
+    const mountPlayer = vi.fn(() => ({
+      goto: vi.fn(),
+      play,
+      pause,
+      onPlaybackChange: (listener: (state: 'playing' | 'paused') => void) => {
+        notify = listener
+        return () => { notify = undefined }
+      },
+    }))
+    render(<ReplayPlayer load={() => Promise.resolve({ events: [], truncated: false })} mountPlayer={mountPlayer} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pause replay' }))
+    expect(pause).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'Play replay' }))
+    expect(play).toHaveBeenCalledOnce()
+
+    act(() => notify?.('paused'))
+    expect(screen.getByRole('button', { name: 'Play replay' })).toBeVisible()
+  })
+
   it('shows a truncation warning while retaining valid replay events', async () => {
     const mountPlayer = vi.fn(() => () => undefined)
     render(

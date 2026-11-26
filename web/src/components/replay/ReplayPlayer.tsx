@@ -1,5 +1,7 @@
+import { PauseIcon, PlayIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ReplayData } from '@/lib/replay-api'
@@ -11,8 +13,14 @@ import './ReplayPlayer.css'
 
 const controllerHeight = 80
 
+export type PlaybackState = 'playing' | 'paused'
+
 export type ReplayPlayerHandle = {
   goto: (milliseconds: number) => void
+  play?: () => void
+  pause?: () => void
+  /** Subscribes to play/pause changes, including the player's own controls; returns an unsubscribe. */
+  onPlaybackChange?: (listener: (state: PlaybackState) => void) => () => void
   destroy?: () => void
   resize?: (stage: ReplaySize) => void
 }
@@ -42,8 +50,16 @@ async function mountRRWebPlayer(target: HTMLElement, events: unknown[]): Promise
     $set: (props: { width: number; height: number; maxScale: number }) => void
     addEventListener: (event: string, handler: (size: unknown) => void) => void
     goto: (milliseconds: number) => void
+    play: () => void
+    pause: () => void
     triggerResize: () => void
   }
+  const playbackListeners = new Set<(state: PlaybackState) => void>()
+  instance.addEventListener('ui-update-player-state', (event) => {
+    const state = (event as { payload?: unknown } | undefined)?.payload
+    if (state !== 'playing' && state !== 'paused') return
+    for (const listener of playbackListeners) listener(state)
+  })
 
   const fit = () => {
     const height = Math.max(1, stage.height - controllerHeight)
@@ -68,6 +84,12 @@ async function mountRRWebPlayer(target: HTMLElement, events: unknown[]): Promise
 
   return {
     goto: (milliseconds) => instance.goto(milliseconds),
+    play: () => instance.play(),
+    pause: () => instance.pause(),
+    onPlaybackChange: (listener) => {
+      playbackListeners.add(listener)
+      return () => playbackListeners.delete(listener)
+    },
     resize: (nextStage) => {
       stage = nextStage
       fit()
@@ -92,6 +114,14 @@ export function ReplayPlayer({
 }) {
   const target = useRef<HTMLDivElement>(null)
   const [state, setState] = useState<{ loading: boolean; error?: string; truncated: boolean }>({ loading: true, truncated: false })
+  const [player, setPlayer] = useState<ReplayPlayerHandle | null>(null)
+  // rrweb-player starts playing as soon as it mounts.
+  const [playback, setPlayback] = useState<PlaybackState>('playing')
+
+  useEffect(() => {
+    if (!player?.onPlaybackChange) return
+    return player.onPlaybackChange(setPlayback)
+  }, [player])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -120,6 +150,7 @@ export function ReplayPlayer({
             observer?.disconnect()
             destroyPlayer?.()
           }
+          setPlayer(player)
           onReady?.(player)
         }
         if (!disposed) setState({ loading: false, truncated: data.truncated })
@@ -132,6 +163,7 @@ export function ReplayPlayer({
     return () => {
       disposed = true
       controller.abort()
+      setPlayer(null)
       onReady?.(null)
       destroy?.()
     }
@@ -142,6 +174,25 @@ export function ReplayPlayer({
       {state.loading ? <Skeleton aria-label="Loading replay" className="h-96 w-full" /> : null}
       {state.error ? <Card role="alert"><CardHeader><CardTitle>Replay unavailable</CardTitle></CardHeader><CardContent>{state.error}</CardContent></Card> : null}
       {state.truncated ? <Card role="status"><CardHeader><CardTitle>Recording truncated</CardTitle></CardHeader><CardContent>The replay ends at the last complete event.</CardContent></Card> : null}
+      {player?.play && player.pause ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            aria-label={playback === 'playing' ? 'Pause replay' : 'Play replay'}
+            aria-pressed={playback === 'playing'}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (playback === 'playing') player.pause?.()
+              else player.play?.()
+              setPlayback(playback === 'playing' ? 'paused' : 'playing')
+            }}
+          >
+            {playback === 'playing' ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
+            {playback === 'playing' ? 'Pause' : 'Play'}
+          </Button>
+        </div>
+      ) : null}
       <div
         ref={target}
         data-testid="replay-stage"

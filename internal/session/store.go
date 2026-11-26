@@ -31,8 +31,11 @@ type Hit struct {
 	NameID        int32
 	Source        int32
 	UTMSource     int32
+	UTMMedium     int32
 	Medium        int32
 	Campaign      int32
+	UTMContent    int32
+	UTMTerm       int32
 	Country       string
 	Region        int32
 	City          int32
@@ -180,8 +183,11 @@ type Snapshot struct {
 	Bounce       bool
 	Source       int32
 	UTMSource    int32
+	UTMMedium    int32
 	Medium       int32
 	Campaign     int32
+	UTMContent   int32
+	UTMTerm      int32
 	Country      string
 	Region       int32
 	City         int32

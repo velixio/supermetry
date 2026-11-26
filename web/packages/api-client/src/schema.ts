@@ -7590,7 +7590,7 @@ export interface components {
          */
         Metric: "visitors" | "visits" | "pageviews" | "views_per_visit" | "bounce_rate" | "visit_duration" | "engagement_time" | "exit_rate" | "time_on_page" | "scroll_depth" | "events" | "conversions" | "conversion_rate" | "total_revenue" | "average_revenue";
         /** @enum {string} */
-        StatsBreakdownDimension: "browser" | "browser_version" | "channel" | "city" | "country" | "device" | "entry" | "event" | "exit" | "goal" | "hour" | "hour_of_day" | "hostname" | "language" | "os" | "os_version" | "page" | "path" | "region" | "screen_size" | "source" | "time" | "utm_campaign" | "utm_medium" | "utm_source" | "weekday";
+        StatsBreakdownDimension: "browser" | "browser_version" | "channel" | "city" | "country" | "device" | "entry" | "event" | "exit" | "goal" | "hour" | "hour_of_day" | "hostname" | "language" | "os" | "os_version" | "page" | "path" | "region" | "screen_size" | "source" | "time" | "utm_campaign" | "utm_content" | "utm_medium" | "utm_source" | "utm_term" | "weekday";
         /**
          * @description One test on a profile. `event`: performed the custom event `name` at least `min_count` times in the window. `page`: viewed `path`
          *     (`operator` is or starts_with) at least `min_count` times. `event_property`: performed event `name` with property `key` equal to `value`

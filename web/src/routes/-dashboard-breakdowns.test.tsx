@@ -278,7 +278,7 @@ describe('dashboard breakdown route', () => {
       within(sources)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Source', 'Channels', 'UTM source', 'Medium', 'Campaign'])
+    ).toEqual(['Source', 'Channels', 'UTM source', 'Medium', 'Campaign', 'Content', 'Term'])
   })
 
   it('shows the new device tabs and hides Hostname for a single-host site', async () => {
@@ -325,6 +325,8 @@ describe('dashboard breakdown route', () => {
       'UTM source',
       'Medium',
       'Campaign',
+      'Content',
+      'Term',
     ])
     fireEvent.click(within(sources).getByRole('tab', { name: 'Channels' }))
     fireEvent.click(

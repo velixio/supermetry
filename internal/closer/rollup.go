@@ -33,7 +33,7 @@ select site_id, $1, dim, value_id,
 from (
   select metrics.*,
          row_number() over (
-           partition by site_id, day, visitor_id, medium_id order by started_at, session_id
+           partition by site_id, day, visitor_id, utm_medium_id order by started_at, session_id
          ) = 1 as medium_visitor,
          row_number() over (
            partition by site_id, day, visitor_id, campaign_id order by started_at, session_id
@@ -58,7 +58,7 @@ cross join lateral (values
   (14::smallint, s.screen_bucket::integer, s.flags & 32 <> 0),
   (15::smallint, s.language_id, s.flags & 64 <> 0),
   (16::smallint, s.hostname_id, s.flags & 128 <> 0),
-  (17::smallint, s.medium_id, s.medium_visitor),
+  (17::smallint, s.utm_medium_id, s.medium_visitor),
   (18::smallint, s.campaign_id, s.campaign_visitor)
 ) dimensions(dim, value_id, is_visitor)
 where not (dim in (11, 17, 18) and value_id = 0)

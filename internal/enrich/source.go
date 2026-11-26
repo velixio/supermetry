@@ -122,6 +122,20 @@ func (c *SourceClassifier) Source(referrer, pageURL string, utm UTM) (source, me
 		return source, ""
 	}
 
+	source, medium = c.referrerSource(referrer, pageURL)
+	if utm.Medium != "" {
+		// A tagged medium without a source still describes the visit
+		// (for example a search ad tagged utm_medium=cpc): keep the source the
+		// referrer gives and take the medium from the tag.
+		if canonical, ok := c.mediums[normalizeToken(utm.Medium)]; ok {
+			return source, canonical
+		}
+		return source, utm.Medium
+	}
+	return source, medium
+}
+
+func (c *SourceClassifier) referrerSource(referrer, pageURL string) (source, medium string) {
 	ref, err := url.Parse(referrer)
 	if err != nil || ref.Hostname() == "" {
 		return "", ""

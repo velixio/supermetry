@@ -27,7 +27,7 @@ func TestBufferedIdentityRecheckedOnRetry(t *testing.T) {
 			registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}
 			w := New(nil, nil, 1, time.Hour, time.Hour)
 			w.SetTrackingPolicy(privacy.Identified, registry)
-			if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1}, ReferrerID: 11, UTMContent: 12, UTMTerm: 13, ProfileExternalID: "customer", ProfileID: 42, ProfileTraits: map[string]string{"name": "person"}, Props: map[string]string{"email": "person"}}) {
+			if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1, UTMContent: 12, UTMTerm: 13}, ReferrerID: 11, ProfileExternalID: "customer", ProfileID: 42, ProfileTraits: map[string]string{"name": "person"}, Props: map[string]string{"email": "person"}}) {
 				t.Fatal("enqueue")
 			}
 			batch := []Event{<-w.ch}
@@ -129,7 +129,7 @@ func TestBufferedDowngradePersistsNoIdentity(t *testing.T) {
 	registry := &policyRegistry{site: sites.Site{ID: 1, ProfilesEnabled: true}}
 	w := New(pool, nil, 1, time.Hour, time.Hour)
 	w.SetTrackingPolicy(privacy.Identified, registry)
-	if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, PathID: 1, Source: 9, UTMSource: 10, Medium: 11, Campaign: 12}, SessionID: 1, ProfileExternalID: "queued-person", ProfileID: 123, ProfileTraits: map[string]string{"name": "secret"}, Props: map[string]string{"email": "secret"}, ReferrerID: 13, UTMContent: 14, UTMTerm: 15}) {
+	if !w.Enqueue(Event{Hit: session.Hit{SiteID: 1, Retention: db.Ret30, LocalDay: day, TS: day.Add(time.Minute), VisitorID: 1, PathID: 1, Source: 9, UTMSource: 10, Medium: 11, Campaign: 12, UTMContent: 14, UTMTerm: 15}, SessionID: 1, ProfileExternalID: "queued-person", ProfileID: 123, ProfileTraits: map[string]string{"name": "secret"}, Props: map[string]string{"email": "secret"}, ReferrerID: 13}) {
 		t.Fatal("enqueue")
 	}
 	registry.site.ProfilesEnabled = false

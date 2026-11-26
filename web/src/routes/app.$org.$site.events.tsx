@@ -97,7 +97,7 @@ function EventsRoute() {
         onNext={(cursor) => void navigate({ search: nextPage(search, cursor) })}
         onPrevious={() => void navigate({ search: previousPage(search) })}
         onPropertyChange={(property) => void navigate({ search: { ...search, property } })}
-        onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace })}
+        onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace, resetScroll: false })}
       />
     </div>
   )

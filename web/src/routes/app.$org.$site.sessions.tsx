@@ -86,8 +86,8 @@ function SessionsRoute() {
         onFirst={() => void navigate({ search: firstPage(search) })}
         onNext={(cursor) => void navigate({ search: nextPage(search, cursor) })}
         onPrevious={() => void navigate({ search: previousPage(search) })}
-        onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace })}
-        onSelect={(session) => void navigate({ search: { ...search, session } })}
+        onReplayChange={(replay, options) => void navigate({ search: { ...search, replay }, replace: options?.replace, resetScroll: false })}
+        onSelect={(session) => void navigate({ search: { ...search, session }, resetScroll: false })}
         selectedSessionId={search.session}
         siteId={site.id}
         site={siteSlug}

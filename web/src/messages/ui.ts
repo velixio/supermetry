@@ -13,7 +13,7 @@ export const ui = {
     verified: 'Verified',
     tabs: {
       top: 'Top', entry: 'Entry', exit: 'Exit', source: 'Source', channel: 'Channels', utmSource: 'UTM source',
-      medium: 'Medium', campaign: 'Campaign', countries: 'Countries', regions: 'Regions', cities: 'Cities',
+      medium: 'Medium', campaign: 'Campaign', content: 'Content', term: 'Term', countries: 'Countries', regions: 'Regions', cities: 'Cities',
       language: 'Language', hostname: 'Hostname', browser: 'Browser', browserVersion: 'Browser version', os: 'OS',
       osVersion: 'OS version', device: 'Device', screenSize: 'Screen size', goals: 'Goals', events: 'Events',
     },
@@ -145,7 +145,7 @@ export const ui = {
     trafficScope: 'Across all matching weekdays and hours in the selected range, in the project time zone.',
     dimensions: {
       page: 'Page', entry: 'Entry page', exit: 'Exit page', source: 'Source', channel: 'Channel',
-      utm_source: 'UTM source', utm_medium: 'UTM medium', utm_campaign: 'UTM campaign', country: 'Country',
+      utm_source: 'UTM source', utm_medium: 'UTM medium', utm_campaign: 'UTM campaign', utm_content: 'UTM content', utm_term: 'UTM term', country: 'Country',
       region: 'Region', city: 'City', language: 'Language', hostname: 'Hostname', browser: 'Browser',
       browser_version: 'Browser version', os: 'OS', os_version: 'OS version', device: 'Device',
       screen_size: 'Screen size', goal: 'Goal', event: 'Event', weekday_hour: 'Weekly rhythm',

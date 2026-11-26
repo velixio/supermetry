@@ -19,7 +19,7 @@ import (
 
 var version = "dev"
 
-const usage = "usage: supermetry [install|serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|migrate-labels|user|version]\nWith no command, supermetry serves."
+const usage = "usage: supermetry [install|serve|migrate|load|close-days|geoip|backup|restore|recompute-rollups|backfill-utm-medium|migrate-labels|user|version]\nWith no command, supermetry serves."
 
 // commandName returns the subcommand to run. With no command, supermetry serves.
 func commandName(args []string) string {
@@ -100,6 +100,11 @@ func main() {
 		}
 	case "recompute-rollups":
 		if err := recomputeRollupsCommand(context.Background(), os.Args[2:], os.Getenv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "backfill-utm-medium":
+		if err := backfillUTMMediumCommand(context.Background(), os.Args[2:], os.Getenv); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

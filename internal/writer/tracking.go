@@ -66,7 +66,7 @@ func (w *Writer) suppressRestrictedIdentity(events []Event) {
 			continue
 		}
 		e.ProfileExternalID, e.ProfileID, e.ProfileTraits, e.Props = "", 0, nil, nil
-		e.ReferrerID, e.Source, e.UTMSource, e.Medium, e.Campaign = 0, 0, 0, 0, 0
+		e.ReferrerID, e.Source, e.UTMSource, e.UTMMedium, e.Medium, e.Campaign = 0, 0, 0, 0, 0, 0
 		e.UTMContent, e.UTMTerm = 0, 0
 	}
 }
@@ -96,6 +96,7 @@ func (w *Writer) suppressRestrictedSessions(snapshots []session.Snapshot) {
 		if w.identityAllowed(s.SiteID) {
 			continue
 		}
-		s.Source, s.UTMSource, s.Medium, s.Campaign = 0, 0, 0, 0
+		s.Source, s.UTMSource, s.UTMMedium, s.Medium, s.Campaign = 0, 0, 0, 0, 0
+		s.UTMContent, s.UTMTerm = 0, 0
 	}
 }
