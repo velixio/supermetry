@@ -546,7 +546,7 @@ func (w *Writer) currentPool() *pgxpool.Pool {
 
 var eventColumns = []string{
 	"site_id", "retention_class", "local_day", "ts", "visitor_id", "session_id", "kind",
-	"name_id", "path_id", "referrer_id", "source_id", "utm_source_id", "medium_id", "campaign_id",
+	"name_id", "path_id", "referrer_id", "source_id", "utm_source_id", "utm_medium_id", "medium_id", "campaign_id",
 	"utm_content_id", "utm_term_id", "country", "region_id", "city_id", "browser_id", "os_id",
 	"browser_ver_id", "os_ver_id", "language_id", "hostname_id", "device", "screen",
 	"engagement_ms", "scroll_pct", "props",
@@ -823,7 +823,7 @@ type siteDay struct {
 type eventSource struct {
 	events []Event
 	index  int
-	row    [35]any
+	row    [36]any
 }
 
 func (s *eventSource) Next() bool {
@@ -839,9 +839,9 @@ func (s *eventSource) Values() ([]any, error) {
 	if event.Props != nil {
 		props = event.Props
 	}
-	s.row = [35]any{
+	s.row = [36]any{
 		event.SiteID, event.Retention, event.LocalDay, event.TS, event.VisitorID, event.SessionID, event.Kind,
-		event.NameID, event.PathID, event.ReferrerID, event.Source, event.UTMSource, event.Medium, event.Campaign,
+		event.NameID, event.PathID, event.ReferrerID, event.Source, event.UTMSource, event.UTMMedium, event.Medium, event.Campaign,
 		event.UTMContent, event.UTMTerm, event.Country, event.Region, event.City, event.Browser, event.OS,
 		event.BrowserVer, event.OSVer, event.Language, event.Hostname, event.Device, event.Screen,
 		event.EngagementMS, event.ScrollPct, props,
@@ -867,7 +867,7 @@ func nullableString(value string) any {
 
 var sessionColumns = []string{
 	"site_id", "retention_class", "session_id", "visitor_id", "start", "last", "local_day",
-	"entry_path", "exit_path", "source_id", "utm_source_id", "medium_id", "campaign_id", "country", "region_id", "city_id", "browser_id",
+	"entry_path", "exit_path", "source_id", "utm_source_id", "utm_medium_id", "medium_id", "campaign_id", "country", "region_id", "city_id", "browser_id",
 	"os_id", "browser_ver_id", "os_ver_id", "language_id", "hostname_id", "screen_bucket",
 	"device", "pageviews", "events", "engagement_ms", "bounce",
 }
@@ -914,7 +914,7 @@ func joinColumns(columns []string) string {
 type sessionSource struct {
 	snapshots []session.Snapshot
 	index     int
-	row       [28]any
+	row       [29]any
 }
 
 func (s *sessionSource) Next() bool {
@@ -926,10 +926,10 @@ func (s *sessionSource) Err() error { return nil }
 
 func (s *sessionSource) Values() ([]any, error) {
 	snapshot := &s.snapshots[s.index-1]
-	s.row = [28]any{
+	s.row = [29]any{
 		snapshot.SiteID, snapshot.Retention, snapshot.SessionID, snapshot.VisitorID,
 		snapshot.Start, snapshot.Last, snapshot.LocalDay, snapshot.Entry, snapshot.Exit,
-		snapshot.Source, snapshot.UTMSource, snapshot.Medium, snapshot.Campaign, snapshot.Country, snapshot.Region, snapshot.City,
+		snapshot.Source, snapshot.UTMSource, snapshot.UTMMedium, snapshot.Medium, snapshot.Campaign, snapshot.Country, snapshot.Region, snapshot.City,
 		snapshot.Browser, snapshot.OS, snapshot.BrowserVer, snapshot.OSVer, snapshot.Language, snapshot.Hostname,
 		snapshot.ScreenBucket, snapshot.Device, snapshot.Pageviews,
 		snapshot.Events, snapshot.EngagementMS, snapshot.Bounce,

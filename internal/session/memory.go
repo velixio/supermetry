@@ -77,6 +77,7 @@ type memoryShard struct {
 	dirty     []*memorySession
 	overflow  map[*memorySession]*overflowCounts
 	utmSource map[*memorySession]int32
+	utmMedium map[*memorySession]int32
 	_         [24]byte // reduce false sharing between frequently locked shards
 }
 
@@ -184,6 +185,7 @@ func (m *Memory) Touch(h Hit) Result {
 	replaced := currentShard.sessions[currentKey]
 	s := m.newSession(h)
 	m.setUTMSource(currentShard, s, h.UTMSource)
+	m.setUTMMedium(currentShard, s, h.UTMMedium)
 	m.apply(currentShard, s, h)
 	if replaced != nil && h.TS.UnixNano() < replaced.lastNS {
 		s.status &^= statusActive
@@ -274,6 +276,7 @@ func (m *Memory) Dirty(max int) []Snapshot {
 			if s.status&statusActive == 0 {
 				delete(sh.overflow, s)
 				delete(sh.utmSource, s)
+				delete(sh.utmMedium, s)
 			}
 		}
 		copy(sh.dirty, sh.dirty[n:])
@@ -354,6 +357,7 @@ func (m *Memory) Restore(snapshots []Snapshot) {
 		s := restoredSession(snapshot)
 		sh.sessions[key] = s
 		m.setUTMSource(sh, s, snapshot.UTMSource)
+		m.setUTMMedium(sh, s, snapshot.UTMMedium)
 		m.setCounts(sh, s, snapshot.Pageviews, snapshot.Events)
 		sh.mu.Unlock()
 	}
@@ -490,6 +494,7 @@ func (m *Memory) deactivate(sh *memoryShard, key sessionKey, s *memorySession) {
 	if s.status&statusQueued == 0 {
 		delete(sh.overflow, s)
 		delete(sh.utmSource, s)
+		delete(sh.utmMedium, s)
 	}
 }
 
@@ -517,6 +522,10 @@ func (m *Memory) moveOwnership(from, to *memoryShard, s *memorySession) {
 		m.setUTMSource(to, s, utmSource)
 		delete(from.utmSource, s)
 	}
+	if utmMedium := from.utmMedium[s]; utmMedium != 0 {
+		m.setUTMMedium(to, s, utmMedium)
+		delete(from.utmMedium, s)
+	}
 }
 
 func (m *Memory) snapshot(sh *memoryShard, s *memorySession) Snapshot {
@@ -537,6 +546,7 @@ func (m *Memory) snapshot(sh *memoryShard, s *memorySession) Snapshot {
 		Bounce:       pageviews == 1 && events == 0,
 		Source:       s.source,
 		UTMSource:    sh.utmSource[s],
+		UTMMedium:    sh.utmMedium[s],
 		Medium:       s.medium,
 		Campaign:     s.campaign,
 		Country:      decodeCountry(s.country),
@@ -561,6 +571,16 @@ func (m *Memory) setUTMSource(sh *memoryShard, s *memorySession, source int32) {
 		sh.utmSource = make(map[*memorySession]int32)
 	}
 	sh.utmSource[s] = source
+}
+
+func (m *Memory) setUTMMedium(sh *memoryShard, s *memorySession, medium int32) {
+	if medium == 0 {
+		return
+	}
+	if sh.utmMedium == nil {
+		sh.utmMedium = make(map[*memorySession]int32)
+	}
+	sh.utmMedium[s] = medium
 }
 
 func (m *Memory) counts(sh *memoryShard, s *memorySession) (int32, int32) {
