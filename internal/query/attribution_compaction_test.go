@@ -32,20 +32,20 @@ insert into dict(kind,id,value) values
  (7,30,'untagged'),(7,31,'purchase'),(7,99,'legacy');
 insert into sessions
  (site_id,retention_class,session_id,visitor_id,start,last,local_day,entry_path,exit_path,
-  source_id,utm_source_id,medium_id,campaign_id,pageviews,events,bounce)
+  source_id,utm_source_id,utm_medium_id,medium_id,campaign_id,pageviews,events,bounce)
 values
- (1,30,107,1007,'2026-10-07 12:00Z','2026-10-07 12:03Z','2026-10-07',1,1,10,10,11,12,1,2,false),
- (1,30,108,1008,'2026-10-08 12:00Z','2026-10-08 12:03Z','2026-10-08',1,1,10,10,11,12,1,2,false);
+ (1,30,107,1007,'2026-10-07 12:00Z','2026-10-07 12:03Z','2026-10-07',1,1,10,10,11,11,12,1,2,false),
+ (1,30,108,1008,'2026-10-08 12:00Z','2026-10-08 12:03Z','2026-10-08',1,1,10,10,11,11,12,1,2,false);
 insert into events
  (site_id,retention_class,local_day,ts,visitor_id,session_id,kind,name_id,path_id,
-  source_id,utm_source_id,medium_id,campaign_id,utm_content_id,utm_term_id,revenue_micros,revenue_currency)
+  source_id,utm_source_id,utm_medium_id,medium_id,campaign_id,utm_content_id,utm_term_id,revenue_micros,revenue_currency)
 values
- (1,30,'2026-10-07','2026-10-07 12:00Z',1007,107,0,0,1,10,10,11,12,13,14,0,null),
- (1,30,'2026-10-07','2026-10-07 12:01Z',1007,107,1,30,1,0,0,0,0,0,0,0,null),
- (1,30,'2026-10-07','2026-10-07 12:02Z',1007,107,1,31,1,20,20,21,22,23,24,7000000,'USD'),
- (1,30,'2026-10-08','2026-10-08 12:00Z',1008,108,0,0,1,10,10,11,12,13,14,0,null),
- (1,30,'2026-10-08','2026-10-08 12:01Z',1008,108,1,30,1,0,0,0,0,0,0,0,null),
- (1,30,'2026-10-08','2026-10-08 12:02Z',1008,108,1,31,1,20,20,21,22,23,24,11000000,'USD')`); err != nil {
+ (1,30,'2026-10-07','2026-10-07 12:00Z',1007,107,0,0,1,10,10,11,11,12,13,14,0,null),
+ (1,30,'2026-10-07','2026-10-07 12:01Z',1007,107,1,30,1,0,0,0,0,0,0,0,0,null),
+ (1,30,'2026-10-07','2026-10-07 12:02Z',1007,107,1,31,1,20,20,21,21,22,23,24,7000000,'USD'),
+ (1,30,'2026-10-08','2026-10-08 12:00Z',1008,108,0,0,1,10,10,11,11,12,13,14,0,null),
+ (1,30,'2026-10-08','2026-10-08 12:01Z',1008,108,1,30,1,0,0,0,0,0,0,0,0,null),
+ (1,30,'2026-10-08','2026-10-08 12:02Z',1008,108,1,31,1,20,20,21,21,22,23,24,11000000,'USD')`); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 {
@@ -54,8 +54,8 @@ values
 		}
 	}
 	if _, err := pool.Exec(ctx, `insert into custom_closed
- (site_id,day,visitor_id,name_id,path_id,source_id,utm_source_id,medium_id,campaign_id,utm_content_id,utm_term_id,revenue_micros,revenue_currency)
- values(1,'2026-10-07',9999,99,1,10,10,11,12,13,14,5000000,'USD')`); err != nil {
+ (site_id,day,visitor_id,name_id,path_id,source_id,utm_source_id,utm_medium_id,medium_id,campaign_id,utm_content_id,utm_term_id,revenue_micros,revenue_currency)
+ values(1,'2026-10-07',9999,99,1,10,10,11,11,12,13,14,5000000,'USD')`); err != nil {
 		t.Fatal(err)
 	}
 
