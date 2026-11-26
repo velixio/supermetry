@@ -14,7 +14,7 @@ const messages: MessageTree = {
     verified: 'Verificadas',
     tabs: {
       top: 'Principales', entry: 'Entrada', exit: 'Salida', source: 'Fuente', channel: 'Canales', utmSource: 'Fuente UTM',
-      medium: 'Medio', campaign: 'Campaña', countries: 'Países', regions: 'Regiones', cities: 'Ciudades',
+      medium: 'Medio', campaign: 'Campaña', content: 'Contenido', term: 'Término', countries: 'Países', regions: 'Regiones', cities: 'Ciudades',
       language: 'Idioma', hostname: 'Hostname', browser: 'Navegador', browserVersion: 'Versión del navegador', os: 'SO',
       osVersion: 'Versión del SO', device: 'Dispositivo', screenSize: 'Tamaño de pantalla', goals: 'Objetivos', events: 'Eventos',
     },
@@ -176,7 +176,7 @@ const messages: MessageTree = {
     trafficScope: 'En todos los días y horas coincidentes del rango seleccionado, en la zona horaria del proyecto.',
     dimensions: {
       page: 'Página', entry: 'Página de entrada', exit: 'Página de salida', source: 'Fuente', channel: 'Canal',
-      utm_source: 'Fuente UTM', utm_medium: 'Medio UTM', utm_campaign: 'Campaña UTM', country: 'País',
+      utm_source: 'Fuente UTM', utm_medium: 'Medio UTM', utm_campaign: 'Campaña UTM', utm_content: 'Contenido UTM', utm_term: 'Término UTM', country: 'País',
       region: 'Región', city: 'Ciudad', language: 'Idioma', hostname: 'Nombre de host', browser: 'Navegador',
       browser_version: 'Versión del navegador', os: 'Sistema operativo', os_version: 'Versión del sistema operativo', device: 'Dispositivo',
       screen_size: 'Tamaño de pantalla', goal: 'Objetivo', event: 'Evento', weekday_hour: 'Ritmo semanal',
