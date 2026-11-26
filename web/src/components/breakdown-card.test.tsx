@@ -475,9 +475,15 @@ describe('BreakdownCard', () => {
       expect(cloud.closest('[data-slot="top-list-actions"]')).toHaveClass('opacity-0', 'group-hover/row:opacity-100', 'group-focus-within/row:opacity-100')
     })
 
-    it('offers no link for a page row when the site has no concrete host', () => {
+    it('links page rows to the base domain when the site only allows a wildcard host', () => {
       useStats.mockReturnValue(result({ data: pagesData }))
       render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} allowedHosts={['*.example.com']} />)
+      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).toMatch(/^https:\/\/example\.com\//)
+    })
+
+    it('offers no link for a page row when the site allows any host', () => {
+      useStats.mockReturnValue(result({ data: pagesData }))
+      render(<BreakdownCard title="Pages" tabs={pageTabs} query={baseQuery} onFilter={vi.fn()} allowedHosts={[]} />)
       expect(screen.queryByRole('link')).toBeNull()
     })
 
