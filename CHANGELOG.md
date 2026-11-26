@@ -6,6 +6,26 @@ Supermetry is a self-hosted web analytics product: one Go binary and PostgreSQL,
 
 ## Unreleased
 
+## v0.1.34 (2026-11-26)
+
+### Upgrade note
+
+- Migration 0329 stores the raw UTM medium and clears the old UTM medium rollups. After upgrading, run `supermetry backfill-utm-medium` once to restore UTM medium history for tagged visits. It is batched and safe to re-run.
+
+### Added
+
+- Sources card: UTM Content and Term tabs.
+- Session replay: a Play/Pause button.
+
+### Fixed
+
+- The Channels tab in the Sources card no longer times out.
+- The UTM medium tab shows only tagged traffic; organic and referral visits no longer appear there.
+- A `utm_medium` sent without a `utm_source` is no longer dropped.
+- The session list keeps its scroll position when a replay is opened or closed.
+- Page links in the Pages card also work on sites whose only allowed host is a wildcard such as `*.example.com`.
+- The tracker no longer counts a tagged form twice.
+
 ## v0.1.33 (2026-11-19)
 
 ### Fixed
