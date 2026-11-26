@@ -546,7 +546,7 @@ func (h *Handler) buildEvent(
 		SiteID: site.ID, Retention: site.Retention, TS: now, LocalDay: localDay,
 		VisitorID: visitorID, PrevVisitorID: previousVisitorID, Kind: kind,
 		JoinOnly: kind == 2 || payload.Name == "Web Vitals",
-		PathID:   pathID, NameID: nameID, Source: sourceID, UTMSource: utmSourceID, UTMMedium: utmMediumID, Medium: mediumID,
+		PathID:   pathID, NameID: nameID, Source: sourceID, UTMSource: utmSourceID, UTMMedium: utmMediumID, Medium: mediumID, UTMContent: utmContentID, UTMTerm: utmTermID,
 		Campaign: campaignID, Country: location.Country, Region: regionID, City: cityID,
 		Browser: browserID, OS: osID, BrowserVer: browserVersionID, OSVer: osVersionID,
 		Language: languageID, Hostname: hostnameID, ScreenBucket: enrich.ScreenBucket(screenWidth),
@@ -558,7 +558,6 @@ func (h *Handler) buildEvent(
 	}
 	return writer.Event{
 		Props: props, Screen: int16(screenWidth), ReferrerID: referrerID,
-		UTMContent: utmContentID, UTMTerm: utmTermID,
 		RevenueMicros: payload.RevenueMicros, RevenueCurrency: payload.RevenueCurrency,
 	}, hit, nil
 }

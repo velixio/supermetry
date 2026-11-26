@@ -9,6 +9,13 @@ ALTER TABLE events
 ALTER TABLE sessions
     ADD COLUMN utm_medium_id integer NOT NULL DEFAULT 0;
 
+-- Hot sessions also keep the first hit's utm_content/utm_term so the hot-tier
+-- breakdowns need no per-session events lookup. Sessions opened before this
+-- migration keep 0 until closed (the closer reads the first event).
+ALTER TABLE sessions
+    ADD COLUMN utm_content_id integer NOT NULL DEFAULT 0,
+    ADD COLUMN utm_term_id integer NOT NULL DEFAULT 0;
+
 ALTER TABLE sessions_closed
     ADD COLUMN utm_medium_id integer NOT NULL DEFAULT 0;
 

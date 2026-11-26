@@ -97,5 +97,6 @@ func (w *Writer) suppressRestrictedSessions(snapshots []session.Snapshot) {
 			continue
 		}
 		s.Source, s.UTMSource, s.UTMMedium, s.Medium, s.Campaign = 0, 0, 0, 0, 0
+		s.UTMContent, s.UTMTerm = 0, 0
 	}
 }

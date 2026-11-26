@@ -107,6 +107,7 @@ func (s *Service) enqueueVisits(
 				PathID: dims.path[syntheticHit.Path], NameID: nameID,
 				Source: dims.source[sources[visitIndex]], UTMSource: dims.utmSource[visit.UTMSource], UTMMedium: dims.medium[visit.UTMMedium],
 				Medium: dims.medium[mediums[visitIndex]], Campaign: dims.campaign[visit.UTMCampaign],
+				UTMContent: dims.content[visit.UTMContent], UTMTerm: dims.term[visit.UTMTerm],
 				Country: visit.Country, Region: dims.region[visit.Region], City: dims.city[visit.City],
 				Browser: dims.browser[visit.Browser], OS: dims.os[visit.OS],
 				BrowserVer: dims.browserVersion[visit.BrowserVer], OSVer: dims.osVersion[visit.OSVer],
@@ -124,7 +125,7 @@ func (s *Service) enqueueVisits(
 			}
 			event := writer.Event{
 				Hit: hit, SessionID: result.SessionID, Screen: int16(visit.ScreenW),
-				ReferrerID: dims.referrer[visit.Referrer], UTMContent: dims.content[visit.UTMContent], UTMTerm: dims.term[visit.UTMTerm],
+				ReferrerID:    dims.referrer[visit.Referrer],
 				RevenueMicros: syntheticHit.RevenueMicros, Props: syntheticHit.Props,
 			}
 			event.VisitorID = result.VisitorID

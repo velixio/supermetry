@@ -34,6 +34,8 @@ type Hit struct {
 	UTMMedium     int32
 	Medium        int32
 	Campaign      int32
+	UTMContent    int32
+	UTMTerm       int32
 	Country       string
 	Region        int32
 	City          int32
@@ -184,6 +186,8 @@ type Snapshot struct {
 	UTMMedium    int32
 	Medium       int32
 	Campaign     int32
+	UTMContent   int32
+	UTMTerm      int32
 	Country      string
 	Region       int32
 	City         int32
