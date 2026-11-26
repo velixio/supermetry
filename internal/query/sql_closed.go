@@ -64,6 +64,8 @@ var dimensionDefs = map[string]dimensionDef{
 	"utm_source":      {kind: dictionaryKind(dict.Source)},
 	"utm_medium":      {kind: dictionaryKind(dict.Medium)},
 	"utm_campaign":    {kind: dictionaryKind(dict.Campaign)},
+	"utm_content":     {kind: dictionaryKind(dict.UTMContent)},
+	"utm_term":        {kind: dictionaryKind(dict.UTMTerm)},
 	"event":           {kind: dictionaryKind(dict.EventName)},
 	// Goal breakdown rows expose stable saved-goal IDs, not event names.
 	"goal":    {},
@@ -205,9 +207,13 @@ func buildClosedSQL(req Normalized, part Part) (string, []any, error) {
 		case "utm_source":
 			return "s.utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
-			return "s.medium_id", dictionaryKind(dict.Medium), nil
+			return "s.utm_medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":
 			return "s.campaign_id", dictionaryKind(dict.Campaign), nil
+		case "utm_content":
+			return "s.utm_content_id", dictionaryKind(dict.UTMContent), nil
+		case "utm_term":
+			return "s.utm_term_id", dictionaryKind(dict.UTMTerm), nil
 		case "country":
 			return "s.country", nil, nil
 		case "region":
@@ -333,7 +339,7 @@ func closedCustomResolver(builder *sqlBuilder, alias string) dimensionResolver {
 		case "utm_source":
 			return prefix + "event_utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
-			return prefix + "event_utm_medium_id", dictionaryKind(dict.Medium), nil
+			return "coalesce(" + prefix + "event_raw_utm_medium_id,0)", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":
 			return prefix + "event_utm_campaign_id", dictionaryKind(dict.Campaign), nil
 		case "utm_content":
@@ -382,7 +388,7 @@ func customResolver(alias string, builder *sqlBuilder) dimensionResolver {
 		case dimension == "utm_source":
 			return prefix + "utm_source_id", dictionaryKind(dict.Source), nil
 		case dimension == "utm_medium":
-			return prefix + "medium_id", dictionaryKind(dict.Medium), nil
+			return prefix + "utm_medium_id", dictionaryKind(dict.Medium), nil
 		case dimension == "utm_campaign":
 			return prefix + "campaign_id", dictionaryKind(dict.Campaign), nil
 		case dimension == "utm_content":
@@ -512,7 +518,7 @@ func filterConditions(builder *sqlBuilder, filters []api.Filter, resolver dimens
 func presentDimensionConditions(dimensions []string, resolver dimensionResolver) ([]string, error) {
 	conditions := make([]string, 0, len(dimensions))
 	for _, dimension := range dimensions {
-		if dimension != "region" && dimension != "city" && dimension != "utm_source" && dimension != "utm_medium" && dimension != "utm_campaign" {
+		if dimension != "region" && dimension != "city" && dimension != "utm_source" && dimension != "utm_medium" && dimension != "utm_campaign" && dimension != "utm_content" && dimension != "utm_term" {
 			continue
 		}
 		column, _, err := resolver(dimension)

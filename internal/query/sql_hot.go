@@ -118,9 +118,18 @@ func buildHotSQL(req Normalized, part Part) (string, []any, error) {
 		case "utm_source":
 			return "s.utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
-			return "s.medium_id", dictionaryKind(dict.Medium), nil
+			return "s.utm_medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":
 			return "s.campaign_id", dictionaryKind(dict.Campaign), nil
+		case "utm_content", "utm_term":
+			// Hot sessions carry no content/term columns: attribute the
+			// session to its first event, as the closer does (0 = untagged).
+			column, kind := "fe.utm_content_id", dict.UTMContent
+			if dimension == "utm_term" {
+				column, kind = "fe.utm_term_id", dict.UTMTerm
+			}
+			startArg, endArg := hotEventRangeArgs(builder, part)
+			return "coalesce((select " + column + " from events fe where fe.site_id=s.site_id and fe.session_id=s.session_id and fe.ts>=" + startArg + " and fe.ts<" + endArg + " order by fe.ts limit 1),0)", dictionaryKind(kind), nil
 		case "country":
 			return "s.country", nil, nil
 		case "region":

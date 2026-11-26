@@ -52,8 +52,10 @@ var validDimensions = map[string]struct{}{
 	"screen_size":     {},
 	"time":            {},
 	"utm_campaign":    {},
+	"utm_content":     {},
 	"utm_medium":      {},
 	"utm_source":      {},
+	"utm_term":        {},
 	"weekday":         {},
 }
 
@@ -241,7 +243,7 @@ func needsEventAttribution(dimensions []string, filters []api.Filter, metrics []
 
 func isAttributionDimension(dimension string) bool {
 	switch dimension {
-	case "source", "channel", "utm_source", "utm_medium", "utm_campaign":
+	case "source", "channel", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term":
 		return true
 	default:
 		return false
