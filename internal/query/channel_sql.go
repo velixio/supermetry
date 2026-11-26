@@ -42,8 +42,11 @@ func channelSetSQL(column string, kind dict.Kind, values []string) string {
 		}
 	}
 	if len(named) > 0 {
-		parts = append(parts, column+" in (select cd.id from dict cd where cd.kind="+
-			strconv.Itoa(int(kind))+" and cd.value in ("+strings.Join(named, ",")+"))")
+		// ARRAY(subquery) is uncorrelated, so it runs once per query as an InitPlan.
+		// An IN (subquery) here became a hashed SubPlan copied into every
+		// partition scan: the channel breakdown timed out on partitioned tables.
+		parts = append(parts, column+" = any(array(select cd.id from dict cd where cd.kind="+
+			strconv.Itoa(int(kind))+" and cd.value in ("+strings.Join(named, ",")+")))")
 	}
 	return "(" + strings.Join(parts, " or ") + ")"
 }
