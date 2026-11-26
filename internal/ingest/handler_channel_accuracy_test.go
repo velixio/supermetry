@@ -25,7 +25,7 @@ func TestChannelAndCampaignBreakdownsAcrossStorageTiers(t *testing.T) {
 	fixture.h.TrackingMode = privacy.Identified
 	setProfilesEnabled(t, fixture, true)
 	bodies := []string{
-		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/?utm_source=newsletter&utm_medium=email&utm_campaign=autumn"}`,
+		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/?utm_source=newsletter&utm_medium=email&utm_campaign=autumn&utm_content=hero&utm_term=analytics"}`,
 		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/","referrer":"https://www.google.com/"}`,
 		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/","referrer":"https://blog.example.org/post"}`,
 		`{"site":"abc123","name":"pageview","url":"https://supermetry.com/"}`,
@@ -52,6 +52,9 @@ func TestChannelAndCampaignBreakdownsAcrossStorageTiers(t *testing.T) {
 		for dimension, want := range map[string]string{
 			"channel":      "Direct=1,Email=1,Organic Search=1,Paid Search=1,Referral=1",
 			"utm_campaign": "autumn=1,winter=1",
+			"utm_medium":   "cpc=1,email=1",
+			"utm_content":  "hero=1",
+			"utm_term":     "analytics=1",
 		} {
 			if got := breakdown(t, engine, day, dimension); got != want {
 				t.Errorf("%s = %s, want %s", dimension, got, want)

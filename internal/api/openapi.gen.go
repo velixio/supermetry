@@ -2366,8 +2366,10 @@ const (
 	StatsBreakdownDimensionSource         StatsBreakdownDimension = "source"
 	StatsBreakdownDimensionTime           StatsBreakdownDimension = "time"
 	StatsBreakdownDimensionUtmCampaign    StatsBreakdownDimension = "utm_campaign"
+	StatsBreakdownDimensionUtmContent     StatsBreakdownDimension = "utm_content"
 	StatsBreakdownDimensionUtmMedium      StatsBreakdownDimension = "utm_medium"
 	StatsBreakdownDimensionUtmSource      StatsBreakdownDimension = "utm_source"
+	StatsBreakdownDimensionUtmTerm        StatsBreakdownDimension = "utm_term"
 	StatsBreakdownDimensionWeekday        StatsBreakdownDimension = "weekday"
 )
 
@@ -2420,9 +2422,13 @@ func (e StatsBreakdownDimension) Valid() bool {
 		return true
 	case StatsBreakdownDimensionUtmCampaign:
 		return true
+	case StatsBreakdownDimensionUtmContent:
+		return true
 	case StatsBreakdownDimensionUtmMedium:
 		return true
 	case StatsBreakdownDimensionUtmSource:
+		return true
+	case StatsBreakdownDimensionUtmTerm:
 		return true
 	case StatsBreakdownDimensionWeekday:
 		return true

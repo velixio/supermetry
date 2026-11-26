@@ -8,7 +8,7 @@ const messages: MessageTree = {
     verifiedPages: 'যাচাইকৃত পেজ', channels: 'চ্যানেল', verified: 'যাচাইকৃত',
     tabs: {
       top: 'শীর্ষ', entry: 'প্রবেশ', exit: 'প্রস্থান', source: 'উৎস', channel: 'চ্যানেল', utmSource: 'UTM উৎস',
-      medium: 'মাধ্যম', campaign: 'প্রচারণা', countries: 'দেশ', regions: 'অঞ্চল', cities: 'শহর',
+      medium: 'মাধ্যম', campaign: 'প্রচারণা', content: 'কনটেন্ট', term: 'শব্দ', countries: 'দেশ', regions: 'অঞ্চল', cities: 'শহর',
       language: 'ভাষা', hostname: 'হোস্টনেম', browser: 'ব্রাউজার', browserVersion: 'ব্রাউজার সংস্করণ', os: 'OS',
       osVersion: 'OS সংস্করণ', device: 'ডিভাইস', screenSize: 'স্ক্রিনের আকার', goals: 'লক্ষ্য', events: 'ইভেন্ট',
     },
@@ -90,7 +90,7 @@ const messages: MessageTree = {
     cellHint: 'পরিদর্শনের জন্য একটি সেল বেছে নিন।', trafficScope: 'নির্বাচিত সময়সীমায় প্রকল্পের সময় অঞ্চলের সব মিলে যাওয়া বার ও ঘণ্টাজুড়ে।',
     dimensions: {
       page: 'পেজ', entry: 'প্রবেশ পেজ', exit: 'প্রস্থান পেজ', source: 'উৎস', channel: 'চ্যানেল', utm_source: 'UTM উৎস',
-      utm_medium: 'UTM মাধ্যম', utm_campaign: 'UTM প্রচারণা', country: 'দেশ', region: 'অঞ্চল', city: 'শহর', language: 'ভাষা',
+      utm_medium: 'UTM মাধ্যম', utm_campaign: 'UTM প্রচারণা', utm_content: 'UTM কনটেন্ট', utm_term: 'UTM শব্দ', country: 'দেশ', region: 'অঞ্চল', city: 'শহর', language: 'ভাষা',
       hostname: 'হোস্টনেম', browser: 'ব্রাউজার', browser_version: 'ব্রাউজার সংস্করণ', os: 'OS', os_version: 'OS সংস্করণ',
       device: 'ডিভাইস', screen_size: 'স্ক্রিনের আকার', goal: 'লক্ষ্য', event: 'ইভেন্ট', weekday_hour: 'সাপ্তাহিক ছন্দ',
     },

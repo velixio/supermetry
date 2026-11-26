@@ -37,7 +37,7 @@ export const trafficMetrics: readonly Metric[] = ['visitors', 'pageviews']
 
 export const dimensions: readonly string[] = [
   'page', 'entry', 'exit', 'source', 'channel', 'country', 'region', 'city', 'browser', 'os', 'device',
-  'screen_size', 'language', 'hostname', 'utm_source', 'utm_medium', 'utm_campaign',
+  'screen_size', 'language', 'hostname', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
 ]
 
 export const periods: readonly WidgetPeriod[] = [

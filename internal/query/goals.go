@@ -359,7 +359,7 @@ func goalBreakdownFilterConditions(builder *sqlBuilder, req Normalized, tier tie
 		case "utm_source":
 			return "s.utm_source_id", dictionaryKind(dict.Source), nil
 		case "utm_medium":
-			return "s.medium_id", dictionaryKind(dict.Medium), nil
+			return "s.utm_medium_id", dictionaryKind(dict.Medium), nil
 		case "utm_campaign":
 			return "s.campaign_id", dictionaryKind(dict.Campaign), nil
 		case "country":

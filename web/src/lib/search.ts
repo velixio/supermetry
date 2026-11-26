@@ -217,8 +217,10 @@ const dimensions = new Set([
   'screen_size',
   'time',
   'utm_campaign',
+  'utm_content',
   'utm_medium',
   'utm_source',
+  'utm_term',
 ])
 
 function validDimension(dimension: string): boolean {
