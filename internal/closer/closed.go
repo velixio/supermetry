@@ -44,7 +44,7 @@ pageviews as (
 
 const closeSessionsSQL = `
 insert into sessions_closed (
-  site_id, day, visitor_id, session_id, started_at, profile_id, source_id, utm_source_id, medium_id, campaign_id,
+  site_id, day, visitor_id, session_id, started_at, profile_id, source_id, utm_source_id, utm_medium_id, medium_id, campaign_id,
   utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
   browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket, device,
   entry_path, exit_path, pageviews, custom, duration_ms, engagement_ms,
@@ -71,7 +71,7 @@ with candidate_sessions as (
 ), session_rows as (
 	 select s.site_id, s.visitor_id, s.session_id, s.start,
 	        profile.profile_id,
-	        s.source_id, s.utm_source_id, s.medium_id, s.campaign_id,
+	        s.source_id, s.utm_source_id, s.utm_medium_id, s.medium_id, s.campaign_id,
 	        coalesce(attribution.utm_content_id, 0) as utm_content_id,
 	        coalesce(attribution.utm_term_id, 0) as utm_term_id,
 	         first_value(s.country) over visitor_order as country,
@@ -117,7 +117,7 @@ with candidate_sessions as (
          visitor_order as (partition by s.site_id, s.visitor_id order by s.start, s.session_id)
 )
 select s.site_id, $1, s.visitor_id, s.session_id, s.start, s.profile_id,
-	       s.source_id, s.utm_source_id, s.medium_id, s.campaign_id, s.utm_content_id, s.utm_term_id,
+	       s.source_id, s.utm_source_id, s.utm_medium_id, s.medium_id, s.campaign_id, s.utm_content_id, s.utm_term_id,
        s.country, s.region_id, s.city_id, s.browser_id, s.os_id,
        s.browser_ver_id, s.os_ver_id, s.language_id, s.hostname_id, s.screen_bucket,
        s.device, s.entry_path, s.exit_path,
@@ -129,20 +129,20 @@ order by s.site_id, s.country, s.visitor_id, s.start, s.session_id`
 
 const closeCustomSQL = `
 insert into custom_closed (
-  site_id, day, visitor_id, session_id, name_id, path_id, source_id, utm_source_id, medium_id,
+  site_id, day, visitor_id, session_id, name_id, path_id, source_id, utm_source_id, utm_medium_id, medium_id,
   campaign_id, utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
   browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket,
   device, entry_path, exit_path, props, revenue_micros, revenue_currency,
   event_source_id, event_utm_source_id, event_utm_medium_id,
-  event_utm_campaign_id, event_utm_content_id, event_utm_term_id
+  event_utm_campaign_id, event_utm_content_id, event_utm_term_id, event_raw_utm_medium_id
 )
 select c.site_id, $1, c.visitor_id, e.session_id, e.name_id, e.path_id,
-       c.source_id, c.utm_source_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
+       c.source_id, c.utm_source_id, c.utm_medium_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
        c.country, c.region_id, c.city_id, c.browser_id, c.os_id,
        c.browser_ver_id, c.os_ver_id, c.language_id, c.hostname_id, c.screen_bucket,
        c.device, c.entry_path, c.exit_path, e.props,
        e.revenue_micros, e.revenue_currency,
-       e.source_id, e.utm_source_id, e.medium_id, e.campaign_id, e.utm_content_id, e.utm_term_id
+       e.source_id, e.utm_source_id, e.medium_id, e.campaign_id, e.utm_content_id, e.utm_term_id, e.utm_medium_id
 from events e
 join sessions_closed c
   on c.site_id = e.site_id and c.session_id = e.session_id and c.day = $1
@@ -151,20 +151,20 @@ order by c.site_id, e.ts, e.session_id`
 
 const recloseCustomSQL = `
 insert into custom_closed (
-  site_id, day, visitor_id, session_id, name_id, path_id, source_id, utm_source_id, medium_id,
+  site_id, day, visitor_id, session_id, name_id, path_id, source_id, utm_source_id, utm_medium_id, medium_id,
   campaign_id, utm_content_id, utm_term_id, country, region_id, city_id, browser_id, os_id,
   browser_ver_id, os_ver_id, language_id, hostname_id, screen_bucket,
   device, entry_path, exit_path, props, revenue_micros, revenue_currency,
   event_source_id, event_utm_source_id, event_utm_medium_id,
-  event_utm_campaign_id, event_utm_content_id, event_utm_term_id
+  event_utm_campaign_id, event_utm_content_id, event_utm_term_id, event_raw_utm_medium_id
 )
 select c.site_id, $1, c.visitor_id, e.session_id, e.name_id, e.path_id,
-       c.source_id, c.utm_source_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
+       c.source_id, c.utm_source_id, c.utm_medium_id, c.medium_id, c.campaign_id, c.utm_content_id, c.utm_term_id,
        c.country, c.region_id, c.city_id, c.browser_id, c.os_id,
        c.browser_ver_id, c.os_ver_id, c.language_id, c.hostname_id, c.screen_bucket,
        c.device, c.entry_path, c.exit_path, e.props,
        e.revenue_micros, e.revenue_currency,
-       e.source_id, e.utm_source_id, e.medium_id, e.campaign_id, e.utm_content_id, e.utm_term_id
+       e.source_id, e.utm_source_id, e.medium_id, e.campaign_id, e.utm_content_id, e.utm_term_id, e.utm_medium_id
 from events e
 join sessions_closed c
   on c.site_id=e.site_id and c.session_id=e.session_id and c.day=$1
