@@ -174,8 +174,13 @@ export function ReplayPlayer({
       {state.loading ? <Skeleton aria-label="Loading replay" className="h-96 w-full" /> : null}
       {state.error ? <Card role="alert"><CardHeader><CardTitle>Replay unavailable</CardTitle></CardHeader><CardContent>{state.error}</CardContent></Card> : null}
       {state.truncated ? <Card role="status"><CardHeader><CardTitle>Recording truncated</CardTitle></CardHeader><CardContent>The replay ends at the last complete event.</CardContent></Card> : null}
+      <div
+        ref={target}
+        data-testid="replay-stage"
+        className="replay-player min-h-72 w-full flex-1 overflow-hidden rounded-lg bg-muted"
+      />
       {player?.play && player.pause ? (
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center justify-center gap-2" data-testid="replay-controls">
           <Button
             aria-label={playback === 'playing' ? 'Pause replay' : 'Play replay'}
             aria-pressed={playback === 'playing'}
@@ -193,11 +198,6 @@ export function ReplayPlayer({
           </Button>
         </div>
       ) : null}
-      <div
-        ref={target}
-        data-testid="replay-stage"
-        className="replay-player min-h-72 w-full flex-1 overflow-hidden rounded-lg bg-muted"
-      />
     </div>
   )
 }

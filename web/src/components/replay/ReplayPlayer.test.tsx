@@ -42,7 +42,10 @@ describe('ReplayPlayer', () => {
     }))
     render(<ReplayPlayer load={() => Promise.resolve({ events: [], truncated: false })} mountPlayer={mountPlayer} />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pause replay' }))
+    const pauseButton = await screen.findByRole('button', { name: 'Pause replay' })
+    // Media-player layout: the controls sit below the replay, not above it.
+    expect(screen.getByTestId('replay-stage').compareDocumentPosition(pauseButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(pauseButton)
     expect(pause).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'Play replay' }))
     expect(play).toHaveBeenCalledOnce()
