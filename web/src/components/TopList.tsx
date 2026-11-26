@@ -49,9 +49,15 @@ export function rowLink(dimension: string, value: string, siteHost?: string): Ro
   return undefined
 }
 
-/** The first concrete host the site collects for; wildcard patterns have no single address. */
+/**
+ * The host page paths open on: the first concrete allowed host, else the base
+ * domain of a `*.example.com` pattern (example.com).
+ */
 export function primaryHost(allowedHosts?: string[]): string | undefined {
-  return allowedHosts?.find((host) => host !== '' && !host.includes('*'))
+  const concrete = allowedHosts?.find((host) => host !== '' && !host.includes('*'))
+  if (concrete) return concrete
+  const wildcard = allowedHosts?.find((host) => host.startsWith('*.') && !host.slice(2).includes('*'))
+  return wildcard ? wildcard.slice(2) : undefined
 }
 
 export function OpenLinkAction({ link }: { link: RowLink }) {
