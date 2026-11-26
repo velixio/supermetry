@@ -344,7 +344,7 @@ func (s *Service) enqueueLiveHit(
 	hit := session.Hit{
 		SiteID: site.ID, Retention: site.Retention, TS: timestamp, LocalDay: salts.LocalDay(timestamp, site.TZ),
 		VisitorID: visitorID, Kind: syntheticHit.Kind, PathID: dims.path[syntheticHit.Path], NameID: nameID,
-		Source: dims.source[source], UTMSource: dims.utmSource[visit.UTMSource], Medium: dims.medium[medium], Campaign: dims.campaign[visit.UTMCampaign],
+		Source: dims.source[source], UTMSource: dims.utmSource[visit.UTMSource], UTMMedium: dims.medium[visit.UTMMedium], Medium: dims.medium[medium], Campaign: dims.campaign[visit.UTMCampaign],
 		Country: visit.Country, Region: dims.region[visit.Region], City: dims.city[visit.City],
 		Browser: dims.browser[visit.Browser], OS: dims.os[visit.OS], BrowserVer: dims.browserVersion[visit.BrowserVer], OSVer: dims.osVersion[visit.OSVer],
 		Language: dims.language[visit.Language], Hostname: dims.hostname[visit.Host], ScreenBucket: enrich.ScreenBucket(visit.ScreenW), Device: visit.Device,

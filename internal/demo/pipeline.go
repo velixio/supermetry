@@ -105,7 +105,7 @@ func (s *Service) enqueueVisits(
 				SiteID: site.ID, Retention: site.Retention, TS: timestamp, LocalDay: localDay,
 				VisitorID: visitorID, Kind: syntheticHit.Kind,
 				PathID: dims.path[syntheticHit.Path], NameID: nameID,
-				Source: dims.source[sources[visitIndex]], UTMSource: dims.utmSource[visit.UTMSource],
+				Source: dims.source[sources[visitIndex]], UTMSource: dims.utmSource[visit.UTMSource], UTMMedium: dims.medium[visit.UTMMedium],
 				Medium: dims.medium[mediums[visitIndex]], Campaign: dims.campaign[visit.UTMCampaign],
 				Country: visit.Country, Region: dims.region[visit.Region], City: dims.city[visit.City],
 				Browser: dims.browser[visit.Browser], OS: dims.os[visit.OS],
@@ -261,6 +261,7 @@ func (s *Service) demoDimensions(ctx context.Context, siteID int32, visits []syn
 			add(kind, value)
 		}
 		add(dict.Source, visit.UTMSource)
+		add(dict.Medium, visit.UTMMedium)
 		for _, hit := range visit.Hits {
 			add(dict.Path, hit.Path)
 			if hit.Kind == 1 {

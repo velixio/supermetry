@@ -249,7 +249,7 @@ func (l *ndjsonLoader) loadChunk(ctx context.Context, records []loadRecord) erro
 		hit := session.Hit{
 			SiteID: site.ID, Retention: site.Retention, TS: record.TS, LocalDay: localDay,
 			VisitorID: visitorID, PrevVisitorID: previousVisitorID, Kind: kind,
-			PathID: dimensions.paths[i], NameID: nameID, Source: dimensions.sources[i], UTMSource: dimensions.utmSources[i],
+			PathID: dimensions.paths[i], NameID: nameID, Source: dimensions.sources[i], UTMSource: dimensions.utmSources[i], UTMMedium: dimensions.utmMediums[i],
 			Medium: dimensions.mediums[i], Campaign: dimensions.campaigns[i],
 			Country: record.Country, Region: dimensions.regions[i], City: dimensions.cities[i],
 			Browser: dimensions.browsers[i], OS: dimensions.operatingSystems[i],
@@ -301,7 +301,7 @@ func (l *ndjsonLoader) ensurePartitions(ctx context.Context, first, last time.Ti
 }
 
 type loadDimensions struct {
-	paths, referrers, sources, utmSources, mediums, campaigns, names, regions, cities, browsers, operatingSystems []int32
+	paths, referrers, sources, utmSources, utmMediums, mediums, campaigns, names, regions, cities, browsers, operatingSystems []int32
 }
 
 func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (loadDimensions, error) {
@@ -340,6 +340,7 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 		{dict.City, values(func(r loadRecord) string { return r.City }), nil},
 		{dict.Browser, values(func(r loadRecord) string { return r.Browser }), nil},
 		{dict.OS, values(func(r loadRecord) string { return r.OS }), nil},
+		{dict.Medium, values(func(r loadRecord) string { return r.UTMMedium }), nil},
 	}
 	dimensions := loadDimensions{}
 	lookups[0].to = &dimensions.paths
@@ -353,6 +354,7 @@ func (l *ndjsonLoader) dimensions(ctx context.Context, records []loadRecord) (lo
 	lookups[8].to = &dimensions.cities
 	lookups[9].to = &dimensions.browsers
 	lookups[10].to = &dimensions.operatingSystems
+	lookups[11].to = &dimensions.utmMediums
 	for _, lookup := range lookups {
 		ids, err := dimensionIDs(ctx, l.dictionary, lookup.kind, lookup.values)
 		if err != nil {
